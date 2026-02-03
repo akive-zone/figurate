@@ -1,0 +1,17 @@
+{
+    "agents": [
+        "cursor",
+        "claude_code",
+        "codex",
+        "opencode",
+        "gemini"
+    ],
+    "guidelines": true,
+    "herd_mcp": false,
+    "mcp": true,
+    "packages": [
+        "filament/filament",
+        "nativephp/mobile"
+    ],
+    "sail": false
+}
