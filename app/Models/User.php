@@ -2,8 +2,9 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -21,6 +22,10 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'type',
+        'provider',
+        'provider_id',
+        'status',
     ];
 
     /**
@@ -32,6 +37,31 @@ class User extends Authenticatable
         'password',
         'remember_token',
     ];
+
+    public function profile(): HasOne
+    {
+        return $this->hasOne(Profile::class);
+    }
+
+    public function requests(): HasMany
+    {
+        return $this->hasMany(Request::class, 'requester_id');
+    }
+
+    public function ratingsGiven(): HasMany
+    {
+        return $this->hasMany(Rating::class, 'rater_id');
+    }
+
+    public function ratingsReceived(): HasMany
+    {
+        return $this->hasMany(Rating::class, 'rated_id');
+    }
+
+    public function disputesOpened(): HasMany
+    {
+        return $this->hasMany(Dispute::class, 'opened_by');
+    }
 
     /**
      * Get the attributes that should be cast.
