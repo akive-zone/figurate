@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9099c4bb3b806a74498f1e96dce2a2f0",
+    "content-hash": "cb4355548611aab6449f37e92c97822f",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -4758,6 +4758,72 @@
             "time": "2026-01-15T06:54:53+00:00"
         },
         {
+            "name": "livewire/flux",
+            "version": "v2.11.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/livewire/flux.git",
+                "reference": "3ada3b2644215fd1ccb7003ce8e6bc185c22e70a"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/livewire/flux/zipball/3ada3b2644215fd1ccb7003ce8e6bc185c22e70a",
+                "reference": "3ada3b2644215fd1ccb7003ce8e6bc185c22e70a",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/console": "^10.0|^11.0|^12.0",
+                "illuminate/support": "^10.0|^11.0|^12.0",
+                "illuminate/view": "^10.0|^11.0|^12.0",
+                "laravel/prompts": "^0.1|^0.2|^0.3",
+                "livewire/livewire": "^3.7.4|^4.0",
+                "php": "^8.1",
+                "symfony/console": "^6.0|^7.0"
+            },
+            "conflict": {
+                "livewire/blaze": "<1.0.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "Flux": "Flux\\Flux"
+                    },
+                    "providers": [
+                        "Flux\\FluxServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Flux\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "proprietary"
+            ],
+            "authors": [
+                {
+                    "name": "Caleb Porzio",
+                    "email": "calebporzio@gmail.com"
+                }
+            ],
+            "description": "The official UI component library for Livewire.",
+            "keywords": [
+                "components",
+                "flux",
+                "laravel",
+                "livewire",
+                "ui"
+            ],
+            "support": {
+                "issues": "https://github.com/livewire/flux/issues",
+                "source": "https://github.com/livewire/flux/tree/v2.11.1"
+            },
+            "time": "2026-01-21T17:09:56+00:00"
+        },
+        {
             "name": "livewire/livewire",
             "version": "v3.7.8",
             "source": {
@@ -5087,6 +5153,408 @@
                 "source": "https://github.com/NativePHP/mobile-air/tree/3.0.0"
             },
             "time": "2026-01-31T05:23:25+00:00"
+        },
+        {
+            "name": "nativephp/mobile-browser",
+            "version": "1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/NativePHP/mobile-browser.git",
+                "reference": "1ba7d38e877137f8c458d5711e5abe0f73ad58a3"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/NativePHP/mobile-browser/zipball/1ba7d38e877137f8c458d5711e5abe0f73ad58a3",
+                "reference": "1ba7d38e877137f8c458d5711e5abe0f73ad58a3",
+                "shasum": ""
+            },
+            "require": {
+                "nativephp/mobile": "*",
+                "php": "^8.2"
+            },
+            "type": "nativephp-plugin",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Native\\Mobile\\Providers\\BrowserServiceProvider"
+                    ]
+                },
+                "nativephp": {
+                    "manifest": "nativephp.json"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Native\\Mobile\\Providers\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "NativePHP",
+                    "email": "info@nativephp.com"
+                }
+            ],
+            "description": "Browser functionality for NativePHP Mobile - open URLs in system browser, in-app browser, and OAuth authentication",
+            "support": {
+                "issues": "https://github.com/NativePHP/mobile-browser/issues",
+                "source": "https://github.com/NativePHP/mobile-browser/tree/1.0.0"
+            },
+            "time": "2026-01-19T23:53:04+00:00"
+        },
+        {
+            "name": "nativephp/mobile-camera",
+            "version": "1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/NativePHP/mobile-camera.git",
+                "reference": "3b39db4dae183a19cce1cb102e1223d731c46e24"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/NativePHP/mobile-camera/zipball/3b39db4dae183a19cce1cb102e1223d731c46e24",
+                "reference": "3b39db4dae183a19cce1cb102e1223d731c46e24",
+                "shasum": ""
+            },
+            "require": {
+                "nativephp/mobile": "*",
+                "php": "^8.2"
+            },
+            "type": "nativephp-plugin",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Native\\Mobile\\Providers\\CameraServiceProvider"
+                    ]
+                },
+                "nativephp": {
+                    "manifest": "nativephp.json"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Native\\Mobile\\Providers\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "NativePHP",
+                    "email": "info@nativephp.com"
+                }
+            ],
+            "description": "Camera plugin for NativePHP Mobile (Photo capture, Video recording, Gallery picker)",
+            "support": {
+                "issues": "https://github.com/NativePHP/mobile-camera/issues",
+                "source": "https://github.com/NativePHP/mobile-camera/tree/1.0.0"
+            },
+            "time": "2026-01-19T23:50:49+00:00"
+        },
+        {
+            "name": "nativephp/mobile-device",
+            "version": "1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/NativePHP/mobile-device.git",
+                "reference": "51e27e978843a082ac02c88ac59a84dfbe667660"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/NativePHP/mobile-device/zipball/51e27e978843a082ac02c88ac59a84dfbe667660",
+                "reference": "51e27e978843a082ac02c88ac59a84dfbe667660",
+                "shasum": ""
+            },
+            "require": {
+                "nativephp/mobile": "*",
+                "php": "^8.2"
+            },
+            "type": "nativephp-plugin",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Native\\Mobile\\Providers\\DeviceServiceProvider"
+                    ]
+                },
+                "nativephp": {
+                    "manifest": "nativephp.json"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Native\\Mobile\\Providers\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Device hardware operations for NativePHP Mobile",
+            "support": {
+                "issues": "https://github.com/NativePHP/mobile-device/issues",
+                "source": "https://github.com/NativePHP/mobile-device/tree/1.0.0"
+            },
+            "time": "2026-01-19T23:53:05+00:00"
+        },
+        {
+            "name": "nativephp/mobile-dialog",
+            "version": "1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/NativePHP/mobile-dialog.git",
+                "reference": "ce1958fff0c32a500688b9bc4ca9c426b5bd2c4f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/NativePHP/mobile-dialog/zipball/ce1958fff0c32a500688b9bc4ca9c426b5bd2c4f",
+                "reference": "ce1958fff0c32a500688b9bc4ca9c426b5bd2c4f",
+                "shasum": ""
+            },
+            "require": {
+                "nativephp/mobile": "*",
+                "php": "^8.2"
+            },
+            "type": "nativephp-plugin",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Native\\Mobile\\Providers\\DialogServiceProvider"
+                    ]
+                },
+                "nativephp": {
+                    "manifest": "nativephp.json"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Native\\Mobile\\Providers\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "NativePHP",
+                    "email": "support@nativephp.com"
+                }
+            ],
+            "description": "Native alert dialogs and toast notifications for NativePHP Mobile",
+            "support": {
+                "issues": "https://github.com/NativePHP/mobile-dialog/issues",
+                "source": "https://github.com/NativePHP/mobile-dialog/tree/1.0.0"
+            },
+            "time": "2026-01-19T23:53:05+00:00"
+        },
+        {
+            "name": "nativephp/mobile-file",
+            "version": "1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/NativePHP/mobile-file.git",
+                "reference": "c96d794c88f2def2462285f171c8d0ee6ddb3607"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/NativePHP/mobile-file/zipball/c96d794c88f2def2462285f171c8d0ee6ddb3607",
+                "reference": "c96d794c88f2def2462285f171c8d0ee6ddb3607",
+                "shasum": ""
+            },
+            "require": {
+                "nativephp/mobile": "*",
+                "php": "^8.2"
+            },
+            "type": "nativephp-plugin",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Native\\Mobile\\Providers\\FileServiceProvider"
+                    ]
+                },
+                "nativephp": {
+                    "manifest": "nativephp.json"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Native\\Mobile\\Providers\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "NativePHP",
+                    "email": "support@nativephp.com"
+                }
+            ],
+            "description": "File operations plugin for NativePHP Mobile",
+            "support": {
+                "issues": "https://github.com/NativePHP/mobile-file/issues",
+                "source": "https://github.com/NativePHP/mobile-file/tree/1.0.0"
+            },
+            "time": "2026-01-19T23:53:06+00:00"
+        },
+        {
+            "name": "nativephp/mobile-microphone",
+            "version": "1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/NativePHP/mobile-microphone.git",
+                "reference": "43c734c5c316f5a703fef95ce675eba8ea69566b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/NativePHP/mobile-microphone/zipball/43c734c5c316f5a703fef95ce675eba8ea69566b",
+                "reference": "43c734c5c316f5a703fef95ce675eba8ea69566b",
+                "shasum": ""
+            },
+            "require": {
+                "nativephp/mobile": "*",
+                "php": "^8.2"
+            },
+            "type": "nativephp-plugin",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Native\\Mobile\\Providers\\MicrophoneServiceProvider"
+                    ]
+                },
+                "nativephp": {
+                    "manifest": "nativephp.json"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Native\\Mobile\\Providers\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "NativePHP",
+                    "email": "support@nativephp.com"
+                }
+            ],
+            "description": "Microphone recording plugin for NativePHP Mobile - audio recording with pause/resume support",
+            "support": {
+                "issues": "https://github.com/NativePHP/mobile-microphone/issues",
+                "source": "https://github.com/NativePHP/mobile-microphone/tree/1.0.0"
+            },
+            "time": "2026-01-19T23:54:56+00:00"
+        },
+        {
+            "name": "nativephp/mobile-network",
+            "version": "1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/NativePHP/mobile-network.git",
+                "reference": "3c4360d7dd80f378c746b83cbd80573fa64e59a6"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/NativePHP/mobile-network/zipball/3c4360d7dd80f378c746b83cbd80573fa64e59a6",
+                "reference": "3c4360d7dd80f378c746b83cbd80573fa64e59a6",
+                "shasum": ""
+            },
+            "require": {
+                "nativephp/mobile": "*",
+                "php": "^8.2"
+            },
+            "type": "nativephp-plugin",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Native\\Mobile\\Providers\\NetworkServiceProvider"
+                    ]
+                },
+                "nativephp": {
+                    "manifest": "nativephp.json"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Native\\Mobile\\Providers\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "NativePHP",
+                    "email": "support@nativephp.com"
+                }
+            ],
+            "description": "Network connectivity status plugin for NativePHP Mobile",
+            "support": {
+                "issues": "https://github.com/NativePHP/mobile-network/issues",
+                "source": "https://github.com/NativePHP/mobile-network/tree/1.0.0"
+            },
+            "time": "2026-01-19T23:53:07+00:00"
+        },
+        {
+            "name": "nativephp/mobile-share",
+            "version": "1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/NativePHP/mobile-share.git",
+                "reference": "7d7c2e3cfb0d217953c2a76362842aeb56f45211"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/NativePHP/mobile-share/zipball/7d7c2e3cfb0d217953c2a76362842aeb56f45211",
+                "reference": "7d7c2e3cfb0d217953c2a76362842aeb56f45211",
+                "shasum": ""
+            },
+            "require": {
+                "nativephp/mobile": "*",
+                "php": "^8.2"
+            },
+            "type": "nativephp-plugin",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Native\\Mobile\\Providers\\ShareServiceProvider"
+                    ]
+                },
+                "nativephp": {
+                    "manifest": "nativephp.json"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Native\\Mobile\\Providers\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "NativePHP",
+                    "email": "support@nativephp.com"
+                }
+            ],
+            "description": "Native share sheet plugin for NativePHP Mobile",
+            "support": {
+                "issues": "https://github.com/NativePHP/mobile-share/issues",
+                "source": "https://github.com/NativePHP/mobile-share/tree/1.0.0"
+            },
+            "time": "2026-01-19T23:53:08+00:00"
         },
         {
             "name": "nesbot/carbon",

@@ -1,15 +1,15 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Server;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Assessment extends Model
+class Dispute extends Model
 {
-    /** @use HasFactory<\Database\Factories\AssessmentFactory> */
+    /** @use HasFactory<\Database\Factories\DisputeFactory> */
     use HasFactory, SoftDeletes;
 
     /**
@@ -17,9 +17,11 @@ class Assessment extends Model
      */
     protected $fillable = [
         'order_id',
-        'notes',
+        'opened_by',
+        'reason',
         'status',
-        'acknowledged_at',
+        'resolved_at',
+        'resolved_by',
     ];
 
     /**
@@ -28,12 +30,22 @@ class Assessment extends Model
     protected function casts(): array
     {
         return [
-            'acknowledged_at' => 'datetime',
+            'resolved_at' => 'datetime',
         ];
     }
 
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function openedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'opened_by');
+    }
+
+    public function resolvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'resolved_by');
     }
 }

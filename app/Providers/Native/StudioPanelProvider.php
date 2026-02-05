@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Providers\Filament;
+namespace App\Providers\Native;
 
+use App\Native\Middleware\EnsurePersonUser;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -54,6 +55,7 @@ class StudioPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                // EnsurePersonUser::class,
             ]);
     }
 }

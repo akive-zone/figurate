@@ -125,6 +125,9 @@ return [
     */
 
     'cleanup_exclude_files' => [
+        'app/Http',
+        'app/Modules/Station',
+        'routes/web.php',
         'storage/framework/sessions',
         'storage/framework/cache',
         'storage/framework/testing',
@@ -299,7 +302,18 @@ return [
     */
 
     'permissions' => [
-        //
+        'biometric' => false,
+        'camera' => 'Allow taking photos and videos for profile content and order progress updates.',
+        'location' => false,
+        'microphone' => 'Allow recording audio for order progress updates.',
+        'microphone_background' => false,
+        'network_state' => true,
+        'nfc' => false,
+        'push_notifications' => 'Allow notifications for requests, quotes, order updates, and completions.',
+        'storage_read' => 'Allow selecting existing photos, videos, and audio files for uploads.',
+        'storage_write' => 'Allow saving captured media files before upload.',
+        'scanner' => false,
+        'vibrate' => false,
     ],
 
     /*

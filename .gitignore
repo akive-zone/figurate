@@ -23,6 +23,7 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 
+/database/*.sqlite
 
 # Laravel Boost
 CLAUDE.md

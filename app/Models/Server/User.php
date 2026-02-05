@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Server;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -26,6 +26,7 @@ class User extends Authenticatable
         'provider',
         'provider_id',
         'status',
+        'device_identifier',
     ];
 
     /**

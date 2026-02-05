@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Providers\Filament;
+namespace App\Providers\Browser;
 
+use App\Native\Middleware\EnsurePersonUser;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -19,22 +20,27 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
-class StationPanelProvider extends PanelProvider
+class StudioPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
+        $domain = 'studio.'.env('APP_HOST');
+
         return $panel
-            ->id('station')
-            ->path('admin')
+            ->default()
+            ->id('studio')
+            ->path('/')
+            ->domain($domain)
+            ->login()
             ->colors([
                 'primary' => Color::Amber,
             ])
-            ->discoverResources(in: app_path('Modules/Station/Resources'), for: 'App\Modules\Station\Resources')
-            ->discoverPages(in: app_path('Modules/Station/Pages'), for: 'App\Modules\Station\Pages')
+            ->discoverResources(in: app_path('Modules/Studio/Resources'), for: 'App\Modules\Studio\Resources')
+            ->discoverPages(in: app_path('Modules/Studio/Pages'), for: 'App\Modules\Studio\Pages')
             ->pages([
                 Dashboard::class,
             ])
-            ->discoverWidgets(in: app_path('Modules/Station/Widgets'), for: 'App\Modules\Station\Widgets')
+            ->discoverWidgets(in: app_path('Modules/Studio/Widgets'), for: 'App\Modules\Studio\Widgets')
             ->widgets([
                 AccountWidget::class,
                 FilamentInfoWidget::class,
@@ -52,6 +58,7 @@ class StationPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                // EnsurePersonUser::class,
             ]);
     }
 }

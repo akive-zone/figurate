@@ -16,8 +16,10 @@ return new class extends Migration
             $table->string('provider')->nullable()->after('type');
             $table->string('provider_id')->nullable()->after('provider');
             $table->string('status')->default('active')->after('provider_id');
+            $table->string('device_identifier')->nullable()->after('status');
 
             $table->index(['type', 'status']);
+            $table->unique(['device_identifier']);
         });
     }
 
@@ -27,8 +29,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
+            $table->dropUnique(['device_identifier']);
             $table->dropIndex(['type', 'status']);
-            $table->dropColumn(['type', 'provider', 'provider_id', 'status']);
+            $table->dropColumn(['type', 'provider', 'provider_id', 'status', 'device_identifier']);
         });
     }
 };

@@ -12,7 +12,16 @@
         "laravel/framework": "^12.0",
         "laravel/socialite": "^5.24",
         "laravel/tinker": "^2.10.1",
+        "livewire/flux": "*",
         "nativephp/mobile": "^3.0",
+        "nativephp/mobile-browser": "^1.0",
+        "nativephp/mobile-camera": "^1.0",
+        "nativephp/mobile-device": "^1.0",
+        "nativephp/mobile-dialog": "^1.0",
+        "nativephp/mobile-file": "^1.0",
+        "nativephp/mobile-microphone": "^1.0",
+        "nativephp/mobile-network": "^1.0",
+        "nativephp/mobile-share": "^1.0",
         "wikimedia/composer-merge-plugin": "dev-master"
     },
     "require-dev": {

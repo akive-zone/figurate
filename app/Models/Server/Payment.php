@@ -1,15 +1,15 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Server;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class WorkLog extends Model
+class Payment extends Model
 {
-    /** @use HasFactory<\Database\Factories\WorkLogFactory> */
+    /** @use HasFactory<\Database\Factories\PaymentFactory> */
     use HasFactory, SoftDeletes;
 
     /**
@@ -17,18 +17,16 @@ class WorkLog extends Model
      */
     protected $fillable = [
         'order_id',
-        'profile_id',
-        'type',
-        'content',
+        'amount',
+        'currency',
+        'stage',
+        'status',
+        'provider',
+        'provider_ref',
     ];
 
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
-    }
-
-    public function profile(): BelongsTo
-    {
-        return $this->belongsTo(Profile::class);
     }
 }
