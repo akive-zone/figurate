@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Server;
 
+use App\Http\Controllers\Controller;
+
 class AppLinksController extends Controller
 {
     public function assetLinks()

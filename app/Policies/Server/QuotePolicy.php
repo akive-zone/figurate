@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Policies;
+namespace App\Policies\Server;
 
 use App\Models\Quote;
 use App\Models\User;

@@ -1,15 +1,15 @@
 <?php
 
-namespace App\Providers\Browser;
+namespace App\Providers\Server;
 
 use App\Models\Order;
 use App\Models\Profile;
 use App\Models\Quote;
 use App\Models\Request;
-use App\Policies\OrderPolicy;
-use App\Policies\ProfilePolicy;
-use App\Policies\QuotePolicy;
-use App\Policies\RequestPolicy;
+use App\Policies\Server\OrderPolicy;
+use App\Policies\Server\ProfilePolicy;
+use App\Policies\Server\QuotePolicy;
+use App\Policies\Server\RequestPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
