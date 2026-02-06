@@ -6,12 +6,20 @@ Using tools like
 - InertiaJS
 
 There are two main parts to the project that will be served inside the NativePHP app
-1. Signal [InertiaJS]
-2. Studio [FilamentPHP]
+1. Signal [InertiaJS + FilamentPHP]
+2. Studio [InertiaJS + FilamentPHP]
 
 The third app Station is for the admin
 
-The app launcher will be a blade view in NativePHP that allows the user switch between studio / signal session 
+The app launcher will be a blade view in NativePHP that allows the user switch between studio / signal session
+
+Studio UI split:
+- Inertia/Vue routes for Studio user work, especially chat and day-to-day workflow.
+- Filament routes for Studio login and administrative views the Studio user needs.
+
+Signal UI split:
+- Inertia/Vue routes for customer chat and primary request flow.
+- Filament routes for settings and admin-style panels on the customer side.
 
 
 the studio needs the user to signup and onboard to KYC / KYB before they can access the studio
@@ -67,3 +75,21 @@ So a typical flow of the platform
 - if accepted ... the order is marked as fulfilled 
 
 - both parties can rate each other
+
+## Database & Migrations
+
+Since the project is a monolith deployed on both the Server (MySQL/PostgreSQL) and Mobile (SQLite via NativePHP), we use a conditional migration strategy in `AppServiceProvider`:
+
+- **Server Migrations:** Located in `database/migrations/server`. These contain schemas for the central database (Users, Profiles, Orders, etc.).
+- **Mobile Migrations:** Located in `database/migrations/native`. These contain schemas for the local device database.
+- **Shared Migrations:** Located in `database/migrations`.
+
+The `AppServiceProvider` detects the environment using `config('nativephp-internal.running')` and loads the appropriate paths:
+
+```php
+if (config('nativephp-internal.running')) {
+    $this->loadMigrationsFrom(database_path('migrations/native'));
+} else {
+    $this->loadMigrationsFrom(database_path('migrations/server'));
+}
+```

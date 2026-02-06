@@ -1,13 +1,11 @@
 #  Platform Task Tracker
 
 Backlog
-- [ ] T06 Define conversation/message models for the chatbox flow (asker + studio).
 - [ ] T07 Add realtime delivery (polling or push) for chat updates.
 - [ ] T11 Generate OpenAPI export to verify filters + auth.
 - [ ] T12 Define fulfillment statuses + state machine for request/quote/order/assessment/billing/worklog/settlement.
 - [ ] T13 Add factories and seeders for missing models.
 - [ ] T14 Add operation-specific validation and policies for Studio API actions.
-- [ ] T15 Decide Inertia vs Blade/Livewire for Signal UI and document decision.
 - [ ] T16 Wire Studio UI to API (or shared domain logic) per chosen approach.
 - [ ] T17 Add feature tests for Studio API operations.
 - [ ] T18 Add policy tests for access control.
@@ -25,6 +23,8 @@ Completed
 - [x] T03 Add Studio API resources for fulfillment flow
 - [x] T04 Align API middleware for current auth approach
 - [x] T05 Note follow-up items (chat models, realtime)
+- [x] T06 Define conversation/message models for the chatbox flow (asker + studio).
 - [x] T08 Install Sanctum (composer require) and switch API middleware to `auth:sanctum`.
 - [x] T09 Add token issuing endpoints (login/register) for API clients.
 - [x] T10 Define auth scopes/abilities for Studio vs Signal.
+- [x] T15 Decide Inertia vs Blade/Livewire for Signal UI and document decision.

@@ -3,6 +3,8 @@
 namespace App\Providers\Server;
 
 use App\Models\Server\Assessment;
+use App\Models\Server\Conversation;
+use App\Models\Server\ConversationMessage;
 use App\Models\Server\Dispute;
 use App\Models\Server\Order;
 use App\Models\Server\Payment;
@@ -13,6 +15,8 @@ use App\Models\Server\Request;
 use App\Models\Server\ServiceCategory;
 use App\Models\Server\WorkLog;
 use App\Policies\Server\AssessmentPolicy;
+use App\Policies\Server\ConversationMessagePolicy;
+use App\Policies\Server\ConversationPolicy;
 use App\Policies\Server\DisputePolicy;
 use App\Policies\Server\OrderPolicy;
 use App\Policies\Server\PaymentPolicy;
@@ -39,5 +43,7 @@ class AuthServiceProvider extends ServiceProvider
         Gate::policy(Rating::class, RatingPolicy::class);
         Gate::policy(Dispute::class, DisputePolicy::class);
         Gate::policy(ServiceCategory::class, ServiceCategoryPolicy::class);
+        Gate::policy(Conversation::class, ConversationPolicy::class);
+        Gate::policy(ConversationMessage::class, ConversationMessagePolicy::class);
     }
 }

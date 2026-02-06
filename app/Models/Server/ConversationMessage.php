@@ -14,8 +14,6 @@ use ApiPlatform\Metadata\QueryParameter;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[ApiResource(
@@ -27,49 +25,45 @@ use Illuminate\Database\Eloquent\SoftDeletes;
         new Patch(security: "is_granted('update', object)"),
     ],
 )]
-#[QueryParameter(key: 'status', filter: EqualsFilter::class, property: 'status')]
-#[QueryParameter(key: 'profile_id', filter: EqualsFilter::class, property: 'profile_id')]
-#[QueryParameter(key: 'requester_id', filter: EqualsFilter::class, property: 'requester_id')]
-#[QueryParameter(key: 'title', filter: PartialSearchFilter::class, property: 'title')]
+#[QueryParameter(key: 'conversation_id', filter: EqualsFilter::class, property: 'conversation_id')]
+#[QueryParameter(key: 'sender_id', filter: EqualsFilter::class, property: 'sender_id')]
+#[QueryParameter(key: 'body', filter: PartialSearchFilter::class, property: 'body')]
 #[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
-class Request extends Model
+class ConversationMessage extends Model
 {
-    /** @use HasFactory<\Database\Factories\RequestFactory> */
+    /** @use HasFactory<\Database\Factories\ConversationMessageFactory> */
     use HasFactory, SoftDeletes;
 
     /**
      * @var list<string>
      */
     protected $fillable = [
-        'requester_id',
-        'profile_id',
-        'title',
-        'description',
-        'status',
+        'conversation_id',
+        'sender_id',
+        'type',
+        'body',
+        'attachments',
+        'meta',
     ];
 
-    public function requester(): BelongsTo
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
     {
-        return $this->belongsTo(User::class, 'requester_id');
+        return [
+            'attachments' => 'array',
+            'meta' => 'array',
+        ];
     }
 
-    public function profile(): BelongsTo
+    public function conversation(): BelongsTo
     {
-        return $this->belongsTo(Profile::class);
+        return $this->belongsTo(Conversation::class);
     }
 
-    public function quotes(): HasMany
+    public function sender(): BelongsTo
     {
-        return $this->hasMany(Quote::class);
-    }
-
-    public function order(): HasOne
-    {
-        return $this->hasOne(Order::class);
-    }
-
-    public function conversation(): HasOne
-    {
-        return $this->hasOne(Conversation::class);
+        return $this->belongsTo(User::class, 'sender_id');
     }
 }

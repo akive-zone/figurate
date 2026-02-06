@@ -4,7 +4,6 @@ namespace App\Models\Server;
 
 use ApiPlatform\Laravel\Eloquent\Filter\EqualsFilter;
 use ApiPlatform\Laravel\Eloquent\Filter\OrderFilter;
-use ApiPlatform\Laravel\Eloquent\Filter\PartialSearchFilter;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
@@ -27,14 +26,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
         new Patch(security: "is_granted('update', object)"),
     ],
 )]
-#[QueryParameter(key: 'status', filter: EqualsFilter::class, property: 'status')]
-#[QueryParameter(key: 'profile_id', filter: EqualsFilter::class, property: 'profile_id')]
 #[QueryParameter(key: 'requester_id', filter: EqualsFilter::class, property: 'requester_id')]
-#[QueryParameter(key: 'title', filter: PartialSearchFilter::class, property: 'title')]
-#[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
-class Request extends Model
+#[QueryParameter(key: 'profile_id', filter: EqualsFilter::class, property: 'profile_id')]
+#[QueryParameter(key: 'request_id', filter: EqualsFilter::class, property: 'request_id')]
+#[QueryParameter(key: 'status', filter: EqualsFilter::class, property: 'status')]
+#[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['last_message_at' => 'last_message_at', 'created_at' => 'created_at'])]
+class Conversation extends Model
 {
-    /** @use HasFactory<\Database\Factories\RequestFactory> */
+    /** @use HasFactory<\Database\Factories\ConversationFactory> */
     use HasFactory, SoftDeletes;
 
     /**
@@ -43,10 +42,20 @@ class Request extends Model
     protected $fillable = [
         'requester_id',
         'profile_id',
-        'title',
-        'description',
+        'request_id',
         'status',
+        'last_message_at',
     ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'last_message_at' => 'datetime',
+        ];
+    }
 
     public function requester(): BelongsTo
     {
@@ -58,18 +67,18 @@ class Request extends Model
         return $this->belongsTo(Profile::class);
     }
 
-    public function quotes(): HasMany
+    public function request(): BelongsTo
     {
-        return $this->hasMany(Quote::class);
+        return $this->belongsTo(Request::class);
     }
 
-    public function order(): HasOne
+    public function messages(): HasMany
     {
-        return $this->hasOne(Order::class);
+        return $this->hasMany(ConversationMessage::class);
     }
 
-    public function conversation(): HasOne
+    public function latestMessage(): HasOne
     {
-        return $this->hasOne(Conversation::class);
+        return $this->hasOne(ConversationMessage::class)->latestOfMany();
     }
 }
