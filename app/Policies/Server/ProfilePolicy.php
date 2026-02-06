@@ -2,8 +2,8 @@
 
 namespace App\Policies\Server;
 
-use App\Models\Profile;
-use App\Models\User;
+use App\Models\Server\Profile;
+use App\Models\Server\User;
 
 class ProfilePolicy
 {

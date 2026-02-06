@@ -2,10 +2,10 @@
 
 namespace App\Policies\Server;
 
-use App\Models\Server\Order;
+use App\Models\Server\Assessment;
 use App\Models\Server\User;
 
-class OrderPolicy
+class AssessmentPolicy
 {
     /**
      * Determine whether the user can view any models.
@@ -18,17 +18,17 @@ class OrderPolicy
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, Order $order): bool
+    public function view(User $user, Assessment $assessment): bool
     {
         if ($user->type === 'system') {
             return true;
         }
 
-        if ($order->buyer_id === $user->id) {
+        if ($assessment->order?->buyer_id === $user->id) {
             return true;
         }
 
-        return $order->sellerProfile?->user_id === $user->id;
+        return $assessment->order?->sellerProfile?->user_id === $user->id;
     }
 
     /**
@@ -36,29 +36,29 @@ class OrderPolicy
      */
     public function create(User $user): bool
     {
-        return $user->type === 'system';
+        return in_array($user->type, ['system', 'person'], true);
     }
 
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, Order $order): bool
+    public function update(User $user, Assessment $assessment): bool
     {
         if ($user->type === 'system') {
             return true;
         }
 
-        if ($order->buyer_id === $user->id) {
+        if ($assessment->order?->buyer_id === $user->id) {
             return true;
         }
 
-        return $order->sellerProfile?->user_id === $user->id;
+        return $assessment->order?->sellerProfile?->user_id === $user->id;
     }
 
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, Order $order): bool
+    public function delete(User $user, Assessment $assessment): bool
     {
         return $user->type === 'system';
     }
@@ -66,7 +66,7 @@ class OrderPolicy
     /**
      * Determine whether the user can restore the model.
      */
-    public function restore(User $user, Order $order): bool
+    public function restore(User $user, Assessment $assessment): bool
     {
         return $user->type === 'system';
     }
@@ -74,7 +74,7 @@ class OrderPolicy
     /**
      * Determine whether the user can permanently delete the model.
      */
-    public function forceDelete(User $user, Order $order): bool
+    public function forceDelete(User $user, Assessment $assessment): bool
     {
         return $user->type === 'system';
     }

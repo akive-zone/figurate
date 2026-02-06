@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Server\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Models\Server\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;

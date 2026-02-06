@@ -2,10 +2,10 @@
 
 namespace App\Policies\Server;
 
-use App\Models\Server\Quote;
+use App\Models\Server\ServiceCategory;
 use App\Models\Server\User;
 
-class QuotePolicy
+class ServiceCategoryPolicy
 {
     /**
      * Determine whether the user can view any models.
@@ -18,17 +18,9 @@ class QuotePolicy
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, Quote $quote): bool
+    public function view(User $user, ServiceCategory $serviceCategory): bool
     {
-        if ($user->type === 'system') {
-            return true;
-        }
-
-        if ($quote->profile?->user_id === $user->id) {
-            return true;
-        }
-
-        return $quote->request?->requester_id === $user->id;
+        return in_array($user->type, ['system', 'person', 'device'], true);
     }
 
     /**
@@ -36,29 +28,29 @@ class QuotePolicy
      */
     public function create(User $user): bool
     {
-        return $user->type === 'person';
+        return $user->type === 'system';
     }
 
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, Quote $quote): bool
+    public function update(User $user, ServiceCategory $serviceCategory): bool
     {
-        return $user->type === 'system' || $quote->profile?->user_id === $user->id;
+        return $user->type === 'system';
     }
 
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, Quote $quote): bool
+    public function delete(User $user, ServiceCategory $serviceCategory): bool
     {
-        return $user->type === 'system' || $quote->profile?->user_id === $user->id;
+        return $user->type === 'system';
     }
 
     /**
      * Determine whether the user can restore the model.
      */
-    public function restore(User $user, Quote $quote): bool
+    public function restore(User $user, ServiceCategory $serviceCategory): bool
     {
         return $user->type === 'system';
     }
@@ -66,7 +58,7 @@ class QuotePolicy
     /**
      * Determine whether the user can permanently delete the model.
      */
-    public function forceDelete(User $user, Quote $quote): bool
+    public function forceDelete(User $user, ServiceCategory $serviceCategory): bool
     {
         return $user->type === 'system';
     }

@@ -2,6 +2,7 @@
 
 $providers = [
     App\Providers\AppServiceProvider::class,
+    App\Providers\Server\AuthServiceProvider::class,
 ];
 
 if (config('app.context') == 'native') {
@@ -9,8 +10,8 @@ if (config('app.context') == 'native') {
 }
 
 if (config('app.context') == 'web' || config('app.context') == null) {
-    $providers[] = App\Providers\Web\StudioPanelProvider::class;
-    $providers[] = App\Providers\Web\StationPanelProvider::class;
+    $providers[] = App\Providers\Browser\StudioPanelProvider::class;
+    $providers[] = App\Providers\Browser\StationPanelProvider::class;
 }
 
 return $providers;

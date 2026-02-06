@@ -2,8 +2,8 @@
 
 namespace App\Policies\Server;
 
-use App\Models\Request;
-use App\Models\User;
+use App\Models\Server\Request;
+use App\Models\Server\User;
 
 class RequestPolicy
 {
