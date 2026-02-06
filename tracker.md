@@ -12,7 +12,7 @@ Backlog
 - [ ] T19 Add release checklist for API + NativePHP webview.
 
 Progress
-- [ ] (none)
+- [ ] T16 Wire Studio UI to API (or shared domain logic) per chosen approach. (Signal-side fulfillment flow now wired in chat UI; Studio parity pending)
 
 Followup
 - [ ] (none)

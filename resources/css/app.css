@@ -2,4 +2,322 @@
 
 :root {
     color-scheme: light;
+    --signal-ink: #0f172a;
+    --signal-soft-ink: #334155;
+    --signal-paper: #f8fafc;
+    --signal-accent: #0f766e;
+    --signal-accent-warm: #f97316;
+    --signal-border: #cbd5e1;
+    --signal-card: rgba(255, 255, 255, 0.92);
+    --signal-font: "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
+}
+
+body {
+    margin: 0;
+    font-family: var(--signal-font);
+    color: var(--signal-ink);
+    background:
+        radial-gradient(circle at 20% 15%, rgba(15, 118, 110, 0.16), transparent 35%),
+        radial-gradient(circle at 80% 10%, rgba(249, 115, 22, 0.14), transparent 40%),
+        linear-gradient(180deg, #fdfefe 0%, #eef6f8 100%);
+}
+
+.signal-shell {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1.25rem;
+}
+
+.signal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.signal-header__kicker {
+    margin: 0;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--signal-soft-ink);
+    font-size: 0.75rem;
+}
+
+.signal-header__title {
+    margin: 0.1rem 0 0;
+    font-size: 2rem;
+    line-height: 1.1;
+}
+
+.signal-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.signal-main {
+    animation: signal-rise 0.25s ease-out;
+}
+
+.signal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.signal-card,
+.signal-thread,
+.signal-empty {
+    border: 1px solid var(--signal-border);
+    border-radius: 1rem;
+    background: var(--signal-card);
+    backdrop-filter: blur(3px);
+    box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+}
+
+.signal-card {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.signal-card__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.signal-card__name {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.signal-card__time,
+.signal-card__status,
+.signal-message__time,
+.signal-thread__meta {
+    margin: 0;
+    color: var(--signal-soft-ink);
+    font-size: 0.8rem;
+}
+
+.signal-card__title {
+    margin: 0;
+    font-size: 1.15rem;
+}
+
+.signal-card__preview {
+    margin: 0;
+    color: #1e293b;
+}
+
+.signal-thread {
+    padding: 1.1rem;
+}
+
+.signal-thread__header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: start;
+    margin-bottom: 1rem;
+}
+
+.signal-thread__kicker {
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.75rem;
+    color: var(--signal-soft-ink);
+}
+
+.signal-thread__title {
+    margin: 0.2rem 0;
+}
+
+.signal-thread__request {
+    border: 1px solid var(--signal-border);
+    border-radius: 0.8rem;
+    background: var(--signal-paper);
+    padding: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.signal-quote-list {
+    margin-top: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.signal-quote {
+    border: 1px solid var(--signal-border);
+    border-radius: 0.8rem;
+    padding: 0.75rem;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.signal-quote__amount {
+    margin: 0;
+    font-weight: 700;
+}
+
+.signal-thread__messages {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.signal-message {
+    max-width: 85%;
+    border-radius: 0.9rem;
+    border: 1px solid var(--signal-border);
+    background: #ffffff;
+    padding: 0.8rem;
+}
+
+.signal-message--mine {
+    align-self: flex-end;
+    border-color: rgba(15, 118, 110, 0.4);
+    background: rgba(15, 118, 110, 0.08);
+}
+
+.signal-message__author {
+    margin: 0 0 0.3rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--signal-soft-ink);
+}
+
+.signal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.signal-label {
+    font-size: 0.82rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--signal-soft-ink);
+}
+
+.signal-input {
+    width: 100%;
+    border: 1px solid var(--signal-border);
+    border-radius: 0.7rem;
+    padding: 0.65rem 0.75rem;
+    font: inherit;
+    background: #fff;
+}
+
+.signal-input:focus {
+    outline: 2px solid rgba(15, 118, 110, 0.2);
+    border-color: var(--signal-accent);
+}
+
+.signal-button,
+.signal-link,
+.signal-link--cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    font: inherit;
+    text-decoration: none;
+}
+
+.signal-button {
+    background: linear-gradient(90deg, var(--signal-accent), #0d9488);
+    color: #fff;
+    border: none;
+    padding: 0.55rem 1rem;
+    cursor: pointer;
+}
+
+.signal-button[disabled] {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.signal-link {
+    color: var(--signal-soft-ink);
+    border: 1px solid var(--signal-border);
+    padding: 0.45rem 0.8rem;
+}
+
+.signal-link--cta {
+    margin-top: 0.25rem;
+    padding: 0.48rem 0.9rem;
+    border: 1px solid rgba(15, 118, 110, 0.35);
+    color: var(--signal-accent);
+}
+
+.signal-alert {
+    margin-bottom: 1rem;
+    border-radius: 0.75rem;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid;
+}
+
+.signal-alert--success {
+    background: rgba(15, 118, 110, 0.09);
+    border-color: rgba(15, 118, 110, 0.3);
+}
+
+.signal-alert--error {
+    background: rgba(220, 38, 38, 0.08);
+    border-color: rgba(220, 38, 38, 0.25);
+}
+
+.signal-error {
+    margin: 0;
+    color: #b91c1c;
+    font-size: 0.82rem;
+}
+
+.signal-empty {
+    padding: 1rem;
+}
+
+.signal-footer {
+    margin-top: 1.2rem;
+    display: flex;
+    gap: 0.5rem;
+    color: var(--signal-soft-ink);
+    font-size: 0.8rem;
+}
+
+@keyframes signal-rise {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 640px) {
+    .signal-shell {
+        padding: 0.9rem;
+    }
+
+    .signal-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .signal-message {
+        max-width: 100%;
+    }
 }

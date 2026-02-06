@@ -44,7 +44,15 @@ class QuotePolicy
      */
     public function update(User $user, Quote $quote): bool
     {
-        return $user->type === 'system' || $quote->profile?->user_id === $user->id;
+        if ($user->type === 'system') {
+            return true;
+        }
+
+        if ($quote->profile?->user_id === $user->id) {
+            return true;
+        }
+
+        return $quote->request?->requester_id === $user->id;
     }
 
     /**

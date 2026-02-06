@@ -36,7 +36,7 @@ class OrderPolicy
      */
     public function create(User $user): bool
     {
-        return $user->type === 'system';
+        return in_array($user->type, ['system', 'person'], true);
     }
 
     /**
