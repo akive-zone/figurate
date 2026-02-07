@@ -2,10 +2,10 @@
 
 namespace App\Policies\Server;
 
-use App\Models\Server\ConversationMessage;
+use App\Models\Server\Channel;
 use App\Models\Server\User;
 
-class ConversationMessagePolicy
+class ChannelPolicy
 {
     /**
      * Determine whether the user can view any models.
@@ -18,27 +18,17 @@ class ConversationMessagePolicy
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, ConversationMessage $conversationMessage): bool
+    public function view(User $user, Channel $channel): bool
     {
         if ($user->type === 'system') {
             return true;
         }
 
-        if ($conversationMessage->sender_id === $user->id) {
+        if ($channel->requester_id === $user->id) {
             return true;
         }
 
-        $conversation = $conversationMessage->conversation;
-
-        if (! $conversation) {
-            return false;
-        }
-
-        if ($conversation->requester_id === $user->id) {
-            return true;
-        }
-
-        return $conversation->profile?->user_id === $user->id;
+        return $channel->profile?->user_id === $user->id;
     }
 
     /**
@@ -52,23 +42,39 @@ class ConversationMessagePolicy
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, ConversationMessage $conversationMessage): bool
+    public function update(User $user, Channel $channel): bool
     {
-        return $user->type === 'system' || $conversationMessage->sender_id === $user->id;
+        if ($user->type === 'system') {
+            return true;
+        }
+
+        if ($channel->requester_id === $user->id) {
+            return true;
+        }
+
+        return $channel->profile?->user_id === $user->id;
     }
 
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, ConversationMessage $conversationMessage): bool
+    public function delete(User $user, Channel $channel): bool
     {
-        return $user->type === 'system' || $conversationMessage->sender_id === $user->id;
+        if ($user->type === 'system') {
+            return true;
+        }
+
+        if ($channel->requester_id === $user->id) {
+            return true;
+        }
+
+        return $channel->profile?->user_id === $user->id;
     }
 
     /**
      * Determine whether the user can restore the model.
      */
-    public function restore(User $user, ConversationMessage $conversationMessage): bool
+    public function restore(User $user, Channel $channel): bool
     {
         return $user->type === 'system';
     }
@@ -76,7 +82,7 @@ class ConversationMessagePolicy
     /**
      * Determine whether the user can permanently delete the model.
      */
-    public function forceDelete(User $user, ConversationMessage $conversationMessage): bool
+    public function forceDelete(User $user, Channel $channel): bool
     {
         return $user->type === 'system';
     }

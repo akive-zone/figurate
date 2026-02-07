@@ -21,6 +21,12 @@ Signal UI split:
 - Inertia/Vue routes for customer chat and primary request flow.
 - Filament routes for settings and admin-style panels on the customer side.
 
+Signal orchestration model (product design direction, not locked policy):
+- Candidate direction is one user-facing `conversation` per request context for the asker chatbox.
+- Candidate direction is many internal `threads` per request/order lifecycle to handle agent switching and phase isolation.
+- Threads can hold `agent_key`, `phase`, and `ai_conversation_id` memory.
+- The active thread may change over time (for example `RequestAgent` to `OrderAgent`) while keeping one visible chat flow for the asker.
+
 
 the studio needs the user to signup and onboard to KYC / KYB before they can access the studio
 
@@ -76,6 +82,32 @@ So a typical flow of the platform
 
 - both parties can rate each other
 
+## Signal Fulfillment Flows (Design Exploration)
+
+The following are product flow candidates to evaluate and refine:
+
+- `ubuy` candidate:
+- Asker targets a specific profile/tasker.
+- Request starts with an intake thread using `RequestAgent`.
+- Quote/booking/fulfillment likely stays bound to that selected profile unless reassigned.
+
+- `upwork` candidate:
+- Asker creates an open request.
+- Multiple profiles can express interest and submit quotes/bids.
+- Asker selects one quote to book, then flow can switch into fulfillment with `OrderAgent`.
+
+- `uber` candidate:
+- Asker creates a request without selecting a worker.
+- System may auto-assign the best matching profile using availability + matching rules.
+- After assignment, flow can proceed to quote or direct booking based on service configuration.
+
+Thread usage (working design hypothesis):
+
+- Main thread begins at request intake (`RequestAgent`).
+- Additional threads can be used for scoped phases (for example negotiation, booking, fulfillment, disputes).
+- A single request context may own multiple threads while preserving one primary user-facing conversation.
+- Final rules for thread creation/switching remain open pending product decisions.
+
 ## Database & Migrations
 
 Since the project is a monolith deployed on both the Server (MySQL/PostgreSQL) and Mobile (SQLite via NativePHP), we use a conditional migration strategy in `AppServiceProvider`:
@@ -93,5 +125,3 @@ if (config('nativephp-internal.running')) {
     $this->loadMigrationsFrom(database_path('migrations/server'));
 }
 ```
-
-

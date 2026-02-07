@@ -2,16 +2,16 @@
 
 namespace Database\Seeders;
 
-use App\Models\Server\Conversation;
+use App\Models\Server\Channel;
 use Illuminate\Database\Seeder;
 
-class ConversationSeeder extends Seeder
+class ChannelSeeder extends Seeder
 {
     /**
      * Run the database seeds.
      */
     public function run(): void
     {
-        Conversation::factory()->count(5)->create();
+        Channel::factory()->count(5)->create();
     }
 }

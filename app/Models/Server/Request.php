@@ -16,6 +16,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[ApiResource(
@@ -68,8 +71,29 @@ class Request extends Model
         return $this->hasOne(Order::class);
     }
 
-    public function conversation(): HasOne
+    public function channels(): MorphToMany
     {
-        return $this->hasOne(Conversation::class);
+        return $this->morphToMany(
+            Channel::class,
+            'relationable',
+            'channel_relations',
+            'relationable_id',
+            'channel_id'
+        )->withTimestamps();
+    }
+
+    public function messages(): MorphMany
+    {
+        return $this->morphMany(Message::class, 'messageable');
+    }
+
+    public function latestMessage(): MorphOne
+    {
+        return $this->morphOne(Message::class, 'messageable')->latestOfMany();
+    }
+
+    public function threads(): MorphMany
+    {
+        return $this->morphMany(Thread::class, 'threadable');
     }
 }

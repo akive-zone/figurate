@@ -50,14 +50,14 @@ class User extends Authenticatable
         return $this->hasMany(Request::class, 'requester_id');
     }
 
-    public function conversations(): HasMany
+    public function channels(): HasMany
     {
-        return $this->hasMany(Conversation::class, 'requester_id');
+        return $this->hasMany(Channel::class, 'requester_id');
     }
 
-    public function conversationMessages(): HasMany
+    public function messages(): HasMany
     {
-        return $this->hasMany(ConversationMessage::class, 'sender_id');
+        return $this->hasMany(Message::class, 'sender_id');
     }
 
     public function ratingsGiven(): HasMany

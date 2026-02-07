@@ -1,28 +1,28 @@
 <?php
 
-namespace App\Http\Controllers\Signal;
+namespace App\Http\Controllers\Server\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Server\Conversation;
-use App\Models\Server\ConversationMessage;
+use App\Models\Server\Channel;
 use App\Models\Server\Order;
 use App\Models\Server\Quote;
-use Illuminate\Http\RedirectResponse;
+use App\Models\Server\Thread;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
-class ConversationFulfillmentController extends Controller
+class OrderController extends Controller
 {
-    public function acceptQuote(Conversation $conversation, Quote $quote): RedirectResponse
+    public function acceptQuote(Channel $channel, Quote $quote): JsonResponse
     {
-        Gate::authorize('view', $conversation);
+        Gate::authorize('view', $channel);
         Gate::authorize('view', $quote);
         Gate::authorize('update', $quote);
         Gate::authorize('create', Order::class);
 
         $currentUser = request()->user();
-        $serviceRequest = $conversation->request;
-        $profile = $conversation->profile;
+        $serviceRequest = $channel->requests()->first();
+        $profile = $channel->profile;
 
         if (! $serviceRequest || ! $profile || $serviceRequest->requester_id !== $currentUser->id) {
             abort(403);
@@ -33,12 +33,10 @@ class ConversationFulfillmentController extends Controller
         }
 
         if ($serviceRequest->order()->exists()) {
-            return redirect()
-                ->route('signal.chat.show', $conversation)
-                ->with('error', 'Order already created for this request.');
+            abort(422, 'Order already created for this request.');
         }
 
-        DB::transaction(function () use ($conversation, $currentUser, $profile, $quote, $serviceRequest): void {
+        DB::transaction(function () use ($channel, $currentUser, $profile, $quote, $serviceRequest): void {
             $quote->forceFill([
                 'status' => 'accepted',
             ])->save();
@@ -60,13 +58,22 @@ class ConversationFulfillmentController extends Controller
                 'status' => 'booked',
             ])->save();
 
-            $conversation->forceFill([
+            $channel->forceFill([
                 'status' => 'booked',
                 'last_message_at' => now(),
             ])->save();
 
-            ConversationMessage::query()->create([
-                'conversation_id' => $conversation->id,
+            if (! $serviceRequest->threads()->where('agent_key', Thread::AgentOrder)->exists()) {
+                $serviceRequest->threads()->create([
+                    'created_by' => $currentUser->id,
+                    'title' => 'Order Fulfillment',
+                    'phase' => 'order_kickoff',
+                    'agent_key' => Thread::AgentOrder,
+                    'status' => 'open',
+                ]);
+            }
+
+            $serviceRequest->messages()->create([
                 'sender_id' => $currentUser->id,
                 'type' => 'text',
                 'body' => 'Quote accepted. Order is now booked and fulfillment has started.',
@@ -75,8 +82,10 @@ class ConversationFulfillmentController extends Controller
             ]);
         });
 
-        return redirect()
-            ->route('signal.chat.show', $conversation)
-            ->with('success', 'Quote accepted. Fulfillment started.');
+        return response()->json([
+            'message' => 'Quote accepted. Fulfillment started.',
+            'channel_id' => $channel->id,
+            'request_id' => $serviceRequest->id,
+        ]);
     }
 }

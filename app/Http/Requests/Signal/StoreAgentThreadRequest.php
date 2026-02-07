@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests\Signal;
 
+use App\Models\Server\Thread;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
-class StoreConversationMessageRequest extends FormRequest
+class StoreAgentThreadRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -22,7 +24,9 @@ class StoreConversationMessageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'body' => ['required', 'string', 'max:5000'],
+            'title' => ['required', 'string', 'max:120'],
+            'phase' => ['required', 'string', 'max:60'],
+            'agent_key' => ['required', 'string', Rule::in([Thread::AgentRequest, Thread::AgentOrder])],
         ];
     }
 
@@ -32,8 +36,9 @@ class StoreConversationMessageRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'body.required' => 'Write a message before sending.',
-            'body.max' => 'Message exceeds the maximum length.',
+            'title.required' => 'Thread title is required.',
+            'phase.required' => 'Thread phase is required.',
+            'agent_key.in' => 'Thread agent must be request_agent or order_agent.',
         ];
     }
 }

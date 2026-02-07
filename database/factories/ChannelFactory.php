@@ -2,20 +2,20 @@
 
 namespace Database\Factories;
 
-use App\Models\Server\Conversation;
+use App\Models\Server\Channel;
 use App\Models\Server\Profile;
 use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Server\Conversation>
+ * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Server\Channel>
  */
-class ConversationFactory extends Factory
+class ChannelFactory extends Factory
 {
     /**
-     * @var class-string<\App\Models\Server\Conversation>
+     * @var class-string<\App\Models\Server\Channel>
      */
-    protected $model = Conversation::class;
+    protected $model = Channel::class;
 
     /**
      * Define the model's default state.
@@ -27,7 +27,6 @@ class ConversationFactory extends Factory
         return [
             'requester_id' => User::factory(),
             'profile_id' => Profile::factory(),
-            'request_id' => null,
             'status' => 'open',
             'last_message_at' => fake()->dateTimeBetween('-2 days'),
         ];

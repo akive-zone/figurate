@@ -82,9 +82,9 @@ class Profile extends Model
         return $this->hasMany(Request::class);
     }
 
-    public function conversations(): HasMany
+    public function channels(): HasMany
     {
-        return $this->hasMany(Conversation::class);
+        return $this->hasMany(Channel::class);
     }
 
     public function quotes(): HasMany

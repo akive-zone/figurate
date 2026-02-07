@@ -169,6 +169,47 @@ body {
     font-weight: 700;
 }
 
+.signal-threads {
+    border: 1px solid var(--signal-border);
+    border-radius: 0.8rem;
+    background: #ffffff;
+    padding: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.signal-threads__header h3 {
+    margin: 0 0 0.6rem;
+}
+
+.signal-threads__list {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.8rem;
+}
+
+.signal-thread-chip {
+    border: 1px solid var(--signal-border);
+    background: #fff;
+    border-radius: 0.75rem;
+    padding: 0.45rem 0.65rem;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+}
+
+.signal-thread-chip small {
+    color: var(--signal-soft-ink);
+    text-transform: uppercase;
+    font-size: 0.65rem;
+}
+
+.signal-thread-chip--active {
+    border-color: rgba(15, 118, 110, 0.4);
+    background: rgba(15, 118, 110, 0.08);
+}
+
 .signal-thread__messages {
     display: flex;
     flex-direction: column;

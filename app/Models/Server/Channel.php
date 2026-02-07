@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[ApiResource(
@@ -28,12 +28,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 )]
 #[QueryParameter(key: 'requester_id', filter: EqualsFilter::class, property: 'requester_id')]
 #[QueryParameter(key: 'profile_id', filter: EqualsFilter::class, property: 'profile_id')]
-#[QueryParameter(key: 'request_id', filter: EqualsFilter::class, property: 'request_id')]
 #[QueryParameter(key: 'status', filter: EqualsFilter::class, property: 'status')]
 #[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['last_message_at' => 'last_message_at', 'created_at' => 'created_at'])]
-class Conversation extends Model
+class Channel extends Model
 {
-    /** @use HasFactory<\Database\Factories\ConversationFactory> */
+    /** @use HasFactory<\Database\Factories\ChannelFactory> */
     use HasFactory, SoftDeletes;
 
     /**
@@ -42,7 +41,6 @@ class Conversation extends Model
     protected $fillable = [
         'requester_id',
         'profile_id',
-        'request_id',
         'status',
         'last_message_at',
     ];
@@ -67,18 +65,19 @@ class Conversation extends Model
         return $this->belongsTo(Profile::class);
     }
 
-    public function request(): BelongsTo
+    public function relations(): HasMany
     {
-        return $this->belongsTo(Request::class);
+        return $this->hasMany(ChannelRelation::class);
     }
 
-    public function messages(): HasMany
+    public function requests(): MorphToMany
     {
-        return $this->hasMany(ConversationMessage::class);
-    }
-
-    public function latestMessage(): HasOne
-    {
-        return $this->hasOne(ConversationMessage::class)->latestOfMany();
+        return $this->morphedByMany(
+            Request::class,
+            'relationable',
+            'channel_relations',
+            'channel_id',
+            'relationable_id'
+        )->withTimestamps();
     }
 }

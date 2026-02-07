@@ -11,9 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('conversation_messages', function (Blueprint $table) {
+        Schema::create('messages', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('conversation_id')->constrained()->cascadeOnDelete();
+            $table->morphs('messageable');
             $table->foreignId('sender_id')->constrained('users')->cascadeOnDelete();
             $table->string('type')->default('text');
             $table->text('body');
@@ -22,7 +22,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index(['conversation_id', 'created_at']);
+            $table->index(['messageable_type', 'messageable_id', 'created_at'], 'messages_messageable_created_at_index');
             $table->index(['sender_id', 'created_at']);
         });
     }
@@ -32,6 +32,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('conversation_messages');
+        Schema::dropIfExists('messages');
     }
 };

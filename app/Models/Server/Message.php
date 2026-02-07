@@ -14,6 +14,7 @@ use ApiPlatform\Metadata\QueryParameter;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[ApiResource(
@@ -25,20 +26,22 @@ use Illuminate\Database\Eloquent\SoftDeletes;
         new Patch(security: "is_granted('update', object)"),
     ],
 )]
-#[QueryParameter(key: 'conversation_id', filter: EqualsFilter::class, property: 'conversation_id')]
+#[QueryParameter(key: 'messageable_type', filter: EqualsFilter::class, property: 'messageable_type')]
+#[QueryParameter(key: 'messageable_id', filter: EqualsFilter::class, property: 'messageable_id')]
 #[QueryParameter(key: 'sender_id', filter: EqualsFilter::class, property: 'sender_id')]
 #[QueryParameter(key: 'body', filter: PartialSearchFilter::class, property: 'body')]
 #[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
-class ConversationMessage extends Model
+class Message extends Model
 {
-    /** @use HasFactory<\Database\Factories\ConversationMessageFactory> */
+    /** @use HasFactory<\Database\Factories\MessageFactory> */
     use HasFactory, SoftDeletes;
 
     /**
      * @var list<string>
      */
     protected $fillable = [
-        'conversation_id',
+        'messageable_type',
+        'messageable_id',
         'sender_id',
         'type',
         'body',
@@ -57,9 +60,9 @@ class ConversationMessage extends Model
         ];
     }
 
-    public function conversation(): BelongsTo
+    public function messageable(): MorphTo
     {
-        return $this->belongsTo(Conversation::class);
+        return $this->morphTo();
     }
 
     public function sender(): BelongsTo

@@ -2,20 +2,20 @@
 
 namespace Database\Factories;
 
-use App\Models\Server\Conversation;
-use App\Models\Server\ConversationMessage;
+use App\Models\Server\Message;
+use App\Models\Server\Request;
 use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Server\ConversationMessage>
+ * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Server\Message>
  */
-class ConversationMessageFactory extends Factory
+class MessageFactory extends Factory
 {
     /**
-     * @var class-string<\App\Models\Server\ConversationMessage>
+     * @var class-string<\App\Models\Server\Message>
      */
-    protected $model = ConversationMessage::class;
+    protected $model = Message::class;
 
     /**
      * Define the model's default state.
@@ -25,7 +25,8 @@ class ConversationMessageFactory extends Factory
     public function definition(): array
     {
         return [
-            'conversation_id' => Conversation::factory(),
+            'messageable_type' => Request::class,
+            'messageable_id' => Request::factory(),
             'sender_id' => User::factory(),
             'type' => 'text',
             'body' => fake()->paragraph(),
