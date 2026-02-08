@@ -109,7 +109,7 @@ const formatTimestamp = (value) => new Date(value).toLocaleString();
                         @click="switchThread(thread.id)"
                     >
                         <span>{{ thread.title }}</span>
-                        <small>{{ thread.agent_key }}</small>
+                        <small>{{ thread.handler_actor }}</small>
                     </button>
                 </div>
             </section>

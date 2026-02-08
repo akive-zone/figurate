@@ -24,7 +24,7 @@ Build a cross-platform platform (Mobile + Web) with NativePHP as the shell, Iner
 5. Quote (created by profile owner).
 6. Order (accepted quote; can progress through billing, assessment, fulfillment).
 7. Assessment (optional, must be acknowledged).
-8. WorkLog (media + text uploads).
+8. Process (media + text updates).
 9. Payment (partial/full; multiple stages).
 10. Rating (mutual).
 11. Dispute.
@@ -157,7 +157,7 @@ Time: 03:00:00 WAT
 4. Quote: create, revise, accept.
 5. Assessment: create, update, acknowledge.
 6. Billing/Payment: create invoice, verify payment.
-7. WorkLog: create, list, attach media.
+7. Process: create, list, attach media.
 8. Order: status updates, completion.
 9. Rating: submit, list.
 

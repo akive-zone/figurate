@@ -20,12 +20,12 @@ use App\Policies\Server\DisputePolicy;
 use App\Policies\Server\MessagePolicy;
 use App\Policies\Server\OrderPolicy;
 use App\Policies\Server\PaymentPolicy;
+use App\Policies\Server\ProcessPolicy;
 use App\Policies\Server\ProfilePolicy;
 use App\Policies\Server\QuotePolicy;
 use App\Policies\Server\RatingPolicy;
 use App\Policies\Server\RequestPolicy;
 use App\Policies\Server\ServiceCategoryPolicy;
-use App\Policies\Server\WorkLogPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -38,7 +38,7 @@ class AuthServiceProvider extends ServiceProvider
         Gate::policy(Quote::class, QuotePolicy::class);
         Gate::policy(Order::class, OrderPolicy::class);
         Gate::policy(Assessment::class, AssessmentPolicy::class);
-        Gate::policy(Process::class, WorkLogPolicy::class);
+        Gate::policy(Process::class, ProcessPolicy::class);
         Gate::policy(Payment::class, PaymentPolicy::class);
         Gate::policy(Rating::class, RatingPolicy::class);
         Gate::policy(Dispute::class, DisputePolicy::class);

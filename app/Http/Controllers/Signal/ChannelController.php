@@ -179,7 +179,7 @@ class ChannelController extends Controller
                         'id' => $thread->id,
                         'title' => $thread->title,
                         'phase' => $thread->phase,
-                        'agent_key' => $handlerActor?->actorName(),
+                        'handler_actor' => $handlerActor?->actorName(),
                         'status' => $thread->status,
                         'has_ai_history' => filled($handlerMemory?->conversation_id),
                     ];

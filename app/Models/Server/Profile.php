@@ -100,7 +100,7 @@ class Profile extends Model
         return $this->hasMany(Order::class, 'seller_profile_id');
     }
 
-    public function workLogs(): HasMany
+    public function processes(): HasMany
     {
         return $this->hasMany(Process::class);
     }
