@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class ThreadActor extends Model
 {
@@ -41,7 +42,8 @@ class ThreadActor extends Model
      */
     protected $fillable = [
         'thread_id',
-        'actor_key',
+        'actorable_type',
+        'actorable_id',
         'role',
         'status',
         'priority',
@@ -64,8 +66,38 @@ class ThreadActor extends Model
         return $this->belongsTo(Thread::class);
     }
 
+    public function actorable(): MorphTo
+    {
+        return $this->morphTo();
+    }
+
     public function memories(): HasMany
     {
         return $this->hasMany(ThreadActorMemory::class);
+    }
+
+    public function actorName(): ?string
+    {
+        if (! is_string($this->actorable_type) || $this->actorable_type === '') {
+            return null;
+        }
+
+        return $this->actorable_type;
+    }
+
+    public function isNamedActor(string $actorName): bool
+    {
+        return $this->actorable_id === null && $this->actorName() === $actorName;
+    }
+
+    public function actorReference(): ?string
+    {
+        $actorName = $this->actorName();
+
+        if (! $actorName) {
+            return null;
+        }
+
+        return $this->actorable_id === null ? $actorName : "{$actorName}:{$this->actorable_id}";
     }
 }

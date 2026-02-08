@@ -2,8 +2,8 @@
 
 namespace App\Policies\Server;
 
+use App\Models\Server\Process;
 use App\Models\Server\User;
-use App\Models\Server\WorkLog;
 
 class WorkLogPolicy
 {
@@ -18,7 +18,7 @@ class WorkLogPolicy
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, WorkLog $workLog): bool
+    public function view(User $user, Process $workLog): bool
     {
         if ($user->type === 'system') {
             return true;
@@ -42,7 +42,7 @@ class WorkLogPolicy
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, WorkLog $workLog): bool
+    public function update(User $user, Process $workLog): bool
     {
         if ($user->type === 'system') {
             return true;
@@ -54,7 +54,7 @@ class WorkLogPolicy
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, WorkLog $workLog): bool
+    public function delete(User $user, Process $workLog): bool
     {
         return $user->type === 'system';
     }
@@ -62,7 +62,7 @@ class WorkLogPolicy
     /**
      * Determine whether the user can restore the model.
      */
-    public function restore(User $user, WorkLog $workLog): bool
+    public function restore(User $user, Process $workLog): bool
     {
         return $user->type === 'system';
     }
@@ -70,7 +70,7 @@ class WorkLogPolicy
     /**
      * Determine whether the user can permanently delete the model.
      */
-    public function forceDelete(User $user, WorkLog $workLog): bool
+    public function forceDelete(User $user, Process $workLog): bool
     {
         return $user->type === 'system';
     }

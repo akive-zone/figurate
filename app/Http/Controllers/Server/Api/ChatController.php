@@ -37,7 +37,7 @@ class ChatController extends Controller
 
         $primaryHandler = $this->resolvePrimaryHandlerActor($thread);
 
-        return match ($primaryHandler->actor_key) {
+        return match ($primaryHandler->actorName()) {
             ThreadActor::ActorHumanChat => $this->storeHumanMessage($request, $channel, $serviceRequest, $thread),
             default => $this->promptAgentThread($request, $channel, $serviceRequest, $thread),
         };
@@ -174,7 +174,7 @@ class ChatController extends Controller
     {
         $thread = $primaryHandler->thread;
 
-        return match ($primaryHandler->actor_key) {
+        return match ($primaryHandler->actorName()) {
             ThreadActor::ActorOrderAgent => OrderAgent::make(thread: $thread),
             default => RequestAgent::make(thread: $thread),
         };

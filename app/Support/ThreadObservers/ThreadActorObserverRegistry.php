@@ -7,9 +7,9 @@ use App\Support\ThreadObservers\Contracts\ThreadObserverContract;
 
 class ThreadActorObserverRegistry
 {
-    public function resolve(string $actorKey): ?ThreadObserverContract
+    public function resolve(ThreadActor $threadActor): ?ThreadObserverContract
     {
-        return match ($actorKey) {
+        return match ($threadActor->actorName()) {
             ThreadActor::ActorSafetyGuard => app(SafetyGuardObserver::class),
             default => null,
         };

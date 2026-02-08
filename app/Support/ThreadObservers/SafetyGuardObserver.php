@@ -89,7 +89,7 @@ class SafetyGuardObserver implements ThreadObserverContract
         return json_encode([
             'thread_id' => $thread->id,
             'thread_phase' => $thread->phase,
-            'thread_primary_actor' => $thread->primaryHandlerActor()->value('actor_key'),
+            'thread_primary_actor' => $thread->primaryHandlerActor()->first()?->actorName(),
             'message_id' => $message->id,
             'message_body' => $message->body,
             'attachments' => $attachments,

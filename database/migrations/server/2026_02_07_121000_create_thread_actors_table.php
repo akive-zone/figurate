@@ -14,14 +14,14 @@ return new class extends Migration
         Schema::create('thread_actors', function (Blueprint $table) {
             $table->id();
             $table->foreignId('thread_id')->constrained('threads')->cascadeOnDelete();
-            $table->string('actor_key');
+            $table->nullableMorphs('actorable');
             $table->string('role');
             $table->string('status')->default('active');
             $table->unsignedInteger('priority')->nullable();
             $table->json('config')->nullable();
             $table->timestamps();
 
-            $table->unique(['thread_id', 'actor_key', 'role'], 'thread_actors_unique');
+            $table->unique(['thread_id', 'actorable_type', 'actorable_id', 'role'], 'thread_actors_unique');
             $table->index(['role', 'status'], 'thread_actors_role_status_index');
         });
     }

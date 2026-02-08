@@ -60,7 +60,8 @@ class RequestController extends Controller
             ]);
 
             $mainThread->actors()->create([
-                'actor_key' => ThreadActor::ActorRequestAgent,
+                'actorable_type' => ThreadActor::ActorRequestAgent,
+                'actorable_id' => null,
                 'role' => ThreadActor::RolePrimaryHandler,
                 'status' => ThreadActor::StatusActive,
                 'priority' => 1,

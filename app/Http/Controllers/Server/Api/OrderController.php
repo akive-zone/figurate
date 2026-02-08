@@ -72,7 +72,8 @@ class OrderController extends Controller
 
             if (! $serviceRequest->threads()->whereHas('actors', function ($query): void {
                 $query->where('role', ThreadActor::RolePrimaryHandler)
-                    ->where('actor_key', ThreadActor::ActorOrderAgent)
+                    ->where('actorable_type', ThreadActor::ActorOrderAgent)
+                    ->whereNull('actorable_id')
                     ->where('status', ThreadActor::StatusActive);
             })->exists()) {
                 $orderThread = $serviceRequest->threads()->create([
@@ -83,7 +84,8 @@ class OrderController extends Controller
                 ]);
 
                 $orderThread->actors()->create([
-                    'actor_key' => ThreadActor::ActorOrderAgent,
+                    'actorable_type' => ThreadActor::ActorOrderAgent,
+                    'actorable_id' => null,
                     'role' => ThreadActor::RolePrimaryHandler,
                     'status' => ThreadActor::StatusActive,
                     'priority' => 1,

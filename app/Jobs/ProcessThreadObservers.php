@@ -31,7 +31,7 @@ class ProcessThreadObservers implements ShouldQueue
 
         $message = Message::query()->find($this->messageId);
 
-        if (! $thread || ! $message || $thread->primaryHandlerActor()->value('actor_key') !== ThreadActor::ActorHumanChat) {
+        if (! $thread || ! $message || ! $thread->primaryHandlerActor()->first()?->isNamedActor(ThreadActor::ActorHumanChat)) {
             return;
         }
 
@@ -39,7 +39,7 @@ class ProcessThreadObservers implements ShouldQueue
         $messageChanged = false;
 
         foreach ($thread->actors as $threadActor) {
-            $observer = $registry->resolve($threadActor->actor_key);
+            $observer = $registry->resolve($threadActor);
 
             if (! $observer) {
                 continue;
@@ -53,7 +53,7 @@ class ProcessThreadObservers implements ShouldQueue
 
             $thread->events()->create([
                 'message_id' => $message->id,
-                'actor_key' => $threadActor->actor_key,
+                'actor_key' => $threadActor->actorReference(),
                 'event_type' => $result->eventType,
                 'severity' => $result->severity,
                 'payload' => $result->payload,
@@ -61,7 +61,7 @@ class ProcessThreadObservers implements ShouldQueue
 
             if ($result->eventType === 'moderation_flagged') {
                 $updatedMeta['moderation_status'] = 'flagged';
-                $updatedMeta['observer_flags'][] = $threadActor->actor_key;
+                $updatedMeta['observer_flags'][] = $threadActor->actorReference();
                 $messageChanged = true;
             }
 
@@ -71,7 +71,7 @@ class ProcessThreadObservers implements ShouldQueue
                 $result->redactMessage
             ) {
                 $updatedMeta['moderation_status'] = 'blocked';
-                $updatedMeta['observer_flags'][] = $threadActor->actor_key;
+                $updatedMeta['observer_flags'][] = $threadActor->actorReference();
                 $message->body = '[Message removed by safety policy]';
                 $messageChanged = true;
             }

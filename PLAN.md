@@ -258,7 +258,8 @@ Time: 10:45:00 WAT
 5. `threads` (polymorphic parent)
    Phase-scoped conversation contexts attached to a business record, usually the request. Threads should remain neutral and not store actor-specific memory IDs directly.
 6. `thread_actors`
-   Actor membership + behavior routing on each thread (`actor_key`, `role`, `status`, `priority`, `config`).
+   Actor membership + behavior routing on each thread (`actorable_type`, `actorable_id`, `role`, `status`, `priority`, `config`).
+   For named/system actors, store name in `actorable_type` and leave `actorable_id` null.
    Roles include `primary_handler`, `observer`, and `participant`.
 7. `thread_actor_memories`
    Per-thread-per-actor memory state (provider/model/conversation continuity) so each actor keeps independent memory.
@@ -335,7 +336,7 @@ Time: 10:45:00 WAT
 1. `channel` = project container.
 2. Main thread is required:
    `purpose=orchestration`, `title=Project Main`.
-   Add `thread_actors` primary handler: `actor_key=request_agent`.
+   Add `thread_actors` primary handler: `actorable_type=request_agent`, `actorable_id=null`.
 3. Purpose threads are optional and created only on intent change.
 4. `worker_chat` thread is the first purpose-thread candidate.
 
@@ -417,7 +418,8 @@ Time: 10:45:00 WAT
 **Suggested Components**
 1. `thread_actors` table:
    - `thread_id`
-   - `actor_key` (`request_agent`, `order_agent`, `human_chat`, `safety_guard`, ...)
+   - `actorable_type` (actor class or named actor like `request_agent`, `order_agent`, `human_chat`, `safety_guard`)
+   - `actorable_id` (nullable; null for named/system actors)
    - `role` (`primary_handler`, `observer`, `participant`)
    - `status` (`active`, `paused`)
    - `priority`
@@ -433,7 +435,7 @@ Time: 10:45:00 WAT
 3. `thread_events` table:
    - `thread_id`
    - `message_id`
-   - `actor_key`
+   - `actor_key` (actor reference string derived from `thread_actors`)
    - `event_type` (`moderation_flagged`, `message_blocked`, `suggestion_created`, `risk_detected`)
    - `severity` (`low`, `medium`, `high`)
    - `payload` (json)

@@ -102,6 +102,6 @@ class Profile extends Model
 
     public function workLogs(): HasMany
     {
-        return $this->hasMany(WorkLog::class);
+        return $this->hasMany(Process::class);
     }
 }

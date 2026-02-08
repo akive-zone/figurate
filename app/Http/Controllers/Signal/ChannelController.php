@@ -85,9 +85,9 @@ class ChannelController extends Controller
                 'quotes:id,request_id,profile_id,amount,currency,details,status,created_at',
                 'order:id,request_id,quote_id,status',
                 'threads:id,threadable_type,threadable_id,created_by,title,phase,status,created_at',
-                'threads.actors:id,thread_id,actor_key,role,status,priority',
+                'threads.actors:id,thread_id,actorable_type,actorable_id,role,status,priority',
                 'threads.actorMemories:id,thread_id,thread_actor_id,conversation_id,last_used_at',
-                'threads.actorMemories.threadActor:id,thread_id,actor_key,role,status,priority',
+                'threads.actorMemories.threadActor:id,thread_id,actorable_type,actorable_id,role,status,priority',
             ]);
         }
 
@@ -179,7 +179,7 @@ class ChannelController extends Controller
                         'id' => $thread->id,
                         'title' => $thread->title,
                         'phase' => $thread->phase,
-                        'agent_key' => $handlerActor?->actor_key,
+                        'agent_key' => $handlerActor?->actorName(),
                         'status' => $thread->status,
                         'has_ai_history' => filled($handlerMemory?->conversation_id),
                     ];
