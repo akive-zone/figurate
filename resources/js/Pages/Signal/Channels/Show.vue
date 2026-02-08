@@ -163,6 +163,7 @@ const formatTimestamp = (value) => new Date(value).toLocaleString();
                     <select id="thread-agent" v-model="threadForm.agent_key" class="signal-input">
                         <option value="request_agent">RequestAgent</option>
                         <option value="order_agent">OrderAgent</option>
+                        <option value="human_chat">HumanChat</option>
                     </select>
                     <p v-if="threadErrors.agent_key" class="signal-error">{{ threadErrors.agent_key[0] }}</p>
 
@@ -171,6 +172,21 @@ const formatTimestamp = (value) => new Date(value).toLocaleString();
             </section>
 
             <section class="signal-thread__messages">
+                <article
+                    v-for="message in channel.thread_messages"
+                    :key="`thread-${message.id}`"
+                    class="signal-message signal-message--mine"
+                >
+                    <p class="signal-message__author">{{ message.sender_name ?? 'You' }}</p>
+                    <p>{{ message.content }}</p>
+                    <ul v-if="message.attachments?.length" class="signal-thread__attachments">
+                        <li v-for="attachment in message.attachments" :key="attachment.path">
+                            {{ attachment.name }} ({{ attachment.mime }})
+                        </li>
+                    </ul>
+                    <p class="signal-message__time">{{ formatTimestamp(message.created_at) }}</p>
+                </article>
+
                 <article
                     v-for="message in channel.agent_messages"
                     :key="message.id"

@@ -231,3 +231,210 @@ Both the asker (Signal) and the handler (Studio) use a chatbox-first experience.
 3. System events: quote, assessment, billing, payment, completion, rating.
 4. State transitions: enforce flow order and permissions.
 5. Realtime: optional push or polling for new messages and events.
+
+---
+
+Date: 2026-02-07
+Time: 10:45:00 WAT
+
+**Proposed Channel + Thread Architecture (Holistic Draft)**
+
+**Intent**
+1. Keep one visible chatbox per request journey for the user.
+2. Allow backend orchestration to switch AI agents by phase.
+3. Prevent schema sprawl while preserving auditability and clean transitions.
+
+**Core Objects**
+1. `requests`
+   The business object for the ask itself (title, description, status, pricing path). It should not directly own requester/profile FKs.
+2. `channels`
+   The UX container for the chat surface a user opens in Signal or Studio.
+3. `channel_relations` (polymorphic)
+   Links a channel to one or more business records (`Request`, later optionally `Order`, `Dispute`).
+4. `request_actors` (polymorphic pivot)
+   Actor membership for requests using (`request_id`, `actor_type`, `actor_id`, `action`, `status`).
+   `actor` may be `User` or `Profile`.
+   Example actions: `asker`, `target_profile`, later `assigned_profile`, `watcher`.
+5. `threads` (polymorphic parent)
+   Phase-scoped conversation contexts attached to a business record, usually the request.
+6. `messages` (polymorphic parent)
+   The message stream. Preferred usage: store chat on `Thread` so each thread has isolated history.
+
+**Single Chatbox, Multiple Thread Contexts**
+1. Channel starts with one primary thread (`phase = intake`, `agent_key = request_agent`).
+2. UI shows one chatbox at a time, bound to `channel.active_thread_id` (or equivalent resolver).
+3. When fulfillment phase changes, system opens a new thread and switches active thread.
+4. Prior threads stay queryable for audit/history and can be reopened if needed.
+
+**Thread Types**
+1. `request_agent`
+   Clarifies ask, scope, and worker matching steps.
+2. `order_agent`
+   Handles booked-order guidance, milestones, and issue triage.
+3. `human_chat`
+   Direct asker-worker conversation for negotiation/collaboration.
+4. Optional future keys:
+   `assignment_agent`, `billing_agent`, `dispute_agent`.
+
+**Recommended Message Storage Rule**
+1. Persist all user/worker/assistant/system chat events in `messages` with `messageable = Thread`.
+2. Keep AI provider conversation ids on thread (`ai_conversation_id`) for model memory continuity.
+3. Do not rely on separate ad hoc AI message tables for core product history.
+
+**Flow Profiles (Product Modes)**
+1. `ubuy` (direct)
+   Request writes actor rows like:
+   asker user (`action=asker`) + chosen profile (`action=target_profile`).
+2. `upwork` (market)
+   Request starts with asker actor; candidate/bidder profiles are represented as actor rows with flow-specific actions.
+3. `uber` (auto-assignment)
+   Request starts with asker actor; assignment writes selected profile actor (`action=assigned_profile`).
+
+**Thread Transition Examples**
+1. Request opened:
+   Create `intake/request_agent` as main thread.
+2. Bidding starts (`upwork`):
+   Create `bidding/human_chat` or `bidding/request_agent`.
+3. Quote accepted:
+   Create `booking/order_agent`.
+4. Work starts:
+   Create `fulfillment/human_chat` plus optional `fulfillment/order_agent`.
+5. Dispute raised:
+   Create `dispute/dispute_agent` and mark prior active thread non-active.
+
+**State + Transition Guardrails**
+1. Thread creation should be event-driven, not arbitrary form-driven.
+2. Add transition service/policy to enforce allowed phase moves by flow type.
+3. Keep one active thread per channel by invariant.
+4. Close or archive obsolete threads instead of deleting.
+
+**API Surface Direction**
+1. Keep generic endpoints:
+   `/api/request`, `/api/chat`, `/api/order`.
+2. Add thread-focused endpoints:
+   - `POST /api/chat/channels/{channel}/threads`
+   - `POST /api/chat/channels/{channel}/threads/{thread}/messages`
+   - `POST /api/chat/channels/{channel}/threads/{thread}/prompt`
+3. Chat UI routes remain web-only (`web.php`) and call APIs via axios.
+
+**Open Decisions to Finalize**
+1. Should `threads` stay attached to `Request` only, or permit `Order`/`Dispute` ownership from day one?
+2. What is the canonical `request_actors.action` vocabulary per flow (`ubuy`, `upwork`, `uber`)?
+3. Should `human_chat` be auto-created at request-open, quote-accepted, or flow-specific?
+4. Should inactive threads be writable for follow-ups, or hard-locked after transition?
+
+**Ubuy Transition Map (Current Working Mode)**
+
+**Thread Topology**
+1. `channel` = project container.
+2. Main thread is required:
+   `purpose=orchestration`, `title=Project Main`, initial `agent_key=request_agent`.
+3. Purpose threads are optional and created only on intent change.
+4. `worker_chat` thread is the first purpose-thread candidate.
+
+**Actor Setup**
+1. On request creation, create `request_actors` rows:
+   - asker user: `action=asker`, `status=active`
+   - selected worker profile: `action=target_profile`, `status=active`
+
+**State Machine (Main Thread)**
+1. `request_intake`
+2. `quote_pending`
+3. `quote_received`
+4. `booking_pending`
+5. `booked`
+6. `fulfillment_in_progress`
+7. `completion_review`
+8. terminal:
+   `fulfilled` or `disputed`
+
+**Transition Rules**
+1. `request_created`:
+   - enter `request_intake`
+   - create main thread
+   - post system message in main thread
+2. `worker_submits_quote`:
+   - `request_intake` or `quote_pending` -> `quote_received`
+   - keep same main thread
+3. `asker_accepts_quote`:
+   - `quote_received` -> `booked`
+   - switch main thread agent from `request_agent` to `order_agent`
+   - keep same main thread id
+4. `work_started`:
+   - `booked` -> `fulfillment_in_progress`
+   - keep same main thread
+5. `worker_marks_done`:
+   - `fulfillment_in_progress` -> `completion_review`
+   - keep same main thread
+6. `asker_accepts_completion`:
+   - `completion_review` -> `fulfilled`
+   - keep same main thread
+7. `asker_opens_dispute`:
+   - from `booked` / `fulfillment_in_progress` / `completion_review` -> `disputed`
+   - keep main thread as status source; optional `dispute` purpose thread may be created
+
+**When To Create Purpose Threads**
+1. `worker_chat`:
+   - create when either side sends first direct human message
+   - do not auto-create at request open
+2. `dispute`:
+   - create only when dispute workflow starts
+3. `billing` (optional future):
+   - create only if billing discussion needs isolated history
+
+**No-New-Thread Rule**
+1. Pure status transitions must not create new threads.
+2. New thread requires a new intent/purpose, not a new status.
+3. Main thread remains the fulfillment timeline source of truth.
+
+**Event To Thread Action Matrix (Ubuy)**
+1. `request_created` -> main thread: create, purpose thread: no
+2. `worker_submits_quote` -> main thread: update phase, purpose thread: no
+3. `asker_accepts_quote` -> main thread: update phase + switch agent, purpose thread: no
+4. `first_worker_chat_message` -> main thread: no phase change, purpose thread: create `worker_chat`
+5. `work_started` -> main thread: update phase, purpose thread: no
+6. `worker_marks_done` -> main thread: update phase, purpose thread: no
+7. `asker_accepts_completion` -> main thread: update phase to terminal, purpose thread: no
+8. `asker_opens_dispute` -> main thread: update phase to terminal/branch, purpose thread: optional `dispute`
+
+**Human Chat Observer Architecture**
+
+**Goal**
+1. Allow bots to listen to `human_chat` and trigger moderation/suggestion actions without replacing human-to-human conversation ownership.
+
+**Design Principle**
+1. `human_chat` remains a human message thread.
+2. Bots run as observers in background, not as primary speakers.
+3. Observer outputs are stored as events/actions, not mixed into user-authored messages by default.
+
+**Suggested Components**
+1. `thread_observers` table:
+   - `thread_id`
+   - `observer_key` (`safety_guard`, `assistant_suggester`, `policy_guard`)
+   - `mode` (`passive`, `enforcing`)
+   - `status` (`active`, `paused`)
+2. `thread_events` table:
+   - `thread_id`
+   - `message_id`
+   - `event_type` (`moderation_flagged`, `message_blocked`, `suggestion_created`, `risk_detected`)
+   - `severity` (`low`, `medium`, `high`)
+   - `payload` (json)
+3. Optional message metadata:
+   - `messages.meta.moderation_status`
+   - `messages.meta.observer_flags[]`
+
+**Runtime Flow**
+1. Message saved to `human_chat`.
+2. Dispatch async observer pipeline (`MessagePosted` -> queued job).
+3. Run active observers for that thread.
+4. Persist observer outcomes into `thread_events`.
+5. Apply enforcement policy:
+   - `allow`: no action
+   - `flag`: keep visible + warning/notification
+   - `block`: redact/hide + notify + audit
+6. Suggestions are surfaced as system suggestions, not implicit user messages.
+
+**Ubuy Integration Rules**
+1. `worker_chat` thread should start with `safety_guard` observer enabled.
+2. `enforcing` actions require deterministic policy checks plus audit event writes.
+3. Main orchestration thread remains status source of truth; observer outcomes from `human_chat` may trigger state transitions only through explicit domain actions.

@@ -17,6 +17,7 @@ Route::middleware(['web'])->group(function (): void {
     Route::post('/request', [RequestController::class, 'store']);
     Route::prefix('chat/{channel}')->group(function (): void {
         Route::post('/threads', [ChatController::class, 'storeThread']);
+        Route::post('/threads/{thread}/messages', [ChatController::class, 'storeMessage']);
         Route::post('/threads/{thread}/prompt', [ChatController::class, 'promptThread']);
     });
     Route::post('/order/channels/{channel}/quotes/{quote}/accept', [OrderController::class, 'acceptQuote']);

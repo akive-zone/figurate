@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\Server\Auth\SocialiteController;
 use App\Http\Controllers\Signal\ChannelController;
-use App\Http\Controllers\Signal\RequestChannelController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -26,7 +25,6 @@ Route::prefix('signal')
     ->name('signal.')
     ->group(function () {
         Route::get('/', [ChannelController::class, 'index'])->name('index');
-        Route::get('/requests/new', [RequestChannelController::class, 'create'])->name('requests.create');
         Route::get('/chat/{channel}', [ChannelController::class, 'show'])->name('chat.show');
     });
 

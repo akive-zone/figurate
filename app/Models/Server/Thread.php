@@ -5,6 +5,8 @@ namespace App\Models\Server;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -16,6 +18,8 @@ class Thread extends Model
     public const AgentRequest = 'request_agent';
 
     public const AgentOrder = 'order_agent';
+
+    public const AgentHumanChat = 'human_chat';
 
     /**
      * @var list<string>
@@ -39,5 +43,20 @@ class Thread extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function messages(): MorphMany
+    {
+        return $this->morphMany(Message::class, 'messageable');
+    }
+
+    public function observers(): HasMany
+    {
+        return $this->hasMany(ThreadObserver::class);
+    }
+
+    public function events(): HasMany
+    {
+        return $this->hasMany(ThreadEvent::class);
     }
 }

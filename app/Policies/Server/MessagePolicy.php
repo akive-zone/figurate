@@ -5,6 +5,7 @@ namespace App\Policies\Server;
 use App\Models\Server\Channel;
 use App\Models\Server\Message;
 use App\Models\Server\Request;
+use App\Models\Server\Thread;
 use App\Models\Server\User;
 
 class MessagePolicy
@@ -33,11 +34,13 @@ class MessagePolicy
         $messageable = $message->messageable;
 
         if ($messageable instanceof Request) {
-            if ($messageable->requester_id === $user->id) {
+            if ($messageable->hasUserActor($user)) {
                 return true;
             }
 
-            return $messageable->profile?->user_id === $user->id;
+            return $messageable->profiles()
+                ->where('profiles.user_id', $user->id)
+                ->exists();
         }
 
         if ($messageable instanceof Channel) {
@@ -46,6 +49,14 @@ class MessagePolicy
             }
 
             return $messageable->profile?->user_id === $user->id;
+        }
+
+        if ($messageable instanceof Thread) {
+            $threadable = $messageable->threadable;
+
+            if ($threadable instanceof Request) {
+                return $threadable->hasParticipant($user);
+            }
         }
 
         return false;

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Server\Channel;
 use App\Models\Server\Order;
 use App\Models\Server\Quote;
+use App\Models\Server\Request as ServiceRequest;
 use App\Models\Server\Thread;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,7 @@ class OrderController extends Controller
         $serviceRequest = $channel->requests()->first();
         $profile = $channel->profile;
 
-        if (! $serviceRequest || ! $profile || $serviceRequest->requester_id !== $currentUser->id) {
+        if (! $serviceRequest || ! $profile || ! $serviceRequest->hasUserActor($currentUser, ServiceRequest::ActionAsker)) {
             abort(403);
         }
 
@@ -46,10 +47,16 @@ class OrderController extends Controller
                 ->where('status', 'pending')
                 ->update(['status' => 'rejected']);
 
+            $buyer = $serviceRequest->primaryRequester();
+
+            if (! $buyer) {
+                abort(422, 'Request has no asker actor.');
+            }
+
             Order::query()->create([
                 'request_id' => $serviceRequest->id,
                 'quote_id' => $quote->id,
-                'buyer_id' => $serviceRequest->requester_id,
+                'buyer_id' => $buyer->id,
                 'seller_profile_id' => $profile->id,
                 'status' => 'booked',
             ]);

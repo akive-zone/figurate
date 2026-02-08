@@ -28,7 +28,7 @@ class QuotePolicy
             return true;
         }
 
-        return $quote->request?->requester_id === $user->id;
+        return $quote->request?->hasUserActor($user) ?? false;
     }
 
     /**
@@ -52,7 +52,7 @@ class QuotePolicy
             return true;
         }
 
-        return $quote->request?->requester_id === $user->id;
+        return $quote->request?->hasUserActor($user) ?? false;
     }
 
     /**

@@ -2,8 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\Profile;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -19,8 +17,6 @@ class RequestFactory extends Factory
     public function definition(): array
     {
         return [
-            'requester_id' => User::factory(),
-            'profile_id' => Profile::factory(),
             'title' => fake()->sentence(6),
             'description' => fake()->paragraph(),
             'status' => 'open',

@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Signal;
 use App\Http\Controllers\Controller;
 use App\Models\Server\AgentConversationMessage;
 use App\Models\Server\Channel;
+use App\Models\Server\Message;
 use App\Models\Server\Quote;
+use App\Models\Server\Request as ServiceRequest;
 use App\Models\Server\Thread;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -27,7 +29,7 @@ class ChannelController extends Controller
             })
             ->with([
                 'profile:id,display_name,user_id',
-                'requests:id,title,status,requester_id,profile_id',
+                'requests:id,title,status',
                 'requests.latestMessage:id,messageable_type,messageable_id,sender_id,body,created_at',
                 'requests.latestMessage.sender:id,name',
             ])
@@ -72,7 +74,7 @@ class ChannelController extends Controller
 
         $channel->load([
             'profile:id,display_name,user_id',
-            'requests:id,title,description,status,requester_id,profile_id',
+            'requests:id,title,description,status',
         ]);
 
         $serviceRequest = $channel->requests->first();
@@ -86,7 +88,7 @@ class ChannelController extends Controller
         }
 
         $currentUser = $request->user();
-        $isRequester = $serviceRequest?->requester_id === $currentUser->id;
+        $isRequester = $serviceRequest?->hasUserActor($currentUser, ServiceRequest::ActionAsker) ?? false;
         $requestStatus = $serviceRequest?->status;
 
         $pendingQuotes = $serviceRequest?->quotes
@@ -103,11 +105,20 @@ class ChannelController extends Controller
             ?? $threads->first();
 
         $agentMessages = collect();
+        $threadMessages = collect();
 
         if ($activeThread?->ai_conversation_id) {
             $agentMessages = AgentConversationMessage::query()
                 ->where('conversation_id', $activeThread->ai_conversation_id)
                 ->with('user:id,name')
+                ->orderBy('created_at')
+                ->limit(100)
+                ->get();
+        }
+
+        if ($activeThread) {
+            $threadMessages = $activeThread->messages()
+                ->with('sender:id,name')
                 ->orderBy('created_at')
                 ->limit(100)
                 ->get();
@@ -162,6 +173,17 @@ class ChannelController extends Controller
                             'agent' => $message->agent,
                             'sender_name' => $message->user?->name,
                             'content' => $message->content,
+                            'created_at' => $message->created_at->toIso8601String(),
+                        ];
+                    })
+                    ->values(),
+                'thread_messages' => $threadMessages
+                    ->map(function (Message $message): array {
+                        return [
+                            'id' => $message->id,
+                            'sender_name' => $message->sender?->name,
+                            'content' => $message->body,
+                            'attachments' => $message->attachments ?? [],
                             'created_at' => $message->created_at->toIso8601String(),
                         ];
                     })

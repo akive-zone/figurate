@@ -24,11 +24,13 @@ class RequestPolicy
             return true;
         }
 
-        if ($request->requester_id === $user->id) {
+        if ($request->hasUserActor($user)) {
             return true;
         }
 
-        return $request->profile?->user_id === $user->id;
+        return $request->profiles()
+            ->where('profiles.user_id', $user->id)
+            ->exists();
     }
 
     /**
@@ -44,7 +46,7 @@ class RequestPolicy
      */
     public function update(User $user, Request $request): bool
     {
-        return $user->type === 'system' || $request->requester_id === $user->id;
+        return $user->type === 'system' || $request->hasUserActor($user, Request::ActionAsker);
     }
 
     /**
@@ -52,7 +54,7 @@ class RequestPolicy
      */
     public function delete(User $user, Request $request): bool
     {
-        return $user->type === 'system' || $request->requester_id === $user->id;
+        return $user->type === 'system' || $request->hasUserActor($user, Request::ActionAsker);
     }
 
     /**

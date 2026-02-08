@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[ApiResource(
@@ -77,9 +78,11 @@ class Profile extends Model
         return $this->belongsToMany(ServiceCategory::class, 'profile_service_category');
     }
 
-    public function requests(): HasMany
+    public function requests(): MorphToMany
     {
-        return $this->hasMany(Request::class);
+        return $this->morphToMany(Request::class, 'actor', 'request_actors')
+            ->withPivot(['action', 'status'])
+            ->withTimestamps();
     }
 
     public function channels(): HasMany

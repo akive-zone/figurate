@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('channels', function (Blueprint $table) {
             $table->id();
             $table->foreignId('requester_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('profile_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('profile_id')->nullable()->constrained()->nullOnDelete();
             $table->string('status')->default('open');
             $table->timestamp('last_message_at')->nullable();
             $table->timestamps();

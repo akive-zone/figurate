@@ -5,6 +5,7 @@ namespace App\Models\Server;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -45,9 +46,11 @@ class User extends Authenticatable
         return $this->hasOne(Profile::class);
     }
 
-    public function requests(): HasMany
+    public function requests(): MorphToMany
     {
-        return $this->hasMany(Request::class, 'requester_id');
+        return $this->morphToMany(Request::class, 'actor', 'request_actors')
+            ->withPivot(['action', 'status'])
+            ->withTimestamps();
     }
 
     public function channels(): HasMany

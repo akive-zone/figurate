@@ -13,15 +13,13 @@ return new class extends Migration
     {
         Schema::create('requests', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('requester_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('profile_id')->constrained()->cascadeOnDelete();
+            $table->string('flow_type')->default('ubuy');
             $table->string('title');
             $table->text('description');
             $table->string('status');
             $table->timestamps();
             $table->softDeletes();
-
-            $table->index(['profile_id', 'status']);
+            $table->index(['flow_type', 'status', 'created_at']);
         });
     }
 

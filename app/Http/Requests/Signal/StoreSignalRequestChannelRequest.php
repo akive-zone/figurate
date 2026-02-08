@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Signal;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreSignalRequestChannelRequest extends FormRequest
 {
@@ -22,10 +23,13 @@ class StoreSignalRequestChannelRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'profile_id' => ['required', 'integer', 'exists:profiles,id'],
+            'flow_type' => ['required', 'string', Rule::in(['ubuy', 'upwork', 'uber'])],
+            'profile_id' => ['required_if:flow_type,ubuy', 'nullable', 'integer', 'exists:profiles,id'],
             'title' => ['required', 'string', 'max:160'],
             'description' => ['required', 'string', 'max:5000'],
             'initial_message' => ['nullable', 'string', 'max:5000'],
+            'contents' => ['nullable', 'array', 'max:8'],
+            'contents.*' => ['file', 'max:10240', 'mimes:jpg,jpeg,png,webp,pdf,doc,docx,txt'],
         ];
     }
 
@@ -35,11 +39,16 @@ class StoreSignalRequestChannelRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'profile_id.required' => 'Select a profile to send your request to.',
+            'flow_type.required' => 'Select how this request should be routed.',
+            'flow_type.in' => 'Choose a valid routing mode.',
+            'profile_id.required_if' => 'Select a provider for direct match mode.',
             'profile_id.exists' => 'The selected profile is not available.',
             'title.required' => 'Add a short title for your request.',
             'description.required' => 'Describe what you need help with.',
             'initial_message.max' => 'Your first message is too long.',
+            'contents.max' => 'You can upload up to 8 files.',
+            'contents.*.max' => 'Each file must be 10MB or smaller.',
+            'contents.*.mimes' => 'Only images, PDF, DOC, DOCX, or TXT files are allowed.',
         ];
     }
 }
