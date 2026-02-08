@@ -30,8 +30,6 @@ class Thread extends Model
         'created_by',
         'title',
         'phase',
-        'agent_key',
-        'ai_conversation_id',
         'status',
     ];
 
@@ -50,9 +48,22 @@ class Thread extends Model
         return $this->morphMany(Message::class, 'messageable');
     }
 
-    public function observers(): HasMany
+    public function actors(): HasMany
     {
-        return $this->hasMany(ThreadObserver::class);
+        return $this->hasMany(ThreadActor::class);
+    }
+
+    public function actorMemories(): HasMany
+    {
+        return $this->hasMany(ThreadActorMemory::class);
+    }
+
+    public function primaryHandlerActor(): HasMany
+    {
+        return $this->actors()
+            ->where('role', ThreadActor::RolePrimaryHandler)
+            ->where('status', ThreadActor::StatusActive)
+            ->orderBy('priority');
     }
 
     public function events(): HasMany

@@ -256,15 +256,21 @@ Time: 10:45:00 WAT
    `actor` may be `User` or `Profile`.
    Example actions: `asker`, `target_profile`, later `assigned_profile`, `watcher`.
 5. `threads` (polymorphic parent)
-   Phase-scoped conversation contexts attached to a business record, usually the request.
-6. `messages` (polymorphic parent)
+   Phase-scoped conversation contexts attached to a business record, usually the request. Threads should remain neutral and not store actor-specific memory IDs directly.
+6. `thread_actors`
+   Actor membership + behavior routing on each thread (`actor_key`, `role`, `status`, `priority`, `config`).
+   Roles include `primary_handler`, `observer`, and `participant`.
+7. `thread_actor_memories`
+   Per-thread-per-actor memory state (provider/model/conversation continuity) so each actor keeps independent memory.
+8. `messages` (polymorphic parent)
    The message stream. Preferred usage: store chat on `Thread` so each thread has isolated history.
 
 **Single Chatbox, Multiple Thread Contexts**
-1. Channel starts with one primary thread (`phase = intake`, `agent_key = request_agent`).
-2. UI shows one chatbox at a time, bound to `channel.active_thread_id` (or equivalent resolver).
-3. When fulfillment phase changes, system opens a new thread and switches active thread.
-4. Prior threads stay queryable for audit/history and can be reopened if needed.
+1. Channel starts with one primary thread (`phase = intake`).
+2. Primary behavior is resolved via active `thread_actors` where `role = primary_handler`.
+3. UI shows one chatbox at a time, bound to `channel.active_thread_id` (or equivalent resolver).
+4. When fulfillment phase changes, system opens a new thread and switches active thread.
+5. Prior threads stay queryable for audit/history and can be reopened if needed.
 
 **Thread Types**
 1. `request_agent`
@@ -278,7 +284,7 @@ Time: 10:45:00 WAT
 
 **Recommended Message Storage Rule**
 1. Persist all user/worker/assistant/system chat events in `messages` with `messageable = Thread`.
-2. Keep AI provider conversation ids on thread (`ai_conversation_id`) for model memory continuity.
+2. Keep actor memory continuity in `thread_actor_memories`, not on `threads`.
 3. Do not rely on separate ad hoc AI message tables for core product history.
 
 **Flow Profiles (Product Modes)**
@@ -311,11 +317,11 @@ Time: 10:45:00 WAT
 **API Surface Direction**
 1. Keep generic endpoints:
    `/api/request`, `/api/chat`, `/api/order`.
-2. Add thread-focused endpoints:
-   - `POST /api/chat/channels/{channel}/threads`
-   - `POST /api/chat/channels/{channel}/threads/{thread}/messages`
-   - `POST /api/chat/channels/{channel}/threads/{thread}/prompt`
-3. Chat UI routes remain web-only (`web.php`) and call APIs via axios.
+2. Chat write contract:
+   - `POST /api/chat/{channel}`
+   - body includes `content` and optional `thread_id`; server resolves thread behavior from primary handler actor.
+3. Thread creation/switching rules should stay domain-driven (request/order events), not exposed as generic client thread CRUD.
+4. Chat UI routes remain web-only (`web.php`) and call APIs via axios.
 
 **Open Decisions to Finalize**
 1. Should `threads` stay attached to `Request` only, or permit `Order`/`Dispute` ownership from day one?
@@ -328,7 +334,8 @@ Time: 10:45:00 WAT
 **Thread Topology**
 1. `channel` = project container.
 2. Main thread is required:
-   `purpose=orchestration`, `title=Project Main`, initial `agent_key=request_agent`.
+   `purpose=orchestration`, `title=Project Main`.
+   Add `thread_actors` primary handler: `actor_key=request_agent`.
 3. Purpose threads are optional and created only on intent change.
 4. `worker_chat` thread is the first purpose-thread candidate.
 
@@ -358,7 +365,7 @@ Time: 10:45:00 WAT
    - keep same main thread
 3. `asker_accepts_quote`:
    - `quote_received` -> `booked`
-   - switch main thread agent from `request_agent` to `order_agent`
+   - switch main thread primary handler actor from `request_agent` to `order_agent`
    - keep same main thread id
 4. `work_started`:
    - `booked` -> `fulfillment_in_progress`
@@ -408,18 +415,29 @@ Time: 10:45:00 WAT
 3. Observer outputs are stored as events/actions, not mixed into user-authored messages by default.
 
 **Suggested Components**
-1. `thread_observers` table:
+1. `thread_actors` table:
    - `thread_id`
-   - `observer_key` (`safety_guard`, `assistant_suggester`, `policy_guard`)
-   - `mode` (`passive`, `enforcing`)
+   - `actor_key` (`request_agent`, `order_agent`, `human_chat`, `safety_guard`, ...)
+   - `role` (`primary_handler`, `observer`, `participant`)
    - `status` (`active`, `paused`)
-2. `thread_events` table:
+   - `priority`
+   - `config` (for mode and actor-specific options)
+2. `thread_actor_memories` table:
+   - `thread_id`
+   - `thread_actor_id`
+   - `provider`
+   - `model`
+   - `conversation_id`
+   - `state`
+   - `last_used_at`
+3. `thread_events` table:
    - `thread_id`
    - `message_id`
+   - `actor_key`
    - `event_type` (`moderation_flagged`, `message_blocked`, `suggestion_created`, `risk_detected`)
    - `severity` (`low`, `medium`, `high`)
    - `payload` (json)
-3. Optional message metadata:
+4. Optional message metadata:
    - `messages.meta.moderation_status`
    - `messages.meta.observer_flags[]`
 

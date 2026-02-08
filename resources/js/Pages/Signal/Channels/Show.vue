@@ -12,35 +12,23 @@ const props = defineProps({
 });
 
 const promptForm = reactive({
-    message: '',
-});
-
-const threadForm = reactive({
-    title: '',
-    phase: 'general',
-    agent_key: 'request_agent',
+    content: '',
 });
 
 const promptErrors = ref({});
-const threadErrors = ref({});
 const isPrompting = ref(false);
-const isCreatingThread = ref(false);
 const isAcceptingQuoteId = ref(null);
 
 const submitPrompt = async () => {
-    if (!props.channel.active_thread_id) {
-        return;
-    }
-
     promptErrors.value = {};
     isPrompting.value = true;
 
     try {
-        await axios.post(
-            `/api/chat/${props.channel.id}/threads/${props.channel.active_thread_id}/prompt`,
-            promptForm,
-        );
-        promptForm.message = '';
+        await axios.post(`/api/chat/${props.channel.id}`, {
+            thread_id: props.channel.active_thread_id ?? null,
+            content: promptForm.content,
+        });
+        promptForm.content = '';
         router.reload({ only: ['channel'] });
     } catch (error) {
         if (error.response?.status === 422) {
@@ -48,30 +36,6 @@ const submitPrompt = async () => {
         }
     } finally {
         isPrompting.value = false;
-    }
-};
-
-const submitThread = async () => {
-    threadErrors.value = {};
-    isCreatingThread.value = true;
-
-    try {
-        const response = await axios.post(`/api/chat/${props.channel.id}/threads`, threadForm);
-        const threadId = response.data?.thread_id;
-        threadForm.title = '';
-
-        if (threadId) {
-            switchThread(threadId);
-            return;
-        }
-
-        router.reload({ only: ['channel'] });
-    } catch (error) {
-        if (error.response?.status === 422) {
-            threadErrors.value = error.response.data.errors ?? {};
-        }
-    } finally {
-        isCreatingThread.value = false;
     }
 };
 
@@ -148,27 +112,6 @@ const formatTimestamp = (value) => new Date(value).toLocaleString();
                         <small>{{ thread.agent_key }}</small>
                     </button>
                 </div>
-
-                <form v-if="channel.actions.can_create_thread" class="signal-form" @submit.prevent="submitThread">
-                    <h4>Start New Thread</h4>
-                    <label for="thread-title" class="signal-label">Title</label>
-                    <input id="thread-title" v-model="threadForm.title" class="signal-input" maxlength="120" />
-                    <p v-if="threadErrors.title" class="signal-error">{{ threadErrors.title[0] }}</p>
-
-                    <label for="thread-phase" class="signal-label">Phase</label>
-                    <input id="thread-phase" v-model="threadForm.phase" class="signal-input" maxlength="60" />
-                    <p v-if="threadErrors.phase" class="signal-error">{{ threadErrors.phase[0] }}</p>
-
-                    <label for="thread-agent" class="signal-label">Agent</label>
-                    <select id="thread-agent" v-model="threadForm.agent_key" class="signal-input">
-                        <option value="request_agent">RequestAgent</option>
-                        <option value="order_agent">OrderAgent</option>
-                        <option value="human_chat">HumanChat</option>
-                    </select>
-                    <p v-if="threadErrors.agent_key" class="signal-error">{{ threadErrors.agent_key[0] }}</p>
-
-                    <button class="signal-button" :disabled="isCreatingThread">Create Thread</button>
-                </form>
             </section>
 
             <section class="signal-thread__messages">
@@ -210,14 +153,14 @@ const formatTimestamp = (value) => new Date(value).toLocaleString();
                 <label for="prompt" class="signal-label">Message To Active Agent</label>
                 <textarea
                     id="prompt"
-                    v-model="promptForm.message"
+                    v-model="promptForm.content"
                     class="signal-input"
                     rows="4"
-                    placeholder="Ask for guidance in this thread..."
+                    placeholder="Write a message for the active thread..."
                 />
-                <p v-if="promptErrors.message" class="signal-error">{{ promptErrors.message[0] }}</p>
-                <button class="signal-button" :disabled="isPrompting || !channel.actions.can_prompt_agent">
-                    Send To Agent
+                <p v-if="promptErrors.content" class="signal-error">{{ promptErrors.content[0] }}</p>
+                <button class="signal-button" :disabled="isPrompting">
+                    Send
                 </button>
             </form>
         </section>

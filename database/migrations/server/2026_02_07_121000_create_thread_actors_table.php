@@ -11,17 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('thread_observers', function (Blueprint $table) {
+        Schema::create('thread_actors', function (Blueprint $table) {
             $table->id();
             $table->foreignId('thread_id')->constrained('threads')->cascadeOnDelete();
-            $table->string('observer_key');
-            $table->string('mode')->default('passive');
+            $table->string('actor_key');
+            $table->string('role');
             $table->string('status')->default('active');
+            $table->unsignedInteger('priority')->nullable();
             $table->json('config')->nullable();
             $table->timestamps();
 
-            $table->unique(['thread_id', 'observer_key'], 'thread_observers_unique');
-            $table->index(['observer_key', 'status']);
+            $table->unique(['thread_id', 'actor_key', 'role'], 'thread_actors_unique');
+            $table->index(['role', 'status'], 'thread_actors_role_status_index');
         });
     }
 
@@ -30,6 +31,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('thread_observers');
+        Schema::dropIfExists('thread_actors');
     }
 };

@@ -4,7 +4,7 @@ namespace App\Http\Requests\Signal;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreThreadMessageRequest extends FormRequest
+class StoreChatRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -22,7 +22,8 @@ class StoreThreadMessageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'message' => ['required', 'string', 'max:5000'],
+            'thread_id' => ['nullable', 'integer', 'exists:threads,id'],
+            'content' => ['required', 'string', 'max:5000'],
         ];
     }
 
@@ -32,7 +33,7 @@ class StoreThreadMessageRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'message.required' => 'Enter a message for this thread.',
+            'content.required' => 'Enter a message.',
         ];
     }
 }

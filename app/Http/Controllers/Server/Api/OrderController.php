@@ -7,7 +7,7 @@ use App\Models\Server\Channel;
 use App\Models\Server\Order;
 use App\Models\Server\Quote;
 use App\Models\Server\Request as ServiceRequest;
-use App\Models\Server\Thread;
+use App\Models\Server\ThreadActor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -70,13 +70,24 @@ class OrderController extends Controller
                 'last_message_at' => now(),
             ])->save();
 
-            if (! $serviceRequest->threads()->where('agent_key', Thread::AgentOrder)->exists()) {
-                $serviceRequest->threads()->create([
+            if (! $serviceRequest->threads()->whereHas('actors', function ($query): void {
+                $query->where('role', ThreadActor::RolePrimaryHandler)
+                    ->where('actor_key', ThreadActor::ActorOrderAgent)
+                    ->where('status', ThreadActor::StatusActive);
+            })->exists()) {
+                $orderThread = $serviceRequest->threads()->create([
                     'created_by' => $currentUser->id,
                     'title' => 'Order Fulfillment',
                     'phase' => 'order_kickoff',
-                    'agent_key' => Thread::AgentOrder,
                     'status' => 'open',
+                ]);
+
+                $orderThread->actors()->create([
+                    'actor_key' => ThreadActor::ActorOrderAgent,
+                    'role' => ThreadActor::RolePrimaryHandler,
+                    'status' => ThreadActor::StatusActive,
+                    'priority' => 1,
+                    'config' => null,
                 ]);
             }
 

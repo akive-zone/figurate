@@ -6,26 +6,22 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class ThreadObserver extends Model
+class ThreadActorMemory extends Model
 {
-    /** @use HasFactory<\Database\Factories\ThreadObserverFactory> */
+    /** @use HasFactory<\Database\Factories\ThreadActorMemoryFactory> */
     use HasFactory;
-
-    public const SafetyGuard = 'safety_guard';
-
-    public const ModePassive = 'passive';
-
-    public const ModeEnforcing = 'enforcing';
 
     /**
      * @var list<string>
      */
     protected $fillable = [
         'thread_id',
-        'observer_key',
-        'mode',
-        'status',
-        'config',
+        'thread_actor_id',
+        'provider',
+        'model',
+        'conversation_id',
+        'state',
+        'last_used_at',
     ];
 
     /**
@@ -34,12 +30,18 @@ class ThreadObserver extends Model
     protected function casts(): array
     {
         return [
-            'config' => 'array',
+            'state' => 'array',
+            'last_used_at' => 'datetime',
         ];
     }
 
     public function thread(): BelongsTo
     {
         return $this->belongsTo(Thread::class);
+    }
+
+    public function threadActor(): BelongsTo
+    {
+        return $this->belongsTo(ThreadActor::class);
     }
 }

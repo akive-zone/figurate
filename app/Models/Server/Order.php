@@ -73,9 +73,9 @@ class Order extends Model
         return $this->hasOne(Assessment::class);
     }
 
-    public function workLogs(): HasMany
+    public function processes(): HasMany
     {
-        return $this->hasMany(WorkLog::class);
+        return $this->hasMany(Process::class);
     }
 
     public function payments(): HasMany

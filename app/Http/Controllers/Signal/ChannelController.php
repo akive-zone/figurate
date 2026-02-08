@@ -9,6 +9,7 @@ use App\Models\Server\Message;
 use App\Models\Server\Quote;
 use App\Models\Server\Request as ServiceRequest;
 use App\Models\Server\Thread;
+use App\Models\Server\ThreadActor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -83,7 +84,10 @@ class ChannelController extends Controller
             $serviceRequest->load([
                 'quotes:id,request_id,profile_id,amount,currency,details,status,created_at',
                 'order:id,request_id,quote_id,status',
-                'threads:id,threadable_type,threadable_id,title,phase,agent_key,ai_conversation_id,status,created_at',
+                'threads:id,threadable_type,threadable_id,created_by,title,phase,status,created_at',
+                'threads.actors:id,thread_id,actor_key,role,status,priority',
+                'threads.actorMemories:id,thread_id,thread_actor_id,conversation_id,last_used_at',
+                'threads.actorMemories.threadActor:id,thread_id,actor_key,role,status,priority',
             ]);
         }
 
@@ -107,9 +111,17 @@ class ChannelController extends Controller
         $agentMessages = collect();
         $threadMessages = collect();
 
-        if ($activeThread?->ai_conversation_id) {
+        $activeHandlerActor = $activeThread?->actors
+            ?->where('role', ThreadActor::RolePrimaryHandler)
+            ->where('status', ThreadActor::StatusActive)
+            ->sortBy('priority')
+            ->first();
+        $activeHandlerMemory = $activeThread?->actorMemories
+            ->firstWhere('thread_actor_id', $activeHandlerActor?->id);
+
+        if (filled($activeHandlerMemory?->conversation_id)) {
             $agentMessages = AgentConversationMessage::query()
-                ->where('conversation_id', $activeThread->ai_conversation_id)
+                ->where('conversation_id', $activeHandlerMemory->conversation_id)
                 ->with('user:id,name')
                 ->orderBy('created_at')
                 ->limit(100)
@@ -155,13 +167,21 @@ class ChannelController extends Controller
                         ->values(),
                 ] : null,
                 'threads' => $threads->map(function (Thread $thread): array {
+                    $handlerActor = $thread->actors
+                        ->where('role', ThreadActor::RolePrimaryHandler)
+                        ->where('status', ThreadActor::StatusActive)
+                        ->sortBy('priority')
+                        ->first();
+                    $handlerMemory = $thread->actorMemories
+                        ->firstWhere('thread_actor_id', $handlerActor?->id);
+
                     return [
                         'id' => $thread->id,
                         'title' => $thread->title,
                         'phase' => $thread->phase,
-                        'agent_key' => $thread->agent_key,
+                        'agent_key' => $handlerActor?->actor_key,
                         'status' => $thread->status,
-                        'has_ai_history' => filled($thread->ai_conversation_id),
+                        'has_ai_history' => filled($handlerMemory?->conversation_id),
                     ];
                 })->values(),
                 'active_thread_id' => $activeThread?->id,

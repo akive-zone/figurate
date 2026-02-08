@@ -13,12 +13,10 @@ return new class extends Migration
     {
         Schema::create('threads', function (Blueprint $table) {
             $table->id();
-            $table->morphs('threadable');
+            $table->nullableMorphs('threadable');
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('title');
             $table->string('phase');
-            $table->string('agent_key');
-            $table->string('ai_conversation_id', 36)->nullable()->unique();
             $table->string('status')->default('open');
             $table->timestamps();
             $table->softDeletes();

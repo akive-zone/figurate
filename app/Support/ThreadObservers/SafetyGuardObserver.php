@@ -5,7 +5,7 @@ namespace App\Support\ThreadObservers;
 use App\Ai\Agents\ThreadSafetyObserverAgent;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
-use App\Models\Server\ThreadObserver;
+use App\Models\Server\ThreadActor;
 use App\Support\ThreadObservers\Contracts\ThreadObserverContract;
 use Throwable;
 
@@ -37,7 +37,7 @@ class SafetyGuardObserver implements ThreadObserverContract
 
     public function key(): string
     {
-        return ThreadObserver::SafetyGuard;
+        return ThreadActor::ActorSafetyGuard;
     }
 
     public function observe(Thread $thread, Message $message): ?ObserverResult
@@ -89,7 +89,7 @@ class SafetyGuardObserver implements ThreadObserverContract
         return json_encode([
             'thread_id' => $thread->id,
             'thread_phase' => $thread->phase,
-            'thread_agent_key' => $thread->agent_key,
+            'thread_primary_actor' => $thread->primaryHandlerActor()->value('actor_key'),
             'message_id' => $message->id,
             'message_body' => $message->body,
             'attachments' => $attachments,

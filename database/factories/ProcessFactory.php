@@ -2,15 +2,23 @@
 
 namespace Database\Factories;
 
-use App\Models\Order;
-use App\Models\Profile;
+use App\Models\Server\Order;
+use App\Models\Server\Process;
+use App\Models\Server\Profile;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\WorkLog>
+ * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Server\Process>
  */
-class WorkLogFactory extends Factory
+class ProcessFactory extends Factory
 {
+    /**
+     * The name of the factory's corresponding model.
+     *
+     * @var string
+     */
+    protected $model = Process::class;
+
     /**
      * Define the model's default state.
      *

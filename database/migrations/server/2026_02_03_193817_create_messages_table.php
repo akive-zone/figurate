@@ -14,16 +14,17 @@ return new class extends Migration
         Schema::create('messages', function (Blueprint $table) {
             $table->id();
             $table->morphs('messageable');
-            $table->foreignId('sender_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('sender_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('type')->default('text');
-            $table->text('body');
+            $table->string('tag')->nullable();
+            $table->text('body')->nullable();
             $table->json('attachments')->nullable();
             $table->json('meta')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
             $table->index(['messageable_type', 'messageable_id', 'created_at'], 'messages_messageable_created_at_index');
-            $table->index(['sender_id', 'created_at']);
+            $table->index(['sender_id', 'created_at'], 'messages_sender_created_at_index');
         });
     }
 

@@ -7,7 +7,7 @@ use App\Http\Requests\Signal\StoreSignalRequestChannelRequest;
 use App\Models\Server\Channel;
 use App\Models\Server\Message;
 use App\Models\Server\Request as ServiceRequest;
-use App\Models\Server\Thread;
+use App\Models\Server\ThreadActor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -56,8 +56,15 @@ class RequestController extends Controller
                 'created_by' => $user->id,
                 'title' => 'Request Intake',
                 'phase' => 'request_intake',
-                'agent_key' => Thread::AgentRequest,
                 'status' => 'open',
+            ]);
+
+            $mainThread->actors()->create([
+                'actor_key' => ThreadActor::ActorRequestAgent,
+                'role' => ThreadActor::RolePrimaryHandler,
+                'status' => ThreadActor::StatusActive,
+                'priority' => 1,
+                'config' => null,
             ]);
 
             $attachments = collect($request->file('contents', []))

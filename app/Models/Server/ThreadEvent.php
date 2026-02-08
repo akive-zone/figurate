@@ -17,7 +17,7 @@ class ThreadEvent extends Model
     protected $fillable = [
         'thread_id',
         'message_id',
-        'observer_key',
+        'actor_key',
         'event_type',
         'severity',
         'payload',

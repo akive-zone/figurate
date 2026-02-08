@@ -6,7 +6,7 @@ use App\Models\Server\Channel;
 use App\Models\Server\Message;
 use App\Models\Server\Profile;
 use App\Models\Server\Request as ServiceRequest;
-use App\Models\Server\Thread;
+use App\Models\Server\ThreadActor;
 use Filament\Actions\Concerns\InteractsWithActions;
 use Filament\Actions\Contracts\HasActions;
 use Filament\Forms\Components\FileUpload;
@@ -208,8 +208,15 @@ class RequestWizard extends Component implements HasActions, HasSchemas
                 'created_by' => $user->id,
                 'title' => 'Project Main',
                 'phase' => 'request_intake',
-                'agent_key' => Thread::AgentRequest,
                 'status' => 'open',
+            ]);
+
+            $mainThread->actors()->create([
+                'actor_key' => ThreadActor::ActorRequestAgent,
+                'role' => ThreadActor::RolePrimaryHandler,
+                'status' => ThreadActor::StatusActive,
+                'priority' => 1,
+                'config' => null,
             ]);
 
             $draftContextMessage = $requestRecord->messages->first();

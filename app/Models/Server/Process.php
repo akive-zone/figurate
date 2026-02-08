@@ -26,9 +26,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[QueryParameter(key: 'profile_id', filter: EqualsFilter::class, property: 'profile_id')]
 #[QueryParameter(key: 'type', filter: EqualsFilter::class, property: 'type')]
 #[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
-class WorkLog extends Model
+class Process extends Model
 {
-    /** @use HasFactory<\Database\Factories\WorkLogFactory> */
+    /** @use HasFactory<\Database\Factories\ProcessFactory> */
     use HasFactory, SoftDeletes;
 
     /**

@@ -2,16 +2,16 @@
 
 namespace Database\Seeders;
 
-use App\Models\WorkLog;
+use App\Models\Server\Process;
 use Illuminate\Database\Seeder;
 
-class WorkLogSeeder extends Seeder
+class ProcessSeeder extends Seeder
 {
     /**
      * Run the database seeds.
      */
     public function run(): void
     {
-        WorkLog::factory()->count(5)->create();
+        Process::factory()->count(5)->create();
     }
 }

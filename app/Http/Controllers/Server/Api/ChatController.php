@@ -5,84 +5,92 @@ namespace App\Http\Controllers\Server\Api;
 use App\Ai\Agents\OrderAgent;
 use App\Ai\Agents\RequestAgent;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Signal\StoreAgentPromptRequest;
-use App\Http\Requests\Signal\StoreAgentThreadRequest;
-use App\Http\Requests\Signal\StoreThreadMessageRequest;
+use App\Http\Requests\Signal\StoreChatRequest;
 use App\Jobs\ProcessThreadObservers;
 use App\Models\Server\Channel;
 use App\Models\Server\Message;
 use App\Models\Server\Request as ServiceRequest;
 use App\Models\Server\Thread;
-use App\Models\Server\ThreadObserver;
+use App\Models\Server\ThreadActor;
+use App\Models\Server\ThreadActorMemory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Ai\Contracts\Agent;
 
 class ChatController extends Controller
 {
-    public function storeThread(StoreAgentThreadRequest $request, Channel $channel): JsonResponse
+    public function store(StoreChatRequest $request, Channel $channel): JsonResponse
     {
-        Gate::authorize('view', $channel);
-
-        $serviceRequest = $channel->requests()->first();
-
-        if (! $serviceRequest || ! $serviceRequest->hasUserActor($request->user(), ServiceRequest::ActionAsker)) {
-            abort(403);
-        }
-
-        $thread = $serviceRequest->threads()->create([
-            'created_by' => $request->user()->id,
-            'title' => $request->validated('title'),
-            'phase' => $request->validated('phase'),
-            'agent_key' => $request->validated('agent_key'),
-            'status' => 'open',
-        ]);
-
-        if ($thread->agent_key === Thread::AgentHumanChat) {
-            $thread->observers()->create([
-                'observer_key' => ThreadObserver::SafetyGuard,
-                'mode' => ThreadObserver::ModeEnforcing,
-                'status' => 'active',
-                'config' => null,
-            ]);
-        }
-
-        return response()->json([
-            'message' => 'New thread started.',
-            'thread_id' => $thread->id,
-        ]);
-    }
-
-    public function storeMessage(
-        StoreThreadMessageRequest $request,
-        Channel $channel,
-        Thread $thread
-    ): JsonResponse {
         Gate::authorize('view', $channel);
         Gate::authorize('create', Message::class);
 
         $serviceRequest = $channel->requests()->first();
 
-        if (
-            ! $serviceRequest ||
-            $thread->threadable_type !== ServiceRequest::class ||
-            $thread->threadable_id !== $serviceRequest->id
-        ) {
+        if (! $serviceRequest) {
             abort(404);
         }
 
-        if (! $serviceRequest->hasParticipant($request->user())) {
-            abort(403);
+        $thread = $this->resolveThread(
+            serviceRequest: $serviceRequest,
+            threadId: $request->validated('thread_id'),
+        );
+
+        $primaryHandler = $this->resolvePrimaryHandlerActor($thread);
+
+        return match ($primaryHandler->actor_key) {
+            ThreadActor::ActorHumanChat => $this->storeHumanMessage($request, $channel, $serviceRequest, $thread),
+            default => $this->promptAgentThread($request, $channel, $serviceRequest, $thread),
+        };
+    }
+
+    protected function resolveThread(ServiceRequest $serviceRequest, mixed $threadId): Thread
+    {
+        $query = $serviceRequest->threads()->where('status', 'open');
+
+        if ($threadId !== null) {
+            $thread = $query->whereKey((int) $threadId)->first();
+
+            if (! $thread) {
+                abort(404);
+            }
+
+            return $thread;
         }
 
-        if ($thread->agent_key !== Thread::AgentHumanChat) {
-            abort(422, 'Direct chat messages are only supported on human_chat threads.');
+        $thread = $query->latest('id')->first();
+
+        if (! $thread) {
+            abort(422, 'No active thread exists for this channel.');
+        }
+
+        return $thread;
+    }
+
+    protected function resolvePrimaryHandlerActor(Thread $thread): ThreadActor
+    {
+        $actor = $thread->primaryHandlerActor()->first();
+
+        if (! $actor) {
+            abort(422, 'Thread has no active primary handler.');
+        }
+
+        return $actor;
+    }
+
+    protected function storeHumanMessage(
+        StoreChatRequest $request,
+        Channel $channel,
+        ServiceRequest $serviceRequest,
+        Thread $thread
+    ): JsonResponse {
+        if (! $serviceRequest->hasParticipant($request->user())) {
+            abort(403);
         }
 
         $message = $thread->messages()->create([
             'sender_id' => $request->user()->id,
             'type' => 'text',
-            'body' => $request->validated('message'),
+            'body' => $request->validated('content'),
             'attachments' => null,
             'meta' => null,
         ]);
@@ -98,43 +106,36 @@ class ChatController extends Controller
             'thread_id' => $thread->id,
             'message_id' => $message->id,
             'observer_status' => 'queued',
+            'mode' => 'human_chat',
         ]);
     }
 
-    public function promptThread(
-        StoreAgentPromptRequest $request,
+    protected function promptAgentThread(
+        StoreChatRequest $request,
         Channel $channel,
+        ServiceRequest $serviceRequest,
         Thread $thread
     ): JsonResponse {
-        Gate::authorize('view', $channel);
-
-        $serviceRequest = $channel->requests()->first();
-
-        if (
-            ! $serviceRequest ||
-            $thread->threadable_type !== ServiceRequest::class ||
-            $thread->threadable_id !== $serviceRequest->id
-        ) {
-            abort(404);
-        }
-
         if (! $serviceRequest->hasUserActor($request->user(), ServiceRequest::ActionAsker)) {
             abort(403);
         }
 
-        $agent = $this->resolveAgent($thread);
+        $primaryHandler = $this->resolvePrimaryHandlerActor($thread);
+        $agent = $this->resolveAgent($primaryHandler);
+        $memory = $this->resolveMemory($thread, $primaryHandler);
 
-        if ($thread->ai_conversation_id) {
-            $agent->continue($thread->ai_conversation_id, $request->user());
+        if ($memory->conversation_id) {
+            $agent->continue($memory->conversation_id, $request->user());
         } else {
             $agent->forUser($request->user());
         }
 
-        $response = $agent->prompt($request->validated('message'));
+        $response = $agent->prompt($request->validated('content'));
 
-        if (! $thread->ai_conversation_id && $response->conversationId) {
-            $thread->forceFill([
-                'ai_conversation_id' => $response->conversationId,
+        if ($response->conversationId) {
+            $memory->forceFill([
+                'conversation_id' => $response->conversationId,
+                'last_used_at' => now(),
             ])->save();
         }
 
@@ -146,15 +147,35 @@ class ChatController extends Controller
             'message' => 'Agent responded.',
             'thread_id' => $thread->id,
             'channel_id' => $channel->id,
-            'ai_conversation_id' => $response->conversationId ?? $thread->ai_conversation_id,
+            'conversation_id' => $response->conversationId ?? $memory->conversation_id,
             'text' => $response->text,
+            'mode' => 'agent',
         ]);
     }
 
-    protected function resolveAgent(Thread $thread): Agent
+    protected function resolveMemory(Thread $thread, ThreadActor $primaryHandler): ThreadActorMemory
     {
-        return match ($thread->agent_key) {
-            Thread::AgentOrder => OrderAgent::make(thread: $thread),
+        return ThreadActorMemory::query()->firstOrCreate(
+            [
+                'thread_id' => $thread->id,
+                'thread_actor_id' => $primaryHandler->id,
+                'provider' => 'default',
+                'model' => 'default',
+            ],
+            [
+                'conversation_id' => null,
+                'state' => null,
+                'last_used_at' => null,
+            ],
+        );
+    }
+
+    protected function resolveAgent(ThreadActor $primaryHandler): Agent
+    {
+        $thread = $primaryHandler->thread;
+
+        return match ($primaryHandler->actor_key) {
+            ThreadActor::ActorOrderAgent => OrderAgent::make(thread: $thread),
             default => RequestAgent::make(thread: $thread),
         };
     }

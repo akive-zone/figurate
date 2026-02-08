@@ -4,8 +4,8 @@ namespace App\Jobs;
 
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
-use App\Models\Server\ThreadObserver;
-use App\Support\ThreadObservers\ThreadObserverRegistry;
+use App\Models\Server\ThreadActor;
+use App\Support\ThreadObservers\ThreadActorObserverRegistry;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -20,23 +20,26 @@ class ProcessThreadObservers implements ShouldQueue
         $this->afterCommit();
     }
 
-    public function handle(ThreadObserverRegistry $registry): void
+    public function handle(ThreadActorObserverRegistry $registry): void
     {
         $thread = Thread::query()
-            ->with(['observers' => fn ($query) => $query->where('status', 'active')])
+            ->with(['actors' => fn ($query) => $query
+                ->where('role', ThreadActor::RoleObserver)
+                ->where('status', ThreadActor::StatusActive)
+                ->orderBy('priority')])
             ->find($this->threadId);
 
         $message = Message::query()->find($this->messageId);
 
-        if (! $thread || ! $message || $thread->agent_key !== Thread::AgentHumanChat) {
+        if (! $thread || ! $message || $thread->primaryHandlerActor()->value('actor_key') !== ThreadActor::ActorHumanChat) {
             return;
         }
 
         $updatedMeta = $message->meta ?? [];
         $messageChanged = false;
 
-        foreach ($thread->observers as $threadObserver) {
-            $observer = $registry->resolve($threadObserver->observer_key);
+        foreach ($thread->actors as $threadActor) {
+            $observer = $registry->resolve($threadActor->actor_key);
 
             if (! $observer) {
                 continue;
@@ -50,7 +53,7 @@ class ProcessThreadObservers implements ShouldQueue
 
             $thread->events()->create([
                 'message_id' => $message->id,
-                'observer_key' => $threadObserver->observer_key,
+                'actor_key' => $threadActor->actor_key,
                 'event_type' => $result->eventType,
                 'severity' => $result->severity,
                 'payload' => $result->payload,
@@ -58,17 +61,17 @@ class ProcessThreadObservers implements ShouldQueue
 
             if ($result->eventType === 'moderation_flagged') {
                 $updatedMeta['moderation_status'] = 'flagged';
-                $updatedMeta['observer_flags'][] = $threadObserver->observer_key;
+                $updatedMeta['observer_flags'][] = $threadActor->actor_key;
                 $messageChanged = true;
             }
 
             if (
                 $result->eventType === 'message_blocked' &&
-                $threadObserver->mode === ThreadObserver::ModeEnforcing &&
+                (($threadActor->config['mode'] ?? ThreadActor::ModePassive) === ThreadActor::ModeEnforcing) &&
                 $result->redactMessage
             ) {
                 $updatedMeta['moderation_status'] = 'blocked';
-                $updatedMeta['observer_flags'][] = $threadObserver->observer_key;
+                $updatedMeta['observer_flags'][] = $threadActor->actor_key;
                 $message->body = '[Message removed by safety policy]';
                 $messageChanged = true;
             }

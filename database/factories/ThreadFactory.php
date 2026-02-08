@@ -30,8 +30,6 @@ class ThreadFactory extends Factory
             'created_by' => User::factory(),
             'title' => fake()->sentence(3),
             'phase' => 'request_intake',
-            'agent_key' => Thread::AgentRequest,
-            'ai_conversation_id' => null,
             'status' => 'open',
         ];
     }
