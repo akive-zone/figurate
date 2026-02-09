@@ -30,6 +30,7 @@ return [
 
     'resources' => [
         app_path('Models'),
+        app_path('Http/Resources'),
     ],
 
     'formats' => [

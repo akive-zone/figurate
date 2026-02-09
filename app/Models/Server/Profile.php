@@ -2,16 +2,6 @@
 
 namespace App\Models\Server;
 
-use ApiPlatform\Laravel\Eloquent\Filter\DateFilter;
-use ApiPlatform\Laravel\Eloquent\Filter\EqualsFilter;
-use ApiPlatform\Laravel\Eloquent\Filter\OrderFilter;
-use ApiPlatform\Laravel\Eloquent\Filter\PartialSearchFilter;
-use ApiPlatform\Metadata\ApiResource;
-use ApiPlatform\Metadata\Get;
-use ApiPlatform\Metadata\GetCollection;
-use ApiPlatform\Metadata\Patch;
-use ApiPlatform\Metadata\Post;
-use ApiPlatform\Metadata\QueryParameter;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,21 +10,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[ApiResource(
-    routePrefix: '/studio',
-    operations: [
-        new GetCollection(security: "is_granted('viewAny')"),
-        new Get(security: "is_granted('view', object)"),
-        new Post(security: "is_granted('create')"),
-        new Patch(security: "is_granted('update', object)"),
-    ],
-)]
-#[QueryParameter(key: 'user_id', filter: EqualsFilter::class, property: 'user_id')]
-#[QueryParameter(key: 'status', filter: EqualsFilter::class, property: 'status')]
-#[QueryParameter(key: 'display_name', filter: PartialSearchFilter::class, property: 'display_name')]
-#[QueryParameter(key: 'location', filter: PartialSearchFilter::class, property: 'location')]
-#[QueryParameter(key: 'approved_at', filter: DateFilter::class, property: 'approved_at')]
-#[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
 class Profile extends Model
 {
     /** @use HasFactory<\Database\Factories\ProfileFactory> */
