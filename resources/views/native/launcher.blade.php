@@ -11,7 +11,7 @@
         <div class="text-center">
             <p class="text-xs uppercase tracking-[0.25em] text-slate-400">NativePHP</p>
             <h1 class="mt-3 text-3xl font-semibold">Choose your session</h1>
-            <p class="mt-2 text-sm text-slate-300">Signal for requests. Studio for fulfillment. Station for admin.</p>
+            <p class="mt-2 text-sm text-slate-300">Signal for requests. Studio for fulfillment.</p>
         </div>
 
         <div class="grid w-full gap-3">
@@ -31,13 +31,6 @@
                 <p class="text-sm text-slate-400">Accept requests and deliver services.</p>
             </a>
 
-            <a
-                href="{{ url('/admin') }}"
-                class="rounded-xl border border-slate-700 bg-slate-900 px-5 py-4 text-left transition hover:border-slate-500"
-            >
-                <p class="text-lg font-semibold">Station</p>
-                <p class="text-sm text-slate-400">Admin approvals and disputes.</p>
-            </a>
         </div>
     </div>
 </body>

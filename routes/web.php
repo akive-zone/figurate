@@ -4,8 +4,10 @@ use App\Http\Controllers\Server\Auth\SocialiteController;
 use App\Http\Controllers\Signal\ChannelController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    if (config('app.context') === 'native' || config('nativephp-internal.running')) {
+$isNativeRuntime = (bool) config('nativephp-internal.running') || config('app.context') === 'native';
+
+Route::get('/', function () use ($isNativeRuntime) {
+    if ($isNativeRuntime) {
         return view('native.launcher');
     }
 
