@@ -30,4 +30,19 @@ So i am thinking a chat like flow for a request fulfillment system.
 
 A customer makes a request in a conversation like flow ... and in there they can find relevant agents or mention the agent they intend to contact.
 
+Types of Agents:
+- RequestAgent
+This agent is the one that receives the user request and then passes off to the enquiry agent
 
+- EnquiryAgent 
+this agent asks for the user service, and if the service requires a location, it then asks for the user location (which checks if the service is available in that location).
+
+ Then it asks for a picture or description of the issue. Then it gives recommendations of different artisans and bio of their experience. The user can select the artisan he wants and the location details are shared to artisan.
+
+Then we can ask for task options ... How big is the task? How long do you think it will take? Do you have a budget for this? Then we can ask for the time frame ... when do you want this done?
+
+- QuoteAgent
+
+This agent will be what can for the quote from the worker and then we can ask for the assessment from the artisan and then we can ask for the acknowledgment from the user and then we can ask for the billing / processing from the user and then we can ask for the track / trace from the artisan and then we can ask for the settlement from the user.
+
+- AssessmentAgent 

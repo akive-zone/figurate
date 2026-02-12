@@ -13,6 +13,7 @@ use App\Models\Server\Request as ServiceRequest;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadActorMemory;
+use App\Models\Server\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Ai\Contracts\Agent;
@@ -39,7 +40,7 @@ class ChatController extends Controller
 
         return match ($primaryHandler->actorName()) {
             ThreadActor::ActorHumanChat => $this->storeHumanMessage($request, $channel, $serviceRequest, $thread),
-            default => $this->promptAgentThread($request, $channel, $serviceRequest, $thread),
+            default => $this->promptAgentThread($request, $channel, $serviceRequest, $thread, $request->user()),
         };
     }
 
@@ -114,20 +115,21 @@ class ChatController extends Controller
         StoreChatRequest $request,
         Channel $channel,
         ServiceRequest $serviceRequest,
-        Thread $thread
+        Thread $thread,
+        User $actor
     ): JsonResponse {
-        if (! $serviceRequest->hasUserActor($request->user(), ServiceRequest::ActionAsker)) {
+        if (! $serviceRequest->hasParticipant($actor)) {
             abort(403);
         }
 
         $primaryHandler = $this->resolvePrimaryHandlerActor($thread);
-        $agent = $this->resolveAgent($primaryHandler);
+        $agent = $this->resolveAgent($primaryHandler, $actor);
         $memory = $this->resolveMemory($thread, $primaryHandler);
 
         if ($memory->conversation_id) {
-            $agent->continue($memory->conversation_id, $request->user());
+            $agent->continue($memory->conversation_id, $actor);
         } else {
-            $agent->forUser($request->user());
+            $agent->forUser($actor);
         }
 
         $response = $agent->prompt($request->validated('content'));
@@ -170,13 +172,13 @@ class ChatController extends Controller
         );
     }
 
-    protected function resolveAgent(ThreadActor $primaryHandler): Agent
+    protected function resolveAgent(ThreadActor $primaryHandler, User $actor): Agent
     {
         $thread = $primaryHandler->thread;
 
         return match ($primaryHandler->actorName()) {
-            ThreadActor::ActorOrderAgent => OrderAgent::make(thread: $thread),
-            default => RequestAgent::make(thread: $thread),
+            ThreadActor::ActorOrderAgent => OrderAgent::make(thread: $thread, actor: $actor),
+            default => RequestAgent::make(thread: $thread, actor: $actor),
         };
     }
 }

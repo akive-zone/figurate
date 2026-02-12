@@ -458,3 +458,40 @@ Time: 10:45:00 WAT
 1. `worker_chat` thread should start with `safety_guard` observer enabled.
 2. `enforcing` actions require deterministic policy checks plus audit event writes.
 3. Main orchestration thread remains status source of truth; observer outcomes from `human_chat` may trigger state transitions only through explicit domain actions.
+
+---
+
+Date: 2026-02-10
+Time: 23:58:00 WAT
+
+**Agent Tooling Plan (Role-Aware Dynamic Loading)**
+
+**Objective**
+1. Let agents write to domain tables (`orders`, `assessments`) through explicit Laravel AI tools.
+2. Load tools dynamically from thread context and prompting actor role (asker vs worker).
+3. Keep memory per actor via `thread_actor_memories` and keep write actions auditable via `messages` system entries.
+
+**Resolver Pattern**
+1. Add `ThreadToolResolver` to resolve tools from:
+   - active `thread` primary handler actor (`request_agent`, `order_agent`)
+   - `request_actors` role checks for current user (`asker`, profile actor)
+2. `RequestAgent` and `OrderAgent` call resolver from `tools()` using constructor context (`thread`, `actor`).
+
+**Tool Matrix (Initial)**
+1. `request_agent` + asker:
+   - `CreateOrderFromQuoteTool`
+2. `order_agent` + asker:
+   - `AcknowledgeAssessmentTool`
+3. `order_agent` + worker:
+   - `UpsertAssessmentTool`
+
+**Write Rules**
+1. Tools must hard-check actor authorization against request/order ownership.
+2. Tools must return structured JSON text payload (`ok`, ids, status, errors).
+3. Tools write system messages on thread (`type=system`, `tag=*`) for audit timeline.
+4. Tools must be idempotent where practical (example: return existing order if already created).
+
+**API Interaction**
+1. Continue single chat entrypoint: `POST /api/chat/{channel}`.
+2. Client sends `content` (+ optional `thread_id`); server resolves thread + actor + tools.
+3. No dedicated thread-tool endpoints are exposed.

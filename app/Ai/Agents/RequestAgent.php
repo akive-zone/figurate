@@ -2,12 +2,15 @@
 
 namespace App\Ai\Agents;
 
+use App\Ai\Support\ThreadToolResolver;
 use App\Models\Server\Request;
 use App\Models\Server\Thread;
+use App\Models\Server\User;
 use Laravel\Ai\Concerns\RemembersConversations;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\Conversational;
 use Laravel\Ai\Contracts\HasTools;
+use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Promptable;
 use Stringable;
 
@@ -15,7 +18,10 @@ class RequestAgent implements Agent, Conversational, HasTools
 {
     use Promptable, RemembersConversations;
 
-    public function __construct(public ?Thread $thread = null) {}
+    public function __construct(
+        public ?Thread $thread = null,
+        public ?User $actor = null,
+    ) {}
 
     /**
      * Get the instructions that the agent should follow.
@@ -51,6 +57,10 @@ class RequestAgent implements Agent, Conversational, HasTools
      */
     public function tools(): iterable
     {
-        return [];
+        if (! $this->thread || ! $this->actor) {
+            return [];
+        }
+
+        return app(ThreadToolResolver::class)->resolve($this->thread, $this->actor);
     }
 }
