@@ -6,7 +6,6 @@
     "keywords": [],
     "require": {
         "php": "^8.2",
-        "api-platform/laravel": "^4.2",
         "filament/filament": "^4.0",
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/ai": "^0.1.2",

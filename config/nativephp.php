@@ -134,6 +134,7 @@ return [
         'app/Providers/Server',
         'app/Providers/Browser',
         'database/migrations/server',
+        'mod/Server',
         'storage/framework/sessions',
         'storage/framework/cache',
         'storage/framework/testing',
