@@ -125,9 +125,15 @@ return [
     */
 
     'cleanup_exclude_files' => [
-        'app/Http',
         'app/Modules/Station',
-        'routes/web.php',
+        'app/Http/Controllers/Server',
+        'app/Http/Requests/Server',
+        'app/Http/Resources/Server',
+        'app/Models/Server',
+        'app/Policies/Server',
+        'app/Providers/Server',
+        'app/Providers/Browser',
+        'database/migrations/server',
         'storage/framework/sessions',
         'storage/framework/cache',
         'storage/framework/testing',
