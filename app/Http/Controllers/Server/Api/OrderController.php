@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Server\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Server\Channel;
+use App\Models\Server\ChannelActorState;
 use App\Models\Server\Order;
 use App\Models\Server\Quote;
 use App\Models\Server\Request as ServiceRequest;
+use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -81,14 +83,21 @@ class OrderController extends Controller
                 'last_message_at' => now(),
             ])->save();
 
-            if (! $serviceRequest->threads()->whereHas('actors', function ($query): void {
-                $query->where('role', ThreadActor::RolePrimaryHandler)
-                    ->where('actorable_type', ThreadActor::ActorOrderAgent)
-                    ->whereNull('actorable_id')
-                    ->where('status', ThreadActor::StatusActive);
-            })->exists()) {
+            $orderThread = $serviceRequest->threads()
+                ->where('purpose', Thread::PurposeExecution)
+                ->where('status', 'open')
+                ->whereHas('actors', function ($query): void {
+                    $query->where('role', ThreadActor::RoleHandler)
+                        ->where('actorable_type', ThreadActor::ActorOrderAgent)
+                        ->whereNull('actorable_id')
+                        ->where('status', ThreadActor::StatusActive);
+                })
+                ->latest('id')
+                ->first();
+
+            if (! $orderThread) {
                 $orderThread = $serviceRequest->threads()->create([
-                    'created_by' => $currentUser->id,
+                    'purpose' => Thread::PurposeExecution,
                     'title' => 'Order Fulfillment',
                     'phase' => 'order_kickoff',
                     'status' => 'open',
@@ -97,12 +106,24 @@ class OrderController extends Controller
                 $orderThread->actors()->create([
                     'actorable_type' => ThreadActor::ActorOrderAgent,
                     'actorable_id' => null,
-                    'role' => ThreadActor::RolePrimaryHandler,
+                    'role' => ThreadActor::RoleHandler,
                     'status' => ThreadActor::StatusActive,
                     'priority' => 1,
                     'config' => null,
                 ]);
             }
+
+            ChannelActorState::query()->updateOrCreate(
+                [
+                    'channel_id' => $channel->id,
+                    'actor_type' => $currentUser->getMorphClass(),
+                    'actor_id' => $currentUser->getKey(),
+                ],
+                [
+                    'thread_id' => $orderThread->id,
+                    'status' => ChannelActorState::StatusActive,
+                ],
+            );
 
             $serviceRequest->messages()->create([
                 'senderable_type' => $currentUser->getMorphClass(),

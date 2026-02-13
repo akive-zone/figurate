@@ -5,7 +5,6 @@ namespace App\Models\Server;
 use App\Models\Concerns\HasPublicUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -22,6 +21,20 @@ class Thread extends Model
 
     public const AgentHumanChat = 'human_chat';
 
+    public const PurposeMain = 'main';
+
+    public const PurposePlanning = 'planning';
+
+    public const PurposeExecution = 'execution';
+
+    public const PurposeBilling = 'billing';
+
+    public const PurposeDispute = 'dispute';
+
+    public const PurposeSupport = 'support';
+
+    public const PurposeSystem = 'system';
+
     /**
      * @var list<string>
      */
@@ -29,7 +42,7 @@ class Thread extends Model
         'uuid',
         'threadable_type',
         'threadable_id',
-        'created_by',
+        'purpose',
         'title',
         'phase',
         'status',
@@ -38,11 +51,6 @@ class Thread extends Model
     public function threadable(): MorphTo
     {
         return $this->morphTo();
-    }
-
-    public function creator(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function messages(): MorphMany
@@ -68,7 +76,7 @@ class Thread extends Model
     public function primaryHandlerActor(): HasMany
     {
         return $this->actors()
-            ->where('role', ThreadActor::RolePrimaryHandler)
+            ->where('role', ThreadActor::RoleHandler)
             ->where('status', ThreadActor::StatusActive)
             ->orderBy('priority');
     }

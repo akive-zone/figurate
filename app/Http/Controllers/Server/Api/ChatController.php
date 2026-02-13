@@ -14,6 +14,7 @@ use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadActorMemory;
 use App\Models\Server\User;
+use App\Support\Conversation\ConversationOrchestrator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
@@ -22,8 +23,11 @@ use Laravel\Ai\Contracts\Agent;
 
 class ChatController extends Controller
 {
-    public function store(StoreChatRequest $request, Channel $channel): JsonResponse
-    {
+    public function store(
+        StoreChatRequest $request,
+        Channel $channel,
+        ConversationOrchestrator $orchestrator
+    ): JsonResponse {
         Gate::authorize('view', $channel);
         Gate::authorize('create', Message::class);
 
@@ -33,10 +37,14 @@ class ChatController extends Controller
             abort(404);
         }
 
-        $thread = $this->resolveThread(
+        $decision = $orchestrator->resolve(
+            channel: $channel,
             serviceRequest: $serviceRequest,
-            threadId: $request->validated('thread_id'),
+            actor: $request->user(),
+            requestedThreadId: $request->validated('thread_id'),
+            message: $request->validated('content'),
         );
+        $thread = $decision->thread;
 
         $primaryHandler = $this->resolvePrimaryHandlerActor($thread);
 
@@ -49,32 +57,9 @@ class ChatController extends Controller
         }
 
         return match ($primaryHandler->actorName()) {
-            ThreadActor::ActorHumanChat => $this->storeHumanMessage($request, $channel, $serviceRequest, $thread),
-            default => $this->promptAgentThread($request, $channel, $serviceRequest, $thread, $request->user()),
+            ThreadActor::ActorHumanChat => $this->storeHumanMessage($request, $channel, $serviceRequest, $thread, $decision->actions),
+            default => $this->promptAgentThread($request, $channel, $serviceRequest, $thread, $request->user(), $decision->actions),
         };
-    }
-
-    protected function resolveThread(ServiceRequest $serviceRequest, mixed $threadId): Thread
-    {
-        $query = $serviceRequest->threads()->where('status', 'open');
-
-        if ($threadId !== null) {
-            $thread = $query->whereKey((int) $threadId)->first();
-
-            if (! $thread) {
-                abort(404);
-            }
-
-            return $thread;
-        }
-
-        $thread = $query->latest('id')->first();
-
-        if (! $thread) {
-            abort(422, 'No active thread exists for this channel.');
-        }
-
-        return $thread;
     }
 
     protected function resolvePrimaryHandlerActor(Thread $thread): ThreadActor
@@ -92,7 +77,8 @@ class ChatController extends Controller
         StoreChatRequest $request,
         Channel $channel,
         ServiceRequest $serviceRequest,
-        Thread $thread
+        Thread $thread,
+        array $orchestrationActions = []
     ): JsonResponse {
         if (! $serviceRequest->hasParticipant($request->user())) {
             abort(403);
@@ -137,6 +123,7 @@ class ChatController extends Controller
             'message_id' => $message->id,
             'observer_status' => 'queued',
             'mode' => 'human_chat',
+            'orchestration_actions' => $orchestrationActions,
         ]);
     }
 
@@ -145,7 +132,8 @@ class ChatController extends Controller
         Channel $channel,
         ServiceRequest $serviceRequest,
         Thread $thread,
-        User $actor
+        User $actor,
+        array $orchestrationActions = []
     ): JsonResponse {
         if (! $serviceRequest->hasParticipant($actor)) {
             abort(403);
@@ -181,6 +169,7 @@ class ChatController extends Controller
             'conversation_id' => $response->conversationId ?? $memory->conversation_id,
             'text' => $response->text,
             'mode' => 'agent',
+            'orchestration_actions' => $orchestrationActions,
         ]);
     }
 

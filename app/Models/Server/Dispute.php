@@ -13,7 +13,7 @@ class Dispute extends Thread
         'uuid',
         'threadable_type',
         'threadable_id',
-        'created_by',
+        'purpose',
         'title',
         'phase',
         'status',
@@ -22,7 +22,7 @@ class Dispute extends Thread
     protected static function booted(): void
     {
         static::addGlobalScope('dispute_phase', function (Builder $builder): void {
-            $builder->where('phase', 'like', 'dispute.%');
+            $builder->where('purpose', self::PurposeDispute);
         });
 
         static::creating(function (Dispute $dispute): void {
@@ -31,7 +31,11 @@ class Dispute extends Thread
             }
 
             if (! $dispute->phase) {
-                $dispute->phase = 'dispute.opened';
+                $dispute->phase = 'opened';
+            }
+
+            if (! $dispute->purpose) {
+                $dispute->purpose = self::PurposeDispute;
             }
 
             if (! $dispute->title) {
@@ -64,9 +68,7 @@ class Dispute extends Thread
 
     public function getOpenedByIdAttribute(): ?int
     {
-        $id = $this->created_by;
-
-        return is_numeric($id) ? (int) $id : null;
+        return null;
     }
 
     public function getResolvedByIdAttribute(): ?int
@@ -100,10 +102,7 @@ class Dispute extends Thread
         $this->threadable_id = $value;
     }
 
-    public function setOpenedByAttribute(?int $value): void
-    {
-        $this->created_by = $value;
-    }
+    public function setOpenedByAttribute(?int $value): void {}
 
     public function setResolvedByAttribute(?int $value): void
     {

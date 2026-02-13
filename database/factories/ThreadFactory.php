@@ -4,7 +4,6 @@ namespace Database\Factories;
 
 use App\Models\Server\Request;
 use App\Models\Server\Thread;
-use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -27,7 +26,7 @@ class ThreadFactory extends Factory
         return [
             'threadable_type' => Request::class,
             'threadable_id' => Request::factory(),
-            'created_by' => User::factory(),
+            'purpose' => Thread::PurposeMain,
             'title' => fake()->sentence(3),
             'phase' => 'request_intake',
             'status' => 'open',

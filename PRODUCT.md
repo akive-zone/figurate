@@ -2,6 +2,7 @@
 
 - The callers / workers follow a fufillment process
 
+## LOG 1
 FLOW of Fullfillment:
    * Enquiry
    * Quote
@@ -13,10 +14,9 @@ FLOW of Fullfillment:
    * Settlement
 
 1. User comes on app to make a request
-       * Submits the artisan he/she needs
-       * Submit a picture or description of issues.
-2. User app gives recommendations / suggestions of different artisans and bio of their experience. The user can select the artisan he wants and the location details are
-    shared to artisan.
+    * Submits the artisan he/she needs
+    * Submit a picture or description of issues.
+2. User app gives recommendations / suggestions of different artisans and bio of their experience. The user can select the artisan he wants and the location details are shared to artisan.
 3. The artisan gives a quote; what he thinks the problem is and possibly repairs (optional) -> later
 4. The artisan comes to the user house/location and the artisan does a full assessment on the problem and states it on the app and the possible tools that will be bought.
     * This is drafted and sent to the user.
@@ -26,6 +26,7 @@ FLOW of Fullfillment:
 8. The artisan declares the work as done and the customer...
 9. The customer rates the Artisan and selects the work as done.
 
+## Log 2 
 So i am thinking a chat like flow for a request fulfillment system.
 
 A customer makes a request in a conversation like flow ... and in there they can find relevant agents or mention the agent they intend to contact.
@@ -48,6 +49,34 @@ This agent will be what can for the quote from the worker and then we can ask fo
 - AssessmentAgent 
 
 
+## LOG 3: 
+- Date- 13-02-2026
 
-LOG 2:
 What i am looking at is agnostic system for channel <-> post <-> thread ... where thread is sort of like a session of messages happening 
+
+Channel is like the main space here ... for the users ... it contains alot of threads ... By default when a channel is opened it contains no thread 
+
+na the active thread is based on which user is on that channel
+
+the owner/member/asker user can be on a channel 
+
+then there's the worker/tasker user ... which can only act on a particular thread in the channel 
+
+Now this agnostic platform has several usecase, one is request fullfilment
+
+Earlier i describe this usecase into 3 types
+
+- ubuy ... An approach a asker user opens a channel with a specific profile/profiles in mind to carry out a request
+
+- uber ... An approach a user opens a channel and then chats with the Request agent to go the 
+
+- ubid ... An approach a user opens a channel and then chats to create a request and then broadcasts it for multiple profiles to bid for the task ... and at the end they select the profile which they want for the request
+
+The key thing is a how the channel stands in as the entrypoint ... like the topic and then we have several posts on the topic and then the relative threads handling the discussion either discussion with the robots (ai) or humans (behind the profiles)
+
+Some human thread would have robot observers for carrying out action and doing things ... as we build and understand the usecases we will handle it
+
+NOTE:
+  - Channel = long-lived context/entrypoint
+  - Thread = active session/workstream
+  - Post = durable domain events/artifacts

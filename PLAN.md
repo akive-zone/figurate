@@ -590,3 +590,157 @@ Time: 23:46:43 WAT
 3. Require exactly one `primary` relation per post.
 4. Additional relations are optional and additive for traceability.
 5. Public APIs should use `uuid`; internal relationships and indexing should use bigint `id`.
+
+---
+
+Date: 2026-02-13
+Time: 12:40:00 WAT
+
+**Thread Orchestration Plan (Channel + Thread + Post)**
+
+**Objective**
+1. Keep chat immediate and continuous for users.
+2. Make thread creation/switching explicit and deterministic.
+3. Route each incoming message to the correct responder (human/agent) based on thread purpose and state.
+
+**Decisions Confirmed**
+1. Channel opens with immediate chat by default.
+2. Each new channel auto-creates one default `main` thread.
+3. Active thread is explicit state (not inferred from presence/activity).
+4. Mode names (`ubuy`, `uber`, `ubid`) are temporary placeholders.
+5. Canonical role vocabulary in backend:
+   - `requester`
+   - `provider`
+6. `Post` can belong to `Channel`, `Thread`, or another `Post` via nullable `postable`.
+
+**Data Model Additions**
+1. `threads.purpose` (string, indexed) to define intent of a thread.
+2. Keep `thread_actors` as the single actor model for routing and membership:
+   - continue using `role` (`primary_handler`, `observer`, `participant`)
+   - continue using `actorable_type` / `actorable_id` + `priority` + `config`
+   - do not add `thread_participants` to avoid duplicated actor state
+3. Add per-user active-thread state at channel level:
+   - `channel_actor_states` (new table)
+   - `channel_id`
+   - `actor_type`, `actor_id` (polymorphic)
+   - `active_thread_id` (nullable FK to `threads`)
+   - unique index on (`channel_id`, `actor_type`, `actor_id`)
+4. Optional denormalized pointer for fast read:
+   - `channels.active_thread_id` (nullable FK to `threads`)
+   - used as channel default active thread; actor-level state can override.
+5. Remove `threads.created_by`:
+   - creator identity should be inferred from `thread_actors` and events
+   - avoids duplicate source-of-truth with actor graph
+
+**Thread Purpose Enum (Initial)**
+1. `main`
+2. `planning`
+3. `execution`
+4. `billing`
+5. `dispute`
+6. `support`
+7. `system`
+
+**Purpose / Phase / Status Split**
+1. `purpose` (stable): why the thread exists.
+   - examples: `main`, `planning`, `execution`, `billing`, `dispute`
+2. `phase` (mutable): current step inside that purpose.
+   - examples:
+     - `dispute`: `opened`, `investigating`, `awaiting_response`, `resolved`
+     - `execution`: `kickoff`, `in_progress`, `qa`, `handoff`
+3. `status` (operational): whether thread is currently usable.
+   - examples: `open`, `paused`, `closed`, `archived`
+4. governance:
+   - `purpose` is immutable after creation (except privileged system migration)
+   - `phase` transitions are validated per `purpose`
+   - `status` follows global thread lifecycle transitions
+
+**Lifecycle Rules**
+1. Channel creation:
+   - create `main` thread with `status=open`
+   - create `thread_actor` entries for router-relevant actors
+   - set requester `channel_actor_states.active_thread_id = main`
+2. Thread creation:
+   - only system/router or authorized participants can create
+   - must include `purpose`, `phase`, `status=open`
+3. Thread switching:
+   - switch is explicit write
+   - update actor's `channel_actor_states.active_thread_id`
+   - enforce access check before switch
+4. Thread closing:
+   - only system or owner role can close
+   - cannot close `main` while channel is open
+5. Message routing:
+   - every inbound message resolves against active thread first
+   - if no actor-level active thread, fallback to channel default `active_thread_id`
+
+**Orchestration Router Contract**
+1. Introduce `ConversationOrchestrator` service.
+2. Input:
+   - `channel_id`
+   - `actor` (user/profile/system)
+   - `message`
+   - optional `thread_id`
+3. Output:
+   - `resolved_thread_id`
+   - `responder_type` (`human`, `agent`, `system`)
+   - `responder_key` (agent key / participant key)
+   - `actions` (create thread, switch thread, post system event, call tool)
+4. Deterministic pipeline:
+   - resolve thread
+   - authorize actor
+   - evaluate transition trigger
+   - pick responder
+   - execute actions atomically
+
+**Thread Spawn / Switch Triggers (Initial)**
+1. Spawn `planning` thread:
+   - requester asks for scope decomposition or multi-step planning
+2. Spawn `execution` thread:
+   - quote accepted or explicit “start work” intent
+3. Spawn `billing` thread:
+   - payment/estimate/invoice intent detected
+4. Spawn `dispute` thread:
+   - conflict keywords + policy threshold
+5. Switch back to `main`:
+   - issue resolved/closed in specialized thread
+
+**Responder Selection Rules (Initial)**
+1. `main`/`planning` -> `request_agent` default
+2. `execution` -> `order_agent` default
+3. `billing` -> `billing_agent` (or `order_agent` fallback until dedicated agent exists)
+4. `dispute` -> `dispute_agent` (or `system` + observer workflow until dedicated agent exists)
+5. If primary handler is human, bypass agent and persist message directly.
+
+**Policy & API Alignment**
+1. Standardize policy checks to canonical roles (`requester`, `provider`).
+2. Expose explicit thread operations:
+   - `POST /api/channels/{channel}/threads` (create)
+   - `POST /api/channels/{channel}/threads/{thread}/activate` (set active)
+   - activation writes to `channel_actor_states` for current actor
+   - `PATCH /api/threads/{thread}` (status/purpose updates with policy)
+3. Keep `POST /api/chat/{channel}` as primary message entrypoint.
+
+**Implementation Phases**
+1. Phase A: Schema + model changes
+   - add `threads.purpose`
+   - remove `threads.created_by`
+   - add `channel_actor_states`
+   - add optional `channels.active_thread_id`
+2. Phase B: Orchestrator core
+   - build `ConversationOrchestrator`
+   - integrate into chat entrypoint
+3. Phase C: Trigger rules
+   - implement first trigger set for spawn/switch
+4. Phase D: Observability
+   - write orchestration decisions to `thread_events`
+   - add reason payload for every auto-switch/spawn
+5. Phase E: Hardening
+   - policy tests and feature tests for routing determinism
+
+**Acceptance Criteria**
+1. New channel always has a usable `main` thread.
+2. Active thread resolution is explicit and reproducible.
+3. Router decisions are traceable in `thread_events`.
+4. Spawn/switch behavior is policy-safe and idempotent.
+5. No ambiguous fallback path for responder selection.

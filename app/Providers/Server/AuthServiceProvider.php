@@ -14,6 +14,7 @@ use App\Models\Server\Quote;
 use App\Models\Server\Rating;
 use App\Models\Server\Request;
 use App\Models\Server\ServiceCategory;
+use App\Models\Server\Thread;
 use App\Policies\Server\AssessmentPolicy;
 use App\Policies\Server\ChannelPolicy;
 use App\Policies\Server\DisputePolicy;
@@ -26,6 +27,7 @@ use App\Policies\Server\QuotePolicy;
 use App\Policies\Server\RatingPolicy;
 use App\Policies\Server\RequestPolicy;
 use App\Policies\Server\ServiceCategoryPolicy;
+use App\Policies\Server\ThreadPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -45,5 +47,6 @@ class AuthServiceProvider extends ServiceProvider
         Gate::policy(ServiceCategory::class, ServiceCategoryPolicy::class);
         Gate::policy(Channel::class, ChannelPolicy::class);
         Gate::policy(Message::class, MessagePolicy::class);
+        Gate::policy(Thread::class, ThreadPolicy::class);
     }
 }

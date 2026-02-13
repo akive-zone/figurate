@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Signal;
 use App\Http\Controllers\Controller;
 use App\Models\Server\AgentConversationMessage;
 use App\Models\Server\Channel;
+use App\Models\Server\ChannelActorState;
 use App\Models\Server\Message;
 use App\Models\Server\Quote;
 use App\Models\Server\Request as ServiceRequest;
@@ -82,7 +83,7 @@ class ChannelController extends Controller
 
         if ($serviceRequest) {
             $serviceRequest->load([
-                'threads:id,threadable_type,threadable_id,created_by,title,phase,status,created_at',
+                'threads:id,threadable_type,threadable_id,purpose,title,phase,status,created_at',
                 'threads.actors:id,thread_id,actorable_type,actorable_id,role,status,priority',
                 'threads.actorMemories:id,thread_id,thread_actor_id,conversation_id,last_used_at',
                 'threads.actorMemories.threadActor:id,thread_id,actorable_type,actorable_id,role,status,priority',
@@ -106,14 +107,37 @@ class ChannelController extends Controller
             ->values()
             ?? collect();
 
-        $activeThread = $threads->firstWhere('id', (int) $request->integer('thread'))
+        $actorStateThreadId = ChannelActorState::query()
+            ->where('channel_id', $channel->id)
+            ->where('actor_type', $currentUser->getMorphClass())
+            ->where('actor_id', $currentUser->getKey())
+            ->value('thread_id');
+        $queryThreadId = $request->integer('thread');
+
+        $activeThread = $threads->firstWhere('id', $queryThreadId)
+            ?? $threads->firstWhere('id', $actorStateThreadId)
+            ?? $threads->firstWhere('purpose', Thread::PurposeMain)
             ?? $threads->first();
+
+        if ($activeThread && $queryThreadId) {
+            ChannelActorState::query()->updateOrCreate(
+                [
+                    'channel_id' => $channel->id,
+                    'actor_type' => $currentUser->getMorphClass(),
+                    'actor_id' => $currentUser->getKey(),
+                ],
+                [
+                    'thread_id' => $activeThread->id,
+                    'status' => ChannelActorState::StatusActive,
+                ],
+            );
+        }
 
         $agentMessages = collect();
         $threadMessages = collect();
 
         $activeHandlerActor = $activeThread?->actors
-            ?->where('role', ThreadActor::RolePrimaryHandler)
+            ?->where('role', ThreadActor::RoleHandler)
             ->where('status', ThreadActor::StatusActive)
             ->sortBy('priority')
             ->first();
@@ -169,7 +193,7 @@ class ChannelController extends Controller
                 ] : null,
                 'threads' => $threads->map(function (Thread $thread): array {
                     $handlerActor = $thread->actors
-                        ->where('role', ThreadActor::RolePrimaryHandler)
+                        ->where('role', ThreadActor::RoleHandler)
                         ->where('status', ThreadActor::StatusActive)
                         ->sortBy('priority')
                         ->first();
@@ -178,6 +202,7 @@ class ChannelController extends Controller
 
                     return [
                         'id' => $thread->id,
+                        'purpose' => $thread->purpose,
                         'title' => $thread->title,
                         'phase' => $thread->phase,
                         'handler_actor' => $handlerActor?->actorName(),
@@ -185,7 +210,7 @@ class ChannelController extends Controller
                         'has_ai_history' => filled($handlerMemory?->conversation_id),
                     ];
                 })->values(),
-                'active_thread_id' => $activeThread?->id,
+                'active_thread' => $activeThread?->id,
                 'agent_messages' => $agentMessages
                     ->map(function (AgentConversationMessage $message): array {
                         return [

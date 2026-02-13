@@ -15,8 +15,8 @@ return new class extends Migration
             $table->id();
             $table->uuid('uuid')->unique();
             $table->nullableMorphs('threadable');
-            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->string('title');
+            $table->string('title')->nullable();
+            $table->string('purpose')->default('main');
             $table->string('phase');
             $table->string('status')->default('open');
             $table->timestamps();
@@ -24,6 +24,7 @@ return new class extends Migration
 
             $table->index(['threadable_type', 'threadable_id', 'status'], 'threads_threadable_status_index');
             $table->index(['threadable_type', 'threadable_id', 'phase'], 'threads_threadable_phase_index');
+            $table->index(['threadable_type', 'threadable_id', 'purpose'], 'threads_threadable_purpose_index');
         });
     }
 

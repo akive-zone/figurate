@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Server\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Signal\StoreSignalRequestChannelRequest;
 use App\Models\Server\Channel;
+use App\Models\Server\ChannelActorState;
 use App\Models\Server\Message;
 use App\Models\Server\Request as ServiceRequest;
+use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
@@ -60,8 +62,8 @@ class RequestController extends Controller
             $channel->requests()->attach($serviceRequest->id);
 
             $mainThread = $serviceRequest->threads()->create([
-                'created_by' => $user->id,
-                'title' => 'Request Intake',
+                'purpose' => Thread::PurposeMain,
+                'title' => 'Project Main',
                 'phase' => 'request_intake',
                 'status' => 'open',
             ]);
@@ -69,11 +71,23 @@ class RequestController extends Controller
             $mainThread->actors()->create([
                 'actorable_type' => ThreadActor::ActorRequestAgent,
                 'actorable_id' => null,
-                'role' => ThreadActor::RolePrimaryHandler,
+                'role' => ThreadActor::RoleHandler,
                 'status' => ThreadActor::StatusActive,
                 'priority' => 1,
                 'config' => null,
             ]);
+
+            ChannelActorState::query()->updateOrCreate(
+                [
+                    'channel_id' => $channel->id,
+                    'actor_type' => $user->getMorphClass(),
+                    'actor_id' => $user->getKey(),
+                ],
+                [
+                    'thread_id' => $mainThread->id,
+                    'status' => ChannelActorState::StatusActive,
+                ],
+            );
 
             $attachments = collect($request->file('contents', []))
                 ->filter(fn (mixed $file): bool => $file instanceof UploadedFile)

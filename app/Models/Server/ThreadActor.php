@@ -14,11 +14,11 @@ class ThreadActor extends Model
     /** @use HasFactory<\Database\Factories\ThreadActorFactory> */
     use HasFactory, HasPublicUuid;
 
-    public const RolePrimaryHandler = 'primary_handler';
+    public const RoleHandler = 'handler';
 
     public const RoleObserver = 'observer';
 
-    public const RoleParticipant = 'participant';
+    public const RoleMember = 'member';
 
     public const StatusActive = 'active';
 

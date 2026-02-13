@@ -3,9 +3,11 @@
 namespace App\Livewire\Signal;
 
 use App\Models\Server\Channel;
+use App\Models\Server\ChannelActorState;
 use App\Models\Server\Message;
 use App\Models\Server\Profile;
 use App\Models\Server\Request as ServiceRequest;
+use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use Filament\Actions\Concerns\InteractsWithActions;
 use Filament\Actions\Contracts\HasActions;
@@ -204,7 +206,16 @@ class RequestWizard extends Component implements HasActions, HasSchemas
             $existingChannel = $requestRecord->channels()->first();
 
             if ($existingChannel) {
-                $threadId = $requestRecord->threads()->latest('id')->value('id');
+                $threadId = ChannelActorState::query()
+                    ->where('channel_id', $existingChannel->id)
+                    ->where('actor_type', $user->getMorphClass())
+                    ->where('actor_id', $user->getKey())
+                    ->value('thread_id');
+
+                if (! $threadId) {
+                    $threadId = $requestRecord->threads()->where('status', 'open')->where('purpose', Thread::PurposeMain)->value('id')
+                        ?? $requestRecord->threads()->latest('id')->value('id');
+                }
 
                 return ['channel_id' => $existingChannel->id, 'thread_id' => $threadId];
             }
@@ -222,7 +233,7 @@ class RequestWizard extends Component implements HasActions, HasSchemas
             $channel->requests()->attach($requestRecord->id);
 
             $mainThread = $requestRecord->threads()->create([
-                'created_by' => $user->id,
+                'purpose' => Thread::PurposeMain,
                 'title' => 'Project Main',
                 'phase' => 'request_intake',
                 'status' => 'open',
@@ -231,11 +242,23 @@ class RequestWizard extends Component implements HasActions, HasSchemas
             $mainThread->actors()->create([
                 'actorable_type' => ThreadActor::ActorRequestAgent,
                 'actorable_id' => null,
-                'role' => ThreadActor::RolePrimaryHandler,
+                'role' => ThreadActor::RoleHandler,
                 'status' => ThreadActor::StatusActive,
                 'priority' => 1,
                 'config' => null,
             ]);
+
+            ChannelActorState::query()->updateOrCreate(
+                [
+                    'channel_id' => $channel->id,
+                    'actor_type' => $user->getMorphClass(),
+                    'actor_id' => $user->getKey(),
+                ],
+                [
+                    'thread_id' => $mainThread->id,
+                    'status' => ChannelActorState::StatusActive,
+                ],
+            );
 
             $draftContextMessage = $requestRecord->messages->first();
 
