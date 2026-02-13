@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('thread_actors', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->unique();
             $table->foreignId('thread_id')->constrained('threads')->cascadeOnDelete();
             $table->nullableMorphs('actorable');
             $table->string('role');

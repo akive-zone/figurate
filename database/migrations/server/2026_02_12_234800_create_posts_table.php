@@ -11,15 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('requests', function (Blueprint $table) {
+        Schema::create('posts', function (Blueprint $table) {
             $table->id();
-            $table->string('flow_type')->default('ubuy');
-            $table->string('title');
-            $table->text('description');
+            $table->uuid('uuid')->unique();
+            $table->string('type');
             $table->string('status');
+            $table->json('payload')->nullable();
+            $table->json('meta')->nullable();
+            $table->timestamp('occurred_at')->nullable();
             $table->timestamps();
             $table->softDeletes();
-            $table->index(['flow_type', 'status', 'created_at']);
+
+            $table->index(['type', 'status', 'created_at']);
+            $table->index(['occurred_at']);
         });
     }
 
@@ -28,6 +32,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('requests');
+        Schema::dropIfExists('posts');
     }
 };

@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('channels', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->unique();
             $table->foreignId('requester_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('profile_id')->nullable()->constrained()->nullOnDelete();
             $table->string('status')->default('open');

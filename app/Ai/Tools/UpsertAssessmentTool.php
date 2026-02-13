@@ -3,6 +3,7 @@
 namespace App\Ai\Tools;
 
 use App\Models\Server\Assessment;
+use App\Models\Server\Order;
 use App\Models\Server\Request as ServiceRequest;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
@@ -32,7 +33,7 @@ class UpsertAssessmentTool implements Tool
      */
     public function handle(ToolRequest $request): Stringable|string
     {
-        $order = $this->serviceRequest->order;
+        $order = $this->serviceRequest->currentOrder();
 
         if (! $order) {
             return $this->encodeError('No order exists for this request.');
@@ -50,22 +51,39 @@ class UpsertAssessmentTool implements Tool
         }
 
         $notes = trim((string) ($request['notes'] ?? ''));
-        $assessment = $order->assessment()->first() ?? new Assessment;
+        $assessment = $order->assessment() ?? new Assessment;
 
         $assessment->fill([
-            'notes' => $notes !== '' ? $notes : null,
+            'type' => 'assessment.upserted',
             'status' => $status,
-            'acknowledged_at' => $status === 'acknowledged' ? now() : null,
+            'payload' => [
+                'notes' => $notes !== '' ? $notes : null,
+                'acknowledged_at' => $status === 'acknowledged' ? now()?->toIso8601String() : null,
+            ],
+            'meta' => [
+                'source' => 'tool.upsert_assessment',
+            ],
+            'occurred_at' => now(),
         ]);
-        $assessment->order()->associate($order);
         $assessment->save();
+
+        if (! $assessment->relatedOne(Order::class, 'order')) {
+            $assessment->attachRelation($order, 'order');
+        }
+        if (! $assessment->relatedOne(Thread::class, 'primary')) {
+            $assessment->attachRelation($this->thread, 'primary');
+        }
+        if (! $assessment->relatedOne(ServiceRequest::class, 'request')) {
+            $assessment->attachRelation($this->serviceRequest, 'request');
+        }
 
         $order->forceFill([
             'status' => $status === 'acknowledged' ? 'assessment_acknowledged' : 'assessment_pending_ack',
         ])->save();
 
         $this->thread->messages()->create([
-            'sender_id' => null,
+            'senderable_type' => null,
+            'senderable_id' => null,
             'type' => 'system',
             'tag' => 'assessment_upserted',
             'body' => "Assessment #{$assessment->id} saved with status {$assessment->status}.",

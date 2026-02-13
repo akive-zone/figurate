@@ -2,6 +2,7 @@
 
 namespace App\Models\Server;
 
+use App\Models\Concerns\HasPublicUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,12 +13,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Channel extends Model
 {
     /** @use HasFactory<\Database\Factories\ChannelFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, HasPublicUuid, SoftDeletes;
 
     /**
      * @var list<string>
      */
     protected $fillable = [
+        'uuid',
         'requester_id',
         'profile_id',
         'status',

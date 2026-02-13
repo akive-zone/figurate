@@ -47,9 +47,5 @@ use App\Models\Server\Order as OrderModel;
     ],
 )]
 #[QueryParameter(key: 'status', filter: EqualsFilter::class, property: 'status')]
-#[QueryParameter(key: 'buyer_id', filter: EqualsFilter::class, property: 'buyer_id')]
-#[QueryParameter(key: 'seller_profile_id', filter: EqualsFilter::class, property: 'seller_profile_id')]
-#[QueryParameter(key: 'request_id', filter: EqualsFilter::class, property: 'request_id')]
-#[QueryParameter(key: 'quote_id', filter: EqualsFilter::class, property: 'quote_id')]
 #[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
 final class StudioOrderResource {}

@@ -26,10 +26,17 @@ class RequestController extends Controller
 
         $channel = DB::transaction(function () use ($payload, $request, $user): Channel {
             $serviceRequest = ServiceRequest::query()->create([
-                'flow_type' => $payload['flow_type'],
-                'title' => $payload['title'],
-                'description' => $payload['description'],
+                'type' => 'request.created',
                 'status' => 'open',
+                'payload' => [
+                    'flow_type' => $payload['flow_type'],
+                    'title' => $payload['title'],
+                    'description' => $payload['description'],
+                ],
+                'meta' => [
+                    'source' => 'api.request.store',
+                ],
+                'occurred_at' => now(),
             ]);
 
             $serviceRequest->users()->attach($user->id, [
@@ -85,7 +92,8 @@ class RequestController extends Controller
 
             if (! empty($payload['initial_message']) || ! empty($attachments)) {
                 $mainThread->messages()->create([
-                    'sender_id' => $user->id,
+                    'senderable_type' => $user->getMorphClass(),
+                    'senderable_id' => $user->getKey(),
                     'type' => 'text',
                     'body' => $payload['initial_message'] ?? 'Request files uploaded for reference.',
                     'attachments' => ! empty($attachments) ? $attachments : null,

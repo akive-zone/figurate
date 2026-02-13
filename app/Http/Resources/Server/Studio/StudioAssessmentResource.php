@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources\Server\Studio;
 
-use ApiPlatform\Laravel\Eloquent\Filter\DateFilter;
 use ApiPlatform\Laravel\Eloquent\Filter\EqualsFilter;
 use ApiPlatform\Laravel\Eloquent\Filter\OrderFilter;
 use ApiPlatform\Laravel\Eloquent\State\CollectionProvider;
@@ -48,7 +47,5 @@ use App\Models\Server\Assessment as AssessmentModel;
     ],
 )]
 #[QueryParameter(key: 'status', filter: EqualsFilter::class, property: 'status')]
-#[QueryParameter(key: 'order_id', filter: EqualsFilter::class, property: 'order_id')]
-#[QueryParameter(key: 'acknowledged_at', filter: DateFilter::class, property: 'acknowledged_at')]
 #[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
 final class StudioAssessmentResource {}

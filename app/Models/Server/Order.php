@@ -2,71 +2,181 @@
 
 namespace App\Models\Server;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
-class Order extends Model
+class Order extends Post
 {
-    /** @use HasFactory<\Database\Factories\OrderFactory> */
-    use HasFactory, SoftDeletes;
+    protected $table = 'posts';
 
     /**
      * @var list<string>
      */
     protected $fillable = [
-        'request_id',
-        'quote_id',
-        'buyer_id',
-        'seller_profile_id',
+        'uuid',
+        'type',
         'status',
+        'payload',
+        'meta',
+        'occurred_at',
     ];
 
-    public function request(): BelongsTo
+    protected static function booted(): void
     {
-        return $this->belongsTo(Request::class);
+        static::addGlobalScope('order_type', function (Builder $builder): void {
+            $builder->where('type', 'like', 'order.%');
+        });
+
+        static::creating(function (Order $order): void {
+            if (! $order->type) {
+                $order->type = 'order.booked';
+            }
+
+            if (! $order->occurred_at) {
+                $order->occurred_at = now();
+            }
+        });
+
+        static::created(function (Order $order): void {
+            $relations = [
+                'request_id' => [Request::class, 'request'],
+                'quote_id' => [Quote::class, 'quote'],
+                'buyer_id' => [User::class, 'buyer'],
+                'seller_profile_id' => [Profile::class, 'seller_profile'],
+            ];
+
+            foreach ($relations as $metaKey => [$modelClass, $role]) {
+                $relatedId = data_get($order->meta, $metaKey);
+
+                if (! is_numeric($relatedId)) {
+                    continue;
+                }
+
+                $existing = $order->relatedOne($modelClass, $role);
+
+                if ($existing) {
+                    continue;
+                }
+
+                $relatedModel = $modelClass::query()->find((int) $relatedId);
+
+                if ($relatedModel) {
+                    $order->attachRelation($relatedModel, $role);
+                }
+            }
+        });
     }
 
-    public function quote(): BelongsTo
+    public function requestRecord(): ?Request
     {
-        return $this->belongsTo(Quote::class);
+        return $this->relatedOne(Request::class, 'request');
     }
 
-    public function buyer(): BelongsTo
+    public function quoteRecord(): ?Quote
     {
-        return $this->belongsTo(User::class, 'buyer_id');
+        return $this->relatedOne(Quote::class, 'quote');
     }
 
-    public function sellerProfile(): BelongsTo
+    public function buyerRecord(): ?User
     {
-        return $this->belongsTo(Profile::class, 'seller_profile_id');
+        return $this->relatedOne(User::class, 'buyer');
     }
 
-    public function assessment(): HasOne
+    public function sellerProfileRecord(): ?Profile
     {
-        return $this->hasOne(Assessment::class);
+        return $this->relatedOne(Profile::class, 'seller_profile');
     }
 
-    public function processes(): HasMany
+    public function assessment(): ?Assessment
     {
-        return $this->hasMany(Process::class);
+        return Assessment::query()->whereHas('relations', function (Builder $query): void {
+            $query->where('relationable_type', $this->getMorphClass())
+                ->where('relationable_id', $this->getKey())
+                ->where('role', 'order');
+        })->latest('id')->first();
     }
 
-    public function payments(): HasMany
+    /**
+     * @return Collection<int, Process>
+     */
+    public function processes(): Collection
     {
-        return $this->hasMany(Payment::class);
+        return Process::query()->whereHas('relations', function (Builder $query): void {
+            $query->where('relationable_type', $this->getMorphClass())
+                ->where('relationable_id', $this->getKey())
+                ->where('role', 'order');
+        })->latest('id')->get();
     }
 
-    public function ratings(): HasMany
+    /**
+     * @return Collection<int, Payment>
+     */
+    public function payments(): Collection
     {
-        return $this->hasMany(Rating::class);
+        return Payment::query()->whereHas('relations', function (Builder $query): void {
+            $query->where('relationable_type', $this->getMorphClass())
+                ->where('relationable_id', $this->getKey())
+                ->where('role', 'order');
+        })->latest('id')->get();
     }
 
-    public function disputes(): HasMany
+    public function getRequestAttribute(): ?Request
     {
-        return $this->hasMany(Dispute::class);
+        return $this->requestRecord();
+    }
+
+    public function getQuoteAttribute(): ?Quote
+    {
+        return $this->quoteRecord();
+    }
+
+    public function getBuyerAttribute(): ?User
+    {
+        return $this->buyerRecord();
+    }
+
+    public function getSellerProfileAttribute(): ?Profile
+    {
+        return $this->sellerProfileRecord();
+    }
+
+    public function getRequestIdAttribute(): ?int
+    {
+        return $this->requestRecord()?->id;
+    }
+
+    public function getQuoteIdAttribute(): ?int
+    {
+        return $this->quoteRecord()?->id;
+    }
+
+    public function getBuyerIdAttribute(): ?int
+    {
+        return $this->buyerRecord()?->id;
+    }
+
+    public function getSellerProfileIdAttribute(): ?int
+    {
+        return $this->sellerProfileRecord()?->id;
+    }
+
+    public function setRequestIdAttribute(?int $value): void
+    {
+        $this->putMetaValue('request_id', $value);
+    }
+
+    public function setQuoteIdAttribute(?int $value): void
+    {
+        $this->putMetaValue('quote_id', $value);
+    }
+
+    public function setBuyerIdAttribute(?int $value): void
+    {
+        $this->putMetaValue('buyer_id', $value);
+    }
+
+    public function setSellerProfileIdAttribute(?int $value): void
+    {
+        $this->putMetaValue('seller_profile_id', $value);
     }
 }

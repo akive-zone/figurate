@@ -89,7 +89,8 @@ class ChatController extends Controller
         }
 
         $message = $thread->messages()->create([
-            'sender_id' => $request->user()->id,
+            'senderable_type' => $request->user()->getMorphClass(),
+            'senderable_id' => $request->user()->getKey(),
             'type' => 'text',
             'body' => $request->validated('content'),
             'attachments' => null,

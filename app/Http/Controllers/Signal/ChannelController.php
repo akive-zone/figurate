@@ -30,8 +30,8 @@ class ChannelController extends Controller
             })
             ->with([
                 'profile:id,display_name,user_id',
-                'requests:id,title,status',
-                'requests.latestMessage:id,messageable_type,messageable_id,sender_id,body,created_at',
+                'requests',
+                'requests.latestMessage',
                 'requests.latestMessage.sender:id,name',
             ])
             ->orderByDesc('last_message_at')
@@ -75,15 +75,13 @@ class ChannelController extends Controller
 
         $channel->load([
             'profile:id,display_name,user_id',
-            'requests:id,title,description,status',
+            'requests',
         ]);
 
         $serviceRequest = $channel->requests->first();
 
         if ($serviceRequest) {
             $serviceRequest->load([
-                'quotes:id,request_id,profile_id,amount,currency,details,status,created_at',
-                'order:id,request_id,quote_id,status',
                 'threads:id,threadable_type,threadable_id,created_by,title,phase,status,created_at',
                 'threads.actors:id,thread_id,actorable_type,actorable_id,role,status,priority',
                 'threads.actorMemories:id,thread_id,thread_actor_id,conversation_id,last_used_at',
@@ -95,7 +93,10 @@ class ChannelController extends Controller
         $isRequester = $serviceRequest?->hasUserActor($currentUser, ServiceRequest::ActionAsker) ?? false;
         $requestStatus = $serviceRequest?->status;
 
-        $pendingQuotes = $serviceRequest?->quotes
+        $quotes = $serviceRequest ? $serviceRequest->quotes()->latest('id')->get() : collect();
+        $currentOrder = $serviceRequest?->currentOrder();
+
+        $pendingQuotes = $quotes
             ?->where('status', 'pending')
             ->values()
             ?? collect();
@@ -149,11 +150,11 @@ class ChannelController extends Controller
                     'title' => $serviceRequest->title,
                     'description' => $serviceRequest->description,
                     'status' => $serviceRequest->status,
-                    'order' => $serviceRequest->order ? [
-                        'id' => $serviceRequest->order->id,
-                        'status' => $serviceRequest->order->status,
+                    'order' => $currentOrder ? [
+                        'id' => $currentOrder->id,
+                        'status' => $currentOrder->status,
                     ] : null,
-                    'quotes' => $serviceRequest->quotes
+                    'quotes' => $quotes
                         ->map(function (Quote $quote): array {
                             return [
                                 'id' => $quote->id,
@@ -211,7 +212,7 @@ class ChannelController extends Controller
                 'actions' => [
                     'can_create_thread' => $isRequester,
                     'can_prompt_agent' => $isRequester && $activeThread !== null,
-                    'can_accept_quote' => $isRequester && $requestStatus === 'quoted' && $pendingQuotes->isNotEmpty() && ! $serviceRequest?->order,
+                    'can_accept_quote' => $isRequester && $requestStatus === 'quoted' && $pendingQuotes->isNotEmpty() && ! $currentOrder,
                 ],
             ],
         ]);

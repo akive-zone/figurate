@@ -8,7 +8,6 @@ use App\Models\Server\Request as ServiceRequest;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request as ToolRequest;
@@ -53,7 +52,7 @@ class CreateOrderFromQuoteTool implements Tool
         }
 
         /** @var Order|null $existingOrder */
-        $existingOrder = $this->serviceRequest->order()->first();
+        $existingOrder = $this->serviceRequest->currentOrder();
 
         if ($existingOrder) {
             return json_encode([
@@ -73,7 +72,7 @@ class CreateOrderFromQuoteTool implements Tool
         }
 
         /** @var Order $order */
-        $order = DB::transaction(function () use ($quote, $status): Model {
+        $order = DB::transaction(function () use ($quote, $status): Order {
             $quote->forceFill([
                 'status' => 'accepted',
             ])->save();
@@ -84,19 +83,34 @@ class CreateOrderFromQuoteTool implements Tool
                 ->update(['status' => 'rejected']);
 
             $order = Order::query()->create([
-                'request_id' => $this->serviceRequest->id,
-                'quote_id' => $quote->id,
-                'buyer_id' => $this->actor->id,
-                'seller_profile_id' => $quote->profile_id,
+                'type' => 'order.booked',
                 'status' => $status,
+                'payload' => [
+                    'buyer_id' => $this->actor->id,
+                    'seller_profile_id' => $quote->profile_id,
+                ],
+                'meta' => [
+                    'source' => 'tool.create_order_from_quote',
+                ],
+                'occurred_at' => now(),
             ]);
+
+            $order->attachRelation($this->thread, 'primary');
+            $order->attachRelation($this->serviceRequest, 'request');
+            $order->attachRelation($quote, 'quote');
+            $order->attachRelation($this->actor, 'buyer');
+
+            if ($quote->profile) {
+                $order->attachRelation($quote->profile, 'seller_profile');
+            }
 
             $this->serviceRequest->forceFill([
                 'status' => $status,
             ])->save();
 
             $this->thread->messages()->create([
-                'sender_id' => null,
+                'senderable_type' => null,
+                'senderable_id' => null,
                 'type' => 'system',
                 'tag' => 'order_created',
                 'body' => "Order #{$order->id} was created from Quote #{$quote->id}.",

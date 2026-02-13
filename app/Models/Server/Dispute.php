@@ -2,50 +2,121 @@
 
 namespace App\Models\Server;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Builder;
 
-class Dispute extends Model
+class Dispute extends Thread
 {
-    /** @use HasFactory<\Database\Factories\DisputeFactory> */
-    use HasFactory, SoftDeletes;
-
     /**
      * @var list<string>
      */
     protected $fillable = [
-        'order_id',
-        'opened_by',
-        'reason',
+        'uuid',
+        'threadable_type',
+        'threadable_id',
+        'created_by',
+        'title',
+        'phase',
         'status',
-        'resolved_at',
-        'resolved_by',
     ];
 
-    /**
-     * @return array<string, string>
-     */
-    protected function casts(): array
+    protected static function booted(): void
     {
-        return [
-            'resolved_at' => 'datetime',
-        ];
+        static::addGlobalScope('dispute_phase', function (Builder $builder): void {
+            $builder->where('phase', 'like', 'dispute.%');
+        });
+
+        static::creating(function (Dispute $dispute): void {
+            if (! $dispute->status) {
+                $dispute->status = 'open';
+            }
+
+            if (! $dispute->phase) {
+                $dispute->phase = 'dispute.opened';
+            }
+
+            if (! $dispute->title) {
+                $dispute->title = 'Dispute';
+            }
+        });
     }
 
-    public function order(): BelongsTo
+    public function getOrderAttribute(): ?Order
     {
-        return $this->belongsTo(Order::class);
+        if ($this->threadable instanceof Order) {
+            return $this->threadable;
+        }
+
+        if ($this->threadable_type !== (new Order)->getMorphClass()) {
+            return null;
+        }
+
+        $orderId = $this->threadable_id;
+
+        return is_numeric($orderId) ? Order::query()->find((int) $orderId) : null;
     }
 
-    public function openedBy(): BelongsTo
+    public function getOrderIdAttribute(): ?int
     {
-        return $this->belongsTo(User::class, 'opened_by');
+        $id = $this->order?->id ?? $this->threadable_id;
+
+        return is_numeric($id) ? (int) $id : null;
     }
 
-    public function resolvedBy(): BelongsTo
+    public function getOpenedByIdAttribute(): ?int
     {
-        return $this->belongsTo(User::class, 'resolved_by');
+        $id = $this->created_by;
+
+        return is_numeric($id) ? (int) $id : null;
+    }
+
+    public function getResolvedByIdAttribute(): ?int
+    {
+        return null;
+    }
+
+    public function getOpenedByAttribute(): ?int
+    {
+        return $this->openedById;
+    }
+
+    public function getResolvedByAttribute(): ?int
+    {
+        return $this->resolvedById;
+    }
+
+    public function getReasonAttribute(): ?string
+    {
+        return $this->title;
+    }
+
+    public function getResolvedAtAttribute(): mixed
+    {
+        return null;
+    }
+
+    public function setOrderIdAttribute(?int $value): void
+    {
+        $this->threadable_type = (new Order)->getMorphClass();
+        $this->threadable_id = $value;
+    }
+
+    public function setOpenedByAttribute(?int $value): void
+    {
+        $this->created_by = $value;
+    }
+
+    public function setResolvedByAttribute(?int $value): void
+    {
+        // Dispute resolution is represented by thread status/phase updates.
+    }
+
+    public function setReasonAttribute(?string $value): void
+    {
+        $this->title = $value ?? 'Dispute';
+    }
+
+    public function setResolvedAtAttribute(mixed $value): void
+    {
+        // Dispute resolution is represented by thread status/phase updates.
     }
 }

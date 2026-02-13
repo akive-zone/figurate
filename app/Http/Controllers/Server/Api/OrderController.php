@@ -33,7 +33,7 @@ class OrderController extends Controller
             abort(404);
         }
 
-        if ($serviceRequest->order()->exists()) {
+        if ($serviceRequest->hasOrder()) {
             abort(422, 'Order already created for this request.');
         }
 
@@ -53,13 +53,24 @@ class OrderController extends Controller
                 abort(422, 'Request has no asker actor.');
             }
 
-            Order::query()->create([
-                'request_id' => $serviceRequest->id,
-                'quote_id' => $quote->id,
-                'buyer_id' => $buyer->id,
-                'seller_profile_id' => $profile->id,
+            $order = Order::query()->create([
+                'type' => 'order.booked',
                 'status' => 'booked',
+                'payload' => [
+                    'buyer_id' => $buyer->id,
+                    'seller_profile_id' => $profile->id,
+                ],
+                'meta' => [
+                    'source' => 'api.order.accept_quote',
+                ],
+                'occurred_at' => now(),
             ]);
+
+            $order->attachRelation($channel, 'primary');
+            $order->attachRelation($serviceRequest, 'request');
+            $order->attachRelation($quote, 'quote');
+            $order->attachRelation($buyer, 'buyer');
+            $order->attachRelation($profile, 'seller_profile');
 
             $serviceRequest->forceFill([
                 'status' => 'booked',
@@ -94,7 +105,8 @@ class OrderController extends Controller
             }
 
             $serviceRequest->messages()->create([
-                'sender_id' => $currentUser->id,
+                'senderable_type' => $currentUser->getMorphClass(),
+                'senderable_id' => $currentUser->getKey(),
                 'type' => 'text',
                 'body' => 'Quote accepted. Order is now booked and fulfillment has started.',
                 'attachments' => null,

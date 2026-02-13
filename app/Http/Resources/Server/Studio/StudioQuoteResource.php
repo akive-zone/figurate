@@ -47,8 +47,5 @@ use App\Models\Server\Quote as QuoteModel;
     ],
 )]
 #[QueryParameter(key: 'status', filter: EqualsFilter::class, property: 'status')]
-#[QueryParameter(key: 'request_id', filter: EqualsFilter::class, property: 'request_id')]
-#[QueryParameter(key: 'profile_id', filter: EqualsFilter::class, property: 'profile_id')]
-#[QueryParameter(key: 'currency', filter: EqualsFilter::class, property: 'currency')]
 #[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
 final class StudioQuoteResource {}

@@ -11,14 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('channel_relations', function (Blueprint $table) {
+        Schema::create('post_relations', function (Blueprint $table) {
             $table->id();
             $table->uuid('uuid')->unique();
-            $table->foreignId('channel_id')->constrained('channels')->cascadeOnDelete();
+            $table->foreignId('post_id')->constrained('posts')->cascadeOnDelete();
             $table->morphs('relationable');
+            $table->string('role')->default('primary');
             $table->timestamps();
+            $table->softDeletes();
 
-            $table->unique(['channel_id', 'relationable_type', 'relationable_id'], 'channel_relations_unique');
+            $table->unique(['post_id', 'relationable_type', 'relationable_id', 'role'], 'post_relations_unique');
+            $table->index(['relationable_type', 'relationable_id', 'role'], 'post_relations_lookup_index');
         });
     }
 
@@ -27,6 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('channel_relations');
+        Schema::dropIfExists('post_relations');
     }
 };

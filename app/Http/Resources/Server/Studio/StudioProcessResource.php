@@ -38,8 +38,6 @@ use App\Models\Server\Process as ProcessModel;
         ),
     ],
 )]
-#[QueryParameter(key: 'order_id', filter: EqualsFilter::class, property: 'order_id')]
-#[QueryParameter(key: 'profile_id', filter: EqualsFilter::class, property: 'profile_id')]
 #[QueryParameter(key: 'type', filter: EqualsFilter::class, property: 'type')]
 #[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
 final class StudioProcessResource {}

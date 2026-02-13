@@ -2,6 +2,7 @@
 
 namespace App\Models\Server;
 
+use App\Models\Concerns\HasPublicUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -10,12 +11,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class ServiceCategory extends Model
 {
     /** @use HasFactory<\Database\Factories\ServiceCategoryFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, HasPublicUuid, SoftDeletes;
 
     /**
      * @var list<string>
      */
     protected $fillable = [
+        'uuid',
         'name',
         'slug',
         'description',

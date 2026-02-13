@@ -2,6 +2,7 @@
 
 namespace App\Models\Server;
 
+use App\Models\Concerns\HasPublicUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Thread extends Model
 {
     /** @use HasFactory<\Database\Factories\ThreadFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, HasPublicUuid, SoftDeletes;
 
     public const AgentRequest = 'request_agent';
 
@@ -25,6 +26,7 @@ class Thread extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'uuid',
         'threadable_type',
         'threadable_id',
         'created_by',

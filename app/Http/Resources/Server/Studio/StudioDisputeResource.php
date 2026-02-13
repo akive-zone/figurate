@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources\Server\Studio;
 
-use ApiPlatform\Laravel\Eloquent\Filter\DateFilter;
 use ApiPlatform\Laravel\Eloquent\Filter\EqualsFilter;
 use ApiPlatform\Laravel\Eloquent\Filter\OrderFilter;
 use ApiPlatform\Laravel\Eloquent\State\CollectionProvider;
@@ -47,10 +46,7 @@ use App\Models\Server\Dispute as DisputeModel;
         ),
     ],
 )]
-#[QueryParameter(key: 'order_id', filter: EqualsFilter::class, property: 'order_id')]
 #[QueryParameter(key: 'status', filter: EqualsFilter::class, property: 'status')]
-#[QueryParameter(key: 'opened_by', filter: EqualsFilter::class, property: 'opened_by')]
-#[QueryParameter(key: 'resolved_by', filter: EqualsFilter::class, property: 'resolved_by')]
-#[QueryParameter(key: 'resolved_at', filter: DateFilter::class, property: 'resolved_at')]
+#[QueryParameter(key: 'phase', filter: EqualsFilter::class, property: 'phase')]
 #[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
 final class StudioDisputeResource {}

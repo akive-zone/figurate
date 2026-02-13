@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('request_actors', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('request_id')->constrained('requests')->cascadeOnDelete();
+            $table->unsignedBigInteger('request_id');
             $table->morphs('actor');
             $table->string('action');
             $table->string('status')->default('active');

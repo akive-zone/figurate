@@ -10,6 +10,12 @@ use App\Models\Server\User;
 
 class MessagePolicy
 {
+    protected function isSender(User $user, Message $message): bool
+    {
+        return $message->senderable_type === $user->getMorphClass()
+            && (string) $message->senderable_id === (string) $user->getKey();
+    }
+
     /**
      * Determine whether the user can view any models.
      */
@@ -27,7 +33,7 @@ class MessagePolicy
             return true;
         }
 
-        if ($message->sender_id === $user->id) {
+        if ($this->isSender($user, $message)) {
             return true;
         }
 
@@ -75,7 +81,7 @@ class MessagePolicy
      */
     public function update(User $user, Message $message): bool
     {
-        return $user->type === 'system' || $message->sender_id === $user->id;
+        return $user->type === 'system' || $this->isSender($user, $message);
     }
 
     /**
@@ -83,7 +89,7 @@ class MessagePolicy
      */
     public function delete(User $user, Message $message): bool
     {
-        return $user->type === 'system' || $message->sender_id === $user->id;
+        return $user->type === 'system' || $this->isSender($user, $message);
     }
 
     /**

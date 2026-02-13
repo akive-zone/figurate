@@ -12,9 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('messages', function (Blueprint $table) {
-            $table->id();
+            $table->ulid('id')->primary();
             $table->morphs('messageable');
-            $table->foreignId('sender_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->nullableMorphs('senderable');
             $table->string('type')->default('text');
             $table->string('tag')->nullable();
             $table->text('body')->nullable();
@@ -24,7 +24,7 @@ return new class extends Migration
             $table->softDeletes();
 
             $table->index(['messageable_type', 'messageable_id', 'created_at'], 'messages_messageable_created_at_index');
-            $table->index(['sender_id', 'created_at'], 'messages_sender_created_at_index');
+            $table->index(['senderable_type', 'senderable_id', 'created_at'], 'messages_sender_created_at_index');
         });
     }
 

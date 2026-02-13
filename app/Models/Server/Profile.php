@@ -2,6 +2,8 @@
 
 namespace App\Models\Server;
 
+use App\Models\Concerns\HasPublicUuid;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,12 +15,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Profile extends Model
 {
     /** @use HasFactory<\Database\Factories\ProfileFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, HasPublicUuid, SoftDeletes;
 
     /**
      * @var list<string>
      */
     protected $fillable = [
+        'uuid',
         'user_id',
         'display_name',
         'bio',
@@ -70,9 +73,13 @@ class Profile extends Model
         return $this->hasMany(Quote::class);
     }
 
-    public function orders(): HasMany
+    public function orders(): Builder
     {
-        return $this->hasMany(Order::class, 'seller_profile_id');
+        return Order::query()->whereHas('relations', function (Builder $query): void {
+            $query->where('relationable_type', $this->getMorphClass())
+                ->where('relationable_id', $this->getKey())
+                ->where('role', 'seller_profile');
+        });
     }
 
     public function processes(): HasMany

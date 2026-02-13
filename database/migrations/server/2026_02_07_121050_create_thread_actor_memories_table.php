@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('thread_actor_memories', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->unique();
             $table->foreignId('thread_id')->constrained('threads')->cascadeOnDelete();
             $table->foreignId('thread_actor_id')->constrained('thread_actors')->cascadeOnDelete();
             $table->string('provider')->default('default');

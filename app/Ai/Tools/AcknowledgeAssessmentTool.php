@@ -35,21 +35,28 @@ class AcknowledgeAssessmentTool implements Tool
             return $this->encodeError('Only the request asker can acknowledge assessment.');
         }
 
-        $order = $this->serviceRequest->order;
+        $order = $this->serviceRequest->currentOrder();
 
         if (! $order) {
             return $this->encodeError('No order exists for this request.');
         }
 
-        $assessment = $order->assessment;
+        $assessment = $order->assessment();
 
         if (! $assessment) {
             return $this->encodeError('No assessment exists for this order.');
         }
 
         $assessment->forceFill([
+            'type' => 'assessment.acknowledged',
             'status' => 'acknowledged',
-            'acknowledged_at' => now(),
+            'payload' => array_merge($assessment->payload ?? [], [
+                'acknowledged_at' => now()->toIso8601String(),
+            ]),
+            'meta' => array_merge($assessment->meta ?? [], [
+                'source' => 'tool.acknowledge_assessment',
+            ]),
+            'occurred_at' => now(),
         ])->save();
 
         $order->forceFill([
@@ -59,7 +66,8 @@ class AcknowledgeAssessmentTool implements Tool
         $note = trim((string) ($request['note'] ?? ''));
 
         $this->thread->messages()->create([
-            'sender_id' => null,
+            'senderable_type' => null,
+            'senderable_id' => null,
             'type' => 'system',
             'tag' => 'assessment_acknowledged',
             'body' => $note !== ''

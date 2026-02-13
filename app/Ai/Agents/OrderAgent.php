@@ -33,7 +33,7 @@ class OrderAgent implements Agent, Conversational, HasTools
         if (! $request instanceof Request) {
             $request = null;
         }
-        $order = $request?->order;
+        $order = $request?->currentOrder();
 
         if (! $request) {
             return 'You are OrderAgent. Help askers navigate booked orders and fulfillment.';

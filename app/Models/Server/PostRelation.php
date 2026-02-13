@@ -7,24 +7,27 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
-class ChannelRelation extends Model
+class PostRelation extends Model
 {
-    use HasFactory, HasPublicUuid;
+    /** @use HasFactory<\Database\Factories\PostRelationFactory> */
+    use HasFactory, HasPublicUuid, SoftDeletes;
 
     /**
      * @var list<string>
      */
     protected $fillable = [
         'uuid',
-        'channel_id',
+        'post_id',
         'relationable_type',
         'relationable_id',
+        'role',
     ];
 
-    public function channel(): BelongsTo
+    public function post(): BelongsTo
     {
-        return $this->belongsTo(Channel::class);
+        return $this->belongsTo(Post::class);
     }
 
     public function relationable(): MorphTo

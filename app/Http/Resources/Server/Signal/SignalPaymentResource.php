@@ -38,9 +38,6 @@ use App\Models\Server\Payment as PaymentModel;
         ),
     ],
 )]
-#[QueryParameter(key: 'order_id', filter: EqualsFilter::class, property: 'order_id')]
 #[QueryParameter(key: 'status', filter: EqualsFilter::class, property: 'status')]
-#[QueryParameter(key: 'stage', filter: EqualsFilter::class, property: 'stage')]
-#[QueryParameter(key: 'provider', filter: EqualsFilter::class, property: 'provider')]
 #[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
 final class SignalPaymentResource {}

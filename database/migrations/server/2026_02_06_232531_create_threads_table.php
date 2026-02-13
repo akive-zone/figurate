@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('threads', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->unique();
             $table->nullableMorphs('threadable');
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('title');

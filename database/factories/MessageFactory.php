@@ -27,7 +27,8 @@ class MessageFactory extends Factory
         return [
             'messageable_type' => Request::class,
             'messageable_id' => Request::factory(),
-            'sender_id' => User::factory(),
+            'senderable_type' => User::class,
+            'senderable_id' => User::factory(),
             'type' => 'text',
             'body' => fake()->paragraph(),
             'attachments' => null,

@@ -154,7 +154,8 @@ class RequestWizard extends Component implements HasActions, HasSchemas
 
             if (! empty($data['initial_message']) || ! empty($attachments)) {
                 $requestRecord->messages()->create([
-                    'sender_id' => $user->id,
+                    'senderable_type' => $user->getMorphClass(),
+                    'senderable_id' => $user->getKey(),
                     'type' => 'text',
                     'body' => $data['initial_message'] ?? 'Draft context uploaded.',
                     'attachments' => ! empty($attachments) ? $attachments : null,
@@ -224,7 +225,8 @@ class RequestWizard extends Component implements HasActions, HasSchemas
 
             if ($draftContextMessage) {
                 $mainThread->messages()->create([
-                    'sender_id' => $draftContextMessage->sender_id,
+                    'senderable_type' => $draftContextMessage->senderable_type,
+                    'senderable_id' => $draftContextMessage->senderable_id,
                     'type' => 'text',
                     'body' => $draftContextMessage->body,
                     'attachments' => $draftContextMessage->attachments,

@@ -2,9 +2,11 @@
 
 namespace App\Models\Server;
 
+use App\Models\Concerns\HasPublicUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -13,7 +15,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, HasPublicUuid, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -21,6 +23,7 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
+        'uuid',
         'name',
         'email',
         'password',
@@ -58,24 +61,9 @@ class User extends Authenticatable
         return $this->hasMany(Channel::class, 'requester_id');
     }
 
-    public function messages(): HasMany
+    public function messages(): MorphMany
     {
-        return $this->hasMany(Message::class, 'sender_id');
-    }
-
-    public function ratingsGiven(): HasMany
-    {
-        return $this->hasMany(Rating::class, 'rater_id');
-    }
-
-    public function ratingsReceived(): HasMany
-    {
-        return $this->hasMany(Rating::class, 'rated_id');
-    }
-
-    public function disputesOpened(): HasMany
-    {
-        return $this->hasMany(Dispute::class, 'opened_by');
+        return $this->morphMany(Message::class, 'senderable');
     }
 
     /**

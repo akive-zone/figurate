@@ -2,6 +2,7 @@
 
 namespace App\Models\Server;
 
+use App\Models\Concerns\HasPublicUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 class ThreadActor extends Model
 {
     /** @use HasFactory<\Database\Factories\ThreadActorFactory> */
-    use HasFactory;
+    use HasFactory, HasPublicUuid;
 
     public const RolePrimaryHandler = 'primary_handler';
 
@@ -41,6 +42,7 @@ class ThreadActor extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'uuid',
         'thread_id',
         'actorable_type',
         'actorable_id',

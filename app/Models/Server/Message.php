@@ -2,16 +2,16 @@
 
 namespace App\Models\Server;
 
+use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Message extends Model
 {
     /** @use HasFactory<\Database\Factories\MessageFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, HasUlids, SoftDeletes;
 
     /**
      * @var list<string>
@@ -19,7 +19,8 @@ class Message extends Model
     protected $fillable = [
         'messageable_type',
         'messageable_id',
-        'sender_id',
+        'senderable_type',
+        'senderable_id',
         'type',
         'body',
         'attachments',
@@ -42,8 +43,13 @@ class Message extends Model
         return $this->morphTo();
     }
 
-    public function sender(): BelongsTo
+    public function senderable(): MorphTo
     {
-        return $this->belongsTo(User::class, 'sender_id');
+        return $this->morphTo();
+    }
+
+    public function sender(): MorphTo
+    {
+        return $this->morphTo(__FUNCTION__, 'senderable_type', 'senderable_id');
     }
 }

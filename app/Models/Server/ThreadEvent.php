@@ -2,6 +2,7 @@
 
 namespace App\Models\Server;
 
+use App\Models\Concerns\HasPublicUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,12 +10,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ThreadEvent extends Model
 {
     /** @use HasFactory<\Database\Factories\ThreadEventFactory> */
-    use HasFactory;
+    use HasFactory, HasPublicUuid;
 
     /**
      * @var list<string>
      */
     protected $fillable = [
+        'uuid',
         'thread_id',
         'message_id',
         'actor_key',

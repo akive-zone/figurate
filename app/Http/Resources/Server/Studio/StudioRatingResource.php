@@ -38,9 +38,7 @@ use App\Models\Server\Rating as RatingModel;
         ),
     ],
 )]
-#[QueryParameter(key: 'order_id', filter: EqualsFilter::class, property: 'order_id')]
-#[QueryParameter(key: 'rater_id', filter: EqualsFilter::class, property: 'rater_id')]
-#[QueryParameter(key: 'rated_id', filter: EqualsFilter::class, property: 'rated_id')]
-#[QueryParameter(key: 'score', filter: EqualsFilter::class, property: 'score')]
+#[QueryParameter(key: 'status', filter: EqualsFilter::class, property: 'status')]
+#[QueryParameter(key: 'type', filter: EqualsFilter::class, property: 'type')]
 #[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
 final class StudioRatingResource {}
