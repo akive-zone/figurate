@@ -495,3 +495,98 @@ Time: 23:58:00 WAT
 1. Continue single chat entrypoint: `POST /api/chat/{channel}`.
 2. Client sends `content` (+ optional `thread_id`); server resolves thread + actor + tools.
 3. No dedicated thread-tool endpoints are exposed.
+
+---
+
+Date: 2026-02-12
+Time: 16:23:15 WAT
+
+**System Overview (Conversation + Fulfillment)**
+
+**Purpose**
+1. Keep chat as the operational timeline.
+2. Keep fulfillment records as the transactional source of truth.
+3. Link both layers through `Request` and `Order`.
+
+**Conversation Layer**
+1. `channels`: the user-facing inbox/chat container.
+2. `threads`: phase-scoped conversations attached to a business record (currently request-scoped).
+3. `messages`: timeline entries on a thread (human, agent, system).
+
+**Fulfillment Layer**
+1. `requests`: intake/business intent and participant membership.
+2. `orders`: accepted quote output for a request.
+3. `assessments`: one-to-one with order.
+4. `processes`: one-to-many with order (work/progress updates).
+5. `payments`: one-to-many with order (billing/settlement events).
+
+**Relationship Chain**
+1. `Channel -> Request` (many-to-many via `channel_relations`, currently one primary request in practice).
+2. `Request -> Threads` (polymorphic one-to-many).
+3. `Thread -> Messages` (polymorphic one-to-many).
+4. `Request -> Order` (one-to-one).
+5. `Order -> Assessment` (one-to-one).
+6. `Order -> Processes` (one-to-many).
+7. `Order -> Payments` (one-to-many).
+
+**Runtime Flow (Backend)**
+1. `POST /api/request`: creates request + channel + intake thread (`phase=request_intake`) + optional first message.
+2. `POST /api/chat/{channel}`: resolves active thread and writes/returns conversation output (human or agent mode).
+3. `POST /api/order/channels/{channel}/quotes/{quote}/accept`: accepts quote, creates order, marks booked, opens order thread (`phase=order_kickoff`).
+4. Assessment updates are currently driven by agent tools and reflected as system messages in thread.
+5. Processes and payments are available through API Platform resources (`/api/signal/processes`, `/api/signal/payments`) and remain order-scoped domain records.
+
+**Design Rule**
+1. Use `threads/messages` for narrative, guidance, and audit timeline.
+2. Use `request/order/assessment/process/payment` for durable state transitions and reporting.
+3. Cross-layer consistency should always reconcile through `Request -> Order` keys.
+
+---
+
+Date: 2026-02-12
+Time: 23:46:43 WAT
+
+**Fulfillment Architecture Reiteration (Agnostic Posts Model)**
+
+**Core Decision**
+1. Use a single `posts` table for fulfillment and system events.
+2. Keep `posts` context-free (no `channel_id`, no `thread_id`, no `request_id`, no `order_id`).
+3. Use `post_relations` to attach any post to any domain object.
+4. Use dual identifiers on all core tables: bigint `id` (internal joins) + `uuid` (public identifier).
+
+**Tables**
+1. `posts`
+   - `id`
+   - `uuid`
+   - `type`
+   - `status`
+   - `payload` (json / jsonb by database engine)
+   - `meta`
+   - `occurred_at`
+   - timestamps / soft deletes
+2. `post_relations`
+   - `id`
+   - `uuid`
+   - `post_id`
+   - `relationable_type`, `relationable_id` (polymorphic)
+   - `role` (`primary`, `context`, `derived`, `caused_by`)
+   - timestamps
+   - unique index on (`post_id`, `relationable_type`, `relationable_id`, `role`)
+
+**Model Strategy (CMS-style)**
+1. Keep domain models (`Request`, `Order`, `Assessment`, `Process`, `Payment`) as typed wrappers over the same `posts` table.
+2. Different models enforce type scopes and payload contracts, while storage remains unified.
+3. Relations to channel/thread/request/order context are represented through `post_relations`.
+
+**Flow Model**
+1. Each channel can have its own sequence of `post.type` events.
+2. No fixed path is enforced by schema.
+3. Example valid dynamic path: `request.created -> order.booked -> payment.captured` (no quote/process required).
+4. Validation lives in application flow rules (`FlowEngine`), not in rigid table coupling.
+
+**Operational Rules**
+1. Posts are append-only events.
+2. Build read projections for fast channel state reads.
+3. Require exactly one `primary` relation per post.
+4. Additional relations are optional and additive for traceability.
+5. Public APIs should use `uuid`; internal relationships and indexing should use bigint `id`.
