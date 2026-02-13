@@ -14,6 +14,8 @@ class Assessment extends Post
      */
     protected $fillable = [
         'ulid',
+        'postable_type',
+        'postable_id',
         'type',
         'status',
         'payload',

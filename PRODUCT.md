@@ -46,3 +46,8 @@ Then we can ask for task options ... How big is the task? How long do you think 
 This agent will be what can for the quote from the worker and then we can ask for the assessment from the artisan and then we can ask for the acknowledgment from the user and then we can ask for the billing / processing from the user and then we can ask for the track / trace from the artisan and then we can ask for the settlement from the user.
 
 - AssessmentAgent 
+
+
+
+LOG 2:
+What i am looking at is agnostic system for channel <-> post <-> thread ... where thread is sort of like a session of messages happening 

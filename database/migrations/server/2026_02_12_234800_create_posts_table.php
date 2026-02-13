@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('posts', function (Blueprint $table) {
             $table->id();
             $table->ulid('ulid')->unique();
+            $table->nullableMorphs('postable');
             $table->string('type');
             $table->string('status');
             $table->json('payload')->nullable();

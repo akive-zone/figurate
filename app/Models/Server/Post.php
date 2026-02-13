@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Post extends Model
@@ -20,6 +22,8 @@ class Post extends Model
      */
     protected $fillable = [
         'ulid',
+        'postable_type',
+        'postable_id',
         'type',
         'status',
         'payload',
@@ -50,6 +54,16 @@ class Post extends Model
     public function relations(): HasMany
     {
         return $this->hasMany(PostRelation::class);
+    }
+
+    public function postable(): MorphTo
+    {
+        return $this->morphTo();
+    }
+
+    public function posts(): MorphMany
+    {
+        return $this->morphMany(self::class, 'postable');
     }
 
     public function attachRelation(EloquentModel $model, string $role = 'context'): PostRelation
