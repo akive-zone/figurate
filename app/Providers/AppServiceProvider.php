@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Http\Middleware\EnsureDeviceUser;
+use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -30,16 +32,36 @@ class AppServiceProvider extends ServiceProvider
         } else {
             $this->loadMigrationsFrom(database_path('migrations/server'));
         }
+
+        $router = $this->app->make(Router::class);
+
+        if (! $this->isNativeRuntime()) {
+            $router->pushMiddlewareToGroup('web', EnsureDeviceUser::class);
+        }
     }
 
     protected function isNativeRuntime(): bool
     {
-        // APP_CONTEXT=native is treated as an explicit local override.
+        $nativeRuntimeFlag = $_ENV['NATIVEPHP_RUNNING'] ?? $_SERVER['NATIVEPHP_RUNNING'] ?? getenv('NATIVEPHP_RUNNING');
+
+        if (is_bool($nativeRuntimeFlag)) {
+            return $nativeRuntimeFlag;
+        }
+
+        if (is_string($nativeRuntimeFlag)) {
+            return in_array(strtolower($nativeRuntimeFlag), ['1', 'true', 'yes', 'on'], true);
+        }
+
+        if ((bool) config('nativephp-internal.running')) {
+            return true;
+        }
+
+         // APP_CONTEXT=native is treated as an explicit local override.
         if (config('app.context') === 'native') {
             return true;
         }
 
-        return (bool) config('nativephp-internal.running');
+        return false;
     }
 
     /**

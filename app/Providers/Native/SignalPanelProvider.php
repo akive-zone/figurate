@@ -2,7 +2,6 @@
 
 namespace App\Providers\Native;
 
-use App\Http\Middleware\EnsureDeviceUser;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -36,7 +35,6 @@ class SignalPanelProvider extends PanelProvider
                 ShareErrorsFromSession::class,
                 VerifyCsrfToken::class,
                 SubstituteBindings::class,
-                EnsureDeviceUser::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
             ])
