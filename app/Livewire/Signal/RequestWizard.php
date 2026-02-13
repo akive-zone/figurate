@@ -22,6 +22,7 @@ use Filament\Schemas\Schema;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -142,25 +143,40 @@ class RequestWizard extends Component implements HasActions, HasSchemas
                 ]);
             }
 
-            $attachments = collect($data['contents'] ?? [])
-                ->map(function (string $path, int $index) use ($data): array {
-                    return [
-                        'path' => $path,
-                        'name' => $data['content_file_names'][$index] ?? basename($path),
-                    ];
-                })
-                ->values()
-                ->all();
+            $attachments = collect($data['contents'] ?? [])->values();
 
-            if (! empty($data['initial_message']) || ! empty($attachments)) {
-                $requestRecord->messages()->create([
+            if (! empty($data['initial_message']) || $attachments->isNotEmpty()) {
+                $message = $requestRecord->messages()->create([
                     'senderable_type' => $user->getMorphClass(),
                     'senderable_id' => $user->getKey(),
                     'type' => 'text',
                     'body' => $data['initial_message'] ?? 'Draft context uploaded.',
-                    'attachments' => ! empty($attachments) ? $attachments : null,
+                    'attachments' => null,
                     'meta' => ['source' => 'draft_context'],
                 ]);
+
+                $disk = config('filesystems.default');
+
+                $attachments->each(function (string $path, int $index) use ($data, $message, $disk): void {
+                    if (! Storage::disk($disk)->exists($path)) {
+                        return;
+                    }
+
+                    $originalName = $data['content_file_names'][$index] ?? basename($path);
+                    $extension = pathinfo($path, PATHINFO_EXTENSION);
+                    $fileName = $extension !== ''
+                        ? pathinfo($originalName, PATHINFO_FILENAME).'.'.$extension
+                        : $originalName;
+
+                    $message->addMediaFromDisk($path, $disk)
+                        ->usingName(pathinfo($originalName, PATHINFO_FILENAME))
+                        ->usingFileName($fileName)
+                        ->toMediaCollection('attachments');
+                });
+
+                if ($message->getMedia('attachments')->isNotEmpty()) {
+                    $message->syncAttachmentPayload();
+                }
             }
 
             return $requestRecord;
@@ -224,14 +240,25 @@ class RequestWizard extends Component implements HasActions, HasSchemas
             $draftContextMessage = $requestRecord->messages->first();
 
             if ($draftContextMessage) {
-                $mainThread->messages()->create([
+                $threadMessage = $mainThread->messages()->create([
                     'senderable_type' => $draftContextMessage->senderable_type,
                     'senderable_id' => $draftContextMessage->senderable_id,
                     'type' => 'text',
                     'body' => $draftContextMessage->body,
-                    'attachments' => $draftContextMessage->attachments,
+                    'attachments' => null,
                     'meta' => ['source' => 'request_open_from_draft'],
                 ]);
+
+                $draftContextMessage->getMedia('attachments')
+                    ->each(fn ($media) => $media->copy($threadMessage, 'attachments'));
+
+                if ($threadMessage->getMedia('attachments')->isNotEmpty()) {
+                    $threadMessage->syncAttachmentPayload();
+                } else {
+                    $threadMessage->forceFill([
+                        'attachments' => $draftContextMessage->attachments,
+                    ])->save();
+                }
 
                 $channel->forceFill([
                     'last_message_at' => now(),

@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->uuid('uuid')->unique();
             $table->foreignId('thread_id')->constrained('threads')->cascadeOnDelete();
-            $table->foreignUlid('message_id')->nullable()->constrained('messages')->nullOnDelete();
+            $table->foreignId('message_id')->nullable()->constrained('messages')->nullOnDelete();
             $table->string('actor_key');
             $table->string('event_type');
             $table->string('severity')->default('low');

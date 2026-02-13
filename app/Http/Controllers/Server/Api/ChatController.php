@@ -15,6 +15,8 @@ use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadActorMemory;
 use App\Models\Server\User;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Ai\Contracts\Agent;
 
@@ -37,6 +39,14 @@ class ChatController extends Controller
         );
 
         $primaryHandler = $this->resolvePrimaryHandlerActor($thread);
+
+        if ($primaryHandler->actorName() !== ThreadActor::ActorHumanChat) {
+            $content = $request->validated('content');
+
+            if (! is_string($content) || trim($content) === '') {
+                abort(422, 'A text message is required for agent prompts.');
+            }
+        }
 
         return match ($primaryHandler->actorName()) {
             ThreadActor::ActorHumanChat => $this->storeHumanMessage($request, $channel, $serviceRequest, $thread),
@@ -88,14 +98,32 @@ class ChatController extends Controller
             abort(403);
         }
 
+        /** @var Collection<int, UploadedFile> $uploadedMedia */
+        $uploadedMedia = collect($request->file('contents', []))
+            ->filter(fn (mixed $file): bool => $file instanceof UploadedFile)
+            ->values();
+
+        $content = $request->validated('content');
+
         $message = $thread->messages()->create([
             'senderable_type' => $request->user()->getMorphClass(),
             'senderable_id' => $request->user()->getKey(),
             'type' => 'text',
-            'body' => $request->validated('content'),
+            'body' => is_string($content) && $content !== '' ? $content : null,
             'attachments' => null,
             'meta' => null,
         ]);
+
+        $uploadedMedia->each(function (UploadedFile $file) use ($message): void {
+            $message->addMedia($file)
+                ->usingName(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME))
+                ->usingFileName($file->getClientOriginalName())
+                ->toMediaCollection('attachments');
+        });
+
+        if ($uploadedMedia->isNotEmpty()) {
+            $message->syncAttachmentPayload();
+        }
 
         $channel->forceFill([
             'last_message_at' => now(),

@@ -2,8 +2,8 @@
 
 namespace App\Models\Server;
 
-use App\Models\Concerns\HasPublicUuid;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
@@ -13,13 +13,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Post extends Model
 {
     /** @use HasFactory<\Database\Factories\PostFactory> */
-    use HasFactory, HasPublicUuid, SoftDeletes;
+    use HasFactory, HasUlids, SoftDeletes;
 
     /**
      * @var list<string>
      */
     protected $fillable = [
-        'uuid',
+        'ulid',
         'type',
         'status',
         'payload',
@@ -37,6 +37,14 @@ class Post extends Model
             'meta' => 'array',
             'occurred_at' => 'datetime',
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function uniqueIds(): array
+    {
+        return ['ulid'];
     }
 
     public function relations(): HasMany

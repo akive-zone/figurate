@@ -200,11 +200,28 @@ class ChannelController extends Controller
                     ->values(),
                 'thread_messages' => $threadMessages
                     ->map(function (Message $message): array {
+                        $attachments = $message->attachments;
+
+                        if (! is_array($attachments) || $attachments === []) {
+                            $attachments = $message->getMedia('attachments')
+                                ->map(fn ($media): array => [
+                                    'id' => $media->id,
+                                    'name' => $media->name ?: $media->file_name,
+                                    'file_name' => $media->file_name,
+                                    'mime' => $media->mime_type,
+                                    'size' => $media->size,
+                                    'url' => $media->getUrl(),
+                                    'path' => $media->getUrl(),
+                                ])
+                                ->values()
+                                ->all();
+                        }
+
                         return [
                             'id' => $message->id,
                             'sender_name' => $message->sender?->name,
                             'content' => $message->body,
-                            'attachments' => $message->attachments ?? [],
+                            'attachments' => $attachments,
                             'created_at' => $message->created_at->toIso8601String(),
                         ];
                     })

@@ -19,7 +19,7 @@ class Request extends Post
      * @var list<string>
      */
     protected $fillable = [
-        'uuid',
+        'ulid',
         'type',
         'status',
         'payload',

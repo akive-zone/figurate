@@ -12,7 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('messages', function (Blueprint $table) {
-            $table->ulid('id')->primary();
+            $table->id();
+            $table->ulid('ulid')->unique();
             $table->morphs('messageable');
             $table->nullableMorphs('senderable');
             $table->string('type')->default('text');

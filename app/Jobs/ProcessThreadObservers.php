@@ -15,7 +15,7 @@ class ProcessThreadObservers implements ShouldQueue
 
     public function __construct(
         public int $threadId,
-        public string $messageId,
+        public int $messageId,
     ) {
         $this->afterCommit();
     }

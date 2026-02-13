@@ -77,28 +77,28 @@ class RequestController extends Controller
 
             $attachments = collect($request->file('contents', []))
                 ->filter(fn (mixed $file): bool => $file instanceof UploadedFile)
-                ->map(function (UploadedFile $file) use ($channel): array {
-                    $storedPath = $file->store("channels/{$channel->id}/contents");
+                ->values();
 
-                    return [
-                        'path' => $storedPath,
-                        'name' => $file->getClientOriginalName(),
-                        'mime' => $file->getMimeType(),
-                        'size' => $file->getSize(),
-                    ];
-                })
-                ->values()
-                ->all();
-
-            if (! empty($payload['initial_message']) || ! empty($attachments)) {
-                $mainThread->messages()->create([
+            if (! empty($payload['initial_message']) || $attachments->isNotEmpty()) {
+                $message = $mainThread->messages()->create([
                     'senderable_type' => $user->getMorphClass(),
                     'senderable_id' => $user->getKey(),
                     'type' => 'text',
                     'body' => $payload['initial_message'] ?? 'Request files uploaded for reference.',
-                    'attachments' => ! empty($attachments) ? $attachments : null,
+                    'attachments' => null,
                     'meta' => ['source' => 'request_open'],
                 ]);
+
+                $attachments->each(function (UploadedFile $file) use ($message): void {
+                    $message->addMedia($file)
+                        ->usingName(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME))
+                        ->usingFileName($file->getClientOriginalName())
+                        ->toMediaCollection('attachments');
+                });
+
+                if ($attachments->isNotEmpty()) {
+                    $message->syncAttachmentPayload();
+                }
 
                 $channel->forceFill([
                     'last_message_at' => now(),
