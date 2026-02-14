@@ -25,6 +25,7 @@ const form = reactive({
 });
 
 const errors = ref({});
+const formError = ref('');
 const isSubmitting = ref(false);
 const flowOptions = [
     {
@@ -56,8 +57,61 @@ const resolveApiUrl = (path) => {
     return `${props.server_base_url}${path}`;
 };
 
+const deviceIdStorageKey = 'signal.device_id';
+const apiTokenStorageKey = 'signal.api_token';
+
+const readStorage = (key) => {
+    if (typeof window === 'undefined') {
+        return '';
+    }
+
+    return window.localStorage.getItem(key) ?? '';
+};
+
+const writeStorage = (key, value) => {
+    if (typeof window === 'undefined' || !value) {
+        return;
+    }
+
+    window.localStorage.setItem(key, value);
+};
+
+const persistBootstrapHeaders = (response) => {
+    if (!response || !response.headers) {
+        return;
+    }
+
+    const deviceId = response.headers['x-device-id'];
+    const apiToken = response.headers['x-api-token'];
+
+    if (typeof deviceId === 'string' && deviceId !== '') {
+        writeStorage(deviceIdStorageKey, deviceId);
+    }
+
+    if (typeof apiToken === 'string' && apiToken !== '') {
+        writeStorage(apiTokenStorageKey, apiToken);
+    }
+};
+
+const authHeaders = () => {
+    const deviceId = readStorage(deviceIdStorageKey);
+    const token = readStorage(apiTokenStorageKey);
+    const headers = {};
+
+    if (deviceId) {
+        headers['X-Device-Id'] = deviceId;
+    }
+
+    if (token) {
+        headers.Authorization = `Bearer ${token}`;
+    }
+
+    return headers;
+};
+
 const submit = async () => {
     errors.value = {};
+    formError.value = '';
     isSubmitting.value = true;
 
     try {
@@ -81,8 +135,10 @@ const submit = async () => {
         const response = await axios.post(resolveApiUrl('/api/request'), payload, {
             headers: {
                 'Content-Type': 'multipart/form-data',
+                ...authHeaders(),
             },
         });
+        persistBootstrapHeaders(response);
         const channelId = response.data?.channel_id;
         const threadId = response.data?.thread_id;
 
@@ -94,8 +150,12 @@ const submit = async () => {
 
         router.visit('/signal');
     } catch (error) {
+        persistBootstrapHeaders(error.response);
+
         if (error.response?.status === 422) {
             errors.value = error.response.data.errors ?? {};
+        } else {
+            formError.value = error.response?.data?.message ?? `Request failed (${error.response?.status ?? 'network'}).`;
         }
     } finally {
         isSubmitting.value = false;
@@ -162,6 +222,7 @@ const submit = async () => {
                 <p class="signal-thread__meta">Up to 8 files, 10MB each. Images and basic documents are supported.</p>
                 <p v-if="errors.contents" class="signal-error">{{ errors.contents[0] }}</p>
                 <p v-if="errors['contents.0']" class="signal-error">{{ errors['contents.0'][0] }}</p>
+                <p v-if="formError" class="signal-error">{{ formError }}</p>
 
                 <button class="signal-button" :disabled="isSubmitting">Open Channel</button>
             </form>

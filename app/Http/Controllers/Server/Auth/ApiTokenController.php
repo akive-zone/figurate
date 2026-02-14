@@ -2,19 +2,25 @@
 
 namespace App\Http\Controllers\Server\Auth;
 
+use App\Actions\Auth\MergeDeviceUserIntoPerson;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Auth\StudioLoginRequest;
 use App\Http\Requests\Server\Auth\StudioRegisterRequest;
 use App\Models\Server\User;
 use App\TokenAbility;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class ApiTokenController extends Controller
 {
+    public function __construct(protected MergeDeviceUserIntoPerson $mergeDeviceUserIntoPerson) {}
+
     public function register(StudioRegisterRequest $request): JsonResponse
     {
         $data = $request->validated();
+
+        $deviceUser = $this->resolveDeviceUser($request);
 
         $user = User::create([
             'name' => $data['name'],
@@ -23,6 +29,8 @@ class ApiTokenController extends Controller
             'type' => 'person',
             'status' => 'active',
         ]);
+
+        ($this->mergeDeviceUserIntoPerson)($deviceUser, $user);
 
         $token = $user->createToken('studio-api', [TokenAbility::Studio->value]);
 
@@ -36,6 +44,7 @@ class ApiTokenController extends Controller
     public function login(StudioLoginRequest $request): JsonResponse
     {
         $data = $request->validated();
+        $deviceUser = $this->resolveDeviceUser($request);
 
         $user = User::query()
             ->where('email', $data['email'])
@@ -53,6 +62,8 @@ class ApiTokenController extends Controller
             ], 403);
         }
 
+        ($this->mergeDeviceUserIntoPerson)($deviceUser, $user);
+
         $token = $user->createToken('studio-api', [TokenAbility::Studio->value]);
 
         return response()->json([
@@ -69,5 +80,25 @@ class ApiTokenController extends Controller
         $user?->currentAccessToken()?->delete();
 
         return response()->json(status: 204);
+    }
+
+    protected function resolveDeviceUser(Request $request): ?User
+    {
+        $tokenUser = $request->user('sanctum');
+
+        if ($tokenUser instanceof User && $tokenUser->type === 'device') {
+            return $tokenUser;
+        }
+
+        $deviceId = $request->header('X-Device-Id') ?? $request->cookie('device_id');
+
+        if (! is_string($deviceId) || $deviceId === '') {
+            return null;
+        }
+
+        return User::query()
+            ->where('type', 'device')
+            ->where('device_identifier', $deviceId)
+            ->first();
     }
 }

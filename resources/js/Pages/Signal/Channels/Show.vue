@@ -26,6 +26,7 @@ const promptForm = reactive({
 });
 
 const promptErrors = ref({});
+const promptErrorMessage = ref('');
 const isPrompting = ref(false);
 
 const resolveApiUrl = (path) => {
@@ -36,21 +37,81 @@ const resolveApiUrl = (path) => {
     return `${props.server_base_url}${path}`;
 };
 
+const deviceIdStorageKey = 'signal.device_id';
+const apiTokenStorageKey = 'signal.api_token';
+
+const readStorage = (key) => {
+    if (typeof window === 'undefined') {
+        return '';
+    }
+
+    return window.localStorage.getItem(key) ?? '';
+};
+
+const writeStorage = (key, value) => {
+    if (typeof window === 'undefined' || !value) {
+        return;
+    }
+
+    window.localStorage.setItem(key, value);
+};
+
+const persistBootstrapHeaders = (response) => {
+    if (!response || !response.headers) {
+        return;
+    }
+
+    const deviceId = response.headers['x-device-id'];
+    const apiToken = response.headers['x-api-token'];
+
+    if (typeof deviceId === 'string' && deviceId !== '') {
+        writeStorage(deviceIdStorageKey, deviceId);
+    }
+
+    if (typeof apiToken === 'string' && apiToken !== '') {
+        writeStorage(apiTokenStorageKey, apiToken);
+    }
+};
+
+const authHeaders = () => {
+    const deviceId = readStorage(deviceIdStorageKey);
+    const token = readStorage(apiTokenStorageKey);
+    const headers = {};
+
+    if (deviceId) {
+        headers['X-Device-Id'] = deviceId;
+    }
+
+    if (token) {
+        headers.Authorization = `Bearer ${token}`;
+    }
+
+    return headers;
+};
+
 const submitPrompt = async () => {
     promptErrors.value = {};
+    promptErrorMessage.value = '';
     isPrompting.value = true;
 
     try {
-        await axios.post(resolveApiUrl('/api/chat'), {
+        const response = await axios.post(resolveApiUrl('/api/chat'), {
             channel_id: activeChannel.value.id,
             thread_id: activeChannel.value.active_thread ?? null,
             content: promptForm.content,
+        }, {
+            headers: authHeaders(),
         });
+        persistBootstrapHeaders(response);
         promptForm.content = '';
         router.reload({ only: ['channel'] });
     } catch (error) {
+        persistBootstrapHeaders(error.response);
+
         if (error.response?.status === 422) {
             promptErrors.value = error.response.data.errors ?? {};
+        } else {
+            promptErrorMessage.value = error.response?.data?.message ?? `Message failed (${error.response?.status ?? 'network'}).`;
         }
     } finally {
         isPrompting.value = false;
@@ -158,6 +219,7 @@ const formatTimestamp = (value) => new Date(value).toLocaleString();
                     placeholder="Write a message for the active thread..."
                 />
                 <p v-if="promptErrors.content" class="signal-error">{{ promptErrors.content[0] }}</p>
+                <p v-if="promptErrorMessage" class="signal-error">{{ promptErrorMessage }}</p>
                 <button class="signal-button" :disabled="isPrompting">
                     Send
                 </button>

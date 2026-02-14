@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Server\User;
+use App\TokenAbility;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,9 +19,13 @@ class EnsureDeviceUser
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (Auth::check()) {
+        if (Auth::check() || $request->bearerToken()) {
             return $next($request);
         }
+
+        $headerDeviceId = $request->header('X-Device-Id');
+        $cookieDeviceId = $request->cookie('device_id');
+        $shouldBootstrapTokenOnResponse = $this->shouldBootstrapTokenOnResponse($request, $headerDeviceId, $cookieDeviceId);
 
         $deviceId = $request->header('X-Device-Id')
             ?? $request->cookie('device_id')
@@ -43,6 +48,43 @@ class EnsureDeviceUser
 
         Auth::login($user);
 
-        return $next($request);
+        $response = $next($request);
+
+        if ($shouldBootstrapTokenOnResponse) {
+            $token = $user->createToken('signal-device-bootstrap', [TokenAbility::Signal->value])->plainTextToken;
+
+            $response->headers->set('X-Device-Id', (string) $deviceId);
+            $response->headers->set('X-Api-Token', $token);
+            $response->headers->set('X-Api-Token-Type', 'Bearer');
+
+            $existingExposeHeaders = (string) $response->headers->get('Access-Control-Expose-Headers', '');
+            $exposeHeaders = collect(explode(',', $existingExposeHeaders))
+                ->map(fn (string $value): string => trim($value))
+                ->filter(fn (string $value): bool => $value !== '')
+                ->merge(['X-Device-Id', 'X-Api-Token', 'X-Api-Token-Type'])
+                ->unique()
+                ->implode(', ');
+
+            if ($exposeHeaders !== '') {
+                $response->headers->set('Access-Control-Expose-Headers', $exposeHeaders);
+            }
+        }
+
+        return $response;
+    }
+
+    protected function shouldBootstrapTokenOnResponse(Request $request, ?string $headerDeviceId, ?string $cookieDeviceId): bool
+    {
+        $isApiStyleRequest = $request->expectsJson() || str_starts_with($request->path(), 'api/');
+
+        if (! $isApiStyleRequest) {
+            return false;
+        }
+
+        if ($request->bearerToken()) {
+            return false;
+        }
+
+        return empty($headerDeviceId) && empty($cookieDeviceId);
     }
 }

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Server\Api\ChatController;
 use App\Http\Controllers\Server\Api\RequestController;
 use App\Http\Controllers\Server\Auth\ApiTokenController;
+use App\Http\Middleware\EnsureDeviceUser;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function (): void {
@@ -12,7 +13,7 @@ Route::prefix('auth')->group(function (): void {
         ->middleware(['auth:sanctum']);
 });
 
-Route::middleware(['auth:sanctum'])->group(function (): void {
+Route::middleware([EnsureDeviceUser::class, 'auth:sanctum'])->group(function (): void {
     Route::post('/request', [RequestController::class, 'store']);
     Route::post('/chat', [ChatController::class, 'store']);
 });

@@ -13,26 +13,45 @@ class SetupNativeSystem extends Command
 
     public function handle(): int
     {
-        $this->info('🔧 Setting up .env file…');
+        $this->info('Setting up native environment...');
 
         if (! File::exists(base_path('.env'))) {
             File::copy(base_path('.env.example'), base_path('.env'));
-            $this->info('✅ Copied .env.example to .env');
+            $this->info('Copied .env.example to .env');
         }
 
-        $filePath = base_path('.env.example');
+        if (! File::exists(base_path('.env.native'))) {
+            $this->warn('.env.native was not found. Nothing to merge.');
 
-        // Read the file into an array of lines
-        $envVars = file($filePath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            return Command::SUCCESS;
+        }
 
-        $envContent = File::get(base_path('.env.native'));
-        foreach ($envVars as $line) {
-            if (! str_contains($envContent, explode('=', $line)[0])) {
-                File::append(base_path('.env'), PHP_EOL.$line);
+        $envPath = base_path('.env');
+        $envContent = File::get($envPath);
+        $nativeLines = file(base_path('.env.native'), FILE_IGNORE_NEW_LINES);
+
+        foreach ($nativeLines as $line) {
+            $trimmed = trim((string) $line);
+
+            if ($trimmed === '' || str_starts_with($trimmed, '#') || ! str_contains($trimmed, '=')) {
+                continue;
+            }
+
+            [$key] = explode('=', $trimmed, 2);
+            $key = trim($key);
+
+            $pattern = '/^'.preg_quote($key, '/').'=.*$/m';
+
+            if (preg_match($pattern, $envContent) === 1) {
+                $envContent = preg_replace($pattern, $trimmed, $envContent) ?? $envContent;
+            } else {
+                $envContent .= PHP_EOL.$trimmed;
             }
         }
 
-        $this->info('✅ Environment variables appended successfully.');
+        File::put($envPath, rtrim($envContent).PHP_EOL);
+
+        $this->info('Merged .env.native into .env successfully.');
 
         return Command::SUCCESS;
     }

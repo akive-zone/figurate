@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Http\Middleware\EnsureDeviceUser;
+use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -41,7 +42,25 @@ class AppServiceProvider extends ServiceProvider
 
         if (! $this->isNativeRuntime()) {
             $router->pushMiddlewareToGroup('web', EnsureDeviceUser::class);
+            $this->prioritizeDeviceMiddlewareBeforeAuth($router);
         }
+    }
+
+    protected function prioritizeDeviceMiddlewareBeforeAuth(Router $router): void
+    {
+        if (in_array(EnsureDeviceUser::class, $router->middlewarePriority, true)) {
+            return;
+        }
+
+        $authIndex = array_search(AuthenticatesRequests::class, $router->middlewarePriority, true);
+
+        if ($authIndex === false) {
+            array_unshift($router->middlewarePriority, EnsureDeviceUser::class);
+
+            return;
+        }
+
+        array_splice($router->middlewarePriority, $authIndex, 0, [EnsureDeviceUser::class]);
     }
 
     protected function isNativeRuntime(): bool
