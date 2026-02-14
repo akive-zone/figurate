@@ -4,10 +4,14 @@ import axios from 'axios';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { reactive, ref } from 'vue';
 
-defineProps({
+const props = defineProps({
     profiles: {
         type: Array,
         required: true,
+    },
+    server_base_url: {
+        type: String,
+        default: '',
     },
 });
 
@@ -44,6 +48,14 @@ const onContentsSelected = (event) => {
     form.contents = Array.from(event.target.files ?? []);
 };
 
+const resolveApiUrl = (path) => {
+    if (!props.server_base_url) {
+        return path;
+    }
+
+    return `${props.server_base_url}${path}`;
+};
+
 const submit = async () => {
     errors.value = {};
     isSubmitting.value = true;
@@ -66,7 +78,7 @@ const submit = async () => {
             payload.append('contents[]', file);
         });
 
-        const response = await axios.post('/api/request', payload, {
+        const response = await axios.post(resolveApiUrl('/api/request'), payload, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },

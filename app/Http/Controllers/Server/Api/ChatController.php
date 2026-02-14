@@ -25,9 +25,10 @@ class ChatController extends Controller
 {
     public function store(
         StoreChatRequest $request,
-        Channel $channel,
         ConversationOrchestrator $orchestrator
     ): JsonResponse {
+        $channel = Channel::query()->findOrFail((int) $request->validated('channel_id'));
+
         Gate::authorize('view', $channel);
         Gate::authorize('create', Message::class);
 

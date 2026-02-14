@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Http\Middleware\EnsureDeviceUser;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -31,6 +32,9 @@ class AppServiceProvider extends ServiceProvider
             $this->loadMigrationsFrom(database_path('migrations/native'));
         } else {
             $this->loadMigrationsFrom(database_path('migrations/server'));
+            Route::middleware('api')
+                ->prefix('api')
+                ->group(base_path('routes/api.php'));
         }
 
         $router = $this->app->make(Router::class);
@@ -42,26 +46,7 @@ class AppServiceProvider extends ServiceProvider
 
     protected function isNativeRuntime(): bool
     {
-        $nativeRuntimeFlag = $_ENV['NATIVEPHP_RUNNING'] ?? $_SERVER['NATIVEPHP_RUNNING'] ?? getenv('NATIVEPHP_RUNNING');
-
-        if (is_bool($nativeRuntimeFlag)) {
-            return $nativeRuntimeFlag;
-        }
-
-        if (is_string($nativeRuntimeFlag)) {
-            return in_array(strtolower($nativeRuntimeFlag), ['1', 'true', 'yes', 'on'], true);
-        }
-
-        if ((bool) config('nativephp-internal.running')) {
-            return true;
-        }
-
-         // APP_CONTEXT=native is treated as an explicit local override.
-        if (config('app.context') === 'native') {
-            return true;
-        }
-
-        return false;
+        return \app_is_native_runtime();
     }
 
     /**
@@ -71,7 +56,6 @@ class AppServiceProvider extends ServiceProvider
     {
         return [
             \App\Providers\Native\StudioPanelProvider::class,
-            \App\Providers\Native\SignalPanelProvider::class,
         ];
     }
 

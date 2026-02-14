@@ -2,14 +2,24 @@
 import SignalLayout from '../../../Layouts/SignalLayout.vue';
 import axios from 'axios';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { reactive, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 
 const props = defineProps({
     channel: {
         type: Object,
-        required: true,
+        default: null,
+    },
+    channel_id: {
+        type: Number,
+        default: null,
+    },
+    server_base_url: {
+        type: String,
+        default: '',
     },
 });
+
+const activeChannel = computed(() => props.channel);
 
 const promptForm = reactive({
     content: '',
@@ -17,15 +27,23 @@ const promptForm = reactive({
 
 const promptErrors = ref({});
 const isPrompting = ref(false);
-const isAcceptingQuoteId = ref(null);
+
+const resolveApiUrl = (path) => {
+    if (!props.server_base_url) {
+        return path;
+    }
+
+    return `${props.server_base_url}${path}`;
+};
 
 const submitPrompt = async () => {
     promptErrors.value = {};
     isPrompting.value = true;
 
     try {
-        await axios.post(`/api/chat/${props.channel.id}`, {
-            thread_id: props.channel.active_thread_id ?? null,
+        await axios.post(resolveApiUrl('/api/chat'), {
+            channel_id: activeChannel.value.id,
+            thread_id: activeChannel.value.active_thread ?? null,
             content: promptForm.content,
         });
         promptForm.content = '';
@@ -40,58 +58,39 @@ const submitPrompt = async () => {
 };
 
 const switchThread = (threadId) => {
-    router.get(`/signal/chat/${props.channel.id}`, { thread: threadId }, { preserveState: true });
-};
-
-const acceptQuote = async (quoteId) => {
-    isAcceptingQuoteId.value = quoteId;
-
-    try {
-        await axios.post(`/api/order/channels/${props.channel.id}/quotes/${quoteId}/accept`);
-        router.reload({ only: ['channel'] });
-    } finally {
-        isAcceptingQuoteId.value = null;
-    }
+    router.get(`/signal/chat/${activeChannel.value.id}`, { thread: threadId }, { preserveState: true });
 };
 
 const formatTimestamp = (value) => new Date(value).toLocaleString();
 </script>
 
 <template>
-    <Head :title="`Chat #${channel.id}`" />
+    <Head :title="activeChannel ? `Chat #${activeChannel.id}` : 'Signal Chat'" />
 
     <SignalLayout>
-        <section class="signal-thread">
+        <section class="signal-thread" v-if="activeChannel">
             <header class="signal-thread__header">
                 <div>
                     <p class="signal-thread__kicker">Channel</p>
-                    <h2 class="signal-thread__title">{{ channel.request?.title ?? 'Untitled Request' }}</h2>
+                    <h2 class="signal-thread__title">{{ activeChannel.request?.title ?? 'Untitled Request' }}</h2>
                     <p class="signal-thread__meta">One chatbox, multiple agent threads in the same request context.</p>
                 </div>
                 <Link href="/signal" class="signal-link">Back</Link>
             </header>
 
-            <section class="signal-thread__request" v-if="channel.request">
+            <section class="signal-thread__request" v-if="activeChannel.request">
                 <h3>Request Summary</h3>
-                <p>{{ channel.request.description }}</p>
-                <p class="signal-card__status">Status: {{ channel.request.status }}</p>
+                <p>{{ activeChannel.request.description }}</p>
+                <p class="signal-card__status">Status: {{ activeChannel.request.status }}</p>
 
-                <div v-if="channel.request.quotes?.length" class="signal-quote-list">
+                <div v-if="activeChannel.request.quotes?.length" class="signal-quote-list">
                     <h4>Quotes</h4>
-                    <article v-for="quote in channel.request.quotes" :key="quote.id" class="signal-quote">
+                    <article v-for="quote in activeChannel.request.quotes" :key="quote.id" class="signal-quote">
                         <p class="signal-quote__amount">{{ quote.currency }} {{ Number(quote.amount).toFixed(2) }}</p>
                         <p class="signal-card__status">Status: {{ quote.status }}</p>
                         <p v-if="quote.details">{{ quote.details }}</p>
-                        <button
-                            v-if="channel.actions.can_accept_quote && quote.status === 'pending'"
-                            type="button"
-                            class="signal-button"
-                            :disabled="isAcceptingQuoteId === quote.id"
-                            @click="acceptQuote(quote.id)"
-                        >
-                            Accept Quote and Kickoff Order
-                        </button>
                     </article>
+                    <p class="signal-thread__meta">To accept a quote or change thread state, instruct the agent in chat.</p>
                 </div>
             </section>
 
@@ -101,11 +100,11 @@ const formatTimestamp = (value) => new Date(value).toLocaleString();
                 </div>
                 <div class="signal-threads__list">
                     <button
-                        v-for="thread in channel.threads"
+                        v-for="thread in activeChannel.threads"
                         :key="thread.id"
                         type="button"
                         class="signal-thread-chip"
-                        :class="{ 'signal-thread-chip--active': thread.id === channel.active_thread_id }"
+                        :class="{ 'signal-thread-chip--active': thread.id === activeChannel.active_thread }"
                         @click="switchThread(thread.id)"
                     >
                         <span>{{ thread.title }}</span>
@@ -116,7 +115,7 @@ const formatTimestamp = (value) => new Date(value).toLocaleString();
 
             <section class="signal-thread__messages">
                 <article
-                    v-for="message in channel.thread_messages"
+                    v-for="message in activeChannel.thread_messages"
                     :key="`thread-${message.id}`"
                     class="signal-message signal-message--mine"
                 >
@@ -131,7 +130,7 @@ const formatTimestamp = (value) => new Date(value).toLocaleString();
                 </article>
 
                 <article
-                    v-for="message in channel.agent_messages"
+                    v-for="message in activeChannel.agent_messages"
                     :key="message.id"
                     class="signal-message"
                     :class="{ 'signal-message--mine': message.role === 'user' }"
@@ -143,7 +142,7 @@ const formatTimestamp = (value) => new Date(value).toLocaleString();
                     <p class="signal-message__time">{{ formatTimestamp(message.created_at) }}</p>
                 </article>
 
-                <article v-if="!channel.agent_messages.length" class="signal-empty">
+                <article v-if="!activeChannel.agent_messages.length" class="signal-empty">
                     <h3>No agent messages yet</h3>
                     <p>Send a message in the active thread to start the RequestAgent/OrderAgent exchange.</p>
                 </article>
@@ -163,6 +162,12 @@ const formatTimestamp = (value) => new Date(value).toLocaleString();
                     Send
                 </button>
             </form>
+        </section>
+
+        <section v-else class="signal-empty">
+            <h3>Unable to load channel</h3>
+            <p>Check your API connection and try again.</p>
+            <Link href="/signal" class="signal-link">Back</Link>
         </section>
     </SignalLayout>
 </template>

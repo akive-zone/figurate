@@ -16,6 +16,7 @@
 /public/build
 /public/hot
 /public/android-hot
+/public/ios-hot
 /public/storage
 /storage/*.key
 /storage/pail

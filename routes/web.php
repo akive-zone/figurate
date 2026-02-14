@@ -4,7 +4,7 @@ use App\Http\Controllers\Server\Auth\SocialiteController;
 use App\Http\Controllers\Signal\ChannelController;
 use Illuminate\Support\Facades\Route;
 
-$isNativeRuntime = (bool) config('nativephp-internal.running') || config('app.context') === 'native';
+$isNativeRuntime = \app_is_native_runtime();
 
 Route::get('/', function () use ($isNativeRuntime) {
     if ($isNativeRuntime) {
@@ -29,6 +29,10 @@ Route::prefix('signal')
         Route::get('/', [ChannelController::class, 'index'])->name('index');
         Route::get('/chat/{channel}', [ChannelController::class, 'show'])->name('chat.show');
     });
+
+if ($isNativeRuntime) {
+    Route::get('/signal/requests/new', [ChannelController::class, 'create'])->name('signal.requests.create');
+}
 
 Route::fallback(function () {
     return redirect()->to('/signal');

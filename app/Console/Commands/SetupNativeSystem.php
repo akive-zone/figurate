@@ -25,7 +25,7 @@ class SetupNativeSystem extends Command
         // Read the file into an array of lines
         $envVars = file($filePath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 
-        $envContent = File::get(base_path('.env'));
+        $envContent = File::get(base_path('.env.native'));
         foreach ($envVars as $line) {
             if (! str_contains($envContent, explode('=', $line)[0])) {
                 File::append(base_path('.env'), PHP_EOL.$line);

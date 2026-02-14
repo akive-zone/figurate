@@ -3,260 +3,309 @@
 namespace App\Http\Controllers\Signal;
 
 use App\Http\Controllers\Controller;
-use App\Models\Server\AgentConversationMessage;
-use App\Models\Server\Channel;
-use App\Models\Server\ChannelActorState;
-use App\Models\Server\Message;
-use App\Models\Server\Quote;
-use App\Models\Server\Request as ServiceRequest;
-use App\Models\Server\Thread;
-use App\Models\Server\ThreadActor;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Http;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
 
 class ChannelController extends Controller
 {
-    public function index(Request $request): Response
+    public function create(Request $request): Response
     {
-        $user = $request->user();
+        try {
+            $profiles = $this->fetchProfiles($request);
+        } catch (\Throwable) {
+            $profiles = [];
+        }
 
-        $channels = Channel::query()
-            ->where(function ($query) use ($user): void {
-                $query->where('requester_id', $user->id)
-                    ->orWhereHas('profile', function ($profileQuery) use ($user): void {
-                        $profileQuery->where('user_id', $user->id);
-                    });
-            })
-            ->with([
-                'profile:id,display_name,user_id',
-                'requests',
-                'requests.latestMessage',
-                'requests.latestMessage.sender:id,name',
-            ])
-            ->orderByDesc('last_message_at')
-            ->orderByDesc('updated_at')
-            ->get()
-            ->map(function (Channel $channel): array {
-                $serviceRequest = $channel->requests->first();
-                $latestMessage = $serviceRequest?->latestMessage;
-
-                return [
-                    'id' => $channel->id,
-                    'status' => $channel->status,
-                    'last_message_at' => optional($channel->last_message_at)?->toIso8601String(),
-                    'request' => $serviceRequest ? [
-                        'id' => $serviceRequest->id,
-                        'title' => $serviceRequest->title,
-                        'status' => $serviceRequest->status,
-                    ] : null,
-                    'profile' => $channel->profile ? [
-                        'id' => $channel->profile->id,
-                        'display_name' => $channel->profile->display_name,
-                    ] : null,
-                    'latest_message' => $latestMessage ? [
-                        'id' => $latestMessage->id,
-                        'body' => $latestMessage->body,
-                        'created_at' => $latestMessage->created_at->toIso8601String(),
-                        'sender_name' => $latestMessage->sender?->name,
-                    ] : null,
-                ];
-            })
-            ->values();
-
-        return Inertia::render('Signal/Channels/Index', [
-            'channels' => $channels,
+        return Inertia::render('Signal/Requests/Create', [
+            'profiles' => $profiles,
+            'server_base_url' => $this->clientServerBaseUrl($request),
         ]);
     }
 
-    public function show(Request $request, Channel $channel): Response
+    public function index(Request $request): Response
     {
-        Gate::authorize('view', $channel);
+        try {
+            $channels = $this->fetchChannels($request);
+        } catch (\Throwable) {
+            $channels = [];
+        }
 
-        $channel->load([
-            'profile:id,display_name,user_id',
-            'requests',
+        return Inertia::render('Signal/Channels/Index', [
+            'channels' => $channels,
+            'server_base_url' => $this->clientServerBaseUrl($request),
         ]);
+    }
 
-        $serviceRequest = $channel->requests->first();
-
-        if ($serviceRequest) {
-            $serviceRequest->load([
-                'threads:id,threadable_type,threadable_id,purpose,title,phase,status,created_at',
-                'threads.actors:id,thread_id,actorable_type,actorable_id,role,status,priority',
-                'threads.actorMemories:id,thread_id,thread_actor_id,conversation_id,last_used_at',
-                'threads.actorMemories.threadActor:id,thread_id,actorable_type,actorable_id,role,status,priority',
-            ]);
-        }
-
-        $currentUser = $request->user();
-        $isRequester = $serviceRequest?->hasUserActor($currentUser, ServiceRequest::ActionAsker) ?? false;
-        $requestStatus = $serviceRequest?->status;
-
-        $quotes = $serviceRequest ? $serviceRequest->quotes()->latest('id')->get() : collect();
-        $currentOrder = $serviceRequest?->currentOrder();
-
-        $pendingQuotes = $quotes
-            ?->where('status', 'pending')
-            ->values()
-            ?? collect();
-
-        $threads = $serviceRequest?->threads
-            ?->sortByDesc('created_at')
-            ->values()
-            ?? collect();
-
-        $actorStateThreadId = ChannelActorState::query()
-            ->where('channel_id', $channel->id)
-            ->where('actor_type', $currentUser->getMorphClass())
-            ->where('actor_id', $currentUser->getKey())
-            ->value('thread_id');
-        $queryThreadId = $request->integer('thread');
-
-        $activeThread = $threads->firstWhere('id', $queryThreadId)
-            ?? $threads->firstWhere('id', $actorStateThreadId)
-            ?? $threads->firstWhere('purpose', Thread::PurposeMain)
-            ?? $threads->first();
-
-        if ($activeThread && $queryThreadId) {
-            ChannelActorState::query()->updateOrCreate(
-                [
-                    'channel_id' => $channel->id,
-                    'actor_type' => $currentUser->getMorphClass(),
-                    'actor_id' => $currentUser->getKey(),
-                ],
-                [
-                    'thread_id' => $activeThread->id,
-                    'status' => ChannelActorState::StatusActive,
-                ],
-            );
-        }
-
-        $agentMessages = collect();
-        $threadMessages = collect();
-
-        $activeHandlerActor = $activeThread?->actors
-            ?->where('role', ThreadActor::RoleHandler)
-            ->where('status', ThreadActor::StatusActive)
-            ->sortBy('priority')
-            ->first();
-        $activeHandlerMemory = $activeThread?->actorMemories
-            ->firstWhere('thread_actor_id', $activeHandlerActor?->id);
-
-        if (filled($activeHandlerMemory?->conversation_id)) {
-            $agentMessages = AgentConversationMessage::query()
-                ->where('conversation_id', $activeHandlerMemory->conversation_id)
-                ->with('user:id,name')
-                ->orderBy('created_at')
-                ->limit(100)
-                ->get();
-        }
-
-        if ($activeThread) {
-            $threadMessages = $activeThread->messages()
-                ->with('sender:id,name')
-                ->orderBy('created_at')
-                ->limit(100)
-                ->get();
+    public function show(Request $request, string $channel): Response
+    {
+        try {
+            $channelPayload = $this->fetchChannel((int) $channel, $request);
+        } catch (\Throwable) {
+            $channelPayload = null;
         }
 
         return Inertia::render('Signal/Channels/Show', [
-            'channel' => [
-                'id' => $channel->id,
-                'status' => $channel->status,
-                'profile' => $channel->profile ? [
-                    'id' => $channel->profile->id,
-                    'display_name' => $channel->profile->display_name,
-                ] : null,
-                'request' => $serviceRequest ? [
-                    'id' => $serviceRequest->id,
-                    'title' => $serviceRequest->title,
-                    'description' => $serviceRequest->description,
-                    'status' => $serviceRequest->status,
-                    'order' => $currentOrder ? [
-                        'id' => $currentOrder->id,
-                        'status' => $currentOrder->status,
-                    ] : null,
-                    'quotes' => $quotes
-                        ->map(function (Quote $quote): array {
-                            return [
-                                'id' => $quote->id,
-                                'amount' => $quote->amount,
-                                'currency' => $quote->currency,
-                                'details' => $quote->details,
-                                'status' => $quote->status,
-                                'created_at' => $quote->created_at->toIso8601String(),
-                            ];
-                        })
-                        ->values(),
-                ] : null,
-                'threads' => $threads->map(function (Thread $thread): array {
-                    $handlerActor = $thread->actors
-                        ->where('role', ThreadActor::RoleHandler)
-                        ->where('status', ThreadActor::StatusActive)
-                        ->sortBy('priority')
-                        ->first();
-                    $handlerMemory = $thread->actorMemories
-                        ->firstWhere('thread_actor_id', $handlerActor?->id);
-
-                    return [
-                        'id' => $thread->id,
-                        'purpose' => $thread->purpose,
-                        'title' => $thread->title,
-                        'phase' => $thread->phase,
-                        'handler_actor' => $handlerActor?->actorName(),
-                        'status' => $thread->status,
-                        'has_ai_history' => filled($handlerMemory?->conversation_id),
-                    ];
-                })->values(),
-                'active_thread' => $activeThread?->id,
-                'agent_messages' => $agentMessages
-                    ->map(function (AgentConversationMessage $message): array {
-                        return [
-                            'id' => $message->id,
-                            'role' => $message->role,
-                            'agent' => $message->agent,
-                            'sender_name' => $message->user?->name,
-                            'content' => $message->content,
-                            'created_at' => $message->created_at->toIso8601String(),
-                        ];
-                    })
-                    ->values(),
-                'thread_messages' => $threadMessages
-                    ->map(function (Message $message): array {
-                        $attachments = $message->attachments;
-
-                        if (! is_array($attachments) || $attachments === []) {
-                            $attachments = $message->getMedia('attachments')
-                                ->map(fn ($media): array => [
-                                    'id' => $media->id,
-                                    'name' => $media->name ?: $media->file_name,
-                                    'file_name' => $media->file_name,
-                                    'mime' => $media->mime_type,
-                                    'size' => $media->size,
-                                    'url' => $media->getUrl(),
-                                    'path' => $media->getUrl(),
-                                ])
-                                ->values()
-                                ->all();
-                        }
-
-                        return [
-                            'id' => $message->id,
-                            'sender_name' => $message->sender?->name,
-                            'content' => $message->body,
-                            'attachments' => $attachments,
-                            'created_at' => $message->created_at->toIso8601String(),
-                        ];
-                    })
-                    ->values(),
-                'actions' => [
-                    'can_create_thread' => $isRequester,
-                    'can_prompt_agent' => $isRequester && $activeThread !== null,
-                    'can_accept_quote' => $isRequester && $requestStatus === 'quoted' && $pendingQuotes->isNotEmpty() && ! $currentOrder,
-                ],
-            ],
+            'channel' => $channelPayload,
+            'server_base_url' => $this->clientServerBaseUrl($request),
         ]);
+    }
+
+    protected function isNativeRuntime(): bool
+    {
+        return \app_is_native_runtime();
+    }
+
+    protected function clientServerBaseUrl(Request $request): string
+    {
+        if (! $this->isNativeRuntime()) {
+            return '';
+        }
+
+        return rtrim((string) config('services.server.base_url'), '/');
+    }
+
+    protected function signalApiBaseUrl(Request $request): string
+    {
+        $configured = rtrim((string) config('services.server.base_url'), '/');
+
+        if ($this->isNativeRuntime()) {
+            return $configured;
+        }
+
+        if ($configured !== '') {
+            return $configured;
+        }
+
+        $appUrl = rtrim((string) config('app.url'), '/');
+        if ($appUrl !== '') {
+            return $appUrl;
+        }
+
+        return rtrim($request->getSchemeAndHttpHost(), '/');
+    }
+
+    protected function apiClient(Request $request): PendingRequest
+    {
+        $baseUrl = $this->signalApiBaseUrl($request);
+
+        if ($baseUrl === '') {
+            throw new RuntimeException('SERVER_BASE_URL is required for NativePHP runtime.');
+        }
+
+        $headers = [
+            'Accept' => 'application/ld+json',
+        ];
+
+        if ($request->hasHeader('Cookie')) {
+            $headers['Cookie'] = (string) $request->header('Cookie');
+        }
+
+        if ($request->hasHeader('Authorization')) {
+            $headers['Authorization'] = (string) $request->header('Authorization');
+        }
+
+        if ($request->hasHeader('X-Device-Id')) {
+            $headers['X-Device-Id'] = (string) $request->header('X-Device-Id');
+        }
+
+        return Http::baseUrl($baseUrl)->withHeaders($headers);
+    }
+
+    protected function fetchCollection(Request $request, string $path, array $query = []): array
+    {
+        $payload = $this->apiClient($request)->get($path, $query)->throw()->json();
+
+        if (is_array($payload)) {
+            if (isset($payload['member']) && is_array($payload['member'])) {
+                return $payload['member'];
+            }
+
+            if (isset($payload['hydra:member']) && is_array($payload['hydra:member'])) {
+                return $payload['hydra:member'];
+            }
+        }
+
+        return [];
+    }
+
+    protected function fetchItem(Request $request, string $path): ?array
+    {
+        $payload = $this->apiClient($request)->get($path)->throw()->json();
+
+        return is_array($payload) ? $payload : null;
+    }
+
+    protected function pick(array $value, array $keys, mixed $fallback = null): mixed
+    {
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $value) && $value[$key] !== null) {
+                return $value[$key];
+            }
+        }
+
+        return $fallback;
+    }
+
+    protected function parseResourceId(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_string($value)) {
+            if (preg_match('/\/(\d+)$/', $value, $matches) === 1) {
+                return (int) $matches[1];
+            }
+
+            if (ctype_digit($value)) {
+                return (int) $value;
+            }
+        }
+
+        if (is_array($value)) {
+            return $this->parseResourceId($value['id'] ?? $value['@id'] ?? null);
+        }
+
+        return null;
+    }
+
+    protected function fetchProfiles(Request $request): array
+    {
+        $profiles = $this->fetchCollection($request, '/api/signal/profiles', [
+            'status' => 'approved',
+            'order[created_at]' => 'desc',
+        ]);
+
+        return array_values(array_map(function (array $profile): array {
+            return [
+                'id' => $this->pick($profile, ['id']),
+                'display_name' => $this->pick($profile, ['displayName', 'display_name']),
+                'location' => $this->pick($profile, ['location']),
+            ];
+        }, $profiles));
+    }
+
+    protected function fetchChannels(Request $request): array
+    {
+        $channels = $this->fetchCollection($request, '/api/signal/channels', [
+            'order[last_message_at]' => 'desc',
+        ]);
+
+        return array_values(array_map(function (array $channel) use ($request): array {
+            $requestRef = $this->pick($channel, ['request', 'requests', 'request_id', 'requestId']);
+            $requestId = is_array($requestRef)
+                ? $this->parseResourceId($requestRef[0] ?? null)
+                : $this->parseResourceId($requestRef);
+            $profileId = $this->parseResourceId($this->pick($channel, ['profile', 'profile_id', 'profileId']));
+
+            $requestItem = $requestId ? $this->fetchItem($request, "/api/signal/requests/{$requestId}") : null;
+            $profileItem = $profileId ? $this->fetchItem($request, "/api/signal/profiles/{$profileId}") : null;
+
+            $latestMessage = null;
+
+            if ($requestId) {
+                $messages = $this->fetchCollection($request, '/api/signal/messages', [
+                    'messageable_type' => 'App\Models\Server\Request',
+                    'messageable_id' => $requestId,
+                    'order[created_at]' => 'desc',
+                    'itemsPerPage' => 1,
+                ]);
+
+                $latestRawMessage = $messages[0] ?? null;
+
+                if (is_array($latestRawMessage)) {
+                    $latestMessage = [
+                        'id' => $this->pick($latestRawMessage, ['id']),
+                        'body' => $this->pick($latestRawMessage, ['body']),
+                        'created_at' => $this->pick($latestRawMessage, ['createdAt', 'created_at']),
+                        'sender_name' => null,
+                    ];
+                }
+            }
+
+            return [
+                'id' => $this->pick($channel, ['id']),
+                'status' => $this->pick($channel, ['status'], 'open'),
+                'last_message_at' => $this->pick($channel, ['lastMessageAt', 'last_message_at']),
+                'request' => $requestItem ? [
+                    'id' => $this->pick($requestItem, ['id']),
+                    'title' => $this->pick($requestItem, ['title']),
+                    'status' => $this->pick($requestItem, ['status']),
+                ] : null,
+                'profile' => $profileItem ? [
+                    'id' => $this->pick($profileItem, ['id']),
+                    'display_name' => $this->pick($profileItem, ['displayName', 'display_name']),
+                ] : null,
+                'latest_message' => $latestMessage,
+            ];
+        }, $channels));
+    }
+
+    protected function fetchChannel(int $channelId, Request $request): ?array
+    {
+        $channel = $this->fetchItem($request, "/api/signal/channels/{$channelId}");
+
+        if (! $channel) {
+            return null;
+        }
+
+        $requestRef = $this->pick($channel, ['request', 'requests', 'request_id', 'requestId']);
+        $requestId = is_array($requestRef)
+            ? $this->parseResourceId($requestRef[0] ?? null)
+            : $this->parseResourceId($requestRef);
+        $profileId = $this->parseResourceId($this->pick($channel, ['profile', 'profile_id', 'profileId']));
+
+        $requestItem = $requestId ? $this->fetchItem($request, "/api/signal/requests/{$requestId}") : null;
+        $profileItem = $profileId ? $this->fetchItem($request, "/api/signal/profiles/{$profileId}") : null;
+
+        $threadMessages = [];
+
+        if ($requestId) {
+            $messages = $this->fetchCollection($request, '/api/signal/messages', [
+                'messageable_type' => 'App\Models\Server\Request',
+                'messageable_id' => $requestId,
+                'order[created_at]' => 'asc',
+                'itemsPerPage' => 100,
+            ]);
+
+            $threadMessages = array_values(array_map(function (array $message): array {
+                return [
+                    'id' => $this->pick($message, ['id']),
+                    'sender_name' => null,
+                    'content' => $this->pick($message, ['body']),
+                    'attachments' => $this->pick($message, ['attachments'], []),
+                    'created_at' => $this->pick($message, ['createdAt', 'created_at']),
+                ];
+            }, $messages));
+        }
+
+        return [
+            'id' => $this->pick($channel, ['id']),
+            'status' => $this->pick($channel, ['status'], 'open'),
+            'profile' => $profileItem ? [
+                'id' => $this->pick($profileItem, ['id']),
+                'display_name' => $this->pick($profileItem, ['displayName', 'display_name']),
+            ] : null,
+            'request' => $requestItem ? [
+                'id' => $this->pick($requestItem, ['id']),
+                'title' => $this->pick($requestItem, ['title']),
+                'description' => $this->pick($requestItem, ['description']),
+                'status' => $this->pick($requestItem, ['status']),
+                'quotes' => [],
+            ] : null,
+            'threads' => [],
+            'active_thread' => $request->integer('thread') ?: null,
+            'agent_messages' => [],
+            'thread_messages' => $threadMessages,
+            'actions' => [
+                'can_create_thread' => false,
+                'can_prompt_agent' => true,
+                'can_accept_quote' => false,
+            ],
+        ];
     }
 }
