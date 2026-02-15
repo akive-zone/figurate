@@ -22,8 +22,8 @@ class StoreChatRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'channel_id' => ['required', 'integer', 'exists:channels,id'],
-            'thread_id' => ['nullable', 'integer', 'exists:threads,id'],
+            'channel' => ['nullable', 'uuid', 'exists:channels,uuid'],
+            'thread' => ['nullable', 'uuid', 'exists:threads,uuid'],
             'content' => ['nullable', 'required_without:contents', 'string', 'max:5000'],
             'contents' => ['nullable', 'array', 'max:8'],
             'contents.*' => ['file', 'max:10240', 'mimes:jpg,jpeg,png,webp,pdf,doc,docx,txt,mp4,mov,mp3,wav,m4a'],
@@ -36,8 +36,8 @@ class StoreChatRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'channel_id.required' => 'A channel context is required.',
-            'channel_id.exists' => 'The selected channel was not found.',
+            'channel.exists' => 'The selected channel was not found.',
+            'thread.exists' => 'The selected thread was not found.',
             'content.required_without' => 'Enter a message or attach media.',
             'contents.max' => 'You can attach up to 8 files.',
             'contents.*.max' => 'Each file must be 10MB or smaller.',

@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::create('channel_relations', function (Blueprint $table) {
             $table->id();
-            $table->uuid('uuid')->unique();
             $table->foreignId('channel_id')->constrained('channels')->cascadeOnDelete();
             $table->morphs('relationable');
             $table->timestamps();

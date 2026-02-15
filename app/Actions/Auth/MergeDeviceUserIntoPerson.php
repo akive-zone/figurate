@@ -23,13 +23,6 @@ class MergeDeviceUserIntoPerson
         }
 
         DB::transaction(function () use ($deviceUser, $personUser): void {
-            DB::table('channels')
-                ->where('requester_id', $deviceUser->id)
-                ->update([
-                    'requester_id' => $personUser->id,
-                    'updated_at' => now(),
-                ]);
-
             $this->migrateRequestActors($deviceUser, $personUser);
             $this->migrateChannelActorStates($deviceUser, $personUser);
 

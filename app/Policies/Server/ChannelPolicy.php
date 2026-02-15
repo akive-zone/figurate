@@ -24,11 +24,13 @@ class ChannelPolicy
             return true;
         }
 
-        if ($channel->requester_id === $user->id) {
-            return true;
+        $serviceRequest = $channel->requests()->first();
+
+        if (! $serviceRequest) {
+            return false;
         }
 
-        return $channel->profile?->user_id === $user->id;
+        return $serviceRequest->hasParticipant($user);
     }
 
     /**
@@ -48,11 +50,13 @@ class ChannelPolicy
             return true;
         }
 
-        if ($channel->requester_id === $user->id) {
-            return true;
+        $serviceRequest = $channel->requests()->first();
+
+        if (! $serviceRequest) {
+            return false;
         }
 
-        return $channel->profile?->user_id === $user->id;
+        return $serviceRequest->hasParticipant($user);
     }
 
     /**
@@ -64,11 +68,13 @@ class ChannelPolicy
             return true;
         }
 
-        if ($channel->requester_id === $user->id) {
-            return true;
+        $serviceRequest = $channel->requests()->first();
+
+        if (! $serviceRequest) {
+            return false;
         }
 
-        return $channel->profile?->user_id === $user->id;
+        return $serviceRequest->hasParticipant($user);
     }
 
     /**

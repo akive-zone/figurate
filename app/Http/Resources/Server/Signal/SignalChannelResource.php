@@ -46,8 +46,6 @@ use App\Models\Server\Channel as ChannelModel;
         ),
     ],
 )]
-#[QueryParameter(key: 'requester_id', filter: EqualsFilter::class, property: 'requester_id')]
-#[QueryParameter(key: 'profile_id', filter: EqualsFilter::class, property: 'profile_id')]
 #[QueryParameter(key: 'status', filter: EqualsFilter::class, property: 'status')]
-#[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['last_message_at' => 'last_message_at', 'created_at' => 'created_at'])]
+#[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
 final class SignalChannelResource {}

@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Signal\StoreChatRequest;
 use App\Jobs\ProcessThreadObservers;
 use App\Models\Server\Channel;
+use App\Models\Server\ChannelActorState;
 use App\Models\Server\Message;
 use App\Models\Server\Request as ServiceRequest;
 use App\Models\Server\Thread;
@@ -18,7 +19,9 @@ use App\Support\Conversation\ConversationOrchestrator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Laravel\Ai\Contracts\Agent;
 
 class ChatController extends Controller
@@ -27,22 +30,16 @@ class ChatController extends Controller
         StoreChatRequest $request,
         ConversationOrchestrator $orchestrator
     ): JsonResponse {
-        $channel = Channel::query()->findOrFail((int) $request->validated('channel_id'));
+        [$channel, $serviceRequest] = $this->resolveChannelContext($request);
 
         Gate::authorize('view', $channel);
         Gate::authorize('create', Message::class);
-
-        $serviceRequest = $channel->requests()->first();
-
-        if (! $serviceRequest) {
-            abort(404);
-        }
 
         $decision = $orchestrator->resolve(
             channel: $channel,
             serviceRequest: $serviceRequest,
             actor: $request->user(),
-            requestedThreadId: $request->validated('thread_id'),
+            requestedThreadId: $this->resolveRequestedThreadId($request, $serviceRequest),
             message: $request->validated('content'),
         );
         $thread = $decision->thread;
@@ -61,6 +58,119 @@ class ChatController extends Controller
             ThreadActor::ActorHumanChat => $this->storeHumanMessage($request, $channel, $serviceRequest, $thread, $decision->actions),
             default => $this->promptAgentThread($request, $channel, $serviceRequest, $thread, $request->user(), $decision->actions),
         };
+    }
+
+    /**
+     * @return array{0: Channel, 1: ServiceRequest}
+     */
+    protected function resolveChannelContext(StoreChatRequest $request): array
+    {
+        $channelUuid = $request->validated('channel');
+
+        if (is_string($channelUuid) && $channelUuid !== '') {
+            $channel = Channel::query()->where('uuid', $channelUuid)->firstOrFail();
+            $serviceRequest = $channel->requests()->first();
+
+            if (! $serviceRequest) {
+                abort(404);
+            }
+
+            return [$channel, $serviceRequest];
+        }
+
+        return $this->bootstrapChannelContext($request);
+    }
+
+    protected function resolveRequestedThreadId(StoreChatRequest $request, ServiceRequest $serviceRequest): ?int
+    {
+        $threadUuid = $request->validated('thread');
+
+        if (! is_string($threadUuid) || $threadUuid === '') {
+            return null;
+        }
+
+        $thread = Thread::query()
+            ->where('uuid', $threadUuid)
+            ->where('threadable_type', $serviceRequest->getMorphClass())
+            ->where('threadable_id', $serviceRequest->getKey())
+            ->first();
+
+        if (! $thread) {
+            abort(404, 'The selected thread does not belong to this channel.');
+        }
+
+        return $thread->id;
+    }
+
+    /**
+     * @return array{0: Channel, 1: ServiceRequest}
+     */
+    protected function bootstrapChannelContext(StoreChatRequest $request): array
+    {
+        Gate::authorize('create', ServiceRequest::class);
+        Gate::authorize('create', Channel::class);
+
+        $actor = $request->user();
+        $content = $request->validated('content');
+        $description = is_string($content) && trim($content) !== '' ? trim($content) : 'Chat initiated from Signal.';
+        $title = Str::limit($description, 120, '...');
+
+        return DB::transaction(function () use ($actor, $description, $title): array {
+            $serviceRequest = ServiceRequest::query()->create([
+                'type' => 'request.created',
+                'status' => 'open',
+                'payload' => [
+                    'flow_type' => 'uber',
+                    'title' => $title,
+                    'description' => $description,
+                ],
+                'meta' => [
+                    'source' => 'api.chat.bootstrap',
+                ],
+                'occurred_at' => now(),
+            ]);
+
+            $serviceRequest->users()->attach($actor->id, [
+                'action' => ServiceRequest::ActionAsker,
+                'status' => 'active',
+            ]);
+
+            $channel = Channel::query()->create([
+                'status' => 'open',
+            ]);
+
+            $channel->requests()->attach($serviceRequest->id);
+
+            $mainThread = $serviceRequest->threads()->create([
+                'purpose' => Thread::PurposeMain,
+                'title' => 'Project Main',
+                'phase' => 'request_intake',
+                'status' => 'open',
+            ]);
+
+            $mainThread->actors()->create([
+                'actorable_type' => ThreadActor::ActorRequestAgent,
+                'actorable_id' => null,
+                'role' => ThreadActor::RoleHandler,
+                'status' => ThreadActor::StatusActive,
+                'priority' => 1,
+                'config' => null,
+            ]);
+
+            ChannelActorState::query()->updateOrCreate(
+                [
+                    'channel_id' => $channel->id,
+                    'actor_type' => $actor->getMorphClass(),
+                    'actor_id' => $actor->getKey(),
+                ],
+                [
+                    'thread_id' => $mainThread->id,
+                    'status' => ChannelActorState::StatusActive,
+                ],
+            );
+
+            return [$channel, $serviceRequest];
+        });
     }
 
     protected function resolvePrimaryHandlerActor(Thread $thread): ThreadActor
@@ -112,15 +222,12 @@ class ChatController extends Controller
             $message->syncAttachmentPayload();
         }
 
-        $channel->forceFill([
-            'last_message_at' => now(),
-        ])->save();
-
         ProcessThreadObservers::dispatch($thread->id, $message->id);
 
         return response()->json([
             'message' => 'Message sent.',
-            'thread_id' => $thread->id,
+            'channel' => $channel->uuid,
+            'thread' => $thread->uuid,
             'message_id' => $message->id,
             'observer_status' => 'queued',
             'mode' => 'human_chat',
@@ -159,14 +266,10 @@ class ChatController extends Controller
             ])->save();
         }
 
-        $channel->forceFill([
-            'last_message_at' => now(),
-        ])->save();
-
         return response()->json([
             'message' => 'Agent responded.',
-            'thread_id' => $thread->id,
-            'channel_id' => $channel->id,
+            'thread' => $thread->uuid,
+            'channel' => $channel->uuid,
             'conversation_id' => $response->conversationId ?? $memory->conversation_id,
             'text' => $response->text,
             'mode' => 'agent',

@@ -63,11 +63,6 @@ class Profile extends Model
             ->withTimestamps();
     }
 
-    public function channels(): HasMany
-    {
-        return $this->hasMany(Channel::class);
-    }
-
     public function quotes(): HasMany
     {
         return $this->hasMany(Quote::class);

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Signal;
+namespace App\Http\Controllers\Native\Signal;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Client\PendingRequest;
@@ -14,16 +14,7 @@ class ChannelController extends Controller
 {
     public function create(Request $request): Response
     {
-        try {
-            $profiles = $this->fetchProfiles($request);
-        } catch (\Throwable) {
-            $profiles = [];
-        }
-
-        return Inertia::render('Signal/Requests/Create', [
-            'profiles' => $profiles,
-            'server_base_url' => $this->clientServerBaseUrl($request),
-        ]);
+        return Inertia::render('Signal/Requests/Create');
     }
 
     public function index(Request $request): Response
@@ -36,61 +27,30 @@ class ChannelController extends Controller
 
         return Inertia::render('Signal/Channels/Index', [
             'channels' => $channels,
-            'server_base_url' => $this->clientServerBaseUrl($request),
         ]);
     }
 
     public function show(Request $request, string $channel): Response
     {
         try {
-            $channelPayload = $this->fetchChannel((int) $channel, $request);
+            $channelPayload = $this->fetchChannel($channel, $request);
         } catch (\Throwable) {
             $channelPayload = null;
         }
 
         return Inertia::render('Signal/Channels/Show', [
             'channel' => $channelPayload,
-            'server_base_url' => $this->clientServerBaseUrl($request),
         ]);
     }
 
-    protected function isNativeRuntime(): bool
+    protected function signalApiBaseUrl(): string
     {
-        return \app_is_native_runtime();
-    }
-
-    protected function clientServerBaseUrl(Request $request): string
-    {
-        if (! $this->isNativeRuntime()) {
-            return '';
-        }
-
         return rtrim((string) config('services.server.base_url'), '/');
-    }
-
-    protected function signalApiBaseUrl(Request $request): string
-    {
-        $configured = rtrim((string) config('services.server.base_url'), '/');
-
-        if ($this->isNativeRuntime()) {
-            return $configured;
-        }
-
-        if ($configured !== '') {
-            return $configured;
-        }
-
-        $appUrl = rtrim((string) config('app.url'), '/');
-        if ($appUrl !== '') {
-            return $appUrl;
-        }
-
-        return rtrim($request->getSchemeAndHttpHost(), '/');
     }
 
     protected function apiClient(Request $request): PendingRequest
     {
-        $baseUrl = $this->signalApiBaseUrl($request);
+        $baseUrl = $this->signalApiBaseUrl();
 
         if ($baseUrl === '') {
             throw new RuntimeException('SERVER_BASE_URL is required for NativePHP runtime.');
@@ -173,26 +133,10 @@ class ChannelController extends Controller
         return null;
     }
 
-    protected function fetchProfiles(Request $request): array
-    {
-        $profiles = $this->fetchCollection($request, '/api/signal/profiles', [
-            'status' => 'approved',
-            'order[created_at]' => 'desc',
-        ]);
-
-        return array_values(array_map(function (array $profile): array {
-            return [
-                'id' => $this->pick($profile, ['id']),
-                'display_name' => $this->pick($profile, ['displayName', 'display_name']),
-                'location' => $this->pick($profile, ['location']),
-            ];
-        }, $profiles));
-    }
-
     protected function fetchChannels(Request $request): array
     {
         $channels = $this->fetchCollection($request, '/api/signal/channels', [
-            'order[last_message_at]' => 'desc',
+            'order[created_at]' => 'desc',
         ]);
 
         return array_values(array_map(function (array $channel) use ($request): array {
@@ -200,10 +144,8 @@ class ChannelController extends Controller
             $requestId = is_array($requestRef)
                 ? $this->parseResourceId($requestRef[0] ?? null)
                 : $this->parseResourceId($requestRef);
-            $profileId = $this->parseResourceId($this->pick($channel, ['profile', 'profile_id', 'profileId']));
 
             $requestItem = $requestId ? $this->fetchItem($request, "/api/signal/requests/{$requestId}") : null;
-            $profileItem = $profileId ? $this->fetchItem($request, "/api/signal/profiles/{$profileId}") : null;
 
             $latestMessage = null;
 
@@ -228,26 +170,35 @@ class ChannelController extends Controller
             }
 
             return [
-                'id' => $this->pick($channel, ['id']),
+                'id' => $this->pick($channel, ['uuid']),
                 'status' => $this->pick($channel, ['status'], 'open'),
-                'last_message_at' => $this->pick($channel, ['lastMessageAt', 'last_message_at']),
+                'last_message_at' => $this->pick($latestMessage ?? [], ['created_at'], $this->pick($channel, ['createdAt', 'created_at'])),
                 'request' => $requestItem ? [
                     'id' => $this->pick($requestItem, ['id']),
                     'title' => $this->pick($requestItem, ['title']),
                     'status' => $this->pick($requestItem, ['status']),
-                ] : null,
-                'profile' => $profileItem ? [
-                    'id' => $this->pick($profileItem, ['id']),
-                    'display_name' => $this->pick($profileItem, ['displayName', 'display_name']),
                 ] : null,
                 'latest_message' => $latestMessage,
             ];
         }, $channels));
     }
 
-    protected function fetchChannel(int $channelId, Request $request): ?array
+    protected function fetchChannel(string $channelUuid, Request $request): ?array
     {
-        $channel = $this->fetchItem($request, "/api/signal/channels/{$channelId}");
+        $channels = $this->fetchCollection($request, '/api/signal/channels', [
+            'uuid' => $channelUuid,
+            'itemsPerPage' => 1,
+        ]);
+
+        if ($channels === []) {
+            $channels = $this->fetchCollection($request, '/api/signal/channels', [
+                'itemsPerPage' => 100,
+            ]);
+        }
+
+        $channel = collect($channels)->first(function (array $item) use ($channelUuid): bool {
+            return ($item['uuid'] ?? null) === $channelUuid;
+        });
 
         if (! $channel) {
             return null;
@@ -257,10 +208,8 @@ class ChannelController extends Controller
         $requestId = is_array($requestRef)
             ? $this->parseResourceId($requestRef[0] ?? null)
             : $this->parseResourceId($requestRef);
-        $profileId = $this->parseResourceId($this->pick($channel, ['profile', 'profile_id', 'profileId']));
 
         $requestItem = $requestId ? $this->fetchItem($request, "/api/signal/requests/{$requestId}") : null;
-        $profileItem = $profileId ? $this->fetchItem($request, "/api/signal/profiles/{$profileId}") : null;
 
         $threadMessages = [];
 
@@ -284,12 +233,8 @@ class ChannelController extends Controller
         }
 
         return [
-            'id' => $this->pick($channel, ['id']),
+            'id' => $this->pick($channel, ['uuid']),
             'status' => $this->pick($channel, ['status'], 'open'),
-            'profile' => $profileItem ? [
-                'id' => $this->pick($profileItem, ['id']),
-                'display_name' => $this->pick($profileItem, ['displayName', 'display_name']),
-            ] : null,
             'request' => $requestItem ? [
                 'id' => $this->pick($requestItem, ['id']),
                 'title' => $this->pick($requestItem, ['title']),
@@ -298,7 +243,7 @@ class ChannelController extends Controller
                 'quotes' => [],
             ] : null,
             'threads' => [],
-            'active_thread' => $request->integer('thread') ?: null,
+            'active_thread' => is_string($request->query('thread')) ? (string) $request->query('thread') : null,
             'agent_messages' => [],
             'thread_messages' => $threadMessages,
             'actions' => [

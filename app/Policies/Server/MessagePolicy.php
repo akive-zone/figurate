@@ -50,11 +50,13 @@ class MessagePolicy
         }
 
         if ($messageable instanceof Channel) {
-            if ($messageable->requester_id === $user->id) {
-                return true;
+            $serviceRequest = $messageable->requests()->first();
+
+            if (! $serviceRequest) {
+                return false;
             }
 
-            return $messageable->profile?->user_id === $user->id;
+            return $serviceRequest->hasParticipant($user);
         }
 
         if ($messageable instanceof Thread) {

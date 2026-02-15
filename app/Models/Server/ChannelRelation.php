@@ -2,7 +2,6 @@
 
 namespace App\Models\Server;
 
-use App\Models\Concerns\HasPublicUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,13 +9,12 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class ChannelRelation extends Model
 {
-    use HasFactory, HasPublicUuid;
+    use HasFactory;
 
     /**
      * @var list<string>
      */
     protected $fillable = [
-        'uuid',
         'channel_id',
         'relationable_type',
         'relationable_id',

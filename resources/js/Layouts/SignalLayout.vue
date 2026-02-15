@@ -17,7 +17,7 @@ const flashError = computed(() => page.props.flash?.error ?? null);
             </div>
             <div class="signal-header__actions">
                 <Link href="/" class="signal-link">Launcher</Link>
-                <Link href="/signal/requests/new" class="signal-button">New Request</Link>
+                <Link href="/signal/channels/new" class="signal-button">Start Chat</Link>
             </div>
         </header>
 

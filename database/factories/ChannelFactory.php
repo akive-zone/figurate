@@ -3,8 +3,6 @@
 namespace Database\Factories;
 
 use App\Models\Server\Channel;
-use App\Models\Server\Profile;
-use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -25,10 +23,7 @@ class ChannelFactory extends Factory
     public function definition(): array
     {
         return [
-            'requester_id' => User::factory(),
-            'profile_id' => Profile::factory(),
             'status' => 'open',
-            'last_message_at' => fake()->dateTimeBetween('-2 days'),
         ];
     }
 }

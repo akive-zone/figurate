@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Server\Auth;
+namespace App\Http\Controllers\Server\Api;
 
 use App\Actions\Auth\MergeDeviceUserIntoPerson;
 use App\Http\Controllers\Controller;

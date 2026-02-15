@@ -1,39 +1,40 @@
 <?php
 
+use App\Http\Controllers\Native\Signal\ChannelController as NativeSignalChannelController;
 use App\Http\Controllers\Server\Auth\SocialiteController;
-use App\Http\Controllers\Signal\ChannelController;
+use App\Http\Controllers\Server\Web\Signal\ChannelController as ServerSignalChannelController;
 use Illuminate\Support\Facades\Route;
 
-$isNativeRuntime = \app_is_native_runtime();
-
-Route::get('/', function () use ($isNativeRuntime) {
-    if ($isNativeRuntime) {
+if (\app_is_native_runtime()) {
+    Route::get('/', function () {
         return view('native.launcher');
-    }
+    })->name('launcher');
 
-    return redirect()->to('/signal');
-})->name('launcher');
+    Route::prefix('signal')
+        ->name('signal.')
+        ->group(function () {
+            Route::get('/', [NativeSignalChannelController::class, 'index'])->name('index');
+            Route::get('/channels/new', [NativeSignalChannelController::class, 'create'])->name('chat.create');
+            Route::get('/channels/{channel}', [NativeSignalChannelController::class, 'show'])->name('chat.show');
+        });
 
-Route::prefix('auth')
-    ->name('auth.')
-    ->group(function () {
-        Route::get('{provider}/redirect', [SocialiteController::class, 'redirect'])
-            ->name('redirect');
-        Route::get('{provider}/callback', [SocialiteController::class, 'callback'])
-            ->name('callback');
+    Route::fallback(function () {
+        return redirect()->to('/signal');
     });
+} else {
+    Route::prefix('auth')
+        ->name('auth.')
+        ->group(function () {
+            Route::get('{provider}/redirect', [SocialiteController::class, 'redirect'])
+                ->name('redirect');
+            Route::get('{provider}/callback', [SocialiteController::class, 'callback'])
+                ->name('callback');
+        });
 
-Route::prefix('signal')
-    ->name('signal.')
-    ->group(function () {
-        Route::get('/', [ChannelController::class, 'index'])->name('index');
-        Route::get('/chat/{channel}', [ChannelController::class, 'show'])->name('chat.show');
-    });
-
-if ($isNativeRuntime) {
-    Route::get('/signal/requests/new', [ChannelController::class, 'create'])->name('signal.requests.create');
+    Route::name('signal.')
+        ->group(function () {
+            Route::get('/', [ServerSignalChannelController::class, 'index'])->name('index');
+            Route::get('/channels/new', [ServerSignalChannelController::class, 'create'])->name('chat.create');
+            Route::get('/channels/{channel}', [ServerSignalChannelController::class, 'show'])->name('chat.show');
+        });
 }
-
-Route::fallback(function () {
-    return redirect()->to('/signal');
-});

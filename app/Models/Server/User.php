@@ -4,7 +4,6 @@ namespace App\Models\Server;
 
 use App\Models\Concerns\HasPublicUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
@@ -54,11 +53,6 @@ class User extends Authenticatable
         return $this->morphToMany(Request::class, 'actor', 'request_actors')
             ->withPivot(['action', 'status'])
             ->withTimestamps();
-    }
-
-    public function channels(): HasMany
-    {
-        return $this->hasMany(Channel::class, 'requester_id');
     }
 
     public function messages(): MorphMany

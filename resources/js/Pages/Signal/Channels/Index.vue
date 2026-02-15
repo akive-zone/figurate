@@ -29,23 +29,23 @@ const formatTimestamp = (value) => {
                 class="signal-card"
             >
                 <div class="signal-card__top">
-                    <p class="signal-card__name">{{ channel.profile?.display_name ?? 'Unknown profile' }}</p>
+                    <p class="signal-card__name">{{ channel.request?.title ?? 'Untitled request' }}</p>
                     <p class="signal-card__time">{{ formatTimestamp(channel.last_message_at) }}</p>
                 </div>
 
-                <h2 class="signal-card__title">{{ channel.request?.title ?? 'Untitled request' }}</h2>
+                <h2 class="signal-card__title">{{ channel.id }}</h2>
                 <p class="signal-card__status">Request: {{ channel.request?.status ?? 'pending' }}</p>
                 <p class="signal-card__preview">{{ channel.latest_message?.body ?? 'No messages yet.' }}</p>
 
-                <Link :href="`/signal/chat/${channel.id}`" class="signal-link signal-link--cta">
+                <Link :href="`/signal/channels/${channel.id}`" class="signal-link signal-link--cta">
                     Open Chat
                 </Link>
             </article>
 
             <article v-if="!channels.length" class="signal-empty">
                 <h2>No channels yet</h2>
-                <p>Start a request to open the first channel and begin the fulfillment flow.</p>
-                <Link href="/signal/requests/new" class="signal-button">Create Request</Link>
+                <p>Open a channel and send the first message to start orchestration.</p>
+                <Link href="/signal/channels/new" class="signal-button">Start Chat</Link>
             </article>
         </section>
     </SignalLayout>

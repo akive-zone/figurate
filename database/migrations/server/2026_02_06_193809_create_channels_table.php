@@ -14,15 +14,9 @@ return new class extends Migration
         Schema::create('channels', function (Blueprint $table) {
             $table->id();
             $table->uuid('uuid')->unique();
-            $table->foreignId('requester_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('profile_id')->nullable()->constrained()->nullOnDelete();
             $table->string('status')->default('open');
-            $table->timestamp('last_message_at')->nullable();
             $table->timestamps();
             $table->softDeletes();
-
-            $table->index(['requester_id', 'status']);
-            $table->index(['profile_id', 'status']);
         });
     }
 

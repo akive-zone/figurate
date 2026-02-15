@@ -9,14 +9,6 @@ const props = defineProps({
         type: Object,
         default: null,
     },
-    channel_id: {
-        type: Number,
-        default: null,
-    },
-    server_base_url: {
-        type: String,
-        default: '',
-    },
 });
 
 const activeChannel = computed(() => props.channel);
@@ -29,12 +21,14 @@ const promptErrors = ref({});
 const promptErrorMessage = ref('');
 const isPrompting = ref(false);
 
+const serverBaseUrl = (import.meta.env.VITE_SERVER_BASE_URL ?? '').toString().trim().replace(/\/$/, '');
+
 const resolveApiUrl = (path) => {
-    if (!props.server_base_url) {
+    if (!serverBaseUrl) {
         return path;
     }
 
-    return `${props.server_base_url}${path}`;
+    return `${serverBaseUrl}${path}`;
 };
 
 const deviceIdStorageKey = 'signal.device_id';
@@ -96,8 +90,8 @@ const submitPrompt = async () => {
 
     try {
         const response = await axios.post(resolveApiUrl('/api/chat'), {
-            channel_id: activeChannel.value.id,
-            thread_id: activeChannel.value.active_thread ?? null,
+            channel: activeChannel.value.id,
+            thread: activeChannel.value.active_thread ?? null,
             content: promptForm.content,
         }, {
             headers: authHeaders(),
@@ -119,7 +113,7 @@ const submitPrompt = async () => {
 };
 
 const switchThread = (threadId) => {
-    router.get(`/signal/chat/${activeChannel.value.id}`, { thread: threadId }, { preserveState: true });
+    router.get(`/signal/channels/${activeChannel.value.id}`, { thread: threadId }, { preserveState: true });
 };
 
 const formatTimestamp = (value) => new Date(value).toLocaleString();
