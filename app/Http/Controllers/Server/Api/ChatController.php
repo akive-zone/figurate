@@ -21,7 +21,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 use Laravel\Ai\Contracts\Agent;
 
 class ChatController extends Controller
@@ -39,7 +38,7 @@ class ChatController extends Controller
             channel: $channel,
             serviceRequest: $serviceRequest,
             actor: $request->user(),
-            requestedThreadId: $this->resolveRequestedThreadId($request, $serviceRequest),
+            requestedThreadId: $this->resolveRequestedThreadId($request, $channel, $serviceRequest),
             message: $request->validated('content'),
         );
         $thread = $decision->thread;
@@ -61,7 +60,7 @@ class ChatController extends Controller
     }
 
     /**
-     * @return array{0: Channel, 1: ServiceRequest}
+     * @return array{0: Channel, 1: ServiceRequest|null}
      */
     protected function resolveChannelContext(StoreChatRequest $request): array
     {
@@ -71,29 +70,42 @@ class ChatController extends Controller
             $channel = Channel::query()->where('uuid', $channelUuid)->firstOrFail();
             $serviceRequest = $channel->requests()->first();
 
-            if (! $serviceRequest) {
-                abort(404);
-            }
-
             return [$channel, $serviceRequest];
         }
 
         return $this->bootstrapChannelContext($request);
     }
 
-    protected function resolveRequestedThreadId(StoreChatRequest $request, ServiceRequest $serviceRequest): ?int
-    {
+    protected function resolveRequestedThreadId(
+        StoreChatRequest $request,
+        Channel $channel,
+        ?ServiceRequest $serviceRequest
+    ): ?int {
         $threadUuid = $request->validated('thread');
 
         if (! is_string($threadUuid) || $threadUuid === '') {
             return null;
         }
 
-        $thread = Thread::query()
+        $query = Thread::query()
             ->where('uuid', $threadUuid)
-            ->where('threadable_type', $serviceRequest->getMorphClass())
-            ->where('threadable_id', $serviceRequest->getKey())
-            ->first();
+            ->where(function ($relationQuery) use ($channel, $serviceRequest): void {
+                if ($serviceRequest) {
+                    $relationQuery->orWhere(function ($requestQuery) use ($serviceRequest): void {
+                        $requestQuery
+                            ->where('threadable_type', $serviceRequest->getMorphClass())
+                            ->where('threadable_id', $serviceRequest->getKey());
+                    });
+                }
+
+                $relationQuery->orWhere(function ($channelQuery) use ($channel): void {
+                    $channelQuery
+                        ->where('threadable_type', $channel->getMorphClass())
+                        ->where('threadable_id', $channel->getKey());
+                });
+            });
+
+        $thread = $query->first();
 
         if (! $thread) {
             abort(404, 'The selected thread does not belong to this channel.');
@@ -103,45 +115,20 @@ class ChatController extends Controller
     }
 
     /**
-     * @return array{0: Channel, 1: ServiceRequest}
+     * @return array{0: Channel, 1: ServiceRequest|null}
      */
     protected function bootstrapChannelContext(StoreChatRequest $request): array
     {
-        Gate::authorize('create', ServiceRequest::class);
         Gate::authorize('create', Channel::class);
 
         $actor = $request->user();
-        $content = $request->validated('content');
-        $description = is_string($content) && trim($content) !== '' ? trim($content) : 'Chat initiated from Signal.';
-        $title = Str::limit($description, 120, '...');
 
-        return DB::transaction(function () use ($actor, $description, $title): array {
-            $serviceRequest = ServiceRequest::query()->create([
-                'type' => 'request.created',
-                'status' => 'open',
-                'payload' => [
-                    'flow_type' => 'uber',
-                    'title' => $title,
-                    'description' => $description,
-                ],
-                'meta' => [
-                    'source' => 'api.chat.bootstrap',
-                ],
-                'occurred_at' => now(),
-            ]);
-
-            $serviceRequest->users()->attach($actor->id, [
-                'action' => ServiceRequest::ActionAsker,
-                'status' => 'active',
-            ]);
-
+        return DB::transaction(function () use ($actor): array {
             $channel = Channel::query()->create([
                 'status' => 'open',
             ]);
 
-            $channel->requests()->attach($serviceRequest->id);
-
-            $mainThread = $serviceRequest->threads()->create([
+            $mainThread = $channel->threads()->create([
                 'purpose' => Thread::PurposeMain,
                 'title' => 'Project Main',
                 'phase' => 'request_intake',
@@ -169,7 +156,7 @@ class ChatController extends Controller
                 ],
             );
 
-            return [$channel, $serviceRequest];
+            return [$channel, null];
         });
     }
 
@@ -187,11 +174,11 @@ class ChatController extends Controller
     protected function storeHumanMessage(
         StoreChatRequest $request,
         Channel $channel,
-        ServiceRequest $serviceRequest,
+        ?ServiceRequest $serviceRequest,
         Thread $thread,
         array $orchestrationActions = []
     ): JsonResponse {
-        if (! $serviceRequest->hasParticipant($request->user())) {
+        if (! $this->canActorWrite($channel, $serviceRequest, $request->user())) {
             abort(403);
         }
 
@@ -238,12 +225,12 @@ class ChatController extends Controller
     protected function promptAgentThread(
         StoreChatRequest $request,
         Channel $channel,
-        ServiceRequest $serviceRequest,
+        ?ServiceRequest $serviceRequest,
         Thread $thread,
         User $actor,
         array $orchestrationActions = []
     ): JsonResponse {
-        if (! $serviceRequest->hasParticipant($actor)) {
+        if (! $this->canActorWrite($channel, $serviceRequest, $actor)) {
             abort(403);
         }
 
@@ -302,5 +289,14 @@ class ChatController extends Controller
             ThreadActor::ActorOrderAgent => OrderAgent::make(thread: $thread, actor: $actor),
             default => RequestAgent::make(thread: $thread, actor: $actor),
         };
+    }
+
+    protected function canActorWrite(Channel $channel, ?ServiceRequest $serviceRequest, User $actor): bool
+    {
+        if ($serviceRequest) {
+            return $serviceRequest->hasParticipant($actor);
+        }
+
+        return $channel->hasActor($actor);
     }
 }

@@ -27,7 +27,7 @@ class ChannelPolicy
         $serviceRequest = $channel->requests()->first();
 
         if (! $serviceRequest) {
-            return false;
+            return $channel->hasActor($user);
         }
 
         return $serviceRequest->hasParticipant($user);
@@ -53,7 +53,7 @@ class ChannelPolicy
         $serviceRequest = $channel->requests()->first();
 
         if (! $serviceRequest) {
-            return false;
+            return $channel->hasActor($user);
         }
 
         return $serviceRequest->hasParticipant($user);
@@ -71,7 +71,7 @@ class ChannelPolicy
         $serviceRequest = $channel->requests()->first();
 
         if (! $serviceRequest) {
-            return false;
+            return $channel->hasActor($user);
         }
 
         return $serviceRequest->hasParticipant($user);

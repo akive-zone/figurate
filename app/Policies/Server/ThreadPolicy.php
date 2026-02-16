@@ -2,6 +2,7 @@
 
 namespace App\Policies\Server;
 
+use App\Models\Server\Channel;
 use App\Models\Server\Request as ServiceRequest;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
@@ -28,6 +29,10 @@ class ThreadPolicy
         $threadable = $thread->threadable;
 
         if (! $threadable instanceof ServiceRequest) {
+            if ($threadable instanceof Channel) {
+                return $threadable->hasActor($user);
+            }
+
             return false;
         }
 
@@ -54,6 +59,10 @@ class ThreadPolicy
         $threadable = $thread->threadable;
 
         if (! $threadable instanceof ServiceRequest) {
+            if ($threadable instanceof Channel) {
+                return $threadable->hasActor($user);
+            }
+
             return false;
         }
 

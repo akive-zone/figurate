@@ -28,6 +28,11 @@ class Channel extends Model
         return $this->hasMany(ChannelActorState::class);
     }
 
+    public function threads(): MorphMany
+    {
+        return $this->morphMany(Thread::class, 'threadable');
+    }
+
     public function relations(): HasMany
     {
         return $this->hasMany(ChannelRelation::class);
@@ -47,5 +52,13 @@ class Channel extends Model
     public function posts(): MorphMany
     {
         return $this->morphMany(Post::class, 'postable');
+    }
+
+    public function hasActor(User $user): bool
+    {
+        return $this->actorStates()
+            ->where('actor_type', $user->getMorphClass())
+            ->where('actor_id', $user->getKey())
+            ->exists();
     }
 }

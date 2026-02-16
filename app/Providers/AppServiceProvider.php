@@ -74,6 +74,7 @@ class AppServiceProvider extends ServiceProvider
     protected function nativeProviders(): array
     {
         return [
+            \App\Providers\Native\SignalPanelProvider::class,
             \App\Providers\Native\StudioPanelProvider::class,
         ];
     }

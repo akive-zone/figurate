@@ -53,7 +53,7 @@ class MessagePolicy
             $serviceRequest = $messageable->requests()->first();
 
             if (! $serviceRequest) {
-                return false;
+                return $messageable->hasActor($user);
             }
 
             return $serviceRequest->hasParticipant($user);
@@ -64,6 +64,10 @@ class MessagePolicy
 
             if ($threadable instanceof Request) {
                 return $threadable->hasParticipant($user);
+            }
+
+            if ($threadable instanceof Channel) {
+                return $threadable->hasActor($user);
             }
         }
 

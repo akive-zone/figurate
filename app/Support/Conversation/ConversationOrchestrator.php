@@ -8,13 +8,15 @@ use App\Models\Server\Request as ServiceRequest;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Facades\DB;
 
 class ConversationOrchestrator
 {
     public function resolve(
         Channel $channel,
-        ServiceRequest $serviceRequest,
+        ?ServiceRequest $serviceRequest,
         User $actor,
         ?int $requestedThreadId = null,
         ?string $message = null,
@@ -22,14 +24,14 @@ class ConversationOrchestrator
         return DB::transaction(function () use ($channel, $serviceRequest, $actor, $requestedThreadId, $message): OrchestrationDecision {
             $actions = [];
             $thread = $this->resolveBaseThread(
-                serviceRequest: $serviceRequest,
                 channel: $channel,
+                serviceRequest: $serviceRequest,
                 actor: $actor,
                 requestedThreadId: $requestedThreadId,
             );
 
             if ($requestedThreadId === null) {
-                [$thread, $triggerActions] = $this->applyPurposeTriggers($serviceRequest, $thread, $message);
+                [$thread, $triggerActions] = $this->applyPurposeTriggers($channel, $serviceRequest, $thread, $message);
                 $actions = array_merge($actions, $triggerActions);
             }
 
@@ -58,13 +60,13 @@ class ConversationOrchestrator
     }
 
     protected function resolveBaseThread(
-        ServiceRequest $serviceRequest,
         Channel $channel,
+        ?ServiceRequest $serviceRequest,
         User $actor,
         ?int $requestedThreadId,
     ): Thread {
         if ($requestedThreadId !== null) {
-            $thread = $serviceRequest->threads()
+            $thread = $this->threadsQuery($channel, $serviceRequest)
                 ->where('status', 'open')
                 ->whereKey($requestedThreadId)
                 ->first();
@@ -83,7 +85,7 @@ class ConversationOrchestrator
             ->first();
 
         if ($actorState?->thread_id) {
-            $thread = $serviceRequest->threads()
+            $thread = $this->threadsQuery($channel, $serviceRequest)
                 ->where('status', 'open')
                 ->whereKey($actorState->thread_id)
                 ->first();
@@ -93,7 +95,7 @@ class ConversationOrchestrator
             }
         }
 
-        $thread = $serviceRequest->threads()
+        $thread = $this->threadsQuery($channel, $serviceRequest)
             ->where('status', 'open')
             ->where('purpose', Thread::PurposeMain)
             ->orderBy('id')
@@ -103,7 +105,7 @@ class ConversationOrchestrator
             return $thread;
         }
 
-        $thread = $serviceRequest->threads()
+        $thread = $this->threadsQuery($channel, $serviceRequest)
             ->where('status', 'open')
             ->latest('id')
             ->first();
@@ -112,24 +114,25 @@ class ConversationOrchestrator
             return $thread;
         }
 
-        return $this->createPurposeThread(
-            serviceRequest: $serviceRequest,
-            purpose: Thread::PurposeMain,
-        );
+        return $this->createPurposeThread($channel, $serviceRequest, Thread::PurposeMain);
     }
 
     /**
      * @return array{0: Thread, 1: list<array<string, mixed>>}
      */
-    protected function applyPurposeTriggers(ServiceRequest $serviceRequest, Thread $thread, ?string $message): array
-    {
+    protected function applyPurposeTriggers(
+        Channel $channel,
+        ?ServiceRequest $serviceRequest,
+        Thread $thread,
+        ?string $message
+    ): array {
         $targetPurpose = $this->detectPurposeFromMessage($message);
 
         if (! $targetPurpose || $targetPurpose === $thread->purpose) {
             return [$thread, []];
         }
 
-        $openThread = $serviceRequest->threads()
+        $openThread = $this->threadsQuery($channel, $serviceRequest)
             ->where('status', 'open')
             ->where('purpose', $targetPurpose)
             ->latest('id')
@@ -144,7 +147,7 @@ class ConversationOrchestrator
             ]]];
         }
 
-        $spawnedThread = $this->createPurposeThread($serviceRequest, $targetPurpose);
+        $spawnedThread = $this->createPurposeThread($channel, $serviceRequest, $targetPurpose);
 
         return [$spawnedThread, [[
             'event_type' => 'orchestration.thread_spawned',
@@ -169,9 +172,9 @@ class ConversationOrchestrator
         );
     }
 
-    protected function createPurposeThread(ServiceRequest $serviceRequest, string $purpose): Thread
+    protected function createPurposeThread(Channel $channel, ?ServiceRequest $serviceRequest, string $purpose): Thread
     {
-        $thread = $serviceRequest->threads()->create([
+        $thread = $this->threadRelation($channel, $serviceRequest)->create([
             'purpose' => $purpose,
             'title' => $this->defaultTitle($purpose),
             'phase' => $this->defaultPhase($purpose),
@@ -188,6 +191,20 @@ class ConversationOrchestrator
         ]);
 
         return $thread;
+    }
+
+    protected function threadsQuery(Channel $channel, ?ServiceRequest $serviceRequest): Builder
+    {
+        return $serviceRequest
+            ? $serviceRequest->threads()->getQuery()
+            : $channel->threads()->getQuery();
+    }
+
+    protected function threadRelation(Channel $channel, ?ServiceRequest $serviceRequest): MorphMany
+    {
+        return $serviceRequest
+            ? $serviceRequest->threads()
+            : $channel->threads();
     }
 
     protected function detectPurposeFromMessage(?string $message): ?string
