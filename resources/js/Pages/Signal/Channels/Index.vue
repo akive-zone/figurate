@@ -1,9 +1,9 @@
 <script setup>
 import SignalLayout from '../../../Layouts/SignalLayout.vue';
-import axios from 'axios';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { reactive, ref } from 'vue';
+import { sendSignalChatMessage } from '../../../api/signalChat';
 
 defineProps({
     channels: {
@@ -41,68 +41,6 @@ const errors = ref({});
 const formError = ref('');
 const isSubmitting = ref(false);
 
-const serverBaseUrl = (import.meta.env.VITE_SERVER_BASE_URL ?? '').toString().trim().replace(/\/$/, '');
-
-const resolveApiUrl = (path) => {
-    if (!serverBaseUrl) {
-        return path;
-    }
-
-    return `${serverBaseUrl}${path}`;
-};
-
-const deviceIdStorageKey = 'signal.device_id';
-const apiTokenStorageKey = 'signal.api_token';
-
-const readStorage = (key) => {
-    if (typeof window === 'undefined') {
-        return '';
-    }
-
-    return window.localStorage.getItem(key) ?? '';
-};
-
-const writeStorage = (key, value) => {
-    if (typeof window === 'undefined' || !value) {
-        return;
-    }
-
-    window.localStorage.setItem(key, value);
-};
-
-const persistBootstrapHeaders = (response) => {
-    if (!response || !response.headers) {
-        return;
-    }
-
-    const deviceId = response.headers['x-device-id'];
-    const apiToken = response.headers['x-api-token'];
-
-    if (typeof deviceId === 'string' && deviceId !== '') {
-        writeStorage(deviceIdStorageKey, deviceId);
-    }
-
-    if (typeof apiToken === 'string' && apiToken !== '') {
-        writeStorage(apiTokenStorageKey, apiToken);
-    }
-};
-
-const authHeaders = () => {
-    const deviceId = readStorage(deviceIdStorageKey);
-    const token = readStorage(apiTokenStorageKey);
-    const headers = {};
-
-    if (deviceId) {
-        headers['X-Device-Id'] = deviceId;
-    }
-
-    if (token) {
-        headers.Authorization = `Bearer ${token}`;
-    }
-
-    return headers;
-};
-
 const submit = async () => {
     errors.value = {};
     formError.value = '';
@@ -119,14 +57,9 @@ const submit = async () => {
             return;
         }
 
-        const response = await axios.post(resolveApiUrl('/api/chat'), {
+        const response = await sendSignalChatMessage({
             content: message,
-        }, {
-            headers: {
-                ...authHeaders(),
-            },
-        });
-        persistBootstrapHeaders(response);
+        }, runtime.value);
         const channelId = response.data?.channel;
         const threadId = response.data?.thread;
 
@@ -138,8 +71,6 @@ const submit = async () => {
 
         window.location.href = signalCreateChannelUrl.value;
     } catch (error) {
-        persistBootstrapHeaders(error.response);
-
         if (error.response?.status === 422) {
             errors.value = error.response.data.errors ?? {};
         } else {

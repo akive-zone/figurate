@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Server\Channel;
 use App\Models\Server\Message;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -35,7 +34,7 @@ class ChannelController extends Controller
                 ->where('uuid', $channel)
                 ->first();
 
-            if (! $channelRecord || ! Gate::forUser($request->user())->allows('view', $channelRecord)) {
+            if (! $channelRecord) {
                 $channelPayload = null;
             } else {
                 $serviceRequest = $channelRecord->requests()->latest('id')->first();

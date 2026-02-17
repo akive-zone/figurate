@@ -3,6 +3,7 @@
 use App\Http\Controllers\Native\Signal\ChannelController as NativeSignalChannelController;
 use App\Http\Controllers\Server\Auth\SocialiteController;
 use App\Http\Controllers\Server\Web\Signal\ChannelController as ServerSignalChannelController;
+use App\Http\Middleware\EnsureDeviceUser;
 use Illuminate\Support\Facades\Route;
 
 if (\app_is_native_runtime()) {
@@ -31,7 +32,8 @@ if (\app_is_native_runtime()) {
                 ->name('callback');
         });
 
-    Route::name('signal.')
+    Route::middleware(EnsureDeviceUser::class)
+        ->name('signal.')
         ->group(function () {
             Route::get('/', [ServerSignalChannelController::class, 'index'])->name('index');
             Route::redirect('/channels', '/');

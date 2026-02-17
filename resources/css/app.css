@@ -175,6 +175,20 @@ body {
     gap: 0.75rem;
 }
 
+.signal-user-chip {
+    border: 1px solid var(--signal-border);
+    border-radius: 999px;
+    min-width: 2.4rem;
+    height: 2.4rem;
+    padding: 0 0.7rem;
+    background: #eef2f7;
+    color: #111827;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
 .signal-main {
     animation: signal-rise 0.25s ease-out;
 }
@@ -490,6 +504,55 @@ body {
     font-size: 0.82rem;
 }
 
+.signal-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    background: rgba(15, 23, 42, 0.45);
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+}
+
+.signal-modal {
+    width: min(420px, 100%);
+    background: #ffffff;
+    border: 1px solid var(--signal-border);
+    border-radius: 0.9rem;
+    padding: 1rem;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.24);
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.signal-modal__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.signal-modal__title {
+    margin: 0;
+}
+
+.signal-modal__meta {
+    margin: 0;
+    color: var(--signal-soft-ink);
+    font-size: 0.9rem;
+}
+
+.signal-modal__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.signal-link--full {
+    width: 100%;
+}
+
 .signal-empty {
     padding: 1rem;
 }
@@ -537,5 +600,10 @@ body {
 
     .signal-message {
         max-width: 100%;
+    }
+
+    .signal-user-chip {
+        width: 2.2rem;
+        height: 2.2rem;
     }
 }

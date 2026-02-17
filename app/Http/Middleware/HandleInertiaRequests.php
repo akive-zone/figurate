@@ -59,7 +59,12 @@ class HandleInertiaRequests extends Middleware
                     'id' => $user->id,
                     'name' => $user->name,
                     'type' => $user->type,
+                    'device_identifier' => $user->device_identifier,
                 ] : null,
+                'routes' => [
+                    'google_redirect' => route('auth.redirect', ['provider' => 'google']),
+                    'apple_redirect' => route('auth.redirect', ['provider' => 'apple']),
+                ],
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),

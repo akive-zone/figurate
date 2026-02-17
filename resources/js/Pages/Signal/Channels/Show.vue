@@ -1,8 +1,8 @@
 <script setup>
 import SignalLayout from '../../../Layouts/SignalLayout.vue';
-import axios from 'axios';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, reactive, ref } from 'vue';
+import { sendSignalChatMessage } from '../../../api/signalChat';
 
 const props = defineProps({
     channels: {
@@ -47,87 +47,20 @@ const promptErrors = ref({});
 const promptErrorMessage = ref('');
 const isPrompting = ref(false);
 
-const serverBaseUrl = (import.meta.env.VITE_SERVER_BASE_URL ?? '').toString().trim().replace(/\/$/, '');
-
-const resolveApiUrl = (path) => {
-    if (!serverBaseUrl) {
-        return path;
-    }
-
-    return `${serverBaseUrl}${path}`;
-};
-
-const deviceIdStorageKey = 'signal.device_id';
-const apiTokenStorageKey = 'signal.api_token';
-
-const readStorage = (key) => {
-    if (typeof window === 'undefined') {
-        return '';
-    }
-
-    return window.localStorage.getItem(key) ?? '';
-};
-
-const writeStorage = (key, value) => {
-    if (typeof window === 'undefined' || !value) {
-        return;
-    }
-
-    window.localStorage.setItem(key, value);
-};
-
-const persistBootstrapHeaders = (response) => {
-    if (!response || !response.headers) {
-        return;
-    }
-
-    const deviceId = response.headers['x-device-id'];
-    const apiToken = response.headers['x-api-token'];
-
-    if (typeof deviceId === 'string' && deviceId !== '') {
-        writeStorage(deviceIdStorageKey, deviceId);
-    }
-
-    if (typeof apiToken === 'string' && apiToken !== '') {
-        writeStorage(apiTokenStorageKey, apiToken);
-    }
-};
-
-const authHeaders = () => {
-    const deviceId = readStorage(deviceIdStorageKey);
-    const token = readStorage(apiTokenStorageKey);
-    const headers = {};
-
-    if (deviceId) {
-        headers['X-Device-Id'] = deviceId;
-    }
-
-    if (token) {
-        headers.Authorization = `Bearer ${token}`;
-    }
-
-    return headers;
-};
-
 const submitPrompt = async () => {
     promptErrors.value = {};
     promptErrorMessage.value = '';
     isPrompting.value = true;
 
     try {
-        const response = await axios.post(resolveApiUrl('/api/chat'), {
+        await sendSignalChatMessage({
             channel: activeChannel.value.id,
             thread: activeChannel.value.active_thread ?? null,
             content: promptForm.content,
-        }, {
-            headers: authHeaders(),
-        });
-        persistBootstrapHeaders(response);
+        }, runtime.value);
         promptForm.content = '';
         router.reload({ only: ['channel'] });
     } catch (error) {
-        persistBootstrapHeaders(error.response);
-
         if (error.response?.status === 422) {
             promptErrors.value = error.response.data.errors ?? {};
         } else {
