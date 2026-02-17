@@ -36,7 +36,6 @@ if (\app_is_native_runtime()) {
         ->name('signal.')
         ->group(function () {
             Route::get('/', [ServerSignalChannelController::class, 'index'])->name('index');
-            Route::redirect('/channels', '/');
             Route::get('/channels/new', [ServerSignalChannelController::class, 'create'])->name('chat.create');
             Route::get('/channels/{channel}', [ServerSignalChannelController::class, 'show'])->name('chat.show');
         });

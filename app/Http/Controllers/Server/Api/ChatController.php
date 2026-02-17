@@ -16,7 +16,9 @@ use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadActorMemory;
 use App\Models\Server\User;
 use App\Support\Conversation\ConversationOrchestrator;
+use App\Support\Signal\SidebarChats;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +27,11 @@ use Laravel\Ai\Contracts\Agent;
 
 class ChatController extends Controller
 {
+    public function index(Request $request, SidebarChats $sidebarChats): JsonResponse
+    {
+        return response()->json($sidebarChats->cursorPageForRequest($request));
+    }
+
     public function store(
         StoreChatRequest $request,
         ConversationOrchestrator $orchestrator
@@ -234,9 +241,26 @@ class ChatController extends Controller
             abort(403);
         }
 
+        $content = $request->validated('content');
+        $content = is_string($content) ? trim($content) : '';
+        if ($content === '') {
+            abort(422, 'A text message is required for agent prompts.');
+        }
+
         $primaryHandler = $this->resolvePrimaryHandlerActor($thread);
         $agent = $this->resolveAgent($primaryHandler, $actor);
         $memory = $this->resolveMemory($thread, $primaryHandler);
+
+        $userMessage = $thread->messages()->create([
+            'senderable_type' => $actor->getMorphClass(),
+            'senderable_id' => $actor->getKey(),
+            'type' => 'text',
+            'body' => $content,
+            'attachments' => null,
+            'meta' => [
+                'source' => 'agent_prompt',
+            ],
+        ]);
 
         if ($memory->conversation_id) {
             $agent->continue($memory->conversation_id, $actor);
@@ -244,7 +268,7 @@ class ChatController extends Controller
             $agent->forUser($actor);
         }
 
-        $response = $agent->prompt($request->validated('content'));
+        $response = $agent->prompt($content);
 
         if ($response->conversationId) {
             $memory->forceFill([
@@ -253,12 +277,31 @@ class ChatController extends Controller
             ])->save();
         }
 
+        $assistantText = is_string($response->text) ? trim($response->text) : '';
+        $assistantMessage = null;
+        if ($assistantText !== '') {
+            $assistantMessage = $thread->messages()->create([
+                'senderable_type' => null,
+                'senderable_id' => null,
+                'type' => 'text',
+                'body' => $assistantText,
+                'attachments' => null,
+                'meta' => [
+                    'source' => 'agent_response',
+                    'actor_key' => $primaryHandler->actorName(),
+                    'conversation_id' => $response->conversationId ?? $memory->conversation_id,
+                ],
+            ]);
+        }
+
         return response()->json([
             'message' => 'Agent responded.',
             'thread' => $thread->uuid,
             'channel' => $channel->uuid,
             'conversation_id' => $response->conversationId ?? $memory->conversation_id,
             'text' => $response->text,
+            'message_id' => $userMessage->id,
+            'assistant_message_id' => $assistantMessage?->id,
             'mode' => 'agent',
             'orchestration_actions' => $orchestrationActions,
         ]);

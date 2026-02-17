@@ -50,6 +50,8 @@ class HandleInertiaRequests extends Middleware
                 'signal_index_path' => \app_is_native_runtime() ? '/signal' : '/',
                 'signal_routes' => [
                     'index' => route('signal.index'),
+                    'chats' => \app_is_native_runtime() ? route('signal.index') : route('api.chats.index'),
+                    'chats_store' => \app_is_native_runtime() ? route('signal.index') : route('api.chats.store'),
                     'create' => route('signal.chat.create'),
                     'show_template' => route('signal.chat.show', ['channel' => '__CHANNEL__']),
                 ],

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 
 class Channel extends Model
 {
@@ -60,5 +61,66 @@ class Channel extends Model
             ->where('actor_type', $user->getMorphClass())
             ->where('actor_id', $user->getKey())
             ->exists();
+    }
+
+    public function primaryRequest(): ?Request
+    {
+        return $this->requests()->latest('id')->first();
+    }
+
+    /**
+     * @return Collection<int, Thread>
+     */
+    public function conversationThreads(): Collection
+    {
+        $requestRecord = $this->primaryRequest();
+
+        return ($requestRecord ? $requestRecord->threads() : $this->threads())
+            ->with(['messages', 'posts'])
+            ->orderBy('created_at')
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, Message>
+     */
+    public function conversationRequestMessages(): Collection
+    {
+        $requestRecord = $this->primaryRequest();
+
+        if (! $requestRecord) {
+            return collect();
+        }
+
+        return $requestRecord->messages()
+            ->orderBy('created_at')
+            ->get();
+    }
+
+    public function latestConversationMessage(): ?Message
+    {
+        $candidateMessages = collect();
+        $requestRecord = $this->primaryRequest();
+
+        if ($requestRecord) {
+            $latestRequestMessage = $requestRecord->messages()->latest('created_at')->first();
+            if ($latestRequestMessage instanceof Message) {
+                $candidateMessages->push($latestRequestMessage);
+            }
+        }
+
+        $latestThreadMessage = $this->conversationThreads()
+            ->flatMap(fn (Thread $thread) => $thread->messages)
+            ->sortByDesc('created_at')
+            ->first();
+
+        if ($latestThreadMessage instanceof Message) {
+            $candidateMessages->push($latestThreadMessage);
+        }
+
+        /** @var Message|null $latestMessage */
+        $latestMessage = $candidateMessages->sortByDesc('created_at')->first();
+
+        return $latestMessage;
     }
 }

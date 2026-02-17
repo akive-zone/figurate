@@ -102,6 +102,12 @@ body {
     min-height: 0;
 }
 
+.signal-channel-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
 .signal-channel-link {
     display: block;
     text-decoration: none;
@@ -130,6 +136,29 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.signal-thread-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding-left: 0.9rem;
+    border-left: 2px solid rgba(15, 118, 110, 0.2);
+}
+
+.signal-thread-tree__item {
+    display: block;
+    text-decoration: none;
+    color: var(--signal-soft-ink);
+    font-size: 0.82rem;
+    border-radius: 0.45rem;
+    padding: 0.3rem 0.45rem;
+}
+
+.signal-thread-tree__item--active {
+    background: rgba(15, 118, 110, 0.12);
+    color: var(--signal-ink);
+    font-weight: 700;
 }
 
 .signal-sidebar__empty {

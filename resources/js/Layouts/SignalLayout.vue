@@ -1,6 +1,7 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { fetchSignalChats } from '../api/signalChat';
 
 const props = defineProps({
     channels: {
@@ -8,6 +9,10 @@ const props = defineProps({
         default: () => [],
     },
     activeChannelId: {
+        type: String,
+        default: null,
+    },
+    activeThreadId: {
         type: String,
         default: null,
     },
@@ -48,6 +53,18 @@ const signalShowTemplate = computed(() => {
     return '/channels/__CHANNEL__';
 });
 const signalChannelUrl = (channelId) => signalShowTemplate.value.replace('__CHANNEL__', channelId);
+const signalChannelThreadUrl = (channelId, threadId) => {
+    const channelUrl = signalChannelUrl(channelId);
+
+    if (!threadId) {
+        return channelUrl;
+    }
+
+    const url = new URL(channelUrl, window.location.origin);
+    url.searchParams.set('thread', threadId);
+
+    return `${url.pathname}${url.search}`;
+};
 const showDeviceLoginPrompt = computed(() => !isNativeRuntime.value && authUser.value?.type === 'device');
 const showAccountModal = ref(false);
 const googleLoginUrl = computed(() => {
@@ -81,6 +98,31 @@ const displayAccountName = computed(() => {
 
     return (authUser.value?.name ?? 'Account').toString();
 });
+const sidebarChannels = ref(props.channels ?? []);
+
+watch(
+    () => props.channels,
+    (value) => {
+        sidebarChannels.value = value ?? [];
+    },
+    { deep: true },
+);
+
+const refreshSidebarChats = async () => {
+    try {
+        const payloadResponse = await fetchSignalChats(runtime.value);
+        const payload = payloadResponse?.data;
+        if (Array.isArray(payload)) {
+            sidebarChannels.value = payload;
+        }
+    } catch {
+        // Keep page-provided fallback data when request fails.
+    }
+};
+
+onMounted(() => {
+    refreshSidebarChats();
+});
 </script>
 
 <template>
@@ -96,17 +138,31 @@ const displayAccountName = computed(() => {
             </div>
 
             <nav class="signal-channel-nav">
-                <Link
-                    v-for="channel in props.channels"
-                    :key="channel.id"
-                    :href="signalChannelUrl(channel.id)"
-                    class="signal-channel-link"
-                    :class="{ 'signal-channel-link--active': props.activeChannelId === channel.id }"
-                >
-                    <p class="signal-channel-link__title">{{ channel.request?.title ?? 'Untitled chat' }}</p>
-                    <p class="signal-channel-link__meta">{{ channel.latest_message?.body ?? 'No messages yet' }}</p>
-                </Link>
-                <p v-if="props.channels.length === 0" class="signal-sidebar__empty">No chats yet</p>
+                <div v-for="channel in sidebarChannels" :key="channel.id" class="signal-channel-group">
+                    <Link
+                        :href="signalChannelUrl(channel.id)"
+                        class="signal-channel-link"
+                        :class="{ 'signal-channel-link--active': props.activeChannelId === channel.id }"
+                    >
+                        <p class="signal-channel-link__title">{{ channel.request?.title ?? 'Untitled chat' }}</p>
+                        <p class="signal-channel-link__meta">{{ channel.latest_message?.body ?? 'No messages yet' }}</p>
+                    </Link>
+                    <div
+                        v-if="props.activeChannelId === channel.id && Array.isArray(channel.threads) && channel.threads.length > 0"
+                        class="signal-thread-tree"
+                    >
+                        <Link
+                            v-for="thread in channel.threads"
+                            :key="thread.id"
+                            :href="signalChannelThreadUrl(channel.id, thread.id)"
+                            class="signal-thread-tree__item"
+                            :class="{ 'signal-thread-tree__item--active': props.activeThreadId === thread.id }"
+                        >
+                            {{ thread.title ?? 'Thread' }}
+                        </Link>
+                    </div>
+                </div>
+                <p v-if="sidebarChannels.length === 0" class="signal-sidebar__empty">No chats yet</p>
             </nav>
 
             <footer class="signal-footer" v-if="authUser">

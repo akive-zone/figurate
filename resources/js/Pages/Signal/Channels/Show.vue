@@ -29,15 +29,6 @@ const signalIndexUrl = computed(() => {
 
     return fallback !== '' ? fallback : '/';
 });
-const signalShowTemplate = computed(() => {
-    const configured = (signalRoutes.value.show_template ?? '').toString().trim();
-    if (configured !== '') {
-        return configured;
-    }
-
-    return '/channels/__CHANNEL__';
-});
-const signalChannelUrl = (channelId) => signalShowTemplate.value.replace('__CHANNEL__', channelId);
 
 const promptForm = reactive({
     content: '',
@@ -71,68 +62,36 @@ const submitPrompt = async () => {
     }
 };
 
-const switchThread = (threadId) => {
-    router.get(signalChannelUrl(activeChannel.value.id), { thread: threadId }, { preserveState: true });
-};
-
 const formatTimestamp = (value) => new Date(value).toLocaleString();
 </script>
 
 <template>
     <Head :title="activeChannel ? `Chat #${activeChannel.id}` : 'Signal Chat'" />
 
-    <SignalLayout :channels="props.channels" :active-channel-id="activeChannel?.id ?? null">
+    <SignalLayout
+        :channels="props.channels"
+        :active-channel-id="activeChannel?.id ?? null"
+        :active-thread-id="activeChannel?.active_thread ?? null"
+    >
         <section class="signal-thread" v-if="activeChannel">
             <header class="signal-thread__header">
                 <div>
                     <p class="signal-thread__kicker">Channel</p>
-                    <h2 class="signal-thread__title">{{ activeChannel.request?.title ?? 'Untitled Channel' }}</h2>
+                    <h2 class="signal-thread__title">Channel {{ activeChannel.id }}</h2>
                     <p class="signal-thread__meta">Open channel, one chatbox, and thread orchestration behind the scenes.</p>
                 </div>
             </header>
 
-            <section class="signal-thread__request" v-if="activeChannel.request">
-                <h3>Channel Context</h3>
-                <p>{{ activeChannel.request.description }}</p>
-                <p class="signal-card__status">Status: {{ activeChannel.request.status }}</p>
-
-                <div v-if="activeChannel.request.quotes?.length" class="signal-quote-list">
-                    <h4>Quotes</h4>
-                    <article v-for="quote in activeChannel.request.quotes" :key="quote.id" class="signal-quote">
-                        <p class="signal-quote__amount">{{ quote.currency }} {{ Number(quote.amount).toFixed(2) }}</p>
-                        <p class="signal-card__status">Status: {{ quote.status }}</p>
-                        <p v-if="quote.details">{{ quote.details }}</p>
-                    </article>
-                    <p class="signal-thread__meta">To accept a quote or change thread state, instruct the agent in chat.</p>
-                </div>
-            </section>
-
-            <section class="signal-threads">
-                <div class="signal-threads__header">
-                    <h3>Request Threads</h3>
-                </div>
-                <div class="signal-threads__list">
-                    <button
-                        v-for="thread in activeChannel.threads"
-                        :key="thread.id"
-                        type="button"
-                        class="signal-thread-chip"
-                        :class="{ 'signal-thread-chip--active': thread.id === activeChannel.active_thread }"
-                        @click="switchThread(thread.id)"
-                    >
-                        <span>{{ thread.title }}</span>
-                        <small>{{ thread.handler_actor }}</small>
-                    </button>
-                </div>
-            </section>
-
             <section class="signal-thread__messages">
                 <article
-                    v-for="message in activeChannel.thread_messages"
-                    :key="`thread-${message.id}`"
-                    class="signal-message signal-message--mine"
+                    v-for="message in (activeChannel.channel_feed ?? activeChannel.thread_messages)"
+                    :key="`${message.kind ?? 'message'}-${message.scope ?? 'channel'}-${message.id}`"
+                    class="signal-message"
+                    :class="{ 'signal-message--mine': message.scope === 'request' }"
                 >
-                    <p class="signal-message__author">{{ message.sender_name ?? 'You' }}</p>
+                    <p class="signal-message__author">
+                        {{ message.scope === 'thread' ? 'Thread' : message.scope === 'channel' ? 'Channel' : 'Main' }}
+                    </p>
                     <p>{{ message.content }}</p>
                     <ul v-if="message.attachments?.length" class="signal-thread__attachments">
                         <li v-for="attachment in message.attachments" :key="attachment.path">
@@ -142,22 +101,9 @@ const formatTimestamp = (value) => new Date(value).toLocaleString();
                     <p class="signal-message__time">{{ formatTimestamp(message.created_at) }}</p>
                 </article>
 
-                <article
-                    v-for="message in activeChannel.agent_messages"
-                    :key="message.id"
-                    class="signal-message"
-                    :class="{ 'signal-message--mine': message.role === 'user' }"
-                >
-                    <p class="signal-message__author">
-                        {{ message.role === 'assistant' ? message.agent : (message.sender_name ?? 'You') }}
-                    </p>
-                    <p>{{ message.content }}</p>
-                    <p class="signal-message__time">{{ formatTimestamp(message.created_at) }}</p>
-                </article>
-
-                <article v-if="!activeChannel.agent_messages.length" class="signal-empty">
-                    <h3>No agent messages yet</h3>
-                    <p>Send a message and the orchestration flow will continue in this channel.</p>
+                <article v-if="!(activeChannel.channel_feed ?? activeChannel.thread_messages)?.length" class="signal-empty">
+                    <h3>No posts yet</h3>
+                    <p>Send a message and the channel feed will populate in chronological order.</p>
                 </article>
             </section>
 

@@ -5,12 +5,15 @@ namespace App\Http\Controllers\Server\Web\Signal;
 use App\Http\Controllers\Controller;
 use App\Models\Server\Channel;
 use App\Models\Server\Message;
+use App\Support\Signal\SidebarChats;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ChannelController extends Controller
 {
+    public function __construct(private SidebarChats $sidebarChats) {}
+
     public function create(Request $request): Response
     {
         return Inertia::render('Signal/Requests/Create', [
@@ -37,15 +40,55 @@ class ChannelController extends Controller
             if (! $channelRecord) {
                 $channelPayload = null;
             } else {
-                $serviceRequest = $channelRecord->requests()->latest('id')->first();
-                $threadMessages = [];
+                $channelRecord->load([
+                    'posts',
+                ]);
 
-                if ($serviceRequest) {
-                    $threadMessages = $serviceRequest->messages()
-                        ->orderBy('created_at')
-                        ->get()
-                        ->map(function (Message $message): array {
+                $threads = $channelRecord->conversationThreads();
+                $threadsPayload = $threads
+                    ->map(function ($thread): array {
+                        return [
+                            'id' => $thread->uuid,
+                            'title' => $thread->title ?: 'Thread',
+                            'purpose' => $thread->purpose,
+                            'status' => $thread->status,
+                            'created_at' => optional($thread->created_at)?->toIso8601String(),
+                        ];
+                    })
+                    ->all();
+                $activeThread = is_string($request->query('thread')) ? (string) $request->query('thread') : null;
+                if ($activeThread === null && $threadsPayload !== []) {
+                    $mainThread = collect($threadsPayload)->firstWhere('purpose', 'main');
+                    $activeThread = $mainThread['id'] ?? $threadsPayload[0]['id'];
+                }
+                $channelFeed = [];
+
+                $requestMessages = $channelRecord->conversationRequestMessages()
+                    ->map(function (Message $message): array {
+                        return [
+                            'kind' => 'message',
+                            'scope' => 'request',
+                            'thread_id' => null,
+                            'id' => $message->id,
+                            'sender_name' => null,
+                            'content' => $message->body,
+                            'attachments' => is_array($message->attachments) ? $message->attachments : [],
+                            'created_at' => optional($message->created_at)?->toIso8601String(),
+                        ];
+                    })
+                    ->values()
+                    ->all();
+                $channelFeed = array_merge($channelFeed, $requestMessages);
+
+                foreach ($threads as $thread) {
+                    $threadMessages = $thread->messages
+                        ->sortBy('created_at')
+                        ->values()
+                        ->map(function (Message $message) use ($thread): array {
                             return [
+                                'kind' => 'message',
+                                'scope' => 'thread',
+                                'thread_id' => $thread->uuid,
                                 'id' => $message->id,
                                 'sender_name' => null,
                                 'content' => $message->body,
@@ -53,24 +96,69 @@ class ChannelController extends Controller
                                 'created_at' => optional($message->created_at)?->toIso8601String(),
                             ];
                         })
-                        ->values()
                         ->all();
+
+                    $threadPosts = $thread->posts
+                        ->sortBy('occurred_at')
+                        ->values()
+                        ->map(function ($post) use ($thread): array {
+                            $content = data_get($post->payload, 'title')
+                                ?? data_get($post->payload, 'description')
+                                ?? $post->type
+                                ?? 'Thread update';
+
+                            return [
+                                'kind' => 'post',
+                                'scope' => 'thread',
+                                'thread_id' => $thread->uuid,
+                                'id' => $post->id,
+                                'sender_name' => null,
+                                'content' => $content,
+                                'attachments' => [],
+                                'created_at' => optional($post->occurred_at ?? $post->created_at)?->toIso8601String(),
+                            ];
+                        })
+                        ->all();
+
+                    $channelFeed = array_merge($channelFeed, $threadMessages, $threadPosts);
                 }
+
+                $channelPosts = $channelRecord->posts
+                    ->sortBy('occurred_at')
+                    ->values()
+                    ->map(function ($post): array {
+                        $content = data_get($post->payload, 'title')
+                            ?? data_get($post->payload, 'description')
+                            ?? $post->type
+                            ?? 'Channel update';
+
+                        return [
+                            'kind' => 'post',
+                            'scope' => 'channel',
+                            'thread_id' => null,
+                            'id' => $post->id,
+                            'sender_name' => null,
+                            'content' => $content,
+                            'attachments' => [],
+                            'created_at' => optional($post->occurred_at ?? $post->created_at)?->toIso8601String(),
+                        ];
+                    })
+                    ->all();
+
+                $channelFeed = collect(array_merge($channelFeed, $channelPosts))
+                    ->filter(fn (array $item): bool => is_string($item['created_at'] ?? null))
+                    ->sortBy('created_at')
+                    ->values()
+                    ->all();
 
                 $channelPayload = [
                     'id' => $channelRecord->uuid,
                     'status' => $channelRecord->status ?? 'open',
-                    'request' => $serviceRequest ? [
-                        'id' => $serviceRequest->id,
-                        'title' => $serviceRequest->title,
-                        'description' => $serviceRequest->description,
-                        'status' => $serviceRequest->status,
-                        'quotes' => [],
-                    ] : null,
-                    'threads' => [],
-                    'active_thread' => is_string($request->query('thread')) ? (string) $request->query('thread') : null,
+                    'threads' => $threadsPayload,
+                    'active_thread' => $activeThread,
+                    'channel_feed' => $channelFeed,
                     'agent_messages' => [],
-                    'thread_messages' => $threadMessages,
+                    'thread_messages' => $channelFeed,
                     'actions' => [
                         'can_create_thread' => false,
                         'can_prompt_agent' => true,
@@ -94,85 +182,9 @@ class ChannelController extends Controller
     protected function safeChannelsPayload(Request $request): array
     {
         try {
-            return $this->channelsPayload($request);
+            return $this->sidebarChats->forRequest($request);
         } catch (\Throwable) {
             return [];
         }
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    protected function channelsPayload(Request $request): array
-    {
-        return $this->queryVisibleChannels($request)
-            ->map(fn (Channel $channel): array => $this->mapChannelListItem($channel))
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    protected function mapChannelListItem(Channel $channel): array
-    {
-        $serviceRequest = $channel->requests()->latest('id')->first();
-        $latestMessage = null;
-
-        if ($serviceRequest) {
-            $latest = $serviceRequest->messages()->latest('created_at')->first();
-
-            if ($latest) {
-                $latestMessage = [
-                    'id' => $latest->id,
-                    'body' => $latest->body,
-                    'created_at' => optional($latest->created_at)?->toIso8601String(),
-                    'sender_name' => null,
-                ];
-            }
-        }
-
-        return [
-            'id' => $channel->uuid,
-            'status' => $channel->status ?? 'open',
-            'last_message_at' => $latestMessage['created_at'] ?? optional($channel->created_at)?->toIso8601String(),
-            'request' => $serviceRequest ? [
-                'id' => $serviceRequest->id,
-                'title' => $serviceRequest->title,
-                'status' => $serviceRequest->status,
-            ] : null,
-            'latest_message' => $latestMessage,
-        ];
-    }
-
-    /**
-     * @return \Illuminate\Support\Collection<int, Channel>
-     */
-    protected function queryVisibleChannels(Request $request): \Illuminate\Support\Collection
-    {
-        $actor = $request->user();
-        if (! $actor) {
-            return collect();
-        }
-
-        Gate::forUser($actor)->authorize('viewAny', Channel::class);
-
-        $channelsQuery = Channel::query()->latest('created_at');
-
-        if ($actor->type !== 'system') {
-            $channelsQuery->whereHas('requests', function ($query) use ($actor): void {
-                $query->where(function ($participantQuery) use ($actor): void {
-                    $participantQuery
-                        ->whereHas('users', function ($userQuery) use ($actor): void {
-                            $userQuery->whereKey($actor->id);
-                        })
-                        ->orWhereHas('profiles', function ($profileQuery) use ($actor): void {
-                            $profileQuery->where('profiles.user_id', $actor->id);
-                        });
-                });
-            });
-        }
-
-        return $channelsQuery->get();
     }
 }

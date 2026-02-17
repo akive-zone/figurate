@@ -188,6 +188,7 @@ class ChannelController extends Controller
                 'id' => $this->pick($channel, ['uuid']),
                 'status' => $this->pick($channel, ['status'], 'open'),
                 'last_message_at' => $this->pick($latestMessage ?? [], ['created_at'], $this->pick($channel, ['createdAt', 'created_at'])),
+                'threads' => [],
                 'request' => $requestItem ? [
                     'id' => $this->pick($requestItem, ['id']),
                     'title' => $this->pick($requestItem, ['title']),
@@ -259,6 +260,7 @@ class ChannelController extends Controller
             ] : null,
             'threads' => [],
             'active_thread' => is_string($request->query('thread')) ? (string) $request->query('thread') : null,
+            'channel_feed' => $threadMessages,
             'agent_messages' => [],
             'thread_messages' => $threadMessages,
             'actions' => [

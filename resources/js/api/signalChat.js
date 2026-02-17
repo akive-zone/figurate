@@ -70,14 +70,43 @@ export const signalApiUrl = (path, runtime = {}) => {
     return `${baseUrl}${path}`;
 };
 
+const resolveSignalRoute = (runtime = {}, routeKey, fallbackPath) => {
+    const configuredRoute = runtime?.signal_routes?.[routeKey];
+
+    if (typeof configuredRoute === 'string' && configuredRoute.trim() !== '') {
+        return configuredRoute;
+    }
+
+    return fallbackPath;
+};
+
 export const sendSignalChatMessage = async (payload, runtime = {}) => {
+    const chatsStoreUrl = resolveSignalRoute(runtime, 'chats_store', '/api/chats');
+
     try {
-        const response = await axios.post(signalApiUrl('/api/chat', runtime), payload, {
+        const response = await axios.post(signalApiUrl(chatsStoreUrl, runtime), payload, {
             headers: signalAuthHeaders(),
         });
         persistSignalBootstrapHeaders(response);
 
         return response;
+    } catch (error) {
+        persistSignalBootstrapHeaders(error.response);
+        throw error;
+    }
+};
+
+export const fetchSignalChats = async (runtime = {}, query = {}) => {
+    const chatsIndexUrl = resolveSignalRoute(runtime, 'chats', '/api/chats');
+
+    try {
+        const response = await axios.get(signalApiUrl(chatsIndexUrl, runtime), {
+            params: query,
+            headers: signalAuthHeaders(),
+        });
+        persistSignalBootstrapHeaders(response);
+
+        return response.data;
     } catch (error) {
         persistSignalBootstrapHeaders(error.response);
         throw error;
