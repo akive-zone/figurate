@@ -1,11 +1,38 @@
 <script setup>
 import SignalLayout from '../../../Layouts/SignalLayout.vue';
 import axios from 'axios';
-import { Head, Link, router } from '@inertiajs/vue3';
-import { reactive, ref } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { computed, reactive, ref } from 'vue';
 
 const props = defineProps({
+    channels: {
+        type: Array,
+        default: () => [],
+    },
 });
+
+const page = usePage();
+const runtime = computed(() => page.props.runtime ?? {});
+const signalRoutes = computed(() => runtime.value.signal_routes ?? {});
+const signalIndexUrl = computed(() => {
+    const configured = (signalRoutes.value.index ?? '').toString().trim();
+    if (configured !== '') {
+        return configured;
+    }
+
+    const fallback = (runtime.value.signal_index_path ?? '').toString().trim();
+
+    return fallback !== '' ? fallback : '/';
+});
+const signalShowTemplate = computed(() => {
+    const configured = (signalRoutes.value.show_template ?? '').toString().trim();
+    if (configured !== '') {
+        return configured;
+    }
+
+    return '/channels/__CHANNEL__';
+});
+const signalChannelUrl = (channelId) => signalShowTemplate.value.replace('__CHANNEL__', channelId);
 
 const form = reactive({
     message: '',
@@ -106,18 +133,18 @@ const submit = async () => {
 
         if (channelId) {
             const query = threadId ? `?thread=${threadId}` : '';
-            router.visit(`/signal/channels/${channelId}${query}`);
+            router.visit(`${signalChannelUrl(channelId)}${query}`);
             return;
         }
 
-        router.visit('/signal');
+        router.visit(signalIndexUrl.value);
     } catch (error) {
         persistBootstrapHeaders(error.response);
 
         if (error.response?.status === 422) {
             errors.value = error.response.data.errors ?? {};
         } else {
-            formError.value = error.response?.data?.message ?? `Request failed (${error.response?.status ?? 'network'}).`;
+            formError.value = error.response?.data?.message ?? `Message failed (${error.response?.status ?? 'network'}).`;
         }
     } finally {
         isSubmitting.value = false;
@@ -128,32 +155,33 @@ const submit = async () => {
 <template>
     <Head title="Start Signal Chat" />
 
-    <SignalLayout>
+    <SignalLayout :channels="props.channels">
         <section class="signal-thread">
             <header class="signal-thread__header">
                 <div>
-                    <p class="signal-thread__kicker">Chat</p>
-                    <h2 class="signal-thread__title">Open Channel</h2>
-                    <p class="signal-thread__meta">Send your first message and jump into the conversation.</p>
+                    <p class="signal-thread__kicker">New Chat</p>
+                    <h2 class="signal-thread__title">Start chatting</h2>
+                    <p class="signal-thread__meta">Send one message and we will open the channel instantly.</p>
                 </div>
-                <Link href="/signal" class="signal-link">Back</Link>
             </header>
 
             <form class="signal-form" @submit.prevent="submit">
-                <label for="message" class="signal-label">First Message</label>
                 <textarea
                     id="message"
                     v-model="form.message"
                     class="signal-input"
-                    rows="6"
+                    rows="8"
                     maxlength="5000"
-                    placeholder="Describe what you need and start the conversation..."
+                    placeholder="Ask anything..."
                 />
                 <p v-if="errors.message" class="signal-error">{{ errors.message[0] }}</p>
                 <p v-if="errors.content" class="signal-error">{{ errors.content[0] }}</p>
                 <p v-if="formError" class="signal-error">{{ formError }}</p>
 
-                <button class="signal-button" :disabled="isSubmitting">Start Chat</button>
+                <div class="signal-form__actions">
+                    <Link :href="signalIndexUrl" class="signal-link">Cancel</Link>
+                    <button class="signal-button" :disabled="isSubmitting">Send</button>
+                </div>
             </form>
         </section>
     </SignalLayout>

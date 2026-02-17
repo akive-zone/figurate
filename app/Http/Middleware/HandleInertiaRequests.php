@@ -16,6 +16,11 @@ class HandleInertiaRequests extends Middleware
      */
     protected $rootView = 'app';
 
+    public function rootView(Request $request): string
+    {
+        return \app_is_native_runtime() ? 'app-native' : $this->rootView;
+    }
+
     /**
      * Determines the current asset version.
      *
@@ -39,6 +44,16 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
+            'runtime' => [
+                'is_native' => \app_is_native_runtime(),
+                'signal_base_path' => \app_is_native_runtime() ? '/signal' : '',
+                'signal_index_path' => \app_is_native_runtime() ? '/signal' : '/',
+                'signal_routes' => [
+                    'index' => route('signal.index'),
+                    'create' => route('signal.chat.create'),
+                    'show_template' => route('signal.chat.show', ['channel' => '__CHANNEL__']),
+                ],
+            ],
             'auth' => [
                 'user' => $user ? [
                     'id' => $user->id,

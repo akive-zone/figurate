@@ -14,52 +14,22 @@ class ChannelController extends Controller
 {
     public function create(Request $request): Response
     {
-        return Inertia::render('Signal/Requests/Create');
+        return Inertia::render('Signal/Requests/Create', [
+            'channels' => $this->safeChannelsPayload($request),
+        ]);
     }
 
     public function index(Request $request): Response
     {
-        try {
-            $channels = $this->queryVisibleChannels($request)->map(function (Channel $channel): array {
-                $serviceRequest = $channel->requests()->latest('id')->first();
-                $latestMessage = null;
-
-                if ($serviceRequest) {
-                    $latest = $serviceRequest->messages()->latest('created_at')->first();
-
-                    if ($latest) {
-                        $latestMessage = [
-                            'id' => $latest->id,
-                            'body' => $latest->body,
-                            'created_at' => optional($latest->created_at)?->toIso8601String(),
-                            'sender_name' => null,
-                        ];
-                    }
-                }
-
-                return [
-                    'id' => $channel->uuid,
-                    'status' => $channel->status ?? 'open',
-                    'last_message_at' => $latestMessage['created_at'] ?? optional($channel->created_at)?->toIso8601String(),
-                    'request' => $serviceRequest ? [
-                        'id' => $serviceRequest->id,
-                        'title' => $serviceRequest->title,
-                        'status' => $serviceRequest->status,
-                    ] : null,
-                    'latest_message' => $latestMessage,
-                ];
-            })->values()->all();
-        } catch (\Throwable) {
-            $channels = [];
-        }
-
         return Inertia::render('Signal/Channels/Index', [
-            'channels' => $channels,
+            'channels' => $this->safeChannelsPayload($request),
         ]);
     }
 
     public function show(Request $request, string $channel): Response
     {
+        $channels = $this->safeChannelsPayload($request);
+
         try {
             $channelRecord = Channel::query()
                 ->where('uuid', $channel)
@@ -114,8 +84,66 @@ class ChannelController extends Controller
         }
 
         return Inertia::render('Signal/Channels/Show', [
+            'channels' => $channels,
             'channel' => $channelPayload,
         ]);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    protected function safeChannelsPayload(Request $request): array
+    {
+        try {
+            return $this->channelsPayload($request);
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    protected function channelsPayload(Request $request): array
+    {
+        return $this->queryVisibleChannels($request)
+            ->map(fn (Channel $channel): array => $this->mapChannelListItem($channel))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function mapChannelListItem(Channel $channel): array
+    {
+        $serviceRequest = $channel->requests()->latest('id')->first();
+        $latestMessage = null;
+
+        if ($serviceRequest) {
+            $latest = $serviceRequest->messages()->latest('created_at')->first();
+
+            if ($latest) {
+                $latestMessage = [
+                    'id' => $latest->id,
+                    'body' => $latest->body,
+                    'created_at' => optional($latest->created_at)?->toIso8601String(),
+                    'sender_name' => null,
+                ];
+            }
+        }
+
+        return [
+            'id' => $channel->uuid,
+            'status' => $channel->status ?? 'open',
+            'last_message_at' => $latestMessage['created_at'] ?? optional($channel->created_at)?->toIso8601String(),
+            'request' => $serviceRequest ? [
+                'id' => $serviceRequest->id,
+                'title' => $serviceRequest->title,
+                'status' => $serviceRequest->status,
+            ] : null,
+            'latest_message' => $latestMessage,
+        ];
     }
 
     /**

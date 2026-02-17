@@ -14,7 +14,15 @@ class ChannelController extends Controller
 {
     public function create(Request $request): Response
     {
-        return Inertia::render('Signal/Requests/Create');
+        try {
+            $channels = $this->fetchChannels($request);
+        } catch (\Throwable) {
+            $channels = [];
+        }
+
+        return Inertia::render('Signal/Requests/Create', [
+            'channels' => $channels,
+        ]);
     }
 
     public function index(Request $request): Response
@@ -38,7 +46,14 @@ class ChannelController extends Controller
             $channelPayload = null;
         }
 
+        try {
+            $channels = $this->fetchChannels($request);
+        } catch (\Throwable) {
+            $channels = [];
+        }
+
         return Inertia::render('Signal/Channels/Show', [
+            'channels' => $channels,
             'channel' => $channelPayload,
         ]);
     }

@@ -1,10 +1,14 @@
 <script setup>
 import SignalLayout from '../../../Layouts/SignalLayout.vue';
 import axios from 'axios';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, reactive, ref } from 'vue';
 
 const props = defineProps({
+    channels: {
+        type: Array,
+        default: () => [],
+    },
     channel: {
         type: Object,
         default: null,
@@ -12,6 +16,28 @@ const props = defineProps({
 });
 
 const activeChannel = computed(() => props.channel);
+const page = usePage();
+const runtime = computed(() => page.props.runtime ?? {});
+const signalRoutes = computed(() => runtime.value.signal_routes ?? {});
+const signalIndexUrl = computed(() => {
+    const configured = (signalRoutes.value.index ?? '').toString().trim();
+    if (configured !== '') {
+        return configured;
+    }
+
+    const fallback = (runtime.value.signal_index_path ?? '').toString().trim();
+
+    return fallback !== '' ? fallback : '/';
+});
+const signalShowTemplate = computed(() => {
+    const configured = (signalRoutes.value.show_template ?? '').toString().trim();
+    if (configured !== '') {
+        return configured;
+    }
+
+    return '/channels/__CHANNEL__';
+});
+const signalChannelUrl = (channelId) => signalShowTemplate.value.replace('__CHANNEL__', channelId);
 
 const promptForm = reactive({
     content: '',
@@ -113,7 +139,7 @@ const submitPrompt = async () => {
 };
 
 const switchThread = (threadId) => {
-    router.get(`/signal/channels/${activeChannel.value.id}`, { thread: threadId }, { preserveState: true });
+    router.get(signalChannelUrl(activeChannel.value.id), { thread: threadId }, { preserveState: true });
 };
 
 const formatTimestamp = (value) => new Date(value).toLocaleString();
@@ -122,19 +148,18 @@ const formatTimestamp = (value) => new Date(value).toLocaleString();
 <template>
     <Head :title="activeChannel ? `Chat #${activeChannel.id}` : 'Signal Chat'" />
 
-    <SignalLayout>
+    <SignalLayout :channels="props.channels" :active-channel-id="activeChannel?.id ?? null">
         <section class="signal-thread" v-if="activeChannel">
             <header class="signal-thread__header">
                 <div>
                     <p class="signal-thread__kicker">Channel</p>
-                    <h2 class="signal-thread__title">{{ activeChannel.request?.title ?? 'Untitled Request' }}</h2>
-                    <p class="signal-thread__meta">One chatbox, multiple agent threads in the same request context.</p>
+                    <h2 class="signal-thread__title">{{ activeChannel.request?.title ?? 'Untitled Channel' }}</h2>
+                    <p class="signal-thread__meta">Open channel, one chatbox, and thread orchestration behind the scenes.</p>
                 </div>
-                <Link href="/signal" class="signal-link">Back</Link>
             </header>
 
             <section class="signal-thread__request" v-if="activeChannel.request">
-                <h3>Request Summary</h3>
+                <h3>Channel Context</h3>
                 <p>{{ activeChannel.request.description }}</p>
                 <p class="signal-card__status">Status: {{ activeChannel.request.status }}</p>
 
@@ -199,7 +224,7 @@ const formatTimestamp = (value) => new Date(value).toLocaleString();
 
                 <article v-if="!activeChannel.agent_messages.length" class="signal-empty">
                     <h3>No agent messages yet</h3>
-                    <p>Send a message in the active thread to start the RequestAgent/OrderAgent exchange.</p>
+                    <p>Send a message and the orchestration flow will continue in this channel.</p>
                 </article>
             </section>
 
@@ -223,7 +248,7 @@ const formatTimestamp = (value) => new Date(value).toLocaleString();
         <section v-else class="signal-empty">
             <h3>Unable to load channel</h3>
             <p>Check your API connection and try again.</p>
-            <Link href="/signal" class="signal-link">Back</Link>
+            <Link :href="signalIndexUrl" class="signal-link">Back</Link>
         </section>
     </SignalLayout>
 </template>

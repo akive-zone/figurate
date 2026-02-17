@@ -23,7 +23,7 @@ class SignalPanelProvider extends PanelProvider
     {
         return $panel
             ->id('signal')
-            ->path('/')
+            ->path('signal-admin')
             ->colors([
                 'primary' => Color::Amber,
             ])

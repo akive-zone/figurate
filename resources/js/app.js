@@ -1,5 +1,6 @@
 import '../css/app.css';
 import { createInertiaApp } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';
 
@@ -18,3 +19,5 @@ createInertiaApp({
         color: '#0f766e',
     },
 });
+
+window.router = router;
