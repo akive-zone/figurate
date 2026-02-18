@@ -139,3 +139,22 @@ export const fetchSignalThreadMessages = async (threadId, runtime = {}) => {
         throw error;
     }
 };
+
+export const fetchSignalChannelPosts = async (channelId, runtime = {}) => {
+    const template = (runtime?.signal_routes?.channel_posts_template ?? '').toString().trim();
+    const path = template !== ''
+        ? template.replace('__CHANNEL__', channelId)
+        : `/api/channels/${channelId}/posts`;
+
+    try {
+        const response = await axios.get(signalApiUrl(path, runtime), {
+            headers: signalAuthHeaders(),
+        });
+        persistSignalBootstrapHeaders(response);
+
+        return response.data;
+    } catch (error) {
+        persistSignalBootstrapHeaders(error.response);
+        throw error;
+    }
+};

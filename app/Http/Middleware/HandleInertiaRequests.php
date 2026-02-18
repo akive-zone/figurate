@@ -55,6 +55,7 @@ class HandleInertiaRequests extends Middleware
                         ? route('signal.index', [], false)
                         : route('api.chats.show', ['thread' => '__THREAD__'], false),
                     'chats_store' => \app_is_native_runtime() ? route('signal.index', [], false) : route('api.chats.store', [], false),
+                    'channel_posts_template' => route('api.channels.posts', ['channel' => '__CHANNEL__'], false),
                     'create' => route('signal.chat.create', [], false),
                     'show_template' => route('signal.chat.show', ['channel' => '__CHANNEL__'], false),
                     'show_thread_template' => route('signal.chat.thread', ['channel' => '__CHANNEL__', 'thread' => '__THREAD__'], false),

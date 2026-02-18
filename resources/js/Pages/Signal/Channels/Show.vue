@@ -4,7 +4,7 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, reactive, ref, watch } from 'vue';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
-import { fetchSignalThreadMessages, sendSignalChatMessage } from '../../../api/signalChat';
+import { fetchSignalChannelPosts, fetchSignalThreadMessages, sendSignalChatMessage } from '../../../api/signalChat';
 
 const props = defineProps({
     channels: {
@@ -41,6 +41,9 @@ const promptForm = reactive({
 const promptErrors = ref({});
 const promptErrorMessage = ref('');
 const isPrompting = ref(false);
+const channelPosts = ref([]);
+const isLoadingChannelPosts = ref(false);
+const channelPostsError = ref('');
 const threadMessages = ref([]);
 const isLoadingThreadMessages = ref(false);
 const threadLoadError = ref('');
@@ -106,11 +109,31 @@ const visibleItems = computed(() => {
     }
 
     if (activeThreadId.value === '') {
-        return activeChannel.value.channel_feed ?? [];
+        return channelPosts.value;
     }
 
     return threadMessages.value;
 });
+
+const loadChannelPosts = async () => {
+    if (!activeChannel.value || activeThreadId.value !== '') {
+        channelPostsError.value = '';
+        return;
+    }
+
+    channelPosts.value = Array.isArray(activeChannel.value.channel_feed) ? activeChannel.value.channel_feed : [];
+    isLoadingChannelPosts.value = true;
+    channelPostsError.value = '';
+
+    try {
+        const payload = await fetchSignalChannelPosts(activeChannel.value.id, runtime.value);
+        channelPosts.value = Array.isArray(payload?.data) ? payload.data : [];
+    } catch (error) {
+        channelPostsError.value = error.response?.data?.message ?? `Unable to load channel posts (${error.response?.status ?? 'network'}).`;
+    } finally {
+        isLoadingChannelPosts.value = false;
+    }
+};
 
 const loadThreadMessages = async () => {
     if (!activeChannel.value || activeThreadId.value === '') {
@@ -136,6 +159,7 @@ const loadThreadMessages = async () => {
 watch(
     () => [activeChannel.value?.id ?? null, activeThreadId.value],
     () => {
+        loadChannelPosts();
         loadThreadMessages();
     },
     { immediate: true },
@@ -198,10 +222,12 @@ const renderMessageContent = (content) => {
 
                 <article v-if="!visibleItems.length" class="signal-empty">
                     <h3>No posts yet</h3>
-                    <p v-if="threadLoadError" class="signal-error">{{ threadLoadError }}</p>
+                    <p v-if="activeChannel.active_thread && threadLoadError" class="signal-error">{{ threadLoadError }}</p>
+                    <p v-else-if="!activeChannel.active_thread && channelPostsError" class="signal-error">{{ channelPostsError }}</p>
                     <p v-else-if="isLoadingThreadMessages && activeChannel.active_thread">Loading thread messages...</p>
+                    <p v-else-if="isLoadingChannelPosts && !activeChannel.active_thread">Loading channel posts...</p>
                     <p v-else-if="activeChannel.active_thread">No messages in this thread yet.</p>
-                    <p v-else-if="!threadLoadError">No channel posts yet.</p>
+                    <p v-else-if="!channelPostsError">No channel posts yet.</p>
                 </article>
             </section>
 

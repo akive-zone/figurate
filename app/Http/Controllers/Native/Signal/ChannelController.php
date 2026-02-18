@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Native\Signal;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Inertia\Inertia;
@@ -56,8 +57,16 @@ class ChannelController extends Controller
 
         try {
             $channelPayload = $this->fetchChannel($channel, $request);
-        } catch (\Throwable) {
-            $channelPayload = null;
+        } catch (RequestException $exception) {
+            if ($exception->response?->status() === 404) {
+                abort(404);
+            }
+
+            throw $exception;
+        }
+
+        if ($channelPayload === null) {
+            abort(404);
         }
 
         try {

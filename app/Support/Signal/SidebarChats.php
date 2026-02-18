@@ -3,8 +3,6 @@
 namespace App\Support\Signal;
 
 use App\Models\Server\Channel;
-use App\Models\Server\Message;
-use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -79,8 +77,8 @@ class SidebarChats
         if ($actor->type !== 'system') {
             $channelsQuery->whereHas('actorStates', function ($stateQuery) use ($actor): void {
                 $stateQuery
-                    ->where('actor_type', $actor->getMorphClass())
-                    ->where('actor_id', $actor->id)
+                    ->where('actorable_type', $actor->getMorphClass())
+                    ->where('actorable_id', $actor->id)
                     ->where('status', 'active');
             });
         }
@@ -93,9 +91,7 @@ class SidebarChats
      */
     protected function mapChannelListItem(Channel $channel): array
     {
-        $threadCollection = $channel->threads()
-            ->orderBy('created_at')
-            ->get();
+        $threadCollection = $channel->conversationThreads();
 
         $threads = $threadCollection
             ->map(function ($thread): array {
@@ -110,18 +106,9 @@ class SidebarChats
             ->values()
             ->all();
 
-        $threadIds = $threadCollection->pluck('id')->filter()->values();
-        $latestMessageModel = null;
-        if ($threadIds->isNotEmpty()) {
-            $latestMessageModel = Message::query()
-                ->where('messageable_type', (new Thread)->getMorphClass())
-                ->whereIn('messageable_id', $threadIds->all())
-                ->latest('created_at')
-                ->first();
-        }
-
+        $latestMessageModel = $channel->latestConversationMessage();
         $latestMessage = null;
-        if ($latestMessageModel instanceof Message) {
+        if ($latestMessageModel) {
             $latestMessage = [
                 'id' => $latestMessageModel->id,
                 'body' => $latestMessageModel->body,

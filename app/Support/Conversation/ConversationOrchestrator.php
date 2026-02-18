@@ -80,8 +80,8 @@ class ConversationOrchestrator
 
         $actorState = ChannelActorState::query()
             ->where('channel_id', $channel->id)
-            ->where('actor_type', $actor->getMorphClass())
-            ->where('actor_id', $actor->getKey())
+            ->where('actorable_type', $actor->getMorphClass())
+            ->where('actorable_id', $actor->getKey())
             ->first();
 
         if ($actorState?->thread_id) {
@@ -162,8 +162,8 @@ class ConversationOrchestrator
         ChannelActorState::query()->updateOrCreate(
             [
                 'channel_id' => $channel->id,
-                'actor_type' => $actor->getMorphClass(),
-                'actor_id' => $actor->getKey(),
+                'actorable_type' => $actor->getMorphClass(),
+                'actorable_id' => $actor->getKey(),
             ],
             [
                 'thread_id' => $thread->id,

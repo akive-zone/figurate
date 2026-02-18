@@ -12,6 +12,8 @@ class ChannelActorState extends Model
     /** @use HasFactory<\Database\Factories\ChannelActorStateFactory> */
     use HasFactory;
 
+    protected $table = 'actor_states';
+
     public const StatusActive = 'active';
 
     public const StatusPaused = 'paused';
@@ -22,8 +24,8 @@ class ChannelActorState extends Model
     protected $fillable = [
         'channel_id',
         'thread_id',
-        'actor_type',
-        'actor_id',
+        'actorable_type',
+        'actorable_id',
         'status',
     ];
 
@@ -34,7 +36,7 @@ class ChannelActorState extends Model
 
     public function actor(): MorphTo
     {
-        return $this->morphTo();
+        return $this->morphTo(__FUNCTION__, 'actorable_type', 'actorable_id');
     }
 
     public function activeThread(): BelongsTo

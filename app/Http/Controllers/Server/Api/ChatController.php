@@ -194,8 +194,8 @@ class ChatController extends Controller
             ChannelActorState::query()->updateOrCreate(
                 [
                     'channel_id' => $channel->id,
-                    'actor_type' => $actor->getMorphClass(),
-                    'actor_id' => $actor->getKey(),
+                    'actorable_type' => $actor->getMorphClass(),
+                    'actorable_id' => $actor->getKey(),
                 ],
                 [
                     'thread_id' => $mainThread->id,

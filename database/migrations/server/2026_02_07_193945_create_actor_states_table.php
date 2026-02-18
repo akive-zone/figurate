@@ -11,18 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('thread_actors', function (Blueprint $table) {
+        Schema::create('actor_states', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('thread_id');
+            $table->foreignId('channel_id');
+            $table->foreignId('thread_id')->nullable();
             $table->nullableMorphs('actorable');
-            $table->string('role');
             $table->string('status')->default('active');
-            $table->unsignedInteger('priority')->nullable();
-            $table->json('config')->nullable();
             $table->timestamps();
 
-            $table->unique(['thread_id', 'actorable_type', 'actorable_id', 'role'], 'thread_actors_unique');
-            $table->index(['role', 'status'], 'thread_actors_role_status_index');
+            $table->unique(['channel_id', 'actorable_type', 'actorable_id'], 'actor_states_channel_actor_unique');
+            $table->index(['channel_id', 'thread_id'], 'actor_states_channel_thread_index');
+            $table->index(['status'], 'actor_states_status_index');
         });
     }
 
@@ -31,6 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('thread_actors');
+        Schema::dropIfExists('actor_states');
     }
 };

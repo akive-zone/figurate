@@ -11,15 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('channel_relations', function (Blueprint $table) {
+        Schema::create('thread_relations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('channel_id')->constrained('channels')->cascadeOnDelete();
+            $table->foreignId('thread_id');
             $table->morphs('relationable');
             $table->string('type');
             $table->text('purpose')->nullable();
             $table->timestamps();
 
-            $table->unique(['channel_id', 'relationable_type', 'relationable_id'], 'channel_relations_unique');
+            $table->unique(['thread_id', 'relationable_type', 'relationable_id'], 'thread_relations_unique');
+            $table->index(['thread_id', 'type'], 'thread_relations_thread_type_index');
+            $table->index(['type', 'created_at'], 'thread_relations_type_created_index');
         });
     }
 
@@ -28,6 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('channel_relations');
+        Schema::dropIfExists('thread_relations');
     }
 };

@@ -58,8 +58,8 @@ class Channel extends Model
     public function hasActor(User $user): bool
     {
         return $this->actorStates()
-            ->where('actor_type', $user->getMorphClass())
-            ->where('actor_id', $user->getKey())
+            ->where('actorable_type', $user->getMorphClass())
+            ->where('actorable_id', $user->getKey())
             ->exists();
     }
 
@@ -73,10 +73,97 @@ class Channel extends Model
      */
     public function conversationThreads(): Collection
     {
-        $requestRecord = $this->primaryRequest();
+        $threadIds = $this->conversationThreadIds();
 
-        return ($requestRecord ? $requestRecord->threads() : $this->threads())
-            ->with(['messages', 'posts'])
+        if ($threadIds->isEmpty()) {
+            return collect();
+        }
+
+        return Thread::query()
+            ->whereIn('id', $threadIds->all())
+            ->orderBy('created_at')
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, int>
+     */
+    public function conversationThreadIds(): Collection
+    {
+        $directThreadIds = $this->threads()
+            ->select('threads.id')
+            ->pluck('threads.id');
+        $threadRelationIds = ThreadRelation::query()
+            ->where('relationable_type', $this->getMorphClass())
+            ->where('relationable_id', $this->getKey())
+            ->pluck('thread_id');
+
+        $relationRows = $this->relations()
+            ->get(['relationable_type', 'relationable_id']);
+
+        $threadMorphClass = (new Thread)->getMorphClass();
+        $relatedThreadIds = $relationRows
+            ->where('relationable_type', $threadMorphClass)
+            ->pluck('relationable_id');
+
+        $relationableGroups = $relationRows
+            ->where('relationable_type', '!=', $threadMorphClass)
+            ->groupBy('relationable_type')
+            ->map(fn (Collection $rows): array => $rows->pluck('relationable_id')->filter()->unique()->values()->all())
+            ->filter(fn (array $ids): bool => $ids !== []);
+
+        $threadableThreadIds = collect();
+        if ($relationableGroups->isNotEmpty()) {
+            $threadableThreadIds = Thread::query()
+                ->where(function ($query) use ($relationableGroups): void {
+                    foreach ($relationableGroups as $relationableType => $relationableIds) {
+                        $query->orWhere(function ($threadQuery) use ($relationableType, $relationableIds): void {
+                            $threadQuery
+                                ->where('threadable_type', $relationableType)
+                                ->whereIn('threadable_id', $relationableIds);
+                        });
+                    }
+                })
+                ->pluck('id');
+        }
+
+        return collect()
+            ->merge($directThreadIds)
+            ->merge($threadRelationIds)
+            ->merge($relatedThreadIds)
+            ->merge($threadableThreadIds)
+            ->filter(fn (mixed $value): bool => is_int($value) || (is_string($value) && ctype_digit($value)))
+            ->map(fn (mixed $value): int => (int) $value)
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * @return Collection<int, Post>
+     */
+    public function conversationPosts(): Collection
+    {
+        $threadIds = $this->conversationThreadIds();
+        $channelMorphClass = $this->getMorphClass();
+        $threadMorphClass = (new Thread)->getMorphClass();
+
+        return Post::query()
+            ->where(function ($query) use ($channelMorphClass, $threadMorphClass, $threadIds): void {
+                $query->where(function ($channelPostsQuery) use ($channelMorphClass): void {
+                    $channelPostsQuery
+                        ->where('postable_type', $channelMorphClass)
+                        ->where('postable_id', $this->getKey());
+                });
+
+                if ($threadIds->isNotEmpty()) {
+                    $query->orWhere(function ($threadPostsQuery) use ($threadMorphClass, $threadIds): void {
+                        $threadPostsQuery
+                            ->where('postable_type', $threadMorphClass)
+                            ->whereIn('postable_id', $threadIds->all());
+                    });
+                }
+            })
+            ->orderBy('occurred_at')
             ->orderBy('created_at')
             ->get();
     }
@@ -99,28 +186,15 @@ class Channel extends Model
 
     public function latestConversationMessage(): ?Message
     {
-        $candidateMessages = collect();
-        $requestRecord = $this->primaryRequest();
-
-        if ($requestRecord) {
-            $latestRequestMessage = $requestRecord->messages()->latest('created_at')->first();
-            if ($latestRequestMessage instanceof Message) {
-                $candidateMessages->push($latestRequestMessage);
-            }
+        $threadIds = $this->conversationThreadIds();
+        if ($threadIds->isEmpty()) {
+            return null;
         }
 
-        $latestThreadMessage = $this->conversationThreads()
-            ->flatMap(fn (Thread $thread) => $thread->messages)
-            ->sortByDesc('created_at')
+        return Message::query()
+            ->where('messageable_type', (new Thread)->getMorphClass())
+            ->whereIn('messageable_id', $threadIds->all())
+            ->latest('created_at')
             ->first();
-
-        if ($latestThreadMessage instanceof Message) {
-            $candidateMessages->push($latestThreadMessage);
-        }
-
-        /** @var Message|null $latestMessage */
-        $latestMessage = $candidateMessages->sortByDesc('created_at')->first();
-
-        return $latestMessage;
     }
 }

@@ -76,35 +76,35 @@ class MergeDeviceUserIntoPerson
 
     protected function migrateChannelActorStates(User $deviceUser, User $personUser): void
     {
-        if (! Schema::hasTable('channel_actor_states')) {
+        if (! Schema::hasTable('actor_states')) {
             return;
         }
 
-        $rows = DB::table('channel_actor_states')
-            ->where('actor_type', $deviceUser->getMorphClass())
-            ->where('actor_id', $deviceUser->id)
+        $rows = DB::table('actor_states')
+            ->where('actorable_type', $deviceUser->getMorphClass())
+            ->where('actorable_id', $deviceUser->id)
             ->get();
 
         foreach ($rows as $row) {
-            $alreadyExists = DB::table('channel_actor_states')
+            $alreadyExists = DB::table('actor_states')
                 ->where('channel_id', $row->channel_id)
-                ->where('actor_type', $personUser->getMorphClass())
-                ->where('actor_id', $personUser->id)
+                ->where('actorable_type', $personUser->getMorphClass())
+                ->where('actorable_id', $personUser->id)
                 ->exists();
 
             if ($alreadyExists) {
-                DB::table('channel_actor_states')
+                DB::table('actor_states')
                     ->where('id', $row->id)
                     ->delete();
 
                 continue;
             }
 
-            DB::table('channel_actor_states')
+            DB::table('actor_states')
                 ->where('id', $row->id)
                 ->update([
-                    'actor_type' => $personUser->getMorphClass(),
-                    'actor_id' => $personUser->id,
+                    'actorable_type' => $personUser->getMorphClass(),
+                    'actorable_id' => $personUser->id,
                     'updated_at' => now(),
                 ]);
         }

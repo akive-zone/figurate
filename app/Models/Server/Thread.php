@@ -85,4 +85,9 @@ class Thread extends Model
     {
         return $this->hasMany(ThreadEvent::class);
     }
+
+    public function relations(): HasMany
+    {
+        return $this->hasMany(ThreadRelation::class);
+    }
 }

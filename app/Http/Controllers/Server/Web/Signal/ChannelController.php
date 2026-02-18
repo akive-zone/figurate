@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Server\Channel;
 use App\Models\Server\Message;
 use App\Support\Signal\SidebarChats;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -42,109 +43,98 @@ class ChannelController extends Controller
     {
         $channels = $this->safeChannelsPayload($request);
 
-        try {
-            $channelRecord = Channel::query()
-                ->where('uuid', $channel)
-                ->first();
+        $channelRecord = Channel::query()
+            ->where('uuid', $channel)
+            ->first();
 
-            if (! $channelRecord) {
-                $channelPayload = null;
-            } else {
-                $channelRecord->load([
-                    'posts',
-                ]);
-
-                $threads = $channelRecord->threads()
-                    ->orderBy('created_at')
-                    ->get();
-                $threadsPayload = $threads
-                    ->map(function ($thread): array {
-                        return [
-                            'id' => $thread->uuid,
-                            'title' => $thread->title ?: 'Thread',
-                            'purpose' => $thread->purpose,
-                            'status' => $thread->status,
-                            'created_at' => optional($thread->created_at)?->toIso8601String(),
-                        ];
-                    })
-                    ->all();
-                $activeThread = $requestedThread;
-                $knownThreadIds = collect($threadsPayload)->pluck('id');
-                if ($activeThread !== null && ! $knownThreadIds->contains($activeThread)) {
-                    $activeThread = null;
-                }
-                $channelFeed = [];
-
-                $threadMessages = [];
-                if ($activeThread !== null) {
-                    $activeThreadRecord = $threads->firstWhere('uuid', $activeThread);
-
-                    if ($activeThreadRecord) {
-                        $threadMessages = $activeThreadRecord->messages()
-                            ->orderBy('created_at')
-                            ->get()
-                            ->map(function (Message $message) use ($activeThread): array {
-                                return [
-                                    'kind' => 'message',
-                                    'scope' => 'thread',
-                                    'thread_id' => $activeThread,
-                                    'id' => $message->id,
-                                    'sender_name' => null,
-                                    'content' => $message->body,
-                                    'attachments' => is_array($message->attachments) ? $message->attachments : [],
-                                    'created_at' => optional($message->created_at)?->toIso8601String(),
-                                ];
-                            })
-                            ->all();
-                    }
-                }
-
-                $channelPosts = $channelRecord->posts
-                    ->sortBy('occurred_at')
-                    ->values()
-                    ->map(function ($post): array {
-                        $content = data_get($post->payload, 'title')
-                            ?? data_get($post->payload, 'description')
-                            ?? $post->type
-                            ?? 'Channel update';
-
-                        return [
-                            'kind' => 'post',
-                            'scope' => 'channel',
-                            'thread_id' => null,
-                            'id' => $post->id,
-                            'sender_name' => null,
-                            'content' => $content,
-                            'attachments' => [],
-                            'created_at' => optional($post->occurred_at ?? $post->created_at)?->toIso8601String(),
-                        ];
-                    })
-                    ->all();
-
-                $channelFeed = collect(array_merge($channelFeed, $channelPosts))
-                    ->filter(fn (array $item): bool => is_string($item['created_at'] ?? null))
-                    ->sortBy('created_at')
-                    ->values()
-                    ->all();
-
-                $threadMessages = collect($threadMessages)
-                    ->filter(fn (array $item): bool => is_string($item['created_at'] ?? null))
-                    ->sortBy('created_at')
-                    ->values()
-                    ->all();
-
-                $channelPayload = [
-                    'id' => $channelRecord->uuid,
-                    'status' => $channelRecord->status ?? 'open',
-                    'threads' => $threadsPayload,
-                    'active_thread' => $activeThread,
-                    'channel_feed' => $channelFeed,
-                    'thread_messages' => $threadMessages,
-                ];
-            }
-        } catch (\Throwable) {
-            $channelPayload = null;
+        if (! $channelRecord) {
+            throw (new ModelNotFoundException)->setModel(Channel::class, [$channel]);
         }
+
+        $threads = $channelRecord->conversationThreads();
+        $threadsPayload = $threads
+            ->map(function ($thread): array {
+                return [
+                    'id' => $thread->uuid,
+                    'title' => $thread->title ?: 'Thread',
+                    'purpose' => $thread->purpose,
+                    'status' => $thread->status,
+                    'created_at' => optional($thread->created_at)?->toIso8601String(),
+                ];
+            })
+            ->all();
+        $activeThread = $requestedThread;
+        $knownThreadIds = collect($threadsPayload)->pluck('id');
+        if ($activeThread !== null && ! $knownThreadIds->contains($activeThread)) {
+            $activeThread = null;
+        }
+        $channelFeed = [];
+
+        $threadMessages = [];
+        if ($activeThread !== null) {
+            $activeThreadRecord = $threads->firstWhere('uuid', $activeThread);
+
+            if ($activeThreadRecord) {
+                $threadMessages = $activeThreadRecord->messages()
+                    ->orderBy('created_at')
+                    ->get()
+                    ->map(function (Message $message) use ($activeThread): array {
+                        return [
+                            'kind' => 'message',
+                            'scope' => 'thread',
+                            'thread_id' => $activeThread,
+                            'id' => $message->id,
+                            'sender_name' => null,
+                            'content' => $message->body,
+                            'attachments' => is_array($message->attachments) ? $message->attachments : [],
+                            'created_at' => optional($message->created_at)?->toIso8601String(),
+                        ];
+                    })
+                    ->all();
+            }
+        }
+
+        $channelPosts = $channelRecord->conversationPosts()
+            ->values()
+            ->map(function ($post): array {
+                $content = data_get($post->payload, 'title')
+                    ?? data_get($post->payload, 'description')
+                    ?? $post->type
+                    ?? 'Channel update';
+
+                return [
+                    'kind' => 'post',
+                    'scope' => 'channel',
+                    'thread_id' => null,
+                    'id' => $post->id,
+                    'sender_name' => null,
+                    'content' => $content,
+                    'attachments' => [],
+                    'created_at' => optional($post->occurred_at ?? $post->created_at)?->toIso8601String(),
+                ];
+            })
+            ->all();
+
+        $channelFeed = collect(array_merge($channelFeed, $channelPosts))
+            ->filter(fn (array $item): bool => is_string($item['created_at'] ?? null))
+            ->sortBy('created_at')
+            ->values()
+            ->all();
+
+        $threadMessages = collect($threadMessages)
+            ->filter(fn (array $item): bool => is_string($item['created_at'] ?? null))
+            ->sortBy('created_at')
+            ->values()
+            ->all();
+
+        $channelPayload = [
+            'id' => $channelRecord->uuid,
+            'status' => $channelRecord->status ?? 'open',
+            'threads' => $threadsPayload,
+            'active_thread' => $activeThread,
+            'channel_feed' => $channelFeed,
+            'thread_messages' => $threadMessages,
+        ];
 
         return Inertia::render('Signal/Channels/Show', [
             'channels' => $channels,

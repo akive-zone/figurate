@@ -33,7 +33,7 @@ class Request extends Post
     protected static function booted(): void
     {
         static::addGlobalScope('request_type', function (Builder $builder): void {
-            $builder->where('type', 'like', 'request.%');
+            $builder->where($builder->getModel()->qualifyColumn('type'), 'like', 'request.%');
         });
 
         static::creating(function (Request $request): void {
@@ -167,8 +167,8 @@ class Request extends Post
         }
 
         return $this->channels()->whereHas('actorStates', function (Builder $query) use ($user): void {
-            $query->where('actor_type', $user->getMorphClass())
-                ->where('actor_id', $user->getKey());
+            $query->where('actorable_type', $user->getMorphClass())
+                ->where('actorable_id', $user->getKey());
         })->exists();
     }
 
