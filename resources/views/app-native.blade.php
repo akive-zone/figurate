@@ -19,8 +19,8 @@
     </native:top-bar>
 
     <native:bottom-nav>
-        <native:bottom-nav-item id="signal.channels" icon="home" label="Channels" url="{{ route('signal.index') }}" />
-        <native:bottom-nav-item id="signal.new" icon="plus" label="New Chat" url="{{ route('signal.chat.create') }}" />
+        <native:bottom-nav-item id="signal.channels" icon="home" label="Channels" url="{{ route('signal.index', [], false) }}" />
+        <native:bottom-nav-item id="signal.new" icon="plus" label="New Chat" url="{{ route('signal.chat.create', [], false) }}" />
     </native:bottom-nav>
 
     @inertia

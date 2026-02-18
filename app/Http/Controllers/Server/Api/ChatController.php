@@ -17,19 +17,59 @@ use App\Models\Server\ThreadActorMemory;
 use App\Models\Server\User;
 use App\Support\Conversation\ConversationOrchestrator;
 use App\Support\Signal\SidebarChats;
+use Illuminate\Http\Client\HttpClientException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Ai\Contracts\Agent;
+use Laravel\Ai\Exceptions\RateLimitedException;
 
 class ChatController extends Controller
 {
     public function index(Request $request, SidebarChats $sidebarChats): JsonResponse
     {
         return response()->json($sidebarChats->cursorPageForRequest($request));
+    }
+
+    public function show(Request $request, string $thread): JsonResponse
+    {
+        $threadRecord = Thread::query()
+            ->where('uuid', $thread)
+            ->firstOrFail();
+
+        Gate::authorize('view', $threadRecord);
+
+        $messages = $threadRecord->messages()
+            ->orderBy('created_at')
+            ->get()
+            ->map(function (Message $message) use ($threadRecord): array {
+                return [
+                    'kind' => 'message',
+                    'scope' => 'thread',
+                    'thread_id' => $threadRecord->uuid,
+                    'id' => $message->id,
+                    'sender_name' => null,
+                    'content' => $message->body,
+                    'attachments' => is_array($message->attachments) ? $message->attachments : [],
+                    'created_at' => optional($message->created_at)?->toIso8601String(),
+                ];
+            })
+            ->values()
+            ->all();
+
+        return response()->json([
+            'data' => $messages,
+            'thread' => [
+                'id' => $threadRecord->uuid,
+                'purpose' => $threadRecord->purpose,
+                'phase' => $threadRecord->phase,
+                'status' => $threadRecord->status,
+            ],
+        ]);
     }
 
     public function store(
@@ -61,8 +101,8 @@ class ChatController extends Controller
         }
 
         return match ($primaryHandler->actorName()) {
-            ThreadActor::ActorHumanChat => $this->storeHumanMessage($request, $channel, $serviceRequest, $thread, $decision->actions),
-            default => $this->promptAgentThread($request, $channel, $serviceRequest, $thread, $request->user(), $decision->actions),
+            ThreadActor::ActorHumanChat => $this->storeHumanMessage($request, $channel, $serviceRequest, $thread),
+            default => $this->promptAgentThread($request, $channel, $serviceRequest, $thread, $request->user()),
         };
     }
 
@@ -182,8 +222,7 @@ class ChatController extends Controller
         StoreChatRequest $request,
         Channel $channel,
         ?ServiceRequest $serviceRequest,
-        Thread $thread,
-        array $orchestrationActions = []
+        Thread $thread
     ): JsonResponse {
         if (! $this->canActorWrite($channel, $serviceRequest, $request->user())) {
             abort(403);
@@ -195,6 +234,27 @@ class ChatController extends Controller
             ->values();
 
         $content = $request->validated('content');
+        $idempotencyKey = $this->idempotencyKey($request);
+        $existingUserMessage = $this->findExistingUserMessage($thread, $request->user(), $idempotencyKey);
+
+        if ($existingUserMessage) {
+            $normalizedContent = is_string($content) ? trim($content) : null;
+            if ($normalizedContent !== null && $normalizedContent !== '' && $existingUserMessage->body !== $normalizedContent) {
+                $existingUserMessage->forceFill([
+                    'body' => $normalizedContent,
+                ])->save();
+            }
+
+            return response()->json([
+                'message' => 'Message already submitted.',
+                'channel' => $channel->uuid,
+                'thread' => $thread->uuid,
+                'message_id' => $existingUserMessage->id,
+                'observer_status' => 'already_submitted',
+                'mode' => 'human_chat',
+                'duplicate' => true,
+            ]);
+        }
 
         $message = $thread->messages()->create([
             'senderable_type' => $request->user()->getMorphClass(),
@@ -202,8 +262,12 @@ class ChatController extends Controller
             'type' => 'text',
             'body' => is_string($content) && $content !== '' ? $content : null,
             'attachments' => null,
-            'meta' => null,
+            'meta' => [
+                'source' => 'human_chat',
+            ],
         ]);
+
+        $this->cacheIdempotentMessage($thread, $request->user(), $idempotencyKey, $message);
 
         $uploadedMedia->each(function (UploadedFile $file) use ($message): void {
             $message->addMedia($file)
@@ -225,7 +289,6 @@ class ChatController extends Controller
             'message_id' => $message->id,
             'observer_status' => 'queued',
             'mode' => 'human_chat',
-            'orchestration_actions' => $orchestrationActions,
         ]);
     }
 
@@ -234,8 +297,7 @@ class ChatController extends Controller
         Channel $channel,
         ?ServiceRequest $serviceRequest,
         Thread $thread,
-        User $actor,
-        array $orchestrationActions = []
+        User $actor
     ): JsonResponse {
         if (! $this->canActorWrite($channel, $serviceRequest, $actor)) {
             abort(403);
@@ -246,10 +308,35 @@ class ChatController extends Controller
         if ($content === '') {
             abort(422, 'A text message is required for agent prompts.');
         }
+        $idempotencyKey = $this->idempotencyKey($request);
 
         $primaryHandler = $this->resolvePrimaryHandlerActor($thread);
         $agent = $this->resolveAgent($primaryHandler, $actor);
         $memory = $this->resolveMemory($thread, $primaryHandler);
+        $existingUserMessage = $this->findExistingUserMessage($thread, $actor, $idempotencyKey);
+
+        if ($existingUserMessage) {
+            if ($existingUserMessage->body !== $content) {
+                $existingUserMessage->forceFill([
+                    'body' => $content,
+                ])->save();
+            }
+
+            $existingAssistantMessage = $this->findAssistantReplyForMessage($thread, $existingUserMessage, $primaryHandler);
+
+            return response()->json([
+                'message' => 'Message already submitted.',
+                'thread' => $thread->uuid,
+                'channel' => $channel->uuid,
+                'conversation_id' => $memory->conversation_id,
+                'text' => $existingAssistantMessage?->body,
+                'message_id' => $existingUserMessage->id,
+                'assistant_message_id' => $existingAssistantMessage?->id,
+                'mode' => 'agent',
+                'duplicate' => true,
+                'pending' => $existingAssistantMessage === null,
+            ]);
+        }
 
         $userMessage = $thread->messages()->create([
             'senderable_type' => $actor->getMorphClass(),
@@ -262,13 +349,35 @@ class ChatController extends Controller
             ],
         ]);
 
+        $this->cacheIdempotentMessage($thread, $actor, $idempotencyKey, $userMessage);
+
         if ($memory->conversation_id) {
             $agent->continue($memory->conversation_id, $actor);
         } else {
             $agent->forUser($actor);
         }
 
-        $response = $agent->prompt($content);
+        try {
+            $response = $agent->prompt($content);
+        } catch (RateLimitedException) {
+            return response()->json([
+                'message' => 'AI provider is rate limited. Please retry shortly.',
+                'thread' => $thread->uuid,
+                'channel' => $channel->uuid,
+                'mode' => 'agent',
+                'error_code' => 'ai_rate_limited',
+                'retryable' => true,
+            ], 429);
+        } catch (HttpClientException) {
+            return response()->json([
+                'message' => 'AI provider request failed. Please retry shortly.',
+                'thread' => $thread->uuid,
+                'channel' => $channel->uuid,
+                'mode' => 'agent',
+                'error_code' => 'ai_provider_unavailable',
+                'retryable' => true,
+            ], 503);
+        }
 
         if ($response->conversationId) {
             $memory->forceFill([
@@ -303,7 +412,6 @@ class ChatController extends Controller
             'message_id' => $userMessage->id,
             'assistant_message_id' => $assistantMessage?->id,
             'mode' => 'agent',
-            'orchestration_actions' => $orchestrationActions,
         ]);
     }
 
@@ -341,5 +449,85 @@ class ChatController extends Controller
         }
 
         return $channel->hasActor($actor);
+    }
+
+    protected function idempotencyKey(StoreChatRequest $request): ?string
+    {
+        $rawValue = $request->header('X-Idempotency-Key');
+
+        if (! is_string($rawValue)) {
+            return null;
+        }
+
+        $key = trim($rawValue);
+
+        if ($key === '') {
+            return null;
+        }
+
+        return mb_substr($key, 0, 120);
+    }
+
+    protected function findExistingUserMessage(Thread $thread, User $actor, ?string $idempotencyKey): ?Message
+    {
+        if (! $idempotencyKey) {
+            return null;
+        }
+
+        $messageId = Cache::get($this->cacheKeyForIdempotency($thread, $actor, $idempotencyKey));
+
+        if (is_string($messageId) && ctype_digit($messageId)) {
+            $messageId = (int) $messageId;
+        }
+
+        if (! is_int($messageId) || $messageId <= 0) {
+            return null;
+        }
+
+        return Message::query()
+            ->whereKey($messageId)
+            ->where('messageable_type', $thread->getMorphClass())
+            ->where('messageable_id', $thread->getKey())
+            ->where('senderable_type', $actor->getMorphClass())
+            ->where('senderable_id', $actor->getKey())
+            ->first();
+    }
+
+    protected function findAssistantReplyForMessage(Thread $thread, Message $userMessage, ThreadActor $primaryHandler): ?Message
+    {
+        return Message::query()
+            ->where('messageable_type', $thread->getMorphClass())
+            ->where('messageable_id', $thread->getKey())
+            ->whereNull('senderable_type')
+            ->whereNull('senderable_id')
+            ->where('meta->source', 'agent_response')
+            ->where('meta->actor_key', $primaryHandler->actorName())
+            ->where('id', '>', $userMessage->id)
+            ->oldest('id')
+            ->first();
+    }
+
+    protected function cacheIdempotentMessage(Thread $thread, User $actor, ?string $idempotencyKey, Message $message): void
+    {
+        if (! $idempotencyKey) {
+            return;
+        }
+
+        Cache::put(
+            $this->cacheKeyForIdempotency($thread, $actor, $idempotencyKey),
+            $message->getKey(),
+            now()->addHours(24),
+        );
+    }
+
+    protected function cacheKeyForIdempotency(Thread $thread, User $actor, string $idempotencyKey): string
+    {
+        return sprintf(
+            'chat:idempotency:%d:%s:%d:%s',
+            $thread->getKey(),
+            $actor->getMorphClass(),
+            $actor->getKey(),
+            sha1($idempotencyKey),
+        );
     }
 }

@@ -4,6 +4,7 @@ namespace App\Support\Signal;
 
 use App\Models\Server\Channel;
 use App\Models\Server\Message;
+use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -92,8 +93,9 @@ class SidebarChats
      */
     protected function mapChannelListItem(Channel $channel): array
     {
-        $requestRecord = $channel->primaryRequest();
-        $threadCollection = $channel->conversationThreads();
+        $threadCollection = $channel->threads()
+            ->orderBy('created_at')
+            ->get();
 
         $threads = $threadCollection
             ->map(function ($thread): array {
@@ -108,7 +110,16 @@ class SidebarChats
             ->values()
             ->all();
 
-        $latestMessageModel = $channel->latestConversationMessage();
+        $threadIds = $threadCollection->pluck('id')->filter()->values();
+        $latestMessageModel = null;
+        if ($threadIds->isNotEmpty()) {
+            $latestMessageModel = Message::query()
+                ->where('messageable_type', (new Thread)->getMorphClass())
+                ->whereIn('messageable_id', $threadIds->all())
+                ->latest('created_at')
+                ->first();
+        }
+
         $latestMessage = null;
         if ($latestMessageModel instanceof Message) {
             $latestMessage = [
@@ -124,11 +135,6 @@ class SidebarChats
             'status' => $channel->status ?? 'open',
             'last_message_at' => $latestMessage['created_at'] ?? optional($channel->created_at)?->toIso8601String(),
             'threads' => $threads,
-            'request' => $requestRecord ? [
-                'id' => $requestRecord->id,
-                'title' => $requestRecord->title,
-                'status' => $requestRecord->status,
-            ] : null,
             'latest_message' => $latestMessage,
         ];
     }

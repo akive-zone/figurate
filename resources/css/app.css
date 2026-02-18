@@ -430,6 +430,65 @@ body {
     color: var(--signal-soft-ink);
 }
 
+.signal-message__content > :first-child {
+    margin-top: 0;
+}
+
+.signal-message__content > :last-child {
+    margin-bottom: 0;
+}
+
+.signal-message__content p,
+.signal-message__content ul,
+.signal-message__content ol,
+.signal-message__content blockquote,
+.signal-message__content pre {
+    margin: 0.45rem 0;
+}
+
+.signal-message__content ul,
+.signal-message__content ol {
+    padding-left: 1.15rem;
+}
+
+.signal-message__content li + li {
+    margin-top: 0.2rem;
+}
+
+.signal-message__content code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    font-size: 0.84em;
+    background: rgba(15, 23, 42, 0.08);
+    border-radius: 0.3rem;
+    padding: 0.08rem 0.3rem;
+}
+
+.signal-message__content pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    border-radius: 0.6rem;
+    padding: 0.6rem 0.7rem;
+    overflow-x: auto;
+}
+
+.signal-message__content pre code {
+    background: transparent;
+    color: inherit;
+    border-radius: 0;
+    padding: 0;
+}
+
+.signal-message__content blockquote {
+    border-left: 3px solid rgba(15, 118, 110, 0.45);
+    padding-left: 0.65rem;
+    color: #334155;
+}
+
+.signal-message__content a {
+    color: #0f766e;
+    text-decoration: underline;
+}
+
 .signal-form {
     display: flex;
     flex-direction: column;

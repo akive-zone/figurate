@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
+use Illuminate\Database\QueryException;
 
 class Request extends Post
 {
@@ -111,29 +112,45 @@ class Request extends Post
 
     public function hasUserActor(User $user, ?string $action = null): bool
     {
-        $query = $this->users()->whereKey($user->id);
+        try {
+            $query = $this->users()->whereKey($user->id);
 
-        if ($action !== null) {
-            $query->wherePivot('action', $action);
+            if ($action !== null) {
+                $query->wherePivot('action', $action);
+            }
+
+            return $query->exists();
+        } catch (QueryException) {
+            return $this->hasChannelActorFallback($user, $action);
         }
-
-        return $query->exists();
     }
 
     public function hasProfileActorForUser(User $user, ?string $action = null): bool
     {
-        $query = $this->profiles()->where('profiles.user_id', $user->id);
+        try {
+            $query = $this->profiles()->where('profiles.user_id', $user->id);
 
-        if ($action !== null) {
-            $query->wherePivot('action', $action);
+            if ($action !== null) {
+                $query->wherePivot('action', $action);
+            }
+
+            return $query->exists();
+        } catch (QueryException) {
+            return false;
         }
-
-        return $query->exists();
     }
 
     public function hasParticipant(User $user): bool
     {
-        return $this->hasUserActor($user) || $this->hasProfileActorForUser($user);
+        if ($this->hasUserActor($user)) {
+            return true;
+        }
+
+        if ($this->hasProfileActorForUser($user)) {
+            return true;
+        }
+
+        return $this->hasChannelActorFallback($user);
     }
 
     public function primaryRequester(): ?User
@@ -141,6 +158,18 @@ class Request extends Post
         return $this->users()
             ->wherePivot('action', self::ActionAsker)
             ->first();
+    }
+
+    protected function hasChannelActorFallback(User $user, ?string $action = null): bool
+    {
+        if ($action !== null && $action !== self::ActionAsker) {
+            return false;
+        }
+
+        return $this->channels()->whereHas('actorStates', function (Builder $query) use ($user): void {
+            $query->where('actor_type', $user->getMorphClass())
+                ->where('actor_id', $user->getKey());
+        })->exists();
     }
 
     public function getFlowTypeAttribute(): ?string

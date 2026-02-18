@@ -1,8 +1,10 @@
 <script setup>
 import SignalLayout from '../../../Layouts/SignalLayout.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { computed, reactive, ref } from 'vue';
-import { sendSignalChatMessage } from '../../../api/signalChat';
+import { computed, reactive, ref, watch } from 'vue';
+import DOMPurify from 'dompurify';
+import { marked } from 'marked';
+import { fetchSignalThreadMessages, sendSignalChatMessage } from '../../../api/signalChat';
 
 const props = defineProps({
     channels: {
@@ -32,24 +34,57 @@ const signalIndexUrl = computed(() => {
 
 const promptForm = reactive({
     content: '',
+    clientMessageId: '',
+    draftForClientId: '',
 });
 
 const promptErrors = ref({});
 const promptErrorMessage = ref('');
 const isPrompting = ref(false);
+const threadMessages = ref([]);
+const isLoadingThreadMessages = ref(false);
+const threadLoadError = ref('');
+
+const makeClientMessageId = () => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+
+    return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const ensureClientMessageId = (content) => {
+    const normalizedContent = (content ?? '').toString().trim();
+
+    if (normalizedContent === '') {
+        return '';
+    }
+
+    if (promptForm.clientMessageId === '' || promptForm.draftForClientId !== normalizedContent) {
+        promptForm.clientMessageId = makeClientMessageId();
+        promptForm.draftForClientId = normalizedContent;
+    }
+
+    return promptForm.clientMessageId;
+};
 
 const submitPrompt = async () => {
     promptErrors.value = {};
     promptErrorMessage.value = '';
     isPrompting.value = true;
+    const clientMessageId = ensureClientMessageId(promptForm.content);
 
     try {
         await sendSignalChatMessage({
             channel: activeChannel.value.id,
             thread: activeChannel.value.active_thread ?? null,
             content: promptForm.content,
-        }, runtime.value);
+        }, runtime.value, {
+            idempotencyKey: clientMessageId,
+        });
         promptForm.content = '';
+        promptForm.clientMessageId = '';
+        promptForm.draftForClientId = '';
         router.reload({ only: ['channel'] });
     } catch (error) {
         if (error.response?.status === 422) {
@@ -63,6 +98,67 @@ const submitPrompt = async () => {
 };
 
 const formatTimestamp = (value) => new Date(value).toLocaleString();
+const activeThreadId = computed(() => (activeChannel.value?.active_thread ?? '').toString().trim());
+
+const visibleItems = computed(() => {
+    if (!activeChannel.value) {
+        return [];
+    }
+
+    if (activeThreadId.value === '') {
+        return activeChannel.value.channel_feed ?? [];
+    }
+
+    return threadMessages.value;
+});
+
+const loadThreadMessages = async () => {
+    if (!activeChannel.value || activeThreadId.value === '') {
+        threadMessages.value = [];
+        threadLoadError.value = '';
+        return;
+    }
+
+    isLoadingThreadMessages.value = true;
+    threadLoadError.value = '';
+
+    try {
+        const payload = await fetchSignalThreadMessages(activeThreadId.value, runtime.value);
+        threadMessages.value = Array.isArray(payload?.data) ? payload.data : [];
+    } catch (error) {
+        threadLoadError.value = error.response?.data?.message ?? `Unable to load thread messages (${error.response?.status ?? 'network'}).`;
+        threadMessages.value = [];
+    } finally {
+        isLoadingThreadMessages.value = false;
+    }
+};
+
+watch(
+    () => [activeChannel.value?.id ?? null, activeThreadId.value],
+    () => {
+        loadThreadMessages();
+    },
+    { immediate: true },
+);
+
+const renderMessageContent = (content) => {
+    const rawContent = (content ?? '').toString();
+
+    if (rawContent.trim() === '') {
+        return '';
+    }
+
+    const parsed = marked.parse(rawContent, {
+        breaks: true,
+        gfm: true,
+    });
+
+    return DOMPurify.sanitize(typeof parsed === 'string' ? parsed : '', {
+        USE_PROFILES: {
+            html: true,
+        },
+    });
+};
 </script>
 
 <template>
@@ -78,21 +174,20 @@ const formatTimestamp = (value) => new Date(value).toLocaleString();
                 <div>
                     <p class="signal-thread__kicker">Channel</p>
                     <h2 class="signal-thread__title">Channel {{ activeChannel.id }}</h2>
-                    <p class="signal-thread__meta">Open channel, one chatbox, and thread orchestration behind the scenes.</p>
+                    <p class="signal-thread__meta">Conversation view with channel updates and thread messages.</p>
                 </div>
             </header>
 
             <section class="signal-thread__messages">
                 <article
-                    v-for="message in (activeChannel.channel_feed ?? activeChannel.thread_messages)"
+                    v-for="message in visibleItems"
                     :key="`${message.kind ?? 'message'}-${message.scope ?? 'channel'}-${message.id}`"
                     class="signal-message"
-                    :class="{ 'signal-message--mine': message.scope === 'request' }"
                 >
                     <p class="signal-message__author">
-                        {{ message.scope === 'thread' ? 'Thread' : message.scope === 'channel' ? 'Channel' : 'Main' }}
+                        {{ message.scope === 'thread' ? 'Thread' : message.scope === 'channel' ? 'Channel' : 'Conversation' }}
                     </p>
-                    <p>{{ message.content }}</p>
+                    <div class="signal-message__content" v-html="renderMessageContent(message.content)" />
                     <ul v-if="message.attachments?.length" class="signal-thread__attachments">
                         <li v-for="attachment in message.attachments" :key="attachment.path">
                             {{ attachment.name }} ({{ attachment.mime }})
@@ -101,20 +196,23 @@ const formatTimestamp = (value) => new Date(value).toLocaleString();
                     <p class="signal-message__time">{{ formatTimestamp(message.created_at) }}</p>
                 </article>
 
-                <article v-if="!(activeChannel.channel_feed ?? activeChannel.thread_messages)?.length" class="signal-empty">
+                <article v-if="!visibleItems.length" class="signal-empty">
                     <h3>No posts yet</h3>
-                    <p>Send a message and the channel feed will populate in chronological order.</p>
+                    <p v-if="threadLoadError" class="signal-error">{{ threadLoadError }}</p>
+                    <p v-else-if="isLoadingThreadMessages && activeChannel.active_thread">Loading thread messages...</p>
+                    <p v-else-if="activeChannel.active_thread">No messages in this thread yet.</p>
+                    <p v-else-if="!threadLoadError">No channel posts yet.</p>
                 </article>
             </section>
 
             <form class="signal-form" @submit.prevent="submitPrompt">
-                <label for="prompt" class="signal-label">Message To Active Agent</label>
+                <label for="prompt" class="signal-label">Message</label>
                 <textarea
                     id="prompt"
                     v-model="promptForm.content"
                     class="signal-input"
                     rows="4"
-                    placeholder="Write a message for the active thread..."
+                    placeholder="Write a message..."
                 />
                 <p v-if="promptErrors.content" class="signal-error">{{ promptErrors.content[0] }}</p>
                 <p v-if="promptErrorMessage" class="signal-error">{{ promptErrorMessage }}</p>

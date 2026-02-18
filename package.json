@@ -8,8 +8,8 @@
     },
     "devDependencies": {
         "@inertiajs/vue3": "^2.3.13",
-        "@vitejs/plugin-vue": "^6.0.1",
         "@tailwindcss/vite": "^4.0.0",
+        "@vitejs/plugin-vue": "^6.0.1",
         "axios": "^1.11.0",
         "concurrently": "^9.0.1",
         "laravel-vite-plugin": "^2.0.0",
@@ -19,5 +19,9 @@
     },
     "imports": {
         "#nativephp": "./vendor/nativephp/mobile/resources/dist/native.js"
+    },
+    "dependencies": {
+        "dompurify": "^3.3.1",
+        "marked": "^17.0.2"
     }
 }

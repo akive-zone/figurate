@@ -49,11 +49,15 @@ class HandleInertiaRequests extends Middleware
                 'signal_base_path' => \app_is_native_runtime() ? '/signal' : '',
                 'signal_index_path' => \app_is_native_runtime() ? '/signal' : '/',
                 'signal_routes' => [
-                    'index' => route('signal.index'),
-                    'chats' => \app_is_native_runtime() ? route('signal.index') : route('api.chats.index'),
-                    'chats_store' => \app_is_native_runtime() ? route('signal.index') : route('api.chats.store'),
-                    'create' => route('signal.chat.create'),
-                    'show_template' => route('signal.chat.show', ['channel' => '__CHANNEL__']),
+                    'index' => route('signal.index', [], false),
+                    'chats' => \app_is_native_runtime() ? route('signal.index', [], false) : route('api.chats.index', [], false),
+                    'chats_show_template' => \app_is_native_runtime()
+                        ? route('signal.index', [], false)
+                        : route('api.chats.show', ['thread' => '__THREAD__'], false),
+                    'chats_store' => \app_is_native_runtime() ? route('signal.index', [], false) : route('api.chats.store', [], false),
+                    'create' => route('signal.chat.create', [], false),
+                    'show_template' => route('signal.chat.show', ['channel' => '__CHANNEL__'], false),
+                    'show_thread_template' => route('signal.chat.thread', ['channel' => '__CHANNEL__', 'thread' => '__THREAD__'], false),
                 ],
             ],
             'auth' => [
@@ -64,8 +68,8 @@ class HandleInertiaRequests extends Middleware
                     'device_identifier' => $user->device_identifier,
                 ] : null,
                 'routes' => [
-                    'google_redirect' => route('auth.redirect', ['provider' => 'google']),
-                    'apple_redirect' => route('auth.redirect', ['provider' => 'apple']),
+                    'google_redirect' => route('auth.redirect', ['provider' => 'google'], false),
+                    'apple_redirect' => route('auth.redirect', ['provider' => 'apple'], false),
                 ],
             ],
             'flash' => [

@@ -40,6 +40,20 @@ class ChannelController extends Controller
 
     public function show(Request $request, string $channel): Response
     {
+        return $this->renderChannel($request, $channel, is_string($request->query('thread')) ? (string) $request->query('thread') : null);
+    }
+
+    public function showThread(Request $request, string $channel, string $thread): Response
+    {
+        return $this->renderChannel($request, $channel, $thread);
+    }
+
+    protected function renderChannel(Request $request, string $channel, ?string $thread): Response
+    {
+        if ($thread !== null && $thread !== '') {
+            $request->query->set('thread', $thread);
+        }
+
         try {
             $channelPayload = $this->fetchChannel($channel, $request);
         } catch (\Throwable) {

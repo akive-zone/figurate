@@ -14,5 +14,6 @@ Route::prefix('auth')->group(function (): void {
 
 Route::middleware([EnsureDeviceUser::class, 'auth:sanctum'])->group(function (): void {
     Route::get('/chats', [ChatController::class, 'index'])->name('api.chats.index');
+    Route::get('/chats/{thread}', [ChatController::class, 'show'])->name('api.chats.show');
     Route::post('/chats', [ChatController::class, 'store'])->name('api.chats.store');
 });

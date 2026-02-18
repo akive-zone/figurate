@@ -30,6 +30,16 @@ class ChannelController extends Controller
 
     public function show(Request $request, string $channel): Response
     {
+        return $this->renderChannel($request, $channel, null);
+    }
+
+    public function showThread(Request $request, string $channel, string $thread): Response
+    {
+        return $this->renderChannel($request, $channel, $thread);
+    }
+
+    protected function renderChannel(Request $request, string $channel, ?string $requestedThread): Response
+    {
         $channels = $this->safeChannelsPayload($request);
 
         try {
@@ -44,7 +54,9 @@ class ChannelController extends Controller
                     'posts',
                 ]);
 
-                $threads = $channelRecord->conversationThreads();
+                $threads = $channelRecord->threads()
+                    ->orderBy('created_at')
+                    ->get();
                 $threadsPayload = $threads
                     ->map(function ($thread): array {
                         return [
@@ -56,71 +68,35 @@ class ChannelController extends Controller
                         ];
                     })
                     ->all();
-                $activeThread = is_string($request->query('thread')) ? (string) $request->query('thread') : null;
-                if ($activeThread === null && $threadsPayload !== []) {
-                    $mainThread = collect($threadsPayload)->firstWhere('purpose', 'main');
-                    $activeThread = $mainThread['id'] ?? $threadsPayload[0]['id'];
+                $activeThread = $requestedThread;
+                $knownThreadIds = collect($threadsPayload)->pluck('id');
+                if ($activeThread !== null && ! $knownThreadIds->contains($activeThread)) {
+                    $activeThread = null;
                 }
                 $channelFeed = [];
 
-                $requestMessages = $channelRecord->conversationRequestMessages()
-                    ->map(function (Message $message): array {
-                        return [
-                            'kind' => 'message',
-                            'scope' => 'request',
-                            'thread_id' => null,
-                            'id' => $message->id,
-                            'sender_name' => null,
-                            'content' => $message->body,
-                            'attachments' => is_array($message->attachments) ? $message->attachments : [],
-                            'created_at' => optional($message->created_at)?->toIso8601String(),
-                        ];
-                    })
-                    ->values()
-                    ->all();
-                $channelFeed = array_merge($channelFeed, $requestMessages);
+                $threadMessages = [];
+                if ($activeThread !== null) {
+                    $activeThreadRecord = $threads->firstWhere('uuid', $activeThread);
 
-                foreach ($threads as $thread) {
-                    $threadMessages = $thread->messages
-                        ->sortBy('created_at')
-                        ->values()
-                        ->map(function (Message $message) use ($thread): array {
-                            return [
-                                'kind' => 'message',
-                                'scope' => 'thread',
-                                'thread_id' => $thread->uuid,
-                                'id' => $message->id,
-                                'sender_name' => null,
-                                'content' => $message->body,
-                                'attachments' => is_array($message->attachments) ? $message->attachments : [],
-                                'created_at' => optional($message->created_at)?->toIso8601String(),
-                            ];
-                        })
-                        ->all();
-
-                    $threadPosts = $thread->posts
-                        ->sortBy('occurred_at')
-                        ->values()
-                        ->map(function ($post) use ($thread): array {
-                            $content = data_get($post->payload, 'title')
-                                ?? data_get($post->payload, 'description')
-                                ?? $post->type
-                                ?? 'Thread update';
-
-                            return [
-                                'kind' => 'post',
-                                'scope' => 'thread',
-                                'thread_id' => $thread->uuid,
-                                'id' => $post->id,
-                                'sender_name' => null,
-                                'content' => $content,
-                                'attachments' => [],
-                                'created_at' => optional($post->occurred_at ?? $post->created_at)?->toIso8601String(),
-                            ];
-                        })
-                        ->all();
-
-                    $channelFeed = array_merge($channelFeed, $threadMessages, $threadPosts);
+                    if ($activeThreadRecord) {
+                        $threadMessages = $activeThreadRecord->messages()
+                            ->orderBy('created_at')
+                            ->get()
+                            ->map(function (Message $message) use ($activeThread): array {
+                                return [
+                                    'kind' => 'message',
+                                    'scope' => 'thread',
+                                    'thread_id' => $activeThread,
+                                    'id' => $message->id,
+                                    'sender_name' => null,
+                                    'content' => $message->body,
+                                    'attachments' => is_array($message->attachments) ? $message->attachments : [],
+                                    'created_at' => optional($message->created_at)?->toIso8601String(),
+                                ];
+                            })
+                            ->all();
+                    }
                 }
 
                 $channelPosts = $channelRecord->posts
@@ -151,19 +127,19 @@ class ChannelController extends Controller
                     ->values()
                     ->all();
 
+                $threadMessages = collect($threadMessages)
+                    ->filter(fn (array $item): bool => is_string($item['created_at'] ?? null))
+                    ->sortBy('created_at')
+                    ->values()
+                    ->all();
+
                 $channelPayload = [
                     'id' => $channelRecord->uuid,
                     'status' => $channelRecord->status ?? 'open',
                     'threads' => $threadsPayload,
                     'active_thread' => $activeThread,
                     'channel_feed' => $channelFeed,
-                    'agent_messages' => [],
-                    'thread_messages' => $channelFeed,
-                    'actions' => [
-                        'can_create_thread' => false,
-                        'can_prompt_agent' => true,
-                        'can_accept_quote' => false,
-                    ],
+                    'thread_messages' => $threadMessages,
                 ];
             }
         } catch (\Throwable) {

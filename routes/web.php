@@ -15,8 +15,9 @@ if (\app_is_native_runtime()) {
         ->name('signal.')
         ->group(function () {
             Route::get('/', [NativeSignalChannelController::class, 'index'])->name('index');
-            Route::get('/channels/new', [NativeSignalChannelController::class, 'create'])->name('chat.create');
+            Route::get('/channels', [NativeSignalChannelController::class, 'create'])->name('chat.create');
             Route::get('/channels/{channel}', [NativeSignalChannelController::class, 'show'])->name('chat.show');
+            Route::get('/channels/{channel}/threads/{thread}', [NativeSignalChannelController::class, 'showThread'])->name('chat.thread');
         });
 
     Route::fallback(function () {
@@ -36,11 +37,8 @@ if (\app_is_native_runtime()) {
         ->name('signal.')
         ->group(function () {
             Route::get('/', [ServerSignalChannelController::class, 'index'])->name('index');
-            Route::get('/channels/new', [ServerSignalChannelController::class, 'create'])->name('chat.create');
+            Route::get('/channels', [ServerSignalChannelController::class, 'create'])->name('chat.create');
             Route::get('/channels/{channel}', [ServerSignalChannelController::class, 'show'])->name('chat.show');
+            Route::get('/channels/{channel}/threads/{thread}', [ServerSignalChannelController::class, 'showThread'])->name('chat.thread');
         });
-
-    Route::fallback(function () {
-        return redirect()->to('/');
-    });
 }

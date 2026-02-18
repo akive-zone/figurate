@@ -1,4 +1,4 @@
-- So this product is a platform for finding agents (workers / handlers)
+- So this product is a platform for finding agents (workers)
 
 - The callers / workers follow a fufillment process
 
@@ -80,3 +80,6 @@ NOTE:
   - Channel = long-lived context/entrypoint
   - Thread = active session/workstream
   - Post = durable domain events/artifacts
+ 
+The goal is knowing when to orchesterate creating a new thread and which agent should be the one responding to a conversation (This is similar to popular systems like cursor or claude, knowing when to move from plan to build or debug mode within a session). This ansers the gap 5 ... which is what we need to decide
+

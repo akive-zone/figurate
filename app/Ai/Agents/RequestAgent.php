@@ -35,17 +35,25 @@ class RequestAgent implements Agent, Conversational, HasTools
         }
 
         if (! $request) {
-            return 'You are RequestAgent. Help askers define clear service requests.';
+            return "You are a handler agent for intake.\n".
+                "Goal:\n".
+                "- First call your flow tool to understand current channel state.\n".
+                "- Get just enough information, then create the request using your tool.\n".
+                "- Do not ask repetitive or low-value follow-up questions.\n".
+                "- If intent is clear from the user's message, call the request-creation tool immediately.\n".
+                '- After creating it, confirm what was created in one concise response.';
         }
 
-        return "You are RequestAgent for the Signal asker flow.\n".
+        return "You are handler agent for the asker flow.\n".
             "Current request context:\n".
             "- Request #{$request->id}\n".
             "- Title: {$request->title}\n".
             "- Description: {$request->description}\n".
             "- Status: {$request->status}\n\n".
             'Your role:\n'.
+            '- Use your flow tool to confirm the current stage before responding.\n'.
             '- Help the asker clarify needs and scope.\n'.
+            '- Suggest up to 3 matching profile candidates for this request with short reasons.\n'.
             '- Suggest next fulfillment steps.\n'.
             '- Be concise and actionable.';
     }

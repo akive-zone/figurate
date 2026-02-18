@@ -80,12 +80,20 @@ const resolveSignalRoute = (runtime = {}, routeKey, fallbackPath) => {
     return fallbackPath;
 };
 
-export const sendSignalChatMessage = async (payload, runtime = {}) => {
+export const sendSignalChatMessage = async (payload, runtime = {}, options = {}) => {
     const chatsStoreUrl = resolveSignalRoute(runtime, 'chats_store', '/api/chats');
+    const headers = {
+        ...signalAuthHeaders(),
+    };
+    const idempotencyKey = (options.idempotencyKey ?? '').toString().trim();
+
+    if (idempotencyKey !== '') {
+        headers['X-Idempotency-Key'] = idempotencyKey;
+    }
 
     try {
         const response = await axios.post(signalApiUrl(chatsStoreUrl, runtime), payload, {
-            headers: signalAuthHeaders(),
+            headers,
         });
         persistSignalBootstrapHeaders(response);
 
@@ -102,6 +110,25 @@ export const fetchSignalChats = async (runtime = {}, query = {}) => {
     try {
         const response = await axios.get(signalApiUrl(chatsIndexUrl, runtime), {
             params: query,
+            headers: signalAuthHeaders(),
+        });
+        persistSignalBootstrapHeaders(response);
+
+        return response.data;
+    } catch (error) {
+        persistSignalBootstrapHeaders(error.response);
+        throw error;
+    }
+};
+
+export const fetchSignalThreadMessages = async (threadId, runtime = {}) => {
+    const template = (runtime?.signal_routes?.chats_show_template ?? '').toString().trim();
+    const path = template !== ''
+        ? template.replace('__THREAD__', threadId)
+        : `/api/chats/${threadId}`;
+
+    try {
+        const response = await axios.get(signalApiUrl(path, runtime), {
             headers: signalAuthHeaders(),
         });
         persistSignalBootstrapHeaders(response);

@@ -33,6 +33,17 @@ const signalShowTemplate = computed(() => {
     return '/channels/__CHANNEL__';
 });
 const signalChannelUrl = (channelId) => signalShowTemplate.value.replace('__CHANNEL__', channelId);
+const signalShowThreadTemplate = computed(() => {
+    const configured = (signalRoutes.value.show_thread_template ?? '').toString().trim();
+    if (configured !== '') {
+        return configured;
+    }
+
+    return '/channels/__CHANNEL__/threads/__THREAD__';
+});
+const signalThreadUrl = (channelId, threadId) => signalShowThreadTemplate.value
+    .replace('__CHANNEL__', channelId)
+    .replace('__THREAD__', threadId);
 
 const form = reactive({
     message: '',
@@ -65,8 +76,7 @@ const submit = async () => {
         const threadId = response.data?.thread;
 
         if (channelId) {
-            const query = threadId ? `?thread=${threadId}` : '';
-            router.visit(`${signalChannelUrl(channelId)}${query}`);
+            router.visit(threadId ? signalThreadUrl(channelId, threadId) : signalChannelUrl(channelId));
             return;
         }
 

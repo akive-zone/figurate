@@ -52,6 +52,14 @@ const signalShowTemplate = computed(() => {
 
     return '/channels/__CHANNEL__';
 });
+const signalShowThreadTemplate = computed(() => {
+    const configured = (signalRoutes.value.show_thread_template ?? '').toString().trim();
+    if (configured !== '') {
+        return configured;
+    }
+
+    return '/channels/__CHANNEL__/threads/__THREAD__';
+});
 const signalChannelUrl = (channelId) => signalShowTemplate.value.replace('__CHANNEL__', channelId);
 const signalChannelThreadUrl = (channelId, threadId) => {
     const channelUrl = signalChannelUrl(channelId);
@@ -60,10 +68,20 @@ const signalChannelThreadUrl = (channelId, threadId) => {
         return channelUrl;
     }
 
-    const url = new URL(channelUrl, window.location.origin);
-    url.searchParams.set('thread', threadId);
+    return signalShowThreadTemplate.value
+        .replace('__CHANNEL__', channelId)
+        .replace('__THREAD__', threadId);
+};
+const channelTitle = (channel) => {
+    const threadTitle = Array.isArray(channel?.threads) && channel.threads.length > 0
+        ? (channel.threads[0]?.title ?? '').toString().trim()
+        : '';
 
-    return `${url.pathname}${url.search}`;
+    if (threadTitle !== '') {
+        return threadTitle;
+    }
+
+    return `Chat ${channel?.id ?? ''}`.trim();
 };
 const showDeviceLoginPrompt = computed(() => !isNativeRuntime.value && authUser.value?.type === 'device');
 const showAccountModal = ref(false);
@@ -144,7 +162,7 @@ onMounted(() => {
                         class="signal-channel-link"
                         :class="{ 'signal-channel-link--active': props.activeChannelId === channel.id }"
                     >
-                        <p class="signal-channel-link__title">{{ channel.request?.title ?? 'Untitled chat' }}</p>
+                        <p class="signal-channel-link__title">{{ channelTitle(channel) }}</p>
                         <p class="signal-channel-link__meta">{{ channel.latest_message?.body ?? 'No messages yet' }}</p>
                     </Link>
                     <div
