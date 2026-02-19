@@ -13,9 +13,11 @@ class ThreadActor extends Model
     /** @use HasFactory<\Database\Factories\ThreadActorFactory> */
     use HasFactory;
 
-    public const RoleHandler = 'handler';
+    public const RolePresenter = 'presenter';
 
     public const RoleObserver = 'observer';
+
+    public const RoleListener = 'listener';
 
     public const RoleMember = 'member';
 
@@ -26,8 +28,6 @@ class ThreadActor extends Model
     public const ActorRequestAgent = 'request_agent';
 
     public const ActorOrderAgent = 'order_agent';
-
-    public const ActorHumanChat = 'human_chat';
 
     public const ActorSafetyGuard = 'safety_guard';
 

@@ -19,8 +19,6 @@ class Thread extends Model
 
     public const AgentOrder = 'order_agent';
 
-    public const AgentHumanChat = 'human_chat';
-
     public const PurposeMain = 'main';
 
     public const PurposePlanning = 'planning';
@@ -73,12 +71,27 @@ class Thread extends Model
         return $this->hasMany(ThreadActorMemory::class);
     }
 
-    public function primaryHandlerActor(): HasMany
+    public function presenterActors(): HasMany
     {
         return $this->actors()
-            ->where('role', ThreadActor::RoleHandler)
+            ->where('role', ThreadActor::RolePresenter)
             ->where('status', ThreadActor::StatusActive)
             ->orderBy('priority');
+    }
+
+    public function primaryPresenterActor(): ?ThreadActor
+    {
+        return $this->presenterActors()->first();
+    }
+
+    public function primaryHandlerActor(): HasMany
+    {
+        return $this->presenterActors();
+    }
+
+    public function isPeerConversation(): bool
+    {
+        return $this->primaryPresenterActor() === null;
     }
 
     public function events(): HasMany

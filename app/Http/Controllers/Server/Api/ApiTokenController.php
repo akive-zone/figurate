@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Server\Api;
 
-use App\Actions\Auth\MergeDeviceUserIntoPerson;
+use App\Actions\Server\Auth\MergeDeviceUserIntoPerson;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Auth\StudioLoginRequest;
 use App\Http\Requests\Server\Auth\StudioRegisterRequest;

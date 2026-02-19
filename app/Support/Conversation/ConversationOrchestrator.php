@@ -18,27 +18,27 @@ class ConversationOrchestrator
         Channel $channel,
         ?ServiceRequest $serviceRequest,
         User $actor,
-        ?int $requestedThreadId = null,
+        ?int $thread = null,
         ?string $message = null,
     ): OrchestrationDecision {
-        return DB::transaction(function () use ($channel, $serviceRequest, $actor, $requestedThreadId, $message): OrchestrationDecision {
+        return DB::transaction(function () use ($channel, $serviceRequest, $actor, $thread, $message): OrchestrationDecision {
             $actions = [];
-            $thread = $this->resolveBaseThread(
+            $resolvedThread = $this->resolveBaseThread(
                 channel: $channel,
                 serviceRequest: $serviceRequest,
                 actor: $actor,
-                requestedThreadId: $requestedThreadId,
+                thread: $thread,
             );
 
-            if ($requestedThreadId === null) {
-                [$thread, $triggerActions] = $this->applyPurposeTriggers($channel, $serviceRequest, $thread, $message);
+            if ($thread === null) {
+                [$resolvedThread, $triggerActions] = $this->applyPurposeTriggers($channel, $serviceRequest, $resolvedThread, $message);
                 $actions = array_merge($actions, $triggerActions);
             }
 
-            $this->persistActiveState($channel, $actor, $thread);
+            $this->persistActiveState($channel, $actor, $resolvedThread);
 
             foreach ($actions as $action) {
-                $thread->events()->create([
+                $resolvedThread->events()->create([
                     'message_id' => null,
                     'actor_key' => 'orchestrator',
                     'event_type' => (string) $action['event_type'],
@@ -47,13 +47,13 @@ class ConversationOrchestrator
                 ]);
             }
 
-            $primaryHandler = $thread->primaryHandlerActor()->first();
-            $isHuman = $primaryHandler?->isNamedActor(ThreadActor::ActorHumanChat) ?? false;
+            $primaryPresenter = $resolvedThread->primaryPresenterActor();
+            $hasPresenter = $primaryPresenter !== null;
 
             return new OrchestrationDecision(
-                thread: $thread,
-                responderType: $isHuman ? 'human' : 'agent',
-                responderKey: $primaryHandler?->actorName(),
+                thread: $resolvedThread,
+                responderType: $hasPresenter ? 'presenter' : 'direct',
+                responderKey: $primaryPresenter?->actorName(),
                 actions: $actions,
             );
         });
@@ -63,12 +63,12 @@ class ConversationOrchestrator
         Channel $channel,
         ?ServiceRequest $serviceRequest,
         User $actor,
-        ?int $requestedThreadId,
+        ?int $thread,
     ): Thread {
-        if ($requestedThreadId !== null) {
+        if ($thread !== null) {
             $thread = $this->threadsQuery($channel, $serviceRequest)
                 ->where('status', 'open')
-                ->whereKey($requestedThreadId)
+                ->whereKey($thread)
                 ->first();
 
             if (! $thread) {
@@ -184,7 +184,7 @@ class ConversationOrchestrator
         $thread->actors()->create([
             'actorable_type' => $this->defaultHandlerActor($purpose),
             'actorable_id' => null,
-            'role' => ThreadActor::RoleHandler,
+            'role' => ThreadActor::RolePresenter,
             'status' => ThreadActor::StatusActive,
             'priority' => 1,
             'config' => null,

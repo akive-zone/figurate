@@ -14,6 +14,13 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         health: '/up',
     )
+    ->withBroadcasting(
+        __DIR__.'/../routes/channels.php',
+        [
+            'prefix' => 'api',
+            'middleware' => ['api', 'auth:sanctum'],
+        ],
+    )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->appendToGroup('web', HandleInertiaRequests::class);
     })

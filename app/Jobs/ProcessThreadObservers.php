@@ -31,7 +31,7 @@ class ProcessThreadObservers implements ShouldQueue
 
         $message = Message::query()->find($this->messageId);
 
-        if (! $thread || ! $message || ! $thread->primaryHandlerActor()->first()?->isNamedActor(ThreadActor::ActorHumanChat)) {
+        if (! $thread || ! $message || ! $thread->isPeerConversation()) {
             return;
         }
 

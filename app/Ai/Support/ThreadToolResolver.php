@@ -22,7 +22,7 @@ class ThreadToolResolver
      */
     public function resolve(Thread $thread, User $user): array
     {
-        $primaryActor = $thread->primaryHandlerActor()->first()?->actorName();
+        $primaryActor = $thread->primaryPresenterActor()?->actorName();
         $sharedTools = $this->sharedTools($thread, $user);
 
         if ($primaryActor === ThreadActor::ActorRequestAgent && $this->canCreateRequestFromThread($thread, $user)) {

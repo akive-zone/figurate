@@ -1,7 +1,8 @@
 <script setup>
 import SignalLayout from '../../../Layouts/SignalLayout.vue';
+import FloatingChatWindow from './FloatingChatWindow.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { fetchSignalChannelPosts, fetchSignalThreadMessages, sendSignalChatMessage } from '../../../api/signalChat';
@@ -47,6 +48,9 @@ const channelPostsError = ref('');
 const threadMessages = ref([]);
 const isLoadingThreadMessages = ref(false);
 const threadLoadError = ref('');
+const agentStatusMessage = ref('');
+const subscribedThreadId = ref('');
+const isFloatingChatOpen = ref(true);
 
 const makeClientMessageId = () => {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -85,10 +89,11 @@ const submitPrompt = async () => {
         }, runtime.value, {
             idempotencyKey: clientMessageId,
         });
+        agentStatusMessage.value = 'Agent is thinking...';
         promptForm.content = '';
         promptForm.clientMessageId = '';
         promptForm.draftForClientId = '';
-        router.reload({ only: ['channel'] });
+        await loadThreadMessages();
     } catch (error) {
         if (error.response?.status === 422) {
             promptErrors.value = error.response.data.errors ?? {};
@@ -113,6 +118,26 @@ const visibleItems = computed(() => {
     }
 
     return threadMessages.value;
+});
+
+const floatingChatMessages = computed(() => {
+    return visibleItems.value.slice(-10);
+});
+
+const floatingChatTitle = computed(() => {
+    if (!activeChannel.value) {
+        return 'Signal';
+    }
+
+    return `Channel ${activeChannel.value.id}`;
+});
+
+const floatingChatSubtitle = computed(() => {
+    if (!activeChannel.value) {
+        return 'Offline';
+    }
+
+    return activeThreadId.value !== '' ? 'Thread active' : 'Channel active';
 });
 
 const loadChannelPosts = async () => {
@@ -156,14 +181,74 @@ const loadThreadMessages = async () => {
     }
 };
 
+const leaveThreadEvents = () => {
+    if (subscribedThreadId.value === '') {
+        return;
+    }
+
+    if (window.Echo && typeof window.Echo.leave === 'function') {
+        window.Echo.leave(`threads.${subscribedThreadId.value}`);
+    }
+
+    subscribedThreadId.value = '';
+};
+
+const subscribeToThreadEvents = (threadId) => {
+    if (!threadId || !window.Echo || typeof window.Echo.private !== 'function') {
+        return;
+    }
+
+    leaveThreadEvents();
+
+    subscribedThreadId.value = threadId;
+
+    window.Echo.private(`threads.${threadId}`)
+        .listen('.agent.reply.started', () => {
+            agentStatusMessage.value = 'Agent is thinking...';
+        })
+        .listen('.agent.reply.completed', (event) => {
+            agentStatusMessage.value = '';
+
+            const assistantMessage = event?.assistant_message ?? null;
+
+            if (assistantMessage && typeof assistantMessage.id === 'number') {
+                const existingIndex = threadMessages.value.findIndex((message) => message.id === assistantMessage.id);
+
+                if (existingIndex === -1) {
+                    threadMessages.value.push(assistantMessage);
+                } else {
+                    threadMessages.value.splice(existingIndex, 1, assistantMessage);
+                }
+            } else {
+                loadThreadMessages();
+            }
+
+            router.reload({ only: ['channel'] });
+        })
+        .listen('.agent.reply.failed', (event) => {
+            agentStatusMessage.value = '';
+            promptErrorMessage.value = event?.message ?? 'AI response failed. Please retry.';
+        });
+};
+
 watch(
     () => [activeChannel.value?.id ?? null, activeThreadId.value],
     () => {
         loadChannelPosts();
         loadThreadMessages();
+
+        if (activeThreadId.value !== '') {
+            subscribeToThreadEvents(activeThreadId.value);
+        } else {
+            leaveThreadEvents();
+        }
     },
     { immediate: true },
 );
+
+onBeforeUnmount(() => {
+    leaveThreadEvents();
+});
 
 const renderMessageContent = (content) => {
     const rawContent = (content ?? '').toString();
@@ -182,6 +267,11 @@ const renderMessageContent = (content) => {
             html: true,
         },
     });
+};
+
+const submitFloatingPrompt = async (content) => {
+    promptForm.content = content;
+    await submitPrompt();
 };
 </script>
 
@@ -242,6 +332,7 @@ const renderMessageContent = (content) => {
                 />
                 <p v-if="promptErrors.content" class="signal-error">{{ promptErrors.content[0] }}</p>
                 <p v-if="promptErrorMessage" class="signal-error">{{ promptErrorMessage }}</p>
+                <p v-if="agentStatusMessage" class="signal-thread__meta">{{ agentStatusMessage }}</p>
                 <button class="signal-button" :disabled="isPrompting">
                     Send
                 </button>
@@ -253,5 +344,15 @@ const renderMessageContent = (content) => {
             <p>Check your API connection and try again.</p>
             <Link :href="signalIndexUrl" class="signal-link">Back</Link>
         </section>
+
+        <FloatingChatWindow
+            v-if="activeChannel"
+            v-model="isFloatingChatOpen"
+            :title="floatingChatTitle"
+            :subtitle="floatingChatSubtitle"
+            :messages="floatingChatMessages"
+            :sending="isPrompting"
+            @send="submitFloatingPrompt"
+        />
     </SignalLayout>
 </template>
