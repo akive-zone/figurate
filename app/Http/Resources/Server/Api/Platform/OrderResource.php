@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Resources\Server\Studio;
+namespace App\Http\Resources\Server\Api\Platform;
 
 use ApiPlatform\Laravel\Eloquent\Filter\EqualsFilter;
 use ApiPlatform\Laravel\Eloquent\Filter\OrderFilter;
@@ -17,28 +17,28 @@ use ApiPlatform\Metadata\QueryParameter;
 use App\Models\Server\Order as OrderModel;
 
 #[ApiResource(
-    shortName: 'StudioOrder',
+    shortName: 'Platform Order',
     operations: [
         new GetCollection(
-            uriTemplate: '/studio/orders',
+            uriTemplate: '/platform/orders',
             provider: CollectionProvider::class,
             stateOptions: new EloquentOptions(modelClass: OrderModel::class),
             security: "is_granted('viewAny')",
         ),
         new Get(
-            uriTemplate: '/studio/orders/{id}',
+            uriTemplate: '/platform/orders/{id}',
             provider: ItemProvider::class,
             stateOptions: new EloquentOptions(modelClass: OrderModel::class),
             security: "is_granted('view', object)",
         ),
         new Post(
-            uriTemplate: '/studio/orders',
+            uriTemplate: '/platform/orders',
             processor: PersistProcessor::class,
             stateOptions: new EloquentOptions(modelClass: OrderModel::class),
             security: "is_granted('create')",
         ),
         new Patch(
-            uriTemplate: '/studio/orders/{id}',
+            uriTemplate: '/platform/orders/{id}',
             provider: ItemProvider::class,
             processor: PersistProcessor::class,
             stateOptions: new EloquentOptions(modelClass: OrderModel::class),
@@ -48,4 +48,4 @@ use App\Models\Server\Order as OrderModel;
 )]
 #[QueryParameter(key: 'status', filter: EqualsFilter::class, property: 'status')]
 #[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
-final class StudioOrderResource {}
+final class OrderResource {}

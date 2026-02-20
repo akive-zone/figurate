@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Resources\Server\Studio;
+namespace App\Http\Resources\Server\Api\Platform;
 
 use ApiPlatform\Laravel\Eloquent\Filter\PartialSearchFilter;
 use ApiPlatform\Laravel\Eloquent\State\CollectionProvider;
@@ -13,16 +13,16 @@ use ApiPlatform\Metadata\QueryParameter;
 use App\Models\Server\ServiceCategory as ServiceCategoryModel;
 
 #[ApiResource(
-    shortName: 'StudioServiceCategory',
+    shortName: 'Platform Service Category',
     operations: [
         new GetCollection(
-            uriTemplate: '/studio/service_categories',
+            uriTemplate: '/platform/service_categories',
             provider: CollectionProvider::class,
             stateOptions: new EloquentOptions(modelClass: ServiceCategoryModel::class),
             security: "is_granted('viewAny')",
         ),
         new Get(
-            uriTemplate: '/studio/service_categories/{id}',
+            uriTemplate: '/platform/service_categories/{id}',
             provider: ItemProvider::class,
             stateOptions: new EloquentOptions(modelClass: ServiceCategoryModel::class),
             security: "is_granted('view', object)",
@@ -31,4 +31,4 @@ use App\Models\Server\ServiceCategory as ServiceCategoryModel;
 )]
 #[QueryParameter(key: 'name', filter: PartialSearchFilter::class, property: 'name')]
 #[QueryParameter(key: 'slug', filter: PartialSearchFilter::class, property: 'slug')]
-final class StudioServiceCategoryResource {}
+final class ServiceCategoryResource {}

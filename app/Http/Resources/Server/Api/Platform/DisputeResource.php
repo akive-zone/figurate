@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Resources\Server\Signal;
+namespace App\Http\Resources\Server\Api\Platform;
 
 use ApiPlatform\Laravel\Eloquent\Filter\EqualsFilter;
 use ApiPlatform\Laravel\Eloquent\Filter\OrderFilter;
@@ -11,34 +11,42 @@ use ApiPlatform\Laravel\Eloquent\State\PersistProcessor;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
-use App\Models\Server\Rating as RatingModel;
+use App\Models\Server\Dispute as DisputeModel;
 
 #[ApiResource(
-    shortName: 'SignalRating',
+    shortName: 'Platform Dispute',
     operations: [
         new GetCollection(
-            uriTemplate: '/signal/ratings',
+            uriTemplate: '/platform/disputes',
             provider: CollectionProvider::class,
-            stateOptions: new EloquentOptions(modelClass: RatingModel::class),
+            stateOptions: new EloquentOptions(modelClass: DisputeModel::class),
             security: "is_granted('viewAny')",
         ),
         new Get(
-            uriTemplate: '/signal/ratings/{id}',
+            uriTemplate: '/platform/disputes/{id}',
             provider: ItemProvider::class,
-            stateOptions: new EloquentOptions(modelClass: RatingModel::class),
+            stateOptions: new EloquentOptions(modelClass: DisputeModel::class),
             security: "is_granted('view', object)",
         ),
         new Post(
-            uriTemplate: '/signal/ratings',
+            uriTemplate: '/platform/disputes',
             processor: PersistProcessor::class,
-            stateOptions: new EloquentOptions(modelClass: RatingModel::class),
+            stateOptions: new EloquentOptions(modelClass: DisputeModel::class),
             security: "is_granted('create')",
+        ),
+        new Patch(
+            uriTemplate: '/platform/disputes/{id}',
+            provider: ItemProvider::class,
+            processor: PersistProcessor::class,
+            stateOptions: new EloquentOptions(modelClass: DisputeModel::class),
+            security: "is_granted('update', object)",
         ),
     ],
 )]
 #[QueryParameter(key: 'status', filter: EqualsFilter::class, property: 'status')]
-#[QueryParameter(key: 'type', filter: EqualsFilter::class, property: 'type')]
+#[QueryParameter(key: 'phase', filter: EqualsFilter::class, property: 'phase')]
 #[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
-final class SignalRatingResource {}
+final class DisputeResource {}

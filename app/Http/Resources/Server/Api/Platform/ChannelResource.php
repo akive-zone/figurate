@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Resources\Server\Signal;
+namespace App\Http\Resources\Server\Api\Platform;
 
 use ApiPlatform\Laravel\Eloquent\Filter\EqualsFilter;
 use ApiPlatform\Laravel\Eloquent\Filter\OrderFilter;
@@ -11,33 +11,41 @@ use ApiPlatform\Laravel\Eloquent\State\PersistProcessor;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
-use App\Models\Server\Payment as PaymentModel;
+use App\Models\Server\Channel as ChannelModel;
 
 #[ApiResource(
-    shortName: 'SignalPayment',
+    shortName: 'Platform Channel',
     operations: [
         new GetCollection(
-            uriTemplate: '/signal/payments',
+            uriTemplate: '/platform/channels',
             provider: CollectionProvider::class,
-            stateOptions: new EloquentOptions(modelClass: PaymentModel::class),
+            stateOptions: new EloquentOptions(modelClass: ChannelModel::class),
             security: "is_granted('viewAny')",
         ),
         new Get(
-            uriTemplate: '/signal/payments/{id}',
+            uriTemplate: '/platform/channels/{id}',
             provider: ItemProvider::class,
-            stateOptions: new EloquentOptions(modelClass: PaymentModel::class),
+            stateOptions: new EloquentOptions(modelClass: ChannelModel::class),
             security: "is_granted('view', object)",
         ),
         new Post(
-            uriTemplate: '/signal/payments',
+            uriTemplate: '/platform/channels',
             processor: PersistProcessor::class,
-            stateOptions: new EloquentOptions(modelClass: PaymentModel::class),
+            stateOptions: new EloquentOptions(modelClass: ChannelModel::class),
             security: "is_granted('create')",
+        ),
+        new Patch(
+            uriTemplate: '/platform/channels/{id}',
+            provider: ItemProvider::class,
+            processor: PersistProcessor::class,
+            stateOptions: new EloquentOptions(modelClass: ChannelModel::class),
+            security: "is_granted('update', object)",
         ),
     ],
 )]
 #[QueryParameter(key: 'status', filter: EqualsFilter::class, property: 'status')]
 #[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
-final class SignalPaymentResource {}
+final class ChannelResource {}

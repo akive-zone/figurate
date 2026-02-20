@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Resources\Server\Studio;
+namespace App\Http\Resources\Server\Api\Platform;
 
 use ApiPlatform\Laravel\Eloquent\Filter\EqualsFilter;
 use ApiPlatform\Laravel\Eloquent\Filter\OrderFilter;
@@ -13,32 +13,31 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
-use App\Models\Server\Rating as RatingModel;
+use App\Models\Server\Process as ProcessModel;
 
 #[ApiResource(
-    shortName: 'StudioRating',
+    shortName: 'Platform Process',
     operations: [
         new GetCollection(
-            uriTemplate: '/studio/ratings',
+            uriTemplate: '/platform/processes',
             provider: CollectionProvider::class,
-            stateOptions: new EloquentOptions(modelClass: RatingModel::class),
+            stateOptions: new EloquentOptions(modelClass: ProcessModel::class),
             security: "is_granted('viewAny')",
         ),
         new Get(
-            uriTemplate: '/studio/ratings/{id}',
+            uriTemplate: '/platform/processes/{id}',
             provider: ItemProvider::class,
-            stateOptions: new EloquentOptions(modelClass: RatingModel::class),
+            stateOptions: new EloquentOptions(modelClass: ProcessModel::class),
             security: "is_granted('view', object)",
         ),
         new Post(
-            uriTemplate: '/studio/ratings',
+            uriTemplate: '/platform/processes',
             processor: PersistProcessor::class,
-            stateOptions: new EloquentOptions(modelClass: RatingModel::class),
+            stateOptions: new EloquentOptions(modelClass: ProcessModel::class),
             security: "is_granted('create')",
         ),
     ],
 )]
-#[QueryParameter(key: 'status', filter: EqualsFilter::class, property: 'status')]
 #[QueryParameter(key: 'type', filter: EqualsFilter::class, property: 'type')]
 #[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
-final class StudioRatingResource {}
+final class ProcessResource {}

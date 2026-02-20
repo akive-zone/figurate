@@ -173,7 +173,7 @@ class ChannelController extends Controller
 
     protected function fetchChannels(Request $request): array
     {
-        $channels = $this->fetchCollection($request, '/api/signal/channels', [
+        $channels = $this->fetchCollection($request, '/api/platform/channels', [
             'order[created_at]' => 'desc',
         ]);
 
@@ -183,12 +183,12 @@ class ChannelController extends Controller
                 ? $this->parseResourceId($requestRef[0] ?? null)
                 : $this->parseResourceId($requestRef);
 
-            $requestItem = $requestId ? $this->fetchItem($request, "/api/signal/requests/{$requestId}") : null;
+            $requestItem = $requestId ? $this->fetchItem($request, "/api/platform/requests/{$requestId}") : null;
 
             $latestMessage = null;
 
             if ($requestId) {
-                $messages = $this->fetchCollection($request, '/api/signal/messages', [
+                $messages = $this->fetchCollection($request, '/api/platform/messages', [
                     'messageable_type' => 'App\Models\Server\Request',
                     'messageable_id' => $requestId,
                     'order[created_at]' => 'desc',
@@ -224,13 +224,13 @@ class ChannelController extends Controller
 
     protected function fetchChannel(string $channelUuid, Request $request): ?array
     {
-        $channels = $this->fetchCollection($request, '/api/signal/channels', [
+        $channels = $this->fetchCollection($request, '/api/platform/channels', [
             'uuid' => $channelUuid,
             'itemsPerPage' => 1,
         ]);
 
         if ($channels === []) {
-            $channels = $this->fetchCollection($request, '/api/signal/channels', [
+            $channels = $this->fetchCollection($request, '/api/platform/channels', [
                 'itemsPerPage' => 100,
             ]);
         }
@@ -248,12 +248,12 @@ class ChannelController extends Controller
             ? $this->parseResourceId($requestRef[0] ?? null)
             : $this->parseResourceId($requestRef);
 
-        $requestItem = $requestId ? $this->fetchItem($request, "/api/signal/requests/{$requestId}") : null;
+        $requestItem = $requestId ? $this->fetchItem($request, "/api/platform/requests/{$requestId}") : null;
 
         $threadMessages = [];
 
         if ($requestId) {
-            $messages = $this->fetchCollection($request, '/api/signal/messages', [
+            $messages = $this->fetchCollection($request, '/api/platform/messages', [
                 'messageable_type' => 'App\Models\Server\Request',
                 'messageable_id' => $requestId,
                 'order[created_at]' => 'asc',

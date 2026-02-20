@@ -1,9 +1,11 @@
 <?php
 
-namespace App\Http\Resources\Server\Signal;
+namespace App\Http\Resources\Server\Api\Platform;
 
+use ApiPlatform\Laravel\Eloquent\Filter\DateFilter;
 use ApiPlatform\Laravel\Eloquent\Filter\EqualsFilter;
 use ApiPlatform\Laravel\Eloquent\Filter\OrderFilter;
+use ApiPlatform\Laravel\Eloquent\Filter\PartialSearchFilter;
 use ApiPlatform\Laravel\Eloquent\State\CollectionProvider;
 use ApiPlatform\Laravel\Eloquent\State\ItemProvider;
 use ApiPlatform\Laravel\Eloquent\State\Options as EloquentOptions;
@@ -14,39 +16,42 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
-use App\Models\Server\Dispute as DisputeModel;
+use App\Models\Server\Profile as ProfileModel;
 
 #[ApiResource(
-    shortName: 'SignalDispute',
+    shortName: 'Platform Profile',
     operations: [
         new GetCollection(
-            uriTemplate: '/signal/disputes',
+            uriTemplate: '/platform/profiles',
             provider: CollectionProvider::class,
-            stateOptions: new EloquentOptions(modelClass: DisputeModel::class),
+            stateOptions: new EloquentOptions(modelClass: ProfileModel::class),
             security: "is_granted('viewAny')",
         ),
         new Get(
-            uriTemplate: '/signal/disputes/{id}',
+            uriTemplate: '/platform/profiles/{id}',
             provider: ItemProvider::class,
-            stateOptions: new EloquentOptions(modelClass: DisputeModel::class),
+            stateOptions: new EloquentOptions(modelClass: ProfileModel::class),
             security: "is_granted('view', object)",
         ),
         new Post(
-            uriTemplate: '/signal/disputes',
+            uriTemplate: '/platform/profiles',
             processor: PersistProcessor::class,
-            stateOptions: new EloquentOptions(modelClass: DisputeModel::class),
+            stateOptions: new EloquentOptions(modelClass: ProfileModel::class),
             security: "is_granted('create')",
         ),
         new Patch(
-            uriTemplate: '/signal/disputes/{id}',
+            uriTemplate: '/platform/profiles/{id}',
             provider: ItemProvider::class,
             processor: PersistProcessor::class,
-            stateOptions: new EloquentOptions(modelClass: DisputeModel::class),
+            stateOptions: new EloquentOptions(modelClass: ProfileModel::class),
             security: "is_granted('update', object)",
         ),
     ],
 )]
+#[QueryParameter(key: 'user_id', filter: EqualsFilter::class, property: 'user_id')]
 #[QueryParameter(key: 'status', filter: EqualsFilter::class, property: 'status')]
-#[QueryParameter(key: 'phase', filter: EqualsFilter::class, property: 'phase')]
+#[QueryParameter(key: 'display_name', filter: PartialSearchFilter::class, property: 'display_name')]
+#[QueryParameter(key: 'location', filter: PartialSearchFilter::class, property: 'location')]
+#[QueryParameter(key: 'approved_at', filter: DateFilter::class, property: 'approved_at')]
 #[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
-final class SignalDisputeResource {}
+final class ProfileResource {}
