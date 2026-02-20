@@ -161,10 +161,10 @@ export const fetchSignalThreadMessages = async (chatId, runtime = {}) => {
 };
 
 export const fetchSignalChannelPosts = async (channelId, runtime = {}) => {
-    const template = (runtime?.signal_routes?.channel_posts_template ?? '').toString().trim();
+    const template = (runtime?.signal_routes?.chat_posts_template ?? '').toString().trim();
     const path = template !== ''
-        ? template.replace('__CHANNEL__', channelId)
-        : `/api/channels/${channelId}/posts`;
+        ? template.replace('__CHAT__', channelId)
+        : `/api/chats/${channelId}/posts`;
 
     try {
         const response = await axios.get(signalApiUrl(path, runtime), {

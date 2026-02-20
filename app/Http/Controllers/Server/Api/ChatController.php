@@ -83,17 +83,6 @@ class ChatController extends Controller
         ]);
     }
 
-    public function threads(Request $request, string $chat): JsonResponse
-    {
-        $channel = Channel::query()
-            ->where('uuid', $chat)
-            ->firstOrFail();
-
-        Gate::authorize('view', $channel);
-
-        return response()->json($this->threadCursorPageForRequest($request, $channel));
-    }
-
     public function store(
         StoreChatRequest $request,
         ConversationOrchestrator $orchestrator,
@@ -263,43 +252,6 @@ class ChatController extends Controller
         return [
             'data' => collect($paginator->items())
                 ->map(fn (Channel $channel): array => $this->mapChatListItem($channel, $actor))
-                ->values()
-                ->all(),
-            'meta' => [
-                'next_cursor' => $paginator->nextCursor()?->encode(),
-                'prev_cursor' => $paginator->previousCursor()?->encode(),
-                'per_page' => $perPage,
-            ],
-        ];
-    }
-
-    /**
-     * @return array{data: array<int, array<string, mixed>>, meta: array<string, mixed>}
-     */
-    protected function threadCursorPageForRequest(Request $request, Channel $channel): array
-    {
-        $actor = $request->user();
-        if (! $actor instanceof User) {
-            return [
-                'data' => [],
-                'meta' => [
-                    'next_cursor' => null,
-                    'prev_cursor' => null,
-                    'per_page' => 5,
-                ],
-            ];
-        }
-
-        Gate::forUser($actor)->authorize('view', $channel);
-
-        $perPage = max(5, min(50, (int) $request->integer('per_page', 5)));
-        $actorState = $this->actorStateForChannel($channel, $actor);
-        $paginator = $this->recentThreadsQuery($channel, $actorState)
-            ->cursorPaginate($perPage, ['*'], 'cursor', $request->query('cursor'));
-
-        return [
-            'data' => collect($paginator->items())
-                ->map(fn (Thread $thread): array => $this->mapThreadListItem($thread, $actorState))
                 ->values()
                 ->all(),
             'meta' => [
