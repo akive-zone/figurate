@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers\Server\Api;
 
+use App\Actions\Server\Chat\PromptPresenterThread;
 use App\Actions\Server\Chat\ResolveChatChannelContext;
-use App\Actions\Server\Chat\ResolveChatRequestedThreadId;
+use App\Actions\Server\Chat\ResolveChatThreadContext;
+use App\Actions\Server\Chat\SendPeerThreadMessage;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Signal\StoreChatRequest;
-use App\Jobs\GenerateAgentReply;
-use App\Jobs\ProcessThreadObservers;
 use App\Models\Server\Channel;
+use App\Models\Server\ChannelActorState;
 use App\Models\Server\Message;
-use App\Models\Server\Request as ServiceRequest;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
@@ -30,13 +30,23 @@ class ChatController extends Controller
         return response()->json($sidebarChats->cursorPageForRequest($request));
     }
 
-    public function show(Request $request, string $thread): JsonResponse
+    public function show(Request $request, string $chat): JsonResponse
     {
-        $threadRecord = Thread::query()
-            ->where('uuid', $thread)
-            ->firstOrFail();
+        /** @var User $actor */
+        $actor = $request->user();
+        [$threadRecord, $channelRecord] = $this->resolveThreadForChat($chat, $actor);
 
-        Gate::authorize('view', $threadRecord);
+        if (! $threadRecord) {
+            return response()->json([
+                'data' => [],
+                'chat' => [
+                    'id' => $chat,
+                    'channel_id' => $channelRecord?->uuid,
+                    'thread_id' => null,
+                ],
+                'thread' => null,
+            ]);
+        }
 
         $messages = $threadRecord->messages()
             ->orderBy('created_at')
@@ -58,6 +68,11 @@ class ChatController extends Controller
 
         return response()->json([
             'data' => $messages,
+            'chat' => [
+                'id' => $chat,
+                'channel_id' => $channelRecord?->uuid,
+                'thread_id' => $threadRecord->uuid,
+            ],
             'thread' => [
                 'id' => $threadRecord->uuid,
                 'purpose' => $threadRecord->purpose,
@@ -67,16 +82,36 @@ class ChatController extends Controller
         ]);
     }
 
+    public function threads(Request $request, string $chat, SidebarChats $sidebarChats): JsonResponse
+    {
+        $channel = Channel::query()
+            ->where('uuid', $chat)
+            ->firstOrFail();
+
+        Gate::authorize('view', $channel);
+
+        return response()->json(
+            $sidebarChats->threadCursorPageForRequest($request, $channel)
+        );
+    }
+
     public function store(
         StoreChatRequest $request,
         ConversationOrchestrator $orchestrator,
         ResolveChatChannelContext $resolveChatChannelContext,
-        ResolveChatRequestedThreadId $resolveChatRequestedThreadId,
+        ResolveChatThreadContext $resolveChatThreadContext,
+        SendPeerThreadMessage $sendPeerThreadMessage,
+        PromptPresenterThread $promptPresenterThread,
     ): JsonResponse {
         $channelUuid = $request->validated('channel');
         $threadUuid = $request->validated('thread');
+        $requestedThreadId = null;
 
-        [$channel, $serviceRequest] = $resolveChatChannelContext($channelUuid, $request->user());
+        if (is_string($threadUuid) && $threadUuid !== '') {
+            [$channel, $serviceRequest, $requestedThreadId] = $resolveChatThreadContext($threadUuid, $channelUuid);
+        } else {
+            [$channel, $serviceRequest] = $resolveChatChannelContext($channelUuid, $request->user());
+        }
 
         Gate::authorize('view', $channel);
         Gate::authorize('create', Message::class);
@@ -85,60 +120,93 @@ class ChatController extends Controller
             channel: $channel,
             serviceRequest: $serviceRequest,
             actor: $request->user(),
-            thread: $resolveChatRequestedThreadId($threadUuid, $channel, $serviceRequest),
-            message: $request->validated('content'),
+            thread: $requestedThreadId,
+            message: $request->validated('content.body'),
         );
         $thread = $decision->thread;
 
         $activePresenters = $this->resolveActivePresenters($thread);
 
         if ($activePresenters->isNotEmpty()) {
-            $content = $request->validated('content');
+            $content = $request->validated('content.body');
 
             if (! is_string($content) || trim($content) === '') {
                 abort(422, 'A text message is required for agent prompts.');
             }
+
+            $content = trim($content);
+            $actor = $request->user();
+            $idempotencyKey = $this->idempotencyKey($request);
+            $existingUserMessage = $this->findExistingUserMessage($thread, $actor, $idempotencyKey);
+
+            if ($existingUserMessage) {
+                if ($existingUserMessage->body !== $content) {
+                    $existingUserMessage->forceFill([
+                        'body' => $content,
+                    ])->save();
+                }
+
+                $existingAssistantMessages = $this->findAssistantRepliesForMessage($thread, $existingUserMessage, $activePresenters);
+                $firstAssistantMessage = $existingAssistantMessages->first();
+                $expectedPresenterReplyCount = $this->expectedPresenterReplyCount($activePresenters);
+                $pendingReplies = $existingAssistantMessages->count() < $expectedPresenterReplyCount;
+
+                return response()->json([
+                    'message' => 'Message already submitted.',
+                    'thread' => $thread->uuid,
+                    'channel' => $channel->uuid,
+                    'text' => $firstAssistantMessage?->body,
+                    'message_id' => $existingUserMessage->id,
+                    'assistant_message_id' => $firstAssistantMessage?->id,
+                    'assistant_messages' => $existingAssistantMessages
+                        ->map(fn (Message $message): array => [
+                            'id' => $message->id,
+                            'actor_key' => data_get($message->meta, 'actor_key'),
+                            'text' => $message->body,
+                            'created_at' => optional($message->created_at)?->toIso8601String(),
+                        ])
+                        ->values()
+                        ->all(),
+                    'duplicate' => true,
+                    'pending' => $pendingReplies,
+                    'pending_presenters' => max($expectedPresenterReplyCount - $existingAssistantMessages->count(), 0),
+                ]);
+            }
+
+            $userMessage = $promptPresenterThread($channel, $serviceRequest, $thread, $actor, $content, $activePresenters);
+            $this->cacheIdempotentMessage($thread, $actor, $idempotencyKey, $userMessage);
+
+            return response()->json([
+                'message' => 'Agent response queued.',
+                'thread' => $thread->uuid,
+                'channel' => $channel->uuid,
+                'message_id' => $userMessage->id,
+                'assistant_message_id' => null,
+                'pending_presenters' => $this->expectedPresenterReplyCount($activePresenters),
+                'pending' => true,
+            ], 202);
         }
 
-        if ($activePresenters->isEmpty()) {
-            return $this->storeHumanMessage($request, $channel, $serviceRequest, $thread);
-        }
-
-        return $this->promptAgentThread($request, $channel, $serviceRequest, $thread, $request->user(), $activePresenters);
-    }
-
-    /**
-     * @return Collection<int, ThreadActor>
-     */
-    protected function resolveActivePresenters(Thread $thread): Collection
-    {
-        return $thread->presenterActors()->get();
-    }
-
-    protected function storeHumanMessage(
-        StoreChatRequest $request,
-        Channel $channel,
-        ?ServiceRequest $serviceRequest,
-        Thread $thread
-    ): JsonResponse {
-        if (! $this->canActorWrite($channel, $serviceRequest, $request->user())) {
-            abort(403);
-        }
-
-        /** @var Collection<int, UploadedFile> $uploadedMedia */
-        $uploadedMedia = collect($request->file('contents', []))
+        $actor = $request->user();
+        $body = $request->validated('content.body');
+        $normalizedBody = is_string($body) ? trim($body) : null;
+        $normalizedBody = $normalizedBody === '' ? null : $normalizedBody;
+        $attachmentFiles = collect($request->file('content.attachments', []))
             ->filter(fn (mixed $file): bool => $file instanceof UploadedFile)
+            ->map(fn (UploadedFile $file): array => [
+                'path' => (string) $file->getRealPath(),
+                'original_name' => $file->getClientOriginalName(),
+            ])
+            ->filter(fn (array $attachment): bool => $attachment['path'] !== '' && $attachment['original_name'] !== '')
             ->values();
 
-        $content = $request->validated('content');
         $idempotencyKey = $this->idempotencyKey($request);
-        $existingUserMessage = $this->findExistingUserMessage($thread, $request->user(), $idempotencyKey);
+        $existingUserMessage = $this->findExistingUserMessage($thread, $actor, $idempotencyKey);
 
         if ($existingUserMessage) {
-            $normalizedContent = is_string($content) ? trim($content) : null;
-            if ($normalizedContent !== null && $normalizedContent !== '' && $existingUserMessage->body !== $normalizedContent) {
+            if ($normalizedBody !== null && $existingUserMessage->body !== $normalizedBody) {
                 $existingUserMessage->forceFill([
-                    'body' => $normalizedContent,
+                    'body' => $normalizedBody,
                 ])->save();
             }
 
@@ -152,31 +220,8 @@ class ChatController extends Controller
             ]);
         }
 
-        $message = $thread->messages()->create([
-            'senderable_type' => $request->user()->getMorphClass(),
-            'senderable_id' => $request->user()->getKey(),
-            'type' => 'text',
-            'body' => is_string($content) && $content !== '' ? $content : null,
-            'attachments' => null,
-            'meta' => [
-                'source' => 'peer_message',
-            ],
-        ]);
-
-        $this->cacheIdempotentMessage($thread, $request->user(), $idempotencyKey, $message);
-
-        $uploadedMedia->each(function (UploadedFile $file) use ($message): void {
-            $message->addMedia($file)
-                ->usingName(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME))
-                ->usingFileName($file->getClientOriginalName())
-                ->toMediaCollection('attachments');
-        });
-
-        if ($uploadedMedia->isNotEmpty()) {
-            $message->syncAttachmentPayload();
-        }
-
-        ProcessThreadObservers::dispatch($thread->id, $message->id);
+        $message = $sendPeerThreadMessage($channel, $serviceRequest, $thread, $actor, $normalizedBody, $attachmentFiles);
+        $this->cacheIdempotentMessage($thread, $actor, $idempotencyKey, $message);
 
         return response()->json([
             'message' => 'Message sent.',
@@ -187,101 +232,12 @@ class ChatController extends Controller
         ]);
     }
 
-    protected function promptAgentThread(
-        StoreChatRequest $request,
-        Channel $channel,
-        ?ServiceRequest $serviceRequest,
-        Thread $thread,
-        User $actor,
-        Collection $activePresenters,
-    ): JsonResponse {
-        if (! $this->canActorWrite($channel, $serviceRequest, $actor)) {
-            abort(403);
-        }
-
-        $content = $request->validated('content');
-        $content = is_string($content) ? trim($content) : '';
-        if ($content === '') {
-            abort(422, 'A text message is required for agent prompts.');
-        }
-        $idempotencyKey = $this->idempotencyKey($request);
-
-        $existingUserMessage = $this->findExistingUserMessage($thread, $actor, $idempotencyKey);
-
-        if ($existingUserMessage) {
-            if ($existingUserMessage->body !== $content) {
-                $existingUserMessage->forceFill([
-                    'body' => $content,
-                ])->save();
-            }
-
-            $existingAssistantMessages = $this->findAssistantRepliesForMessage($thread, $existingUserMessage, $activePresenters);
-            $firstAssistantMessage = $existingAssistantMessages->first();
-            $expectedPresenterReplyCount = $this->expectedPresenterReplyCount($activePresenters);
-            $pendingReplies = $existingAssistantMessages->count() < $expectedPresenterReplyCount;
-
-            return response()->json([
-                'message' => 'Message already submitted.',
-                'thread' => $thread->uuid,
-                'channel' => $channel->uuid,
-                'text' => $firstAssistantMessage?->body,
-                'message_id' => $existingUserMessage->id,
-                'assistant_message_id' => $firstAssistantMessage?->id,
-                'assistant_messages' => $existingAssistantMessages
-                    ->map(fn (Message $message): array => [
-                        'id' => $message->id,
-                        'actor_key' => data_get($message->meta, 'actor_key'),
-                        'text' => $message->body,
-                        'created_at' => optional($message->created_at)?->toIso8601String(),
-                    ])
-                    ->values()
-                    ->all(),
-                'duplicate' => true,
-                'pending' => $pendingReplies,
-                'pending_presenters' => max($expectedPresenterReplyCount - $existingAssistantMessages->count(), 0),
-            ]);
-        }
-
-        $userMessage = $thread->messages()->create([
-            'senderable_type' => $actor->getMorphClass(),
-            'senderable_id' => $actor->getKey(),
-            'type' => 'text',
-            'body' => $content,
-            'attachments' => null,
-            'meta' => [
-                'source' => 'agent_prompt',
-            ],
-        ]);
-
-        $this->cacheIdempotentMessage($thread, $actor, $idempotencyKey, $userMessage);
-
-        $activePresenters->each(function (ThreadActor $presenter) use ($thread, $userMessage, $actor): void {
-            GenerateAgentReply::dispatch(
-                threadId: $thread->id,
-                userMessageId: $userMessage->id,
-                actorId: $actor->id,
-                primaryPresenterActorId: $presenter->id,
-            )->afterCommit();
-        });
-
-        return response()->json([
-            'message' => 'Agent response queued.',
-            'thread' => $thread->uuid,
-            'channel' => $channel->uuid,
-            'message_id' => $userMessage->id,
-            'assistant_message_id' => null,
-            'pending_presenters' => $this->expectedPresenterReplyCount($activePresenters),
-            'pending' => true,
-        ], 202);
-    }
-
-    protected function canActorWrite(Channel $channel, ?ServiceRequest $serviceRequest, User $actor): bool
+    /**
+     * @return Collection<int, ThreadActor>
+     */
+    protected function resolveActivePresenters(Thread $thread): Collection
     {
-        if ($serviceRequest) {
-            return $serviceRequest->hasParticipant($actor);
-        }
-
-        return $channel->hasActor($actor);
+        return $thread->presenterActors()->get();
     }
 
     protected function idempotencyKey(StoreChatRequest $request): ?string
@@ -391,5 +347,69 @@ class ChatController extends Controller
             $actor->getKey(),
             sha1($idempotencyKey),
         );
+    }
+
+    /**
+     * @return array{0: ?Thread, 1: ?Channel}
+     */
+    protected function resolveThreadForChat(string $chat, User $actor): array
+    {
+        $threadRecord = Thread::query()
+            ->where('uuid', $chat)
+            ->first();
+
+        if ($threadRecord instanceof Thread) {
+            Gate::forUser($actor)->authorize('view', $threadRecord);
+
+            $channelRecord = null;
+            if ($threadRecord->threadable instanceof Channel) {
+                $channelRecord = $threadRecord->threadable;
+                Gate::forUser($actor)->authorize('view', $channelRecord);
+            }
+
+            return [$threadRecord, $channelRecord];
+        }
+
+        $channelRecord = Channel::query()
+            ->where('uuid', $chat)
+            ->firstOrFail();
+
+        Gate::forUser($actor)->authorize('view', $channelRecord);
+
+        $threadIds = $channelRecord->conversationThreadIds();
+
+        if ($threadIds->isEmpty()) {
+            return [null, $channelRecord];
+        }
+
+        $actorStateThreadId = $channelRecord->actorStates()
+            ->where('actorable_type', $actor->getMorphClass())
+            ->where('actorable_id', $actor->id)
+            ->where('status', ChannelActorState::StatusActive)
+            ->value('thread_id');
+
+        if (is_int($actorStateThreadId) && $actorStateThreadId > 0 && $threadIds->contains($actorStateThreadId)) {
+            $activeThread = Thread::query()
+                ->whereKey($actorStateThreadId)
+                ->first();
+
+            if ($activeThread instanceof Thread) {
+                Gate::forUser($actor)->authorize('view', $activeThread);
+
+                return [$activeThread, $channelRecord];
+            }
+        }
+
+        $latestThread = Thread::query()
+            ->whereIn('id', $threadIds->all())
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($latestThread instanceof Thread) {
+            Gate::forUser($actor)->authorize('view', $latestThread);
+        }
+
+        return [$latestThread, $channelRecord];
     }
 }

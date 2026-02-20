@@ -1,7 +1,7 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
-import { fetchSignalChats } from '../api/signalChat';
+import { fetchSignalChatThreads, fetchSignalChats } from '../api/signalChat';
 
 const props = defineProps({
     channels: {
@@ -72,17 +72,10 @@ const signalChannelThreadUrl = (channelId, threadId) => {
         .replace('__CHANNEL__', channelId)
         .replace('__THREAD__', threadId);
 };
-const channelTitle = (channel) => {
-    const threadTitle = Array.isArray(channel?.threads) && channel.threads.length > 0
-        ? (channel.threads[0]?.title ?? '').toString().trim()
-        : '';
-
-    if (threadTitle !== '') {
-        return threadTitle;
-    }
-
-    return `Chat ${channel?.id ?? ''}`.trim();
-};
+const chatChannelId = (chat) => (chat?.channel?.id ?? '').toString();
+const chatThreads = (chat) => (Array.isArray(chat?.threads) ? chat.threads : []);
+const channelTitle = (chat) => (chat?.name ?? '').toString();
+const chatLatestMessageBody = (chat) => (chat?.channel?.latest_message?.body ?? 'No messages yet').toString();
 const showDeviceLoginPrompt = computed(() => !isNativeRuntime.value && authUser.value?.type === 'device');
 const showAccountModal = ref(false);
 const googleLoginUrl = computed(() => {
@@ -117,6 +110,7 @@ const displayAccountName = computed(() => {
     return (authUser.value?.name ?? 'Account').toString();
 });
 const sidebarChannels = ref(props.channels ?? []);
+const loadingMoreThreadsByChat = ref({});
 
 watch(
     () => props.channels,
@@ -138,6 +132,76 @@ const refreshSidebarChats = async () => {
     }
 };
 
+const canLoadMoreThreads = (chat) => {
+    const cursor = (chat?.threads_meta?.next_cursor ?? '').toString().trim();
+
+    return cursor !== '';
+};
+
+const isLoadingMoreThreads = (chatId) => loadingMoreThreadsByChat.value[chatId] === true;
+
+const mergeThreads = (existingThreads, incomingThreads) => {
+    const existing = Array.isArray(existingThreads) ? existingThreads : [];
+    const incoming = Array.isArray(incomingThreads) ? incomingThreads : [];
+    const seen = new Set();
+    const merged = [];
+
+    [...existing, ...incoming].forEach((thread) => {
+        const id = (thread?.id ?? '').toString().trim();
+        if (id === '' || seen.has(id)) {
+            return;
+        }
+
+        seen.add(id);
+        merged.push(thread);
+    });
+
+    return merged;
+};
+
+const loadMoreThreads = async (chat) => {
+    const chatId = (chat?.id ?? '').toString().trim();
+    const cursor = (chat?.threads_meta?.next_cursor ?? '').toString().trim();
+
+    if (chatId === '' || cursor === '' || isLoadingMoreThreads(chatId)) {
+        return;
+    }
+
+    loadingMoreThreadsByChat.value = {
+        ...loadingMoreThreadsByChat.value,
+        [chatId]: true,
+    };
+
+    try {
+        const payload = await fetchSignalChatThreads(chatId, runtime.value, { cursor });
+        const nextThreads = Array.isArray(payload?.data) ? payload.data : [];
+        const nextMeta = payload?.meta ?? {};
+
+        sidebarChannels.value = sidebarChannels.value.map((item) => {
+            if (item?.id !== chatId) {
+                return item;
+            }
+
+            return {
+                ...item,
+                threads: mergeThreads(item.threads, nextThreads),
+                threads_meta: {
+                    next_cursor: nextMeta.next_cursor ?? null,
+                    prev_cursor: nextMeta.prev_cursor ?? null,
+                    per_page: nextMeta.per_page ?? item?.threads_meta?.per_page ?? 5,
+                },
+            };
+        });
+    } catch {
+        // Keep existing threads list when request fails.
+    } finally {
+        loadingMoreThreadsByChat.value = {
+            ...loadingMoreThreadsByChat.value,
+            [chatId]: false,
+        };
+    }
+};
+
 onMounted(() => {
     refreshSidebarChats();
 });
@@ -156,28 +220,37 @@ onMounted(() => {
             </div>
 
             <nav class="signal-channel-nav">
-                <div v-for="channel in sidebarChannels" :key="channel.id" class="signal-channel-group">
+                <div v-for="chat in sidebarChannels" :key="chat.id" class="signal-channel-group">
                     <Link
-                        :href="signalChannelUrl(channel.id)"
+                        :href="signalChannelUrl(chatChannelId(chat))"
                         class="signal-channel-link"
-                        :class="{ 'signal-channel-link--active': props.activeChannelId === channel.id }"
+                        :class="{ 'signal-channel-link--active': props.activeChannelId === chatChannelId(chat) }"
                     >
-                        <p class="signal-channel-link__title">{{ channelTitle(channel) }}</p>
-                        <p class="signal-channel-link__meta">{{ channel.latest_message?.body ?? 'No messages yet' }}</p>
+                        <p class="signal-channel-link__title">{{ channelTitle(chat) }}</p>
+                        <p class="signal-channel-link__meta">{{ chatLatestMessageBody(chat) }}</p>
                     </Link>
                     <div
-                        v-if="props.activeChannelId === channel.id && Array.isArray(channel.threads) && channel.threads.length > 0"
+                        v-if="props.activeChannelId === chatChannelId(chat) && chatThreads(chat).length > 0"
                         class="signal-thread-tree"
                     >
                         <Link
-                            v-for="thread in channel.threads"
+                            v-for="thread in chatThreads(chat)"
                             :key="thread.id"
-                            :href="signalChannelThreadUrl(channel.id, thread.id)"
+                            :href="signalChannelThreadUrl(chatChannelId(chat), thread.id)"
                             class="signal-thread-tree__item"
                             :class="{ 'signal-thread-tree__item--active': props.activeThreadId === thread.id }"
                         >
                             {{ thread.title ?? 'Thread' }}
                         </Link>
+                        <button
+                            v-if="canLoadMoreThreads(chat)"
+                            type="button"
+                            class="signal-link"
+                            :disabled="isLoadingMoreThreads(chat.id)"
+                            @click="loadMoreThreads(chat)"
+                        >
+                            {{ isLoadingMoreThreads(chat.id) ? 'Loading...' : 'Load more threads' }}
+                        </button>
                     </div>
                 </div>
                 <p v-if="sidebarChannels.length === 0" class="signal-sidebar__empty">No chats yet</p>

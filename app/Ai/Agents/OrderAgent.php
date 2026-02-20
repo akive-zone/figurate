@@ -2,6 +2,22 @@
 
 namespace App\Ai\Agents;
 
+use App\Ai\Middleware\Rules\ApplyPresenterResponseRules;
+use App\Ai\Middleware\Rules\ApplySafetyAndPolicyRules;
+use App\Ai\Middleware\Rules\EnforceActorPermissions;
+use App\Ai\Middleware\Rules\EnforceThreadParticipation;
+use App\Ai\Middleware\Rules\EnforceToolBudgetAndTimeouts;
+use App\Ai\Middleware\Rules\PreventDuplicateProcessing;
+use App\Ai\Middleware\Rules\RequireEvidenceForDecisions;
+use App\Ai\Middleware\Rules\ResponseQualityGate;
+use App\Ai\Middleware\Rules\ValidateInputContract;
+use App\Ai\Middleware\Workflows\ApplyFulfillmentWorkflow;
+use App\Ai\Middleware\Workflows\ComposeAndRouteResponse;
+use App\Ai\Middleware\Workflows\ExecuteToolsAndActions;
+use App\Ai\Middleware\Workflows\InitializeFulfillmentContext;
+use App\Ai\Middleware\Workflows\PlanFulfillmentSteps;
+use App\Ai\Middleware\Workflows\PostResponseLearning;
+use App\Ai\Middleware\Workflows\SelectPresenters;
 use App\Ai\Support\ThreadToolResolver;
 use App\Models\Server\Request;
 use App\Models\Server\Thread;
@@ -9,12 +25,13 @@ use App\Models\Server\User;
 use Laravel\Ai\Concerns\RemembersConversations;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\Conversational;
+use Laravel\Ai\Contracts\HasMiddleware;
 use Laravel\Ai\Contracts\HasTools;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Promptable;
 use Stringable;
 
-class OrderAgent implements Agent, Conversational, HasTools
+class OrderAgent implements Agent, Conversational, HasMiddleware, HasTools
 {
     use Promptable, RemembersConversations;
 
@@ -65,5 +82,27 @@ class OrderAgent implements Agent, Conversational, HasTools
         }
 
         return app(ThreadToolResolver::class)->resolve($this->thread, $this->actor);
+    }
+
+    public function middleware(): array
+    {
+        return [
+            new InitializeFulfillmentContext,
+            new SelectPresenters,
+            new ApplyFulfillmentWorkflow,
+            new PlanFulfillmentSteps,
+            new ExecuteToolsAndActions,
+            new ComposeAndRouteResponse,
+            new PostResponseLearning,
+            new EnforceActorPermissions,
+            new EnforceThreadParticipation,
+            new PreventDuplicateProcessing,
+            new ValidateInputContract,
+            new ApplySafetyAndPolicyRules,
+            new EnforceToolBudgetAndTimeouts,
+            new RequireEvidenceForDecisions,
+            new ResponseQualityGate,
+            new ApplyPresenterResponseRules,
+        ];
     }
 }

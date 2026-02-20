@@ -121,11 +121,31 @@ export const fetchSignalChats = async (runtime = {}, query = {}) => {
     }
 };
 
-export const fetchSignalThreadMessages = async (threadId, runtime = {}) => {
+export const fetchSignalChatThreads = async (chatId, runtime = {}, query = {}) => {
+    const template = (runtime?.signal_routes?.chats_threads_template ?? '').toString().trim();
+    const path = template !== ''
+        ? template.replace('__CHAT__', chatId)
+        : `/api/chats/${chatId}/threads`;
+
+    try {
+        const response = await axios.get(signalApiUrl(path, runtime), {
+            params: query,
+            headers: signalAuthHeaders(),
+        });
+        persistSignalBootstrapHeaders(response);
+
+        return response.data;
+    } catch (error) {
+        persistSignalBootstrapHeaders(error.response);
+        throw error;
+    }
+};
+
+export const fetchSignalThreadMessages = async (chatId, runtime = {}) => {
     const template = (runtime?.signal_routes?.chats_show_template ?? '').toString().trim();
     const path = template !== ''
-        ? template.replace('__THREAD__', threadId)
-        : `/api/chats/${threadId}`;
+        ? template.replace('__CHAT__', chatId)
+        : `/api/chats/${chatId}`;
 
     try {
         const response = await axios.get(signalApiUrl(path, runtime), {

@@ -69,7 +69,10 @@ const submit = async () => {
         }
 
         const response = await sendSignalChatMessage({
-            content: message,
+            content: {
+                body: message,
+                attachments: [],
+            },
         }, runtime.value);
         const channelId = response.data?.channel;
         const threadId = response.data?.thread;
@@ -110,7 +113,7 @@ const submit = async () => {
                     placeholder="Ask anything..."
                 />
                 <p v-if="errors.message" class="signal-error">{{ errors.message[0] }}</p>
-                <p v-if="errors.content" class="signal-error">{{ errors.content[0] }}</p>
+                <p v-if="errors['content.body']" class="signal-error">{{ errors['content.body'][0] }}</p>
                 <p v-if="formError" class="signal-error">{{ formError }}</p>
                 <div class="signal-form__actions">
                     <Link :href="signalCreateChannelUrl" class="signal-link">Open Full Composer</Link>

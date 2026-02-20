@@ -85,7 +85,10 @@ const submitPrompt = async () => {
         await sendSignalChatMessage({
             channel: activeChannel.value.id,
             thread: activeChannel.value.active_thread ?? null,
-            content: promptForm.content,
+            content: {
+                body: promptForm.content,
+                attachments: [],
+            },
         }, runtime.value, {
             idempotencyKey: clientMessageId,
         });
@@ -330,7 +333,7 @@ const submitFloatingPrompt = async (content) => {
                     rows="4"
                     placeholder="Write a message..."
                 />
-                <p v-if="promptErrors.content" class="signal-error">{{ promptErrors.content[0] }}</p>
+                <p v-if="promptErrors['content.body']" class="signal-error">{{ promptErrors['content.body'][0] }}</p>
                 <p v-if="promptErrorMessage" class="signal-error">{{ promptErrorMessage }}</p>
                 <p v-if="agentStatusMessage" class="signal-thread__meta">{{ agentStatusMessage }}</p>
                 <button class="signal-button" :disabled="isPrompting">
