@@ -1,6 +1,7 @@
 <script setup>
 import SignalLayout from '../../../Layouts/SignalLayout.vue';
 import FloatingChatWindow from './FloatingChatWindow.vue';
+import SlidingChatWindow from './SlidingChatWindow.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import DOMPurify from 'dompurify';
@@ -51,6 +52,7 @@ const threadLoadError = ref('');
 const agentStatusMessage = ref('');
 const subscribedThreadId = ref('');
 const isFloatingChatOpen = ref(true);
+const isSlidingChatOpen = ref(false);
 
 const makeClientMessageId = () => {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -125,6 +127,9 @@ const visibleItems = computed(() => {
 
 const floatingChatMessages = computed(() => {
     return visibleItems.value.slice(-10);
+});
+const slidingChatMessages = computed(() => {
+    return visibleItems.value.slice(-25);
 });
 
 const floatingChatTitle = computed(() => {
@@ -276,6 +281,11 @@ const submitFloatingPrompt = async (content) => {
     promptForm.content = content;
     await submitPrompt();
 };
+
+const submitSlidingPrompt = async (content) => {
+    promptForm.content = content;
+    await submitPrompt();
+};
 </script>
 
 <template>
@@ -356,6 +366,15 @@ const submitFloatingPrompt = async (content) => {
             :messages="floatingChatMessages"
             :sending="isPrompting"
             @send="submitFloatingPrompt"
+        />
+
+        <SlidingChatWindow
+            v-if="activeChannel"
+            v-model="isSlidingChatOpen"
+            title="Assistant"
+            :messages="slidingChatMessages"
+            :sending="isPrompting"
+            @send="submitSlidingPrompt"
         />
     </SignalLayout>
 </template>

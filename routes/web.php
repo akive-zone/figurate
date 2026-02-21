@@ -1,8 +1,8 @@
 <?php
 
-use App\Http\Controllers\Native\Signal\ChannelController as NativeSignalChannelController;
+use App\Http\Controllers\Native\ChannelController as NativeSignalChannelController;
 use App\Http\Controllers\Server\Auth\SocialiteController;
-use App\Http\Controllers\Server\Web\Signal\ChannelController as ServerSignalChannelController;
+use App\Http\Controllers\Server\Web\ChannelController as ServerSignalChannelController;
 use App\Http\Middleware\EnsureDeviceUser;
 use Illuminate\Support\Facades\Route;
 
