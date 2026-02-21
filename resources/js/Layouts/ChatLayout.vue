@@ -1,7 +1,7 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
-import { fetchSignalChatThreads, fetchSignalChats } from '../api/signalChat';
+import { fetchChatChatThreads, fetchChatChats } from '../api';
 
 const props = defineProps({
     channels: {
@@ -25,50 +25,50 @@ const flashSuccess = computed(() => page.props.flash?.success ?? null);
 const flashError = computed(() => page.props.flash?.error ?? null);
 const runtime = computed(() => page.props.runtime ?? {});
 const isNativeRuntime = computed(() => runtime.value.is_native === true);
-const signalRoutes = computed(() => runtime.value.signal_routes ?? {});
-const signalIndexUrl = computed(() => {
-    const configured = (signalRoutes.value.index ?? '').toString().trim();
+const chatRoutes = computed(() => runtime.value.routes ?? {});
+const chatIndexUrl = computed(() => {
+    const configured = (chatRoutes.value.index ?? '').toString().trim();
     if (configured !== '') {
         return configured;
     }
 
-    const fallback = (runtime.value.signal_index_path ?? '').toString().trim();
+    const fallback = (runtime.value.index_path ?? '').toString().trim();
 
     return fallback !== '' ? fallback : '/';
 });
-const signalCreateChannelUrl = computed(() => {
-    const configured = (signalRoutes.value.create ?? '').toString().trim();
+const chatCreateChannelUrl = computed(() => {
+    const configured = (chatRoutes.value.create ?? '').toString().trim();
     if (configured !== '') {
         return configured;
     }
 
     return '/channels/new';
 });
-const signalShowTemplate = computed(() => {
-    const configured = (signalRoutes.value.show_template ?? '').toString().trim();
+const chatShowTemplate = computed(() => {
+    const configured = (chatRoutes.value.show_template ?? '').toString().trim();
     if (configured !== '') {
         return configured;
     }
 
     return '/channels/__CHANNEL__';
 });
-const signalShowThreadTemplate = computed(() => {
-    const configured = (signalRoutes.value.show_thread_template ?? '').toString().trim();
+const chatShowThreadTemplate = computed(() => {
+    const configured = (chatRoutes.value.show_thread_template ?? '').toString().trim();
     if (configured !== '') {
         return configured;
     }
 
     return '/channels/__CHANNEL__/threads/__THREAD__';
 });
-const signalChannelUrl = (channelId) => signalShowTemplate.value.replace('__CHANNEL__', channelId);
-const signalChannelThreadUrl = (channelId, threadId) => {
-    const channelUrl = signalChannelUrl(channelId);
+const chatChannelUrl = (channelId) => chatShowTemplate.value.replace('__CHANNEL__', channelId);
+const chatChannelThreadUrl = (channelId, threadId) => {
+    const channelUrl = chatChannelUrl(channelId);
 
     if (!threadId) {
         return channelUrl;
     }
 
-    return signalShowThreadTemplate.value
+    return chatShowThreadTemplate.value
         .replace('__CHANNEL__', channelId)
         .replace('__THREAD__', threadId);
 };
@@ -122,7 +122,7 @@ watch(
 
 const refreshSidebarChats = async () => {
     try {
-        const payloadResponse = await fetchSignalChats(runtime.value);
+        const payloadResponse = await fetchChatChats(runtime.value);
         const payload = payloadResponse?.data;
         if (Array.isArray(payload)) {
             sidebarChannels.value = payload;
@@ -173,7 +173,7 @@ const loadMoreThreads = async (chat) => {
     };
 
     try {
-        const payload = await fetchSignalChatThreads(chatId, runtime.value, { cursor });
+        const payload = await fetchChatChatThreads(chatId, runtime.value, { cursor });
         const nextThreads = Array.isArray(payload?.data) ? payload.data : [];
         const nextMeta = payload?.meta ?? {};
 
@@ -208,44 +208,44 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="signal-shell signal-workspace">
-        <aside class="signal-sidebar">
-            <div class="signal-sidebar__head">
-                <p class="signal-sidebar__kicker">Signal</p>
-                <h1 class="signal-sidebar__title">Chats</h1>
+    <div class="shell workspace">
+        <aside class="sidebar">
+            <div class="sidebar__head">
+                <p class="sidebar__kicker">Chat</p>
+                <h1 class="sidebar__title">Chats</h1>
             </div>
 
-            <div class="signal-sidebar__actions">
-                <Link :href="signalCreateChannelUrl" class="signal-button signal-button--full">New Chat</Link>
+            <div class="sidebar__actions">
+                <Link :href="chatCreateChannelUrl" class="button button--full">New Chat</Link>
             </div>
 
-            <nav class="signal-channel-nav">
-                <div v-for="chat in sidebarChannels" :key="chat.id" class="signal-channel-group">
+            <nav class="channel-nav">
+                <div v-for="chat in sidebarChannels" :key="chat.id" class="channel-group">
                     <Link
-                        :href="signalChannelUrl(chatChannelId(chat))"
-                        class="signal-channel-link"
-                        :class="{ 'signal-channel-link--active': props.activeChannelId === chatChannelId(chat) }"
+                        :href="chatChannelUrl(chatChannelId(chat))"
+                        class="channel-link"
+                        :class="{ 'channel-link--active': props.activeChannelId === chatChannelId(chat) }"
                     >
-                        <p class="signal-channel-link__title">{{ channelTitle(chat) }}</p>
-                        <p class="signal-channel-link__meta">{{ chatLatestMessageBody(chat) }}</p>
+                        <p class="channel-link__title">{{ channelTitle(chat) }}</p>
+                        <p class="channel-link__meta">{{ chatLatestMessageBody(chat) }}</p>
                     </Link>
                     <div
                         v-if="props.activeChannelId === chatChannelId(chat) && chatThreads(chat).length > 0"
-                        class="signal-thread-tree"
+                        class="thread-tree"
                     >
                         <Link
                             v-for="thread in chatThreads(chat)"
                             :key="thread.id"
-                            :href="signalChannelThreadUrl(chatChannelId(chat), thread.id)"
-                            class="signal-thread-tree__item"
-                            :class="{ 'signal-thread-tree__item--active': props.activeThreadId === thread.id }"
+                            :href="chatChannelThreadUrl(chatChannelId(chat), thread.id)"
+                            class="thread-tree__item"
+                            :class="{ 'thread-tree__item--active': props.activeThreadId === thread.id }"
                         >
                             {{ thread.title ?? 'Thread' }}
                         </Link>
                         <button
                             v-if="canLoadMoreThreads(chat)"
                             type="button"
-                            class="signal-link"
+                            class="link"
                             :disabled="isLoadingMoreThreads(chat.id)"
                             @click="loadMoreThreads(chat)"
                         >
@@ -253,49 +253,49 @@ onMounted(() => {
                         </button>
                     </div>
                 </div>
-                <p v-if="sidebarChannels.length === 0" class="signal-sidebar__empty">No chats yet</p>
+                <p v-if="sidebarChannels.length === 0" class="sidebar__empty">No chats yet</p>
             </nav>
 
-            <footer class="signal-footer" v-if="authUser">
+            <footer class="footer" v-if="authUser">
                 <span>{{ displayAccountName }}</span>
             </footer>
         </aside>
 
-        <main class="signal-main signal-panel">
-            <header class="signal-header">
-                <div class="signal-header__actions">
-                    <Link :href="signalIndexUrl" class="signal-link">All Chats</Link>
-                    <button type="button" class="signal-user-chip" @click="showAccountModal = true">
+        <main class="main panel">
+            <header class="header">
+                <div class="header__actions">
+                    <Link :href="chatIndexUrl" class="link">All Chats</Link>
+                    <button type="button" class="user-chip" @click="showAccountModal = true">
                         {{ accountButtonLabel }}
                     </button>
                 </div>
             </header>
 
-            <section v-if="flashSuccess" class="signal-alert signal-alert--success">{{ flashSuccess }}</section>
-            <section v-if="flashError" class="signal-alert signal-alert--error">{{ flashError }}</section>
+            <section v-if="flashSuccess" class="alert alert--success">{{ flashSuccess }}</section>
+            <section v-if="flashError" class="alert alert--error">{{ flashError }}</section>
 
-            <div class="signal-main__content">
+            <div class="main__content">
                 <slot />
             </div>
         </main>
 
-        <div v-if="showAccountModal" class="signal-modal-overlay" @click.self="showAccountModal = false">
-            <section class="signal-modal">
-                <header class="signal-modal__header">
-                    <h3 class="signal-modal__title">Account</h3>
-                    <button type="button" class="signal-link" @click="showAccountModal = false">Close</button>
+        <div v-if="showAccountModal" class="modal-overlay" @click.self="showAccountModal = false">
+            <section class="modal">
+                <header class="modal__header">
+                    <h3 class="modal__title">Account</h3>
+                    <button type="button" class="link" @click="showAccountModal = false">Close</button>
                 </header>
 
-                <p class="signal-modal__meta" v-if="authUser">
+                <p class="modal__meta" v-if="authUser">
                     {{ showDeviceLoginPrompt ? 'Sign in to keep your chats across devices.' : `Signed in as: ${displayAccountName}` }}
                 </p>
 
-                <div class="signal-modal__actions" v-if="showDeviceLoginPrompt">
-                    <a :href="googleLoginUrl" class="signal-button signal-button--full">Continue with Google</a>
-                    <a :href="appleLoginUrl" class="signal-link signal-link--full">Continue with Apple</a>
+                <div class="modal__actions" v-if="showDeviceLoginPrompt">
+                    <a :href="googleLoginUrl" class="button button--full">Continue with Google</a>
+                    <a :href="appleLoginUrl" class="link link--full">Continue with Apple</a>
                 </div>
 
-                <p class="signal-modal__meta" v-else>
+                <p class="modal__meta" v-else>
                     You are already signed in.
                 </p>
             </section>

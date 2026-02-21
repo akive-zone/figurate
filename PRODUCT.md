@@ -83,3 +83,13 @@ NOTE:
  
 The goal is knowing when to orchesterate creating a new thread and which agent should be the one responding to a conversation (This is similar to popular systems like cursor or claude, knowing when to move from plan to build or debug mode within a session). This ansers the gap 5 ... which is what we need to decide
 
+
+## Log 4:
+- Case A: Thread where the user is talking to an agent (handler prompting)
+- Case B: Thread where the multiple user (group) is talking to an agent (handler prompting)
+- Case C: Case A but with multiple agent as handler
+- Case D: Case B but with multiple agent as handler
+- Case E: Thread where the user is talking to another user (observer prompting if allowed)
+- Case F: Thread where the user is talking to multiple user (obser prompting if allowed)
+
+Observer prompting will always assume multiple observer agent can exist in a thread conversation

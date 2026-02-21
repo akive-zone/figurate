@@ -4,7 +4,5 @@ namespace App;
 
 enum TokenAbility: string
 {
-    case Studio = 'studio';
-
-    case Signal = 'signal';
+    case Chat = 'chat';
 }

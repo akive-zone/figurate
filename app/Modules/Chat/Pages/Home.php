@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Modules\Signal\Pages;
+namespace App\Modules\Chat\Pages;
 
 use Filament\Pages\Page;
 
@@ -10,5 +10,5 @@ class Home extends Page
 
     protected static bool $shouldRegisterNavigation = false;
 
-    protected string $view = 'modules.signal.pages.home';
+    protected string $view = 'pages.home';
 }

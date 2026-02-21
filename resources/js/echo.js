@@ -1,11 +1,11 @@
 import axios from 'axios';
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
-import { signalApiUrl, signalAuthHeaders } from './api/signalChat';
+import { chatApiUrl, chatAuthHeaders } from './api';
 
 window.Pusher = Pusher;
 
-const inferSignalRuntime = () => {
+const inferChatRuntime = () => {
     if (typeof document === 'undefined') {
         return {};
     }
@@ -26,8 +26,8 @@ const inferSignalRuntime = () => {
     }
 };
 
-const runtime = inferSignalRuntime();
-const authEndpoint = signalApiUrl('/api/broadcasting/auth', runtime);
+const runtime = inferChatRuntime();
+const authEndpoint = chatApiUrl('/api/broadcasting/auth', runtime);
 const reverbKey = (import.meta.env.VITE_REVERB_APP_KEY ?? '').toString().trim();
 
 if (reverbKey !== '') {
@@ -46,7 +46,7 @@ if (reverbKey !== '') {
                         socket_id: socketId,
                         channel_name: channel.name,
                     }, {
-                        headers: signalAuthHeaders(),
+                        headers: chatAuthHeaders(),
                     })
                     .then((response) => {
                         callback(false, response.data);

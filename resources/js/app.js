@@ -18,7 +18,7 @@ const persistDeviceIdentity = (pageProps = {}) => {
 
     const deviceId = (authUser.device_identifier ?? '').toString().trim();
     if (deviceId !== '') {
-        window.localStorage.setItem('signal.device_id', deviceId);
+        window.localStorage.setItem('device_id', deviceId);
     }
 };
 

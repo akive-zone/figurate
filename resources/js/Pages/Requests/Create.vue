@@ -1,8 +1,8 @@
 <script setup>
-import SignalLayout from '../../../Layouts/SignalLayout.vue';
+import ChatLayout from '../../../Layouts/ChatLayout.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, reactive, ref } from 'vue';
-import { sendSignalChatMessage } from '../../../api/signalChat';
+import { sendChatChatMessage } from '../../../api';
 
 const props = defineProps({
     channels: {
@@ -13,35 +13,35 @@ const props = defineProps({
 
 const page = usePage();
 const runtime = computed(() => page.props.runtime ?? {});
-const signalRoutes = computed(() => runtime.value.signal_routes ?? {});
-const signalIndexUrl = computed(() => {
-    const configured = (signalRoutes.value.index ?? '').toString().trim();
+const chatRoutes = computed(() => runtime.value.routes ?? {});
+const chatIndexUrl = computed(() => {
+    const configured = (chatRoutes.value.index ?? '').toString().trim();
     if (configured !== '') {
         return configured;
     }
 
-    const fallback = (runtime.value.signal_index_path ?? '').toString().trim();
+    const fallback = (runtime.value.index_path ?? '').toString().trim();
 
     return fallback !== '' ? fallback : '/';
 });
-const signalShowTemplate = computed(() => {
-    const configured = (signalRoutes.value.show_template ?? '').toString().trim();
+const chatShowTemplate = computed(() => {
+    const configured = (chatRoutes.value.show_template ?? '').toString().trim();
     if (configured !== '') {
         return configured;
     }
 
     return '/channels/__CHANNEL__';
 });
-const signalChannelUrl = (channelId) => signalShowTemplate.value.replace('__CHANNEL__', channelId);
-const signalShowThreadTemplate = computed(() => {
-    const configured = (signalRoutes.value.show_thread_template ?? '').toString().trim();
+const chatChannelUrl = (channelId) => chatShowTemplate.value.replace('__CHANNEL__', channelId);
+const chatShowThreadTemplate = computed(() => {
+    const configured = (chatRoutes.value.show_thread_template ?? '').toString().trim();
     if (configured !== '') {
         return configured;
     }
 
     return '/channels/__CHANNEL__/threads/__THREAD__';
 });
-const signalThreadUrl = (channelId, threadId) => signalShowThreadTemplate.value
+const chatThreadUrl = (channelId, threadId) => chatShowThreadTemplate.value
     .replace('__CHANNEL__', channelId)
     .replace('__THREAD__', threadId);
 
@@ -69,7 +69,7 @@ const submit = async () => {
             return;
         }
 
-        const response = await sendSignalChatMessage({
+        const response = await sendChatChatMessage({
             content: {
                 body: message,
                 attachments: [],
@@ -79,11 +79,11 @@ const submit = async () => {
         const threadId = response.data?.thread;
 
         if (channelId) {
-            router.visit(threadId ? signalThreadUrl(channelId, threadId) : signalChannelUrl(channelId));
+            router.visit(threadId ? chatThreadUrl(channelId, threadId) : chatChannelUrl(channelId));
             return;
         }
 
-        router.visit(signalIndexUrl.value);
+        router.visit(chatIndexUrl.value);
     } catch (error) {
         if (error.response?.status === 422) {
             errors.value = error.response.data.errors ?? {};
@@ -97,36 +97,36 @@ const submit = async () => {
 </script>
 
 <template>
-    <Head title="Start Signal Chat" />
+    <Head title="Start Chat Chat" />
 
-    <SignalLayout :channels="props.channels">
-        <section class="signal-thread">
-            <header class="signal-thread__header">
+    <ChatLayout :channels="props.channels">
+        <section class="thread">
+            <header class="thread__header">
                 <div>
-                    <p class="signal-thread__kicker">New Chat</p>
-                    <h2 class="signal-thread__title">Start chatting</h2>
-                    <p class="signal-thread__meta">Send one message and we will open the channel instantly.</p>
+                    <p class="thread__kicker">New Chat</p>
+                    <h2 class="thread__title">Start chatting</h2>
+                    <p class="thread__meta">Send one message and we will open the channel instantly.</p>
                 </div>
             </header>
 
-            <form class="signal-form" @submit.prevent="submit">
+            <form class="form" @submit.prevent="submit">
                 <textarea
                     id="message"
                     v-model="form.message"
-                    class="signal-input"
+                    class="input"
                     rows="8"
                     maxlength="5000"
                     placeholder="Ask anything..."
                 />
-                <p v-if="errors.message" class="signal-error">{{ errors.message[0] }}</p>
-                <p v-if="errors['content.body']" class="signal-error">{{ errors['content.body'][0] }}</p>
-                <p v-if="formError" class="signal-error">{{ formError }}</p>
+                <p v-if="errors.message" class="error">{{ errors.message[0] }}</p>
+                <p v-if="errors['content.body']" class="error">{{ errors['content.body'][0] }}</p>
+                <p v-if="formError" class="error">{{ formError }}</p>
 
-                <div class="signal-form__actions">
-                    <Link :href="signalIndexUrl" class="signal-link">Cancel</Link>
-                    <button class="signal-button" :disabled="isSubmitting">Send</button>
+                <div class="form__actions">
+                    <Link :href="chatIndexUrl" class="link">Cancel</Link>
+                    <button class="button" :disabled="isSubmitting">Send</button>
                 </div>
             </form>
         </section>
-    </SignalLayout>
+    </ChatLayout>
 </template>

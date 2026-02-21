@@ -58,44 +58,44 @@ const submitDraft = () => {
 </script>
 
 <template>
-    <button v-if="!isOpen" type="button" class="signal-float-chat__fab" @click="openWindow">
+    <button v-if="!isOpen" type="button" class="float-chat__fab" @click="openWindow">
         Open Chat
     </button>
 
-    <section v-else class="signal-float-chat" aria-label="Floating chat">
-        <header class="signal-float-chat__header">
-            <div class="signal-float-chat__identity">
-                <div class="signal-float-chat__avatar">{{ title.slice(0, 1).toUpperCase() }}</div>
+    <section v-else class="float-chat" aria-label="Floating chat">
+        <header class="float-chat__header">
+            <div class="float-chat__identity">
+                <div class="float-chat__avatar">{{ title.slice(0, 1).toUpperCase() }}</div>
                 <div>
-                    <p class="signal-float-chat__title">{{ title }}</p>
-                    <p class="signal-float-chat__subtitle">{{ subtitle }}</p>
+                    <p class="float-chat__title">{{ title }}</p>
+                    <p class="float-chat__subtitle">{{ subtitle }}</p>
                 </div>
             </div>
 
-            <button type="button" class="signal-float-chat__close" @click="closeWindow" aria-label="Close floating chat">×</button>
+            <button type="button" class="float-chat__close" @click="closeWindow" aria-label="Close floating chat">×</button>
         </header>
 
-        <section class="signal-float-chat__messages">
+        <section class="float-chat__messages">
             <article
                 v-for="message in props.messages"
                 :key="`float-${message.kind ?? 'message'}-${message.id ?? message.created_at}`"
-                class="signal-float-bubble"
-                :class="{ 'signal-float-bubble--outgoing': isOutgoing(message) }"
+                class="float-bubble"
+                :class="{ 'float-bubble--outgoing': isOutgoing(message) }"
             >
                 {{ message.content }}
             </article>
-            <p v-if="props.messages.length === 0" class="signal-float-chat__empty">No messages yet.</p>
+            <p v-if="props.messages.length === 0" class="float-chat__empty">No messages yet.</p>
         </section>
 
-        <form class="signal-float-chat__composer" @submit.prevent="submitDraft">
+        <form class="float-chat__composer" @submit.prevent="submitDraft">
             <input
                 v-model="draft"
                 type="text"
-                class="signal-float-chat__input"
+                class="float-chat__input"
                 placeholder="Message..."
                 :disabled="props.sending"
             />
-            <button type="submit" class="signal-float-chat__send" :disabled="!canSend">
+            <button type="submit" class="float-chat__send" :disabled="!canSend">
                 Send
             </button>
         </form>

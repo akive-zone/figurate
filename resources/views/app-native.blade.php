@@ -13,14 +13,14 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @inertiaHead
 </head>
-<body class="nativephp-safe-area signal-root signal-root--native">
+<body class="nativephp-safe-area root root--native">
     <native:top-bar>
         <native:top-bar-title value="Figurate" />
     </native:top-bar>
 
     <native:bottom-nav>
-        <native:bottom-nav-item id="signal.channels" icon="home" label="Channels" url="{{ route('signal.index', [], false) }}" />
-        <native:bottom-nav-item id="signal.new" icon="plus" label="New Chat" url="{{ route('signal.chat.create', [], false) }}" />
+        <native:bottom-nav-item id="chat.channels" icon="home" label="Channels" url="{{ route('chat.index', [], false) }}" />
+        <native:bottom-nav-item id="chat.new" icon="plus" label="New Chat" url="{{ route('chat.create', [], false) }}" />
     </native:bottom-nav>
 
     @inertia

@@ -1,8 +1,8 @@
 <?php
 
-use App\Http\Controllers\Native\ChannelController as NativeSignalChannelController;
-use App\Http\Controllers\Server\Auth\SocialiteController;
-use App\Http\Controllers\Server\Web\ChannelController as ServerSignalChannelController;
+use App\Http\Controllers\Native\Web\ChannelController as NativeChannelController;
+use App\Http\Controllers\Server\Web\ChannelController as ServerChannelController;
+use App\Http\Controllers\Server\Web\SocialiteController;
 use App\Http\Middleware\EnsureDeviceUser;
 use Illuminate\Support\Facades\Route;
 
@@ -11,17 +11,17 @@ if (\app_is_native_runtime()) {
         return view('native.launcher');
     })->name('launcher');
 
-    Route::prefix('signal')
-        ->name('signal.')
+    Route::prefix('chat')
+        ->name('chat.')
         ->group(function () {
-            Route::get('/', [NativeSignalChannelController::class, 'index'])->name('index');
-            Route::get('/channels', [NativeSignalChannelController::class, 'create'])->name('chat.create');
-            Route::get('/channels/{channel}', [NativeSignalChannelController::class, 'show'])->name('chat.show');
-            Route::get('/channels/{channel}/threads/{thread}', [NativeSignalChannelController::class, 'showThread'])->name('chat.thread');
+            Route::get('/', [NativeChannelController::class, 'index'])->name('index');
+            Route::get('/channels', [NativeChannelController::class, 'create'])->name('create');
+            Route::get('/channels/{channel}', [NativeChannelController::class, 'show'])->name('show');
+            Route::get('/channels/{channel}/threads/{thread}', [NativeChannelController::class, 'showThread'])->name('thread');
         });
 
     Route::fallback(function () {
-        return redirect()->to('/signal');
+        return redirect()->to('/chat');
     });
 } else {
     Route::prefix('auth')
@@ -34,11 +34,11 @@ if (\app_is_native_runtime()) {
         });
 
     Route::middleware(EnsureDeviceUser::class)
-        ->name('signal.')
+        ->name('chat.')
         ->group(function () {
-            Route::get('/', [ServerSignalChannelController::class, 'index'])->name('index');
-            Route::get('/channels', [ServerSignalChannelController::class, 'create'])->name('chat.create');
-            Route::get('/channels/{channel}', [ServerSignalChannelController::class, 'show'])->name('chat.show');
-            Route::get('/channels/{channel}/threads/{thread}', [ServerSignalChannelController::class, 'showThread'])->name('chat.thread');
+            Route::get('/', [ServerChannelController::class, 'index'])->name('index');
+            Route::get('/channels', [ServerChannelController::class, 'create'])->name('create');
+            Route::get('/channels/{channel}', [ServerChannelController::class, 'show'])->name('show');
+            Route::get('/channels/{channel}/threads/{thread}', [ServerChannelController::class, 'showThread'])->name('thread');
         });
 }

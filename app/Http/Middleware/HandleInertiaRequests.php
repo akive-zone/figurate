@@ -46,22 +46,22 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'runtime' => [
                 'is_native' => \app_is_native_runtime(),
-                'signal_base_path' => \app_is_native_runtime() ? '/signal' : '',
-                'signal_index_path' => \app_is_native_runtime() ? '/signal' : '/',
-                'signal_routes' => [
-                    'index' => route('signal.index', [], false),
-                    'chats' => \app_is_native_runtime() ? route('signal.index', [], false) : route('api.chats.index', [], false),
+                'base_path' => \app_is_native_runtime() ? '/chat' : '',
+                'index_path' => \app_is_native_runtime() ? '/chat' : '/',
+                'routes' => [
+                    'index' => route('chat.index', [], false),
+                    'chats' => \app_is_native_runtime() ? route('chat.index', [], false) : route('api.chats.index', [], false),
                     'chats_show_template' => \app_is_native_runtime()
-                        ? route('signal.index', [], false)
+                        ? route('chat.index', [], false)
                         : route('api.chats.show', ['chat' => '__CHAT__'], false),
                     'chats_threads_template' => \app_is_native_runtime()
-                        ? route('signal.index', [], false)
+                        ? route('chat.index', [], false)
                         : route('api.chats.threads', ['chat' => '__CHAT__'], false),
-                    'chats_store' => \app_is_native_runtime() ? route('signal.index', [], false) : route('api.chats.store', [], false),
+                    'chats_store' => \app_is_native_runtime() ? route('chat.index', [], false) : route('api.chats.store', [], false),
                     'chat_posts_template' => route('api.chats.posts', ['chat' => '__CHAT__'], false),
-                    'create' => route('signal.chat.create', [], false),
-                    'show_template' => route('signal.chat.show', ['channel' => '__CHANNEL__'], false),
-                    'show_thread_template' => route('signal.chat.thread', ['channel' => '__CHANNEL__', 'thread' => '__THREAD__'], false),
+                    'create' => route('chat.create', [], false),
+                    'show_template' => route('chat.show', ['channel' => '__CHANNEL__'], false),
+                    'show_thread_template' => route('chat.thread', ['channel' => '__CHANNEL__', 'thread' => '__THREAD__'], false),
                 ],
             ],
             'auth' => [

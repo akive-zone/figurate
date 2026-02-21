@@ -11,15 +11,15 @@
         <div class="text-center">
             <p class="text-xs uppercase tracking-[0.25em] text-slate-400">NativePHP</p>
             <h1 class="mt-3 text-3xl font-semibold">Choose your session</h1>
-            <p class="mt-2 text-sm text-slate-300">Signal for requests. Studio for fulfillment.</p>
+            <p class="mt-2 text-sm text-slate-300">Chat for requests. Studio for fulfillment.</p>
         </div>
 
         <div class="grid w-full gap-3">
             <a
-                href="{{ url('/signal') }}"
+                href="{{ url('/chat') }}"
                 class="rounded-xl border border-slate-700 bg-slate-900 px-5 py-4 text-left transition hover:border-slate-500"
             >
-                <p class="text-lg font-semibold">Signal</p>
+                <p class="text-lg font-semibold">Chat</p>
                 <p class="text-sm text-slate-400">Find a profile and make a request.</p>
             </a>
 

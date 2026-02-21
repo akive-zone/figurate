@@ -17,17 +17,17 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
-class SignalPanelProvider extends PanelProvider
+class ChatPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
         return $panel
-            ->id('signal')
-            ->path('signal-admin')
+            ->id('chat')
+            ->path('chat-admin')
             ->colors([
                 'primary' => Color::Amber,
             ])
-            ->discoverPages(in: app_path('Modules/Signal/Pages'), for: 'App\Modules\Signal\Pages')
+            ->discoverPages(in: app_path('Modules/Chat/Pages'), for: 'App\Modules\Chat\Pages')
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

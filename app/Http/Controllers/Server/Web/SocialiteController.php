@@ -34,7 +34,7 @@ class SocialiteController extends Controller
 
         Auth::login($user);
 
-        return redirect()->route('signal.index');
+        return redirect()->route('chat.index');
     }
 
     private function resolveUser(string $provider, SocialiteUser $socialUser): User

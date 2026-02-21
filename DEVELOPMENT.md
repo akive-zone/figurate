@@ -1,52 +1,36 @@
-So we're buildin a cross platform that supports Mobile and Web 
+So we're buildin a cross platform that supports Native and Web 
 
 Using tools like
 - NativePHP
 - FilamentPHP
 - InertiaJS
 
-There are two main parts to the project that will be served inside the NativePHP app
-1. Signal [InertiaJS + FilamentPHP]
-2. Studio [InertiaJS + FilamentPHP]
+There are two main parts to the project that will be served inside the NativePHP app using [InertiaJS + FilamentPHP]
 
-The third app Station is for the admin
+The app launcher will be a blade view in NativePHP that allows the user switch between various auth session
 
-The app launcher will be a blade view in NativePHP that allows the user switch between studio / signal session
-
-Studio UI split:
-- Inertia/Vue routes for Studio user work, especially chat and day-to-day workflow.
-- Filament routes for Studio login and administrative views the Studio user needs.
-
-Signal UI split:
-- Inertia/Vue routes for customer chat and primary request flow.
-- Filament routes for settings and admin-style panels on the customer side.
-
-Signal orchestration model (product design direction, not locked policy):
+Orchestration model (product design direction, not locked policy):
 - Candidate direction is one user-facing `conversation` per request context for the asker chatbox.
 - Candidate direction is many internal `threads` per request/order lifecycle to handle agent switching and phase isolation.
 - Threads can hold `agent_key`, `phase`, and `ai_conversation_id` memory.
 - The active thread may change over time (for example `RequestAgent` to `OrderAgent`) while keeping one visible chat flow for the asker.
 
 
-the studio needs the user to signup and onboard to KYC / KYB before they can access the studio
+The app will be accessible to all users with a basic account
 
-The signal app will be accessible to all users with a basic account
+- users will have three types system, device and person, enterprise
 
-- users table will have three types system, device and person
+- device users will have limited access to the app ... these are users that haven't authenticated (guest users)
 
-- device users will have limited access to the signal app ... this are users that haven't authenticated (guest users)
+- person users will have access to both apps
 
-- person users will have access to both signal and studio apps 
+- a device user upgrades to a person / enterprise user by identity provider login with Google / Apple 
 
-- a device user upgrades to a person user by socialite login with Google / Apple 
+So overview for now ... one of the usecase 
 
-So overview for now 
+Users are here to make a chat in a channel ... One of the usecase is that the user message is converted to a request and when sent out to profiles ... they can accept and it becomes an order  
 
-On signal ... users are here to make a request ... and when accepted it becomes an order  
-
-On studio ... users here are those that accept orders and deliver services 
-
-studio users will have profiles that they create to showcase their skills ... and pick from categories of services they want to offer
+Some users manage profiles that is created to showcase their skills ... and pick from categories of services they want to offer 
 
 profiles must be approved by admin before they can go live on the signal marketplace 
 

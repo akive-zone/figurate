@@ -55,46 +55,46 @@ const submitDraft = () => {
 </script>
 
 <template>
-    <button v-if="!isOpen" type="button" class="signal-slide-chat__tab" @click="openWindow">
+    <button v-if="!isOpen" type="button" class="slide-chat__tab" @click="openWindow">
         Assistant
     </button>
 
-    <aside v-else class="signal-slide-chat" aria-label="Sliding assistant chat">
-        <header class="signal-slide-chat__header">
-            <div class="signal-slide-chat__identity">
-                <span class="signal-slide-chat__sparkle">✦</span>
-                <h3 class="signal-slide-chat__title">{{ title }}</h3>
+    <aside v-else class="slide-chat" aria-label="Sliding assistant chat">
+        <header class="slide-chat__header">
+            <div class="slide-chat__identity">
+                <span class="slide-chat__sparkle">✦</span>
+                <h3 class="slide-chat__title">{{ title }}</h3>
             </div>
 
-            <button type="button" class="signal-slide-chat__close" @click="closeWindow" aria-label="Close sliding chat">
+            <button type="button" class="slide-chat__close" @click="closeWindow" aria-label="Close sliding chat">
                 ×
             </button>
         </header>
 
-        <section class="signal-slide-chat__messages">
+        <section class="slide-chat__messages">
             <article
                 v-for="message in props.messages"
                 :key="`slide-${message.kind ?? 'message'}-${message.id ?? message.created_at}`"
-                class="signal-slide-bubble"
-                :class="{ 'signal-slide-bubble--outgoing': isOutgoing(message) }"
+                class="slide-bubble"
+                :class="{ 'slide-bubble--outgoing': isOutgoing(message) }"
             >
                 {{ message.content }}
             </article>
 
-            <p v-if="props.messages.length === 0" class="signal-slide-chat__empty">
+            <p v-if="props.messages.length === 0" class="slide-chat__empty">
                 Responses are generated using AI and may contain mistakes.
             </p>
         </section>
 
-        <form class="signal-slide-chat__composer" @submit.prevent="submitDraft">
+        <form class="slide-chat__composer" @submit.prevent="submitDraft">
             <input
                 v-model="draft"
                 type="text"
-                class="signal-slide-chat__input"
+                class="slide-chat__input"
                 placeholder="Ask a question..."
                 :disabled="props.sending"
             />
-            <button type="submit" class="signal-slide-chat__send" :disabled="!canSend">
+            <button type="submit" class="slide-chat__send" :disabled="!canSend">
                 ↑
             </button>
         </form>

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Native\Signal;
+namespace App\Http\Controllers\Native\Web;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Client\PendingRequest;
@@ -21,7 +21,7 @@ class ChannelController extends Controller
             $channels = [];
         }
 
-        return Inertia::render('Signal/Requests/Create', [
+        return Inertia::render('Chat/Requests/Create', [
             'channels' => $channels,
         ]);
     }
@@ -34,7 +34,7 @@ class ChannelController extends Controller
             $channels = [];
         }
 
-        return Inertia::render('Signal/Channels/Index', [
+        return Inertia::render('Chat/Channels/Index', [
             'channels' => $channels,
         ]);
     }
@@ -75,20 +75,20 @@ class ChannelController extends Controller
             $channels = [];
         }
 
-        return Inertia::render('Signal/Channels/Show', [
+        return Inertia::render('Chat/Channels/Show', [
             'channels' => $channels,
             'channel' => $channelPayload,
         ]);
     }
 
-    protected function signalApiBaseUrl(): string
+    protected function chatApiBaseUrl(): string
     {
         return rtrim((string) config('services.server.base_url'), '/');
     }
 
     protected function apiClient(Request $request): PendingRequest
     {
-        $baseUrl = $this->signalApiBaseUrl();
+        $baseUrl = $this->chatApiBaseUrl();
 
         if ($baseUrl === '') {
             throw new RuntimeException('SERVER_BASE_URL is required for NativePHP runtime.');

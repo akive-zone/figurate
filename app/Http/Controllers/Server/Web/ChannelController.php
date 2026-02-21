@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Server\Web\Signal;
+namespace App\Http\Controllers\Server\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Server\Channel;
@@ -21,14 +21,14 @@ class ChannelController extends Controller
 {
     public function create(Request $request): Response
     {
-        return Inertia::render('Signal/Requests/Create', [
+        return Inertia::render('Chat/Requests/Create', [
             'channels' => $this->safeChannelsPayload($request),
         ]);
     }
 
     public function index(Request $request): Response
     {
-        return Inertia::render('Signal/Channels/Index', [
+        return Inertia::render('Chat/Channels/Index', [
             'channels' => $this->safeChannelsPayload($request),
         ]);
     }
@@ -140,7 +140,7 @@ class ChannelController extends Controller
             'thread_messages' => $threadMessages,
         ];
 
-        return Inertia::render('Signal/Channels/Show', [
+        return Inertia::render('Chat/Channels/Show', [
             'channels' => $channels,
             'channel' => $channelPayload,
         ]);

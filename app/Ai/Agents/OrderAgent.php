@@ -62,7 +62,7 @@ class OrderAgent implements Agent, Conversational, HasMiddleware, HasTools
             ? "- Order #{$order->id} status: {$order->status}"
             : '- No order exists yet.';
 
-        return "You are OrderAgent for the Signal asker flow.\n".
+        return "You are OrderAgent for the flow.\n".
             "Current fulfillment context:\n".
             "- Request #{$request->id} status: {$request->status}\n".
             "{$orderContext}\n\n".

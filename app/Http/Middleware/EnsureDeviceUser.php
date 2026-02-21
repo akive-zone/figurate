@@ -51,7 +51,7 @@ class EnsureDeviceUser
         $response = $next($request);
 
         if ($shouldBootstrapTokenOnResponse) {
-            $token = $user->createToken('signal-device-bootstrap', [TokenAbility::Signal->value])->plainTextToken;
+            $token = $user->createToken('chat-device-bootstrap', [TokenAbility::Chat->value])->plainTextToken;
 
             $response->headers->set('X-Device-Id', (string) $deviceId);
             $response->headers->set('X-Api-Token', $token);

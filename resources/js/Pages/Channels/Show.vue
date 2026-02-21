@@ -1,12 +1,12 @@
 <script setup>
-import SignalLayout from '../../../Layouts/SignalLayout.vue';
+import ChatLayout from '../../../Layouts/ChatLayout.vue';
 import FloatingChatWindow from './FloatingChatWindow.vue';
 import SlidingChatWindow from './SlidingChatWindow.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
-import { fetchSignalChannelPosts, fetchSignalThreadMessages, sendSignalChatMessage } from '../../../api/signalChat';
+import { fetchChatChannelPosts, fetchChatThreadMessages, sendChatChatMessage } from '../../../api';
 
 const props = defineProps({
     channels: {
@@ -22,14 +22,14 @@ const props = defineProps({
 const activeChannel = computed(() => props.channel);
 const page = usePage();
 const runtime = computed(() => page.props.runtime ?? {});
-const signalRoutes = computed(() => runtime.value.signal_routes ?? {});
-const signalIndexUrl = computed(() => {
-    const configured = (signalRoutes.value.index ?? '').toString().trim();
+const chatRoutes = computed(() => runtime.value.routes ?? {});
+const chatIndexUrl = computed(() => {
+    const configured = (chatRoutes.value.index ?? '').toString().trim();
     if (configured !== '') {
         return configured;
     }
 
-    const fallback = (runtime.value.signal_index_path ?? '').toString().trim();
+    const fallback = (runtime.value.index_path ?? '').toString().trim();
 
     return fallback !== '' ? fallback : '/';
 });
@@ -84,7 +84,7 @@ const submitPrompt = async () => {
     const clientMessageId = ensureClientMessageId(promptForm.content);
 
     try {
-        await sendSignalChatMessage({
+        await sendChatChatMessage({
             channel: activeChannel.value.id,
             thread: activeChannel.value.active_thread ?? null,
             content: {
@@ -134,7 +134,7 @@ const slidingChatMessages = computed(() => {
 
 const floatingChatTitle = computed(() => {
     if (!activeChannel.value) {
-        return 'Signal';
+        return 'Chat';
     }
 
     return `Channel ${activeChannel.value.id}`;
@@ -159,7 +159,7 @@ const loadChannelPosts = async () => {
     channelPostsError.value = '';
 
     try {
-        const payload = await fetchSignalChannelPosts(activeChannel.value.id, runtime.value);
+        const payload = await fetchChatChannelPosts(activeChannel.value.id, runtime.value);
         channelPosts.value = Array.isArray(payload?.data) ? payload.data : [];
     } catch (error) {
         channelPostsError.value = error.response?.data?.message ?? `Unable to load channel posts (${error.response?.status ?? 'network'}).`;
@@ -179,7 +179,7 @@ const loadThreadMessages = async () => {
     threadLoadError.value = '';
 
     try {
-        const payload = await fetchSignalThreadMessages(activeThreadId.value, runtime.value);
+        const payload = await fetchChatThreadMessages(activeThreadId.value, runtime.value);
         threadMessages.value = Array.isArray(payload?.data) ? payload.data : [];
     } catch (error) {
         threadLoadError.value = error.response?.data?.message ?? `Unable to load thread messages (${error.response?.status ?? 'network'}).`;
@@ -289,44 +289,44 @@ const submitSlidingPrompt = async (content) => {
 </script>
 
 <template>
-    <Head :title="activeChannel ? `Chat #${activeChannel.id}` : 'Signal Chat'" />
+    <Head :title="activeChannel ? `Chat #${activeChannel.id}` : 'Chat Chat'" />
 
-    <SignalLayout
+    <ChatLayout
         :channels="props.channels"
         :active-channel-id="activeChannel?.id ?? null"
         :active-thread-id="activeChannel?.active_thread ?? null"
     >
-        <section class="signal-thread" v-if="activeChannel">
-            <header class="signal-thread__header">
+        <section class="thread" v-if="activeChannel">
+            <header class="thread__header">
                 <div>
-                    <p class="signal-thread__kicker">Channel</p>
-                    <h2 class="signal-thread__title">Channel {{ activeChannel.id }}</h2>
-                    <p class="signal-thread__meta">Conversation view with channel updates and thread messages.</p>
+                    <p class="thread__kicker">Channel</p>
+                    <h2 class="thread__title">Channel {{ activeChannel.id }}</h2>
+                    <p class="thread__meta">Conversation view with channel updates and thread messages.</p>
                 </div>
             </header>
 
-            <section class="signal-thread__messages">
+            <section class="thread__messages">
                 <article
                     v-for="message in visibleItems"
                     :key="`${message.kind ?? 'message'}-${message.scope ?? 'channel'}-${message.id}`"
-                    class="signal-message"
+                    class="message"
                 >
-                    <p class="signal-message__author">
+                    <p class="message__author">
                         {{ message.scope === 'thread' ? 'Thread' : message.scope === 'channel' ? 'Channel' : 'Conversation' }}
                     </p>
-                    <div class="signal-message__content" v-html="renderMessageContent(message.content)" />
-                    <ul v-if="message.attachments?.length" class="signal-thread__attachments">
+                    <div class="message__content" v-html="renderMessageContent(message.content)" />
+                    <ul v-if="message.attachments?.length" class="thread__attachments">
                         <li v-for="attachment in message.attachments" :key="attachment.path">
                             {{ attachment.name }} ({{ attachment.mime }})
                         </li>
                     </ul>
-                    <p class="signal-message__time">{{ formatTimestamp(message.created_at) }}</p>
+                    <p class="message__time">{{ formatTimestamp(message.created_at) }}</p>
                 </article>
 
-                <article v-if="!visibleItems.length" class="signal-empty">
+                <article v-if="!visibleItems.length" class="empty">
                     <h3>No posts yet</h3>
-                    <p v-if="activeChannel.active_thread && threadLoadError" class="signal-error">{{ threadLoadError }}</p>
-                    <p v-else-if="!activeChannel.active_thread && channelPostsError" class="signal-error">{{ channelPostsError }}</p>
+                    <p v-if="activeChannel.active_thread && threadLoadError" class="error">{{ threadLoadError }}</p>
+                    <p v-else-if="!activeChannel.active_thread && channelPostsError" class="error">{{ channelPostsError }}</p>
                     <p v-else-if="isLoadingThreadMessages && activeChannel.active_thread">Loading thread messages...</p>
                     <p v-else-if="isLoadingChannelPosts && !activeChannel.active_thread">Loading channel posts...</p>
                     <p v-else-if="activeChannel.active_thread">No messages in this thread yet.</p>
@@ -334,28 +334,28 @@ const submitSlidingPrompt = async (content) => {
                 </article>
             </section>
 
-            <form class="signal-form" @submit.prevent="submitPrompt">
-                <label for="prompt" class="signal-label">Message</label>
+            <form class="form" @submit.prevent="submitPrompt">
+                <label for="prompt" class="label">Message</label>
                 <textarea
                     id="prompt"
                     v-model="promptForm.content"
-                    class="signal-input"
+                    class="input"
                     rows="4"
                     placeholder="Write a message..."
                 />
-                <p v-if="promptErrors['content.body']" class="signal-error">{{ promptErrors['content.body'][0] }}</p>
-                <p v-if="promptErrorMessage" class="signal-error">{{ promptErrorMessage }}</p>
-                <p v-if="agentStatusMessage" class="signal-thread__meta">{{ agentStatusMessage }}</p>
-                <button class="signal-button" :disabled="isPrompting">
+                <p v-if="promptErrors['content.body']" class="error">{{ promptErrors['content.body'][0] }}</p>
+                <p v-if="promptErrorMessage" class="error">{{ promptErrorMessage }}</p>
+                <p v-if="agentStatusMessage" class="thread__meta">{{ agentStatusMessage }}</p>
+                <button class="button" :disabled="isPrompting">
                     Send
                 </button>
             </form>
         </section>
 
-        <section v-else class="signal-empty">
+        <section v-else class="empty">
             <h3>Unable to load channel</h3>
             <p>Check your API connection and try again.</p>
-            <Link :href="signalIndexUrl" class="signal-link">Back</Link>
+            <Link :href="chatIndexUrl" class="link">Back</Link>
         </section>
 
         <FloatingChatWindow
@@ -376,5 +376,5 @@ const submitSlidingPrompt = async (content) => {
             :sending="isPrompting"
             @send="submitSlidingPrompt"
         />
-    </SignalLayout>
+    </ChatLayout>
 </template>
