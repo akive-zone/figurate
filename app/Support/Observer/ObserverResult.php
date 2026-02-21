@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Support\ThreadObservers;
+namespace App\Support\Observer;
 
 class ObserverResult
 {

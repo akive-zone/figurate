@@ -5,7 +5,6 @@ namespace App\Actions\Server\Chat;
 use App\Jobs\ProcessThreadObservers;
 use App\Models\Server\Channel;
 use App\Models\Server\Message;
-use App\Models\Server\Request as ServiceRequest;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Support\Collection;
@@ -17,13 +16,14 @@ class SendPeerThreadMessage
      */
     public function __invoke(
         Channel $channel,
-        ?ServiceRequest $serviceRequest,
         Thread $thread,
         User $actor,
         ?string $body,
         Collection $attachments,
+        string $source = 'peer_message',
+        bool $dispatchObservers = true,
     ): Message {
-        if (! $this->canActorWrite($channel, $serviceRequest, $actor)) {
+        if (! $this->canActorWrite($channel, $thread, $actor)) {
             abort(403);
         }
 
@@ -34,7 +34,7 @@ class SendPeerThreadMessage
             'body' => $body,
             'attachments' => null,
             'meta' => [
-                'source' => 'peer_message',
+                'source' => $source,
             ],
         ]);
 
@@ -49,15 +49,17 @@ class SendPeerThreadMessage
             $message->syncAttachmentPayload();
         }
 
-        ProcessThreadObservers::dispatch($thread->id, $message->id);
+        if ($dispatchObservers) {
+            ProcessThreadObservers::dispatch($thread->id, $message->id);
+        }
 
         return $message;
     }
 
-    protected function canActorWrite(Channel $channel, ?ServiceRequest $serviceRequest, User $actor): bool
+    protected function canActorWrite(Channel $channel, Thread $thread, User $actor): bool
     {
-        if ($serviceRequest) {
-            return $serviceRequest->hasParticipant($actor);
+        if (! $channel->conversationThreadIds()->contains($thread->getKey())) {
+            return false;
         }
 
         return $channel->hasActor($actor);

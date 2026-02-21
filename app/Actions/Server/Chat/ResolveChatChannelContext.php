@@ -3,7 +3,6 @@
 namespace App\Actions\Server\Chat;
 
 use App\Models\Server\Channel;
-use App\Models\Server\Request as ServiceRequest;
 use App\Models\Server\User;
 
 class ResolveChatChannelContext
@@ -12,16 +11,10 @@ class ResolveChatChannelContext
         public BootstrapChatChannelContext $bootstrapChatChannelContext,
     ) {}
 
-    /**
-     * @return array{0: Channel, 1: ServiceRequest|null}
-     */
-    public function __invoke(mixed $channelUuid, User $actor): array
+    public function __invoke(mixed $channelUuid, User $actor): Channel
     {
         if (is_string($channelUuid) && $channelUuid !== '') {
-            $channel = Channel::query()->where('uuid', $channelUuid)->firstOrFail();
-            $serviceRequest = $channel->requests()->first();
-
-            return [$channel, $serviceRequest];
+            return Channel::query()->where('uuid', $channelUuid)->firstOrFail();
         }
 
         return ($this->bootstrapChatChannelContext)($actor);

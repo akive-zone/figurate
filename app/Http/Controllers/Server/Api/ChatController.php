@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Server\Api;
 
-use App\Actions\Server\Chat\PromptPresenterThread;
 use App\Actions\Server\Chat\ResolveChatChannelContext;
 use App\Actions\Server\Chat\ResolveChatThreadContext;
 use App\Actions\Server\Chat\SendPeerThreadMessage;
@@ -12,11 +11,10 @@ use App\Http\Requests\Server\Chat\StoreChatRequest;
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelActorState;
 use App\Models\Server\Message;
-use App\Models\Server\Request as ServiceRequest;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
-use App\Support\Conversation\ConversationOrchestrator;
+use App\Support\Orchestrate\ConversationOrchestrator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -90,7 +88,6 @@ class ChatController extends Controller
         ResolveChatChannelContext $resolveChatChannelContext,
         ResolveChatThreadContext $resolveChatThreadContext,
         SendPeerThreadMessage $sendPeerThreadMessage,
-        PromptPresenterThread $promptPresenterThread,
         ChatAgentExecutor $chatAgentExecutor,
     ): JsonResponse {
         $channelUuid = $request->validated('channel');
@@ -98,9 +95,9 @@ class ChatController extends Controller
         $requestedThreadId = null;
 
         if (is_string($threadUuid) && $threadUuid !== '') {
-            [$channel, $serviceRequest, $requestedThreadId] = $resolveChatThreadContext($threadUuid, $channelUuid);
+            [$channel, $requestedThreadId] = $resolveChatThreadContext($threadUuid, $channelUuid);
         } else {
-            [$channel, $serviceRequest] = $resolveChatChannelContext($channelUuid, $request->user());
+            $channel = $resolveChatChannelContext($channelUuid, $request->user());
         }
 
         Gate::authorize('view', $channel);
@@ -108,7 +105,6 @@ class ChatController extends Controller
 
         $decision = $orchestrator->resolve(
             channel: $channel,
-            serviceRequest: $serviceRequest,
             actor: $request->user(),
             thread: $requestedThreadId,
             message: $request->validated('content.body'),
@@ -165,7 +161,15 @@ class ChatController extends Controller
                 ]);
             }
 
-            $userMessage = $promptPresenterThread($channel, $serviceRequest, $thread, $actor, $content);
+            $userMessage = $sendPeerThreadMessage(
+                channel: $channel,
+                thread: $thread,
+                actor: $actor,
+                body: $content,
+                attachments: collect(),
+                source: 'agent_prompt',
+                dispatchObservers: false,
+            );
             $activePresenters->each(function (ThreadActor $presenter) use (
                 $chatAgentExecutor,
                 $thread,
@@ -228,7 +232,15 @@ class ChatController extends Controller
             ]);
         }
 
-        $message = $sendPeerThreadMessage($channel, $serviceRequest, $thread, $actor, $normalizedBody, $attachmentFiles);
+        $message = $sendPeerThreadMessage(
+            channel: $channel,
+            thread: $thread,
+            actor: $actor,
+            body: $normalizedBody,
+            attachments: $attachmentFiles,
+            source: 'peer_message',
+            dispatchObservers: true,
+        );
         $this->cacheIdempotentMessage($thread, $actor, $idempotencyKey, $message);
 
         return response()->json([
@@ -368,7 +380,7 @@ class ChatController extends Controller
      */
     protected function inferChatName(
         Channel $channel,
-        ?ServiceRequest $requestRecord,
+        mixed $requestRecord,
         Collection $threads,
         ?string $latestMessageBody
     ): string {

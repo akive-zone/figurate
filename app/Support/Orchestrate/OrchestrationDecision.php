@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Support\Conversation;
+namespace App\Support\Orchestrate;
 
 use App\Models\Server\Thread;
 

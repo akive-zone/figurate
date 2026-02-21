@@ -4,7 +4,6 @@ namespace App\Actions\Server\Chat;
 
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelActorState;
-use App\Models\Server\Request as ServiceRequest;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
@@ -13,14 +12,11 @@ use Illuminate\Support\Facades\Gate;
 
 class BootstrapChatChannelContext
 {
-    /**
-     * @return array{0: Channel, 1: ServiceRequest|null}
-     */
-    public function __invoke(User $actor): array
+    public function __invoke(User $actor): Channel
     {
         Gate::authorize('create', Channel::class);
 
-        return DB::transaction(function () use ($actor): array {
+        return DB::transaction(function () use ($actor): Channel {
             $channel = Channel::query()->create([
                 'status' => 'open',
             ]);
@@ -53,7 +49,7 @@ class BootstrapChatChannelContext
                 ],
             );
 
-            return [$channel, null];
+            return $channel;
         });
     }
 }

@@ -5,9 +5,13 @@ namespace App\Jobs;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
-use App\Support\ThreadObservers\ThreadActorObserverRegistry;
+use App\Support\Observer\ObserverRegistry;
+use App\Support\Observer\ObserverResult;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Laravel\Ai\Contracts\Tool;
+use Laravel\Ai\Tools\Request as ToolRequest;
+use Throwable;
 
 class ProcessThreadObservers implements ShouldQueue
 {
@@ -20,7 +24,7 @@ class ProcessThreadObservers implements ShouldQueue
         $this->afterCommit();
     }
 
-    public function handle(ThreadActorObserverRegistry $registry): void
+    public function handle(ObserverRegistry $registry): void
     {
         $thread = Thread::query()
             ->with(['actors' => fn ($query) => $query
@@ -39,13 +43,13 @@ class ProcessThreadObservers implements ShouldQueue
         $messageChanged = false;
 
         foreach ($thread->actors as $threadActor) {
-            $observer = $registry->resolve($threadActor);
+            $observerTool = $registry->resolve($threadActor, $thread, $message);
 
-            if (! $observer) {
+            if (! $observerTool) {
                 continue;
             }
 
-            $result = $observer->observe($thread, $message);
+            $result = $this->observeWithTool($observerTool, $threadActor, $message);
 
             if (! $result) {
                 continue;
@@ -84,5 +88,55 @@ class ProcessThreadObservers implements ShouldQueue
                 'meta' => $updatedMeta,
             ])->save();
         }
+    }
+
+    protected function observeWithTool(
+        Tool $observerTool,
+        ThreadActor $threadActor,
+        Message $message,
+    ): ?ObserverResult {
+        try {
+            $rawResult = $observerTool->handle(new ToolRequest([
+                'message_id' => $message->id,
+                'message_body' => $message->body,
+                'actor_key' => $threadActor->actorReference(),
+                'attachments' => collect($message->attachments ?? [])
+                    ->map(fn (mixed $item): string => is_array($item) ? ($item['name'] ?? 'file') : 'file')
+                    ->values()
+                    ->all(),
+            ]));
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return null;
+        }
+
+        $payload = json_decode((string) $rawResult, true);
+
+        if (! is_array($payload)) {
+            return null;
+        }
+
+        $eventType = $payload['event_type'] ?? null;
+        if (! is_string($eventType) || trim($eventType) === '') {
+            return null;
+        }
+
+        $severity = $payload['severity'] ?? 'low';
+        if (! is_string($severity) || ! in_array($severity, ['low', 'medium', 'high'], true)) {
+            $severity = 'low';
+        }
+
+        $eventPayload = $payload['payload'] ?? null;
+        if (! is_array($eventPayload)) {
+            $eventPayload = null;
+        }
+
+        return new ObserverResult(
+            eventType: $eventType,
+            severity: $severity,
+            payload: $eventPayload,
+            redactMessage: (bool) ($payload['redact_message'] ?? false),
+        );
     }
 }
