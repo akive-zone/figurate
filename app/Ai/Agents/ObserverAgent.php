@@ -28,7 +28,7 @@ class ObserverAgent implements Agent, HasMiddleware, HasStructuredOutput
      */
     public function instructions(): Stringable|string
     {
-        return 'You are ObserverAgent.';
+        return 'You are an Agent.';
     }
 
     public function middleware(): array

@@ -54,7 +54,7 @@ class RequestAgent implements Agent, Conversational, HasMiddleware, HasTools
         }
 
         if (! $request) {
-            return "You are a presenter agent for intake.\n".
+            return "You are an agent for intake.\n".
                 "Goal:\n".
                 "- First call your flow tool to understand current channel state.\n".
                 "- Get just enough information, then create the request using your tool.\n".
@@ -63,7 +63,7 @@ class RequestAgent implements Agent, Conversational, HasMiddleware, HasTools
                 '- After creating it, confirm what was created in one concise response.';
         }
 
-        return "You are presenter agent for the asker flow.\n".
+        return "You are an agent for the flow.\n".
             "Current request context:\n".
             "- Request #{$request->id}\n".
             "- Title: {$request->title}\n".

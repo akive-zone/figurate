@@ -55,7 +55,7 @@ class OrderAgent implements Agent, Conversational, HasMiddleware, HasTools
         $order = $request?->currentOrder();
 
         if (! $request) {
-            return 'You are OrderAgent. Help askers navigate booked orders and fulfillment.';
+            return 'You are an Agent. Help askers navigate booked orders and fulfillment.';
         }
 
         $orderContext = $order
