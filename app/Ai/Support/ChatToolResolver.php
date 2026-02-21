@@ -15,7 +15,7 @@ use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
 use Laravel\Ai\Contracts\Tool;
 
-class ThreadToolResolver
+class ChatToolResolver
 {
     /**
      * @return list<Tool>

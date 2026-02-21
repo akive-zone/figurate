@@ -2,7 +2,5 @@
     "name": "figurate/server",
     "description": "Server-side dependencies for Akive Figurate",
     "require": {
-        "api-platform/laravel": "^4.2",
-        "laravel/socialite": "^5.24"
     }
 }

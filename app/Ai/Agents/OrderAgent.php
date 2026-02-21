@@ -2,6 +2,7 @@
 
 namespace App\Ai\Agents;
 
+use App\Ai\Concerns\RemembersThreadConversations;
 use App\Ai\Middleware\Rules\ApplyPresenterResponseRules;
 use App\Ai\Middleware\Rules\ApplySafetyAndPolicyRules;
 use App\Ai\Middleware\Rules\EnforceActorPermissions;
@@ -17,12 +18,13 @@ use App\Ai\Middleware\Workflows\ExecuteToolsAndActions;
 use App\Ai\Middleware\Workflows\InitializeFulfillmentContext;
 use App\Ai\Middleware\Workflows\PlanFulfillmentSteps;
 use App\Ai\Middleware\Workflows\PostResponseLearning;
+use App\Ai\Middleware\Workflows\ResolveAudienceContext;
 use App\Ai\Middleware\Workflows\SelectPresenters;
-use App\Ai\Support\ThreadToolResolver;
+use App\Ai\Middleware\Workflows\UseThreadConversationStore;
+use App\Ai\Support\ChatToolResolver;
 use App\Models\Server\Request;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
-use Laravel\Ai\Concerns\RemembersConversations;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\Conversational;
 use Laravel\Ai\Contracts\HasMiddleware;
@@ -33,7 +35,7 @@ use Stringable;
 
 class OrderAgent implements Agent, Conversational, HasMiddleware, HasTools
 {
-    use Promptable, RemembersConversations;
+    use Promptable, RemembersThreadConversations;
 
     public function __construct(
         public ?Thread $thread = null,
@@ -81,13 +83,15 @@ class OrderAgent implements Agent, Conversational, HasMiddleware, HasTools
             return [];
         }
 
-        return app(ThreadToolResolver::class)->resolve($this->thread, $this->actor);
+        return app(ChatToolResolver::class)->resolve($this->thread, $this->actor);
     }
 
     public function middleware(): array
     {
         return [
+            new UseThreadConversationStore,
             new InitializeFulfillmentContext,
+            new ResolveAudienceContext,
             new SelectPresenters,
             new ApplyFulfillmentWorkflow,
             new PlanFulfillmentSteps,

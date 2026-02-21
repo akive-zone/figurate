@@ -6,6 +6,7 @@ use App\Actions\Server\Chat\PromptPresenterThread;
 use App\Actions\Server\Chat\ResolveChatChannelContext;
 use App\Actions\Server\Chat\ResolveChatThreadContext;
 use App\Actions\Server\Chat\SendPeerThreadMessage;
+use App\Ai\Support\ChatAgentExecutor;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Signal\StoreChatRequest;
 use App\Models\Server\Channel;
@@ -90,6 +91,7 @@ class ChatController extends Controller
         ResolveChatThreadContext $resolveChatThreadContext,
         SendPeerThreadMessage $sendPeerThreadMessage,
         PromptPresenterThread $promptPresenterThread,
+        ChatAgentExecutor $chatAgentExecutor,
     ): JsonResponse {
         $channelUuid = $request->validated('channel');
         $threadUuid = $request->validated('thread');
@@ -116,6 +118,7 @@ class ChatController extends Controller
         $activePresenters = $this->resolveActivePresenters($thread);
 
         if ($activePresenters->isNotEmpty()) {
+            $broadcastChannelId = $this->broadcastChannelIdForThread($thread);
             $content = $request->validated('content.body');
 
             if (! is_string($content) || trim($content) === '') {
@@ -143,6 +146,7 @@ class ChatController extends Controller
                     'message' => 'Message already submitted.',
                     'thread' => $thread->uuid,
                     'channel' => $channel->uuid,
+                    'broadcast_channel' => $broadcastChannelId,
                     'text' => $firstAssistantMessage?->body,
                     'message_id' => $existingUserMessage->id,
                     'assistant_message_id' => $firstAssistantMessage?->id,
@@ -161,13 +165,29 @@ class ChatController extends Controller
                 ]);
             }
 
-            $userMessage = $promptPresenterThread($channel, $serviceRequest, $thread, $actor, $content, $activePresenters);
+            $userMessage = $promptPresenterThread($channel, $serviceRequest, $thread, $actor, $content);
+            $activePresenters->each(function (ThreadActor $presenter) use (
+                $chatAgentExecutor,
+                $thread,
+                $userMessage,
+                $actor,
+                $broadcastChannelId
+            ): void {
+                $chatAgentExecutor->queue(
+                    thread: $thread,
+                    userMessage: $userMessage,
+                    user: $actor,
+                    threadActor: $presenter,
+                    broadcastChannelId: $broadcastChannelId,
+                );
+            });
             $this->cacheIdempotentMessage($thread, $actor, $idempotencyKey, $userMessage);
 
             return response()->json([
                 'message' => 'Agent response queued.',
                 'thread' => $thread->uuid,
                 'channel' => $channel->uuid,
+                'broadcast_channel' => $broadcastChannelId,
                 'message_id' => $userMessage->id,
                 'assistant_message_id' => null,
                 'pending_presenters' => $this->expectedPresenterReplyCount($activePresenters),
@@ -226,6 +246,11 @@ class ChatController extends Controller
     protected function resolveActivePresenters(Thread $thread): Collection
     {
         return $thread->presenterActors()->get();
+    }
+
+    protected function broadcastChannelIdForThread(Thread $thread): string
+    {
+        return "threads.{$thread->uuid}";
     }
 
     /**
