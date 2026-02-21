@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelActorState;
 use App\Models\Server\Message;
-use App\Models\Server\Request as ServiceRequest;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -203,7 +202,6 @@ class ChannelController extends Controller
             ->cursorPaginate(5, ['*'], 'threads_cursor', null);
         $threads = collect($threadsPaginator->items());
         $latestMessageModel = $channel->latestConversationMessage();
-        $requestRecord = $channel->primaryRequest();
         $activeThreadUuid = null;
 
         if (is_int($actorState?->thread_id) && $actorState->thread_id > 0) {
@@ -224,20 +222,13 @@ class ChannelController extends Controller
 
         return [
             'id' => $channel->uuid,
-            'name' => $this->inferChatName($channel, $requestRecord, $threads, $latestMessageModel?->body),
+            'name' => $this->inferChatName($channel, $threads, $latestMessageModel?->body),
             'channel' => [
                 'id' => $channel->uuid,
                 'status' => $channel->status ?? 'open',
                 'active_thread_id' => $activeThreadUuid,
                 'last_message_at' => $latestMessage['created_at'] ?? optional($channel->created_at)?->toIso8601String(),
                 'latest_message' => $latestMessage,
-                'details' => [
-                    'request' => $requestRecord ? [
-                        'title' => $requestRecord->title,
-                        'description' => $requestRecord->description,
-                        'status' => $requestRecord->status,
-                    ] : null,
-                ],
             ],
             'threads' => $threads
                 ->map(fn (Thread $thread): array => $this->mapThreadListItem($thread, $actorState))
@@ -256,15 +247,9 @@ class ChannelController extends Controller
      */
     protected function inferChatName(
         Channel $channel,
-        ?ServiceRequest $requestRecord,
         Collection $threads,
         ?string $latestMessageBody
     ): string {
-        $requestTitle = trim((string) ($requestRecord?->title ?? ''));
-        if ($requestTitle !== '') {
-            return $requestTitle;
-        }
-
         $threadTitle = trim((string) ($threads->first()?->title ?? ''));
         if ($threadTitle !== '') {
             return $threadTitle;

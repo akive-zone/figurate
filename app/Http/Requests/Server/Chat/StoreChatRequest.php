@@ -24,10 +24,9 @@ class StoreChatRequest extends FormRequest
         return [
             'channel' => ['nullable', 'uuid', 'exists:channels,uuid'],
             'thread' => ['nullable', 'uuid', 'exists:threads,uuid'],
-            'content' => ['required', 'array'],
-            'content.body' => ['nullable', 'required_without:content.attachments', 'string', 'max:5000'],
-            'content.attachments' => ['nullable', 'array', 'max:8'],
-            'content.attachments.*' => ['file', 'max:10240', 'mimes:jpg,jpeg,png,webp,pdf,doc,docx,txt,mp4,mov,mp3,wav,m4a'],
+            'body' => ['nullable', 'required_without:attachments', 'string', 'max:5000'],
+            'attachments' => ['nullable', 'array', 'max:8'],
+            'attachments.*' => ['file', 'max:10240', 'mimes:jpg,jpeg,png,webp,pdf,doc,docx,txt,mp4,mov,mp3,wav,m4a'],
         ];
     }
 
@@ -39,10 +38,10 @@ class StoreChatRequest extends FormRequest
         return [
             'channel.exists' => 'The selected channel was not found.',
             'thread.exists' => 'The selected thread was not found.',
-            'content.body.required_without' => 'Enter a text or attach media.',
-            'content.attachments.max' => 'You can attach up to 8 files.',
-            'content.attachments.*.max' => 'Each file must be 10MB or smaller.',
-            'content.attachments.*.mimes' => 'One or more files have an unsupported type.',
+            'body.required_without' => 'Enter a text or attach media.',
+            'attachments.max' => 'You can attach up to 8 files.',
+            'attachments.*.max' => 'Each file must be 10MB or smaller.',
+            'attachments.*.mimes' => 'One or more files have an unsupported type.',
         ];
     }
 }

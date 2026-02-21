@@ -11,6 +11,10 @@ use Illuminate\Support\Collection;
 
 class SendPeerThreadMessage
 {
+    public function __construct(
+        protected StoreThreadMessage $storeThreadMessage,
+    ) {}
+
     /**
      * @param  Collection<int, array{path: string, original_name: string}>  $attachments
      */
@@ -27,16 +31,14 @@ class SendPeerThreadMessage
             abort(403);
         }
 
-        $message = $thread->messages()->create([
-            'senderable_type' => $actor->getMorphClass(),
-            'senderable_id' => $actor->getKey(),
-            'type' => 'text',
-            'body' => $body,
-            'attachments' => null,
-            'meta' => [
+        $message = ($this->storeThreadMessage)(
+            thread: $thread,
+            sender: $actor,
+            body: $body,
+            meta: [
                 'source' => $source,
             ],
-        ]);
+        );
 
         $attachments->each(function (array $attachment) use ($message): void {
             $message->addMedia($attachment['path'])

@@ -74,8 +74,7 @@ class AppServiceProvider extends ServiceProvider
     protected function nativeProviders(): array
     {
         return [
-            \App\Providers\Native\ChatPanelProvider::class,
-            \App\Providers\Native\StudioPanelProvider::class,
+            \App\Providers\Native\ControlPanelProvider::class,
         ];
     }
 
@@ -89,9 +88,7 @@ class AppServiceProvider extends ServiceProvider
             \ApiPlatform\Laravel\ApiPlatformDeferredProvider::class,
             \ApiPlatform\Laravel\Eloquent\ApiPlatformEventProvider::class,
             \App\Providers\Server\AuthServiceProvider::class,
-            \App\Providers\Browser\ChatPanelProvider::class,
-            \App\Providers\Browser\StudioPanelProvider::class,
-            \App\Providers\Browser\StationPanelProvider::class,
+            \App\Providers\Server\ControlPanelProvider::class,
         ];
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Ai\Support;
 
+use App\Actions\Server\Chat\StoreThreadMessage;
 use App\Ai\Agents\OrderAgent;
 use App\Ai\Agents\RequestAgent;
 use App\Models\Server\Message;
@@ -17,6 +18,10 @@ use Throwable;
 
 class ChatAgentExecutor
 {
+    public function __construct(
+        protected StoreThreadMessage $storeThreadMessage,
+    ) {}
+
     public function queue(
         Thread $thread,
         Message $userMessage,
@@ -164,18 +169,16 @@ class ChatAgentExecutor
             return;
         }
 
-        $thread->messages()->create([
-            'senderable_type' => null,
-            'senderable_id' => null,
-            'type' => 'text',
-            'body' => $assistantText,
-            'attachments' => null,
-            'meta' => [
+        ($this->storeThreadMessage)(
+            thread: $thread,
+            sender: null,
+            body: $assistantText,
+            meta: [
                 'source' => 'agent_response',
                 'actor_key' => $threadActor->actorName(),
                 'conversation_id' => $response->conversationId ?? $memory->conversation_id,
                 'in_reply_to_message_id' => $userMessage->id,
             ],
-        ]);
+        );
     }
 }

@@ -92,10 +92,10 @@ class ChatController extends Controller
     ): JsonResponse {
         $channelUuid = $request->validated('channel');
         $threadUuid = $request->validated('thread');
-        $requestedThreadId = null;
+        $thread = null;
 
         if (is_string($threadUuid) && $threadUuid !== '') {
-            [$channel, $requestedThreadId] = $resolveChatThreadContext($threadUuid, $channelUuid);
+            [$channel, $thread] = $resolveChatThreadContext($threadUuid, $channelUuid);
         } else {
             $channel = $resolveChatChannelContext($channelUuid, $request->user());
         }
@@ -106,8 +106,8 @@ class ChatController extends Controller
         $decision = $orchestrator->resolve(
             channel: $channel,
             actor: $request->user(),
-            thread: $requestedThreadId,
-            message: $request->validated('content.body'),
+            thread: $thread,
+            message: $request->validated('body'),
         );
         $thread = $decision->thread;
 
@@ -115,7 +115,7 @@ class ChatController extends Controller
 
         if ($activePresenters->isNotEmpty()) {
             $broadcastChannelId = $this->broadcastChannelIdForThread($thread);
-            $content = $request->validated('content.body');
+            $content = $request->validated('body');
 
             if (! is_string($content) || trim($content) === '') {
                 abort(422, 'A text message is required for agent prompts.');
@@ -200,10 +200,10 @@ class ChatController extends Controller
         }
 
         $actor = $request->user();
-        $body = $request->validated('content.body');
+        $body = $request->validated('body');
         $normalizedBody = is_string($body) ? trim($body) : null;
         $normalizedBody = $normalizedBody === '' ? null : $normalizedBody;
-        $attachmentFiles = collect($request->file('content.attachments', []))
+        $attachmentFiles = collect($request->file('attachments', []))
             ->filter(fn (mixed $file): bool => $file instanceof UploadedFile)
             ->map(fn (UploadedFile $file): array => [
                 'path' => (string) $file->getRealPath(),
@@ -327,7 +327,6 @@ class ChatController extends Controller
             ->cursorPaginate(5, ['*'], 'threads_cursor', null);
         $threads = collect($threadsPaginator->items());
         $latestMessageModel = $channel->latestConversationMessage();
-        $requestRecord = $channel->primaryRequest();
         $activeThreadUuid = null;
 
         if (is_int($actorState?->thread_id) && $actorState->thread_id > 0) {
@@ -348,20 +347,13 @@ class ChatController extends Controller
 
         return [
             'id' => $channel->uuid,
-            'name' => $this->inferChatName($channel, $requestRecord, $threads, $latestMessageModel?->body),
+            'name' => $this->inferChatName($channel, $threads, $latestMessageModel?->body),
             'channel' => [
                 'id' => $channel->uuid,
                 'status' => $channel->status ?? 'open',
                 'active_thread_id' => $activeThreadUuid,
                 'last_message_at' => $latestMessage['created_at'] ?? optional($channel->created_at)?->toIso8601String(),
                 'latest_message' => $latestMessage,
-                'details' => [
-                    'request' => $requestRecord ? [
-                        'title' => $requestRecord->title,
-                        'description' => $requestRecord->description,
-                        'status' => $requestRecord->status,
-                    ] : null,
-                ],
             ],
             'threads' => $threads
                 ->map(fn (Thread $thread): array => $this->mapThreadListItem($thread, $actorState))
@@ -380,15 +372,9 @@ class ChatController extends Controller
      */
     protected function inferChatName(
         Channel $channel,
-        mixed $requestRecord,
         Collection $threads,
         ?string $latestMessageBody
     ): string {
-        $requestTitle = trim((string) ($requestRecord?->title ?? ''));
-        if ($requestTitle !== '') {
-            return $requestTitle;
-        }
-
         $threadTitle = trim((string) ($threads->first()?->title ?? ''));
         if ($threadTitle !== '') {
             return $threadTitle;

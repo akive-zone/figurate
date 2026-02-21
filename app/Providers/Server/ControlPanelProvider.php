@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Providers\Browser;
+namespace App\Providers\Server;
 
 use App\Native\Middleware\EnsurePersonUser;
 use Filament\Http\Middleware\Authenticate;

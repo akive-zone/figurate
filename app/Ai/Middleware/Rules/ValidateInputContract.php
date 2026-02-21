@@ -11,7 +11,7 @@ class ValidateInputContract
     {
         return $next($prompt->append(implode("\n", [
             'Input contract rules:',
-            '- Treat user payload shape as content.body (text) and content.attachments (files).',
+            '- Treat user payload shape as body (text) and attachments (files).',
             '- Never assume legacy content/contents fields.',
             '- If body is empty and no attachment intent is present, request one concrete user input.',
         ])));

@@ -87,10 +87,8 @@ const submitPrompt = async () => {
         await sendChatChatMessage({
             channel: activeChannel.value.id,
             thread: activeChannel.value.active_thread ?? null,
-            content: {
-                body: promptForm.content,
-                attachments: [],
-            },
+            body: promptForm.content,
+            attachments: [],
         }, runtime.value, {
             idempotencyKey: clientMessageId,
         });
@@ -343,7 +341,7 @@ const submitSlidingPrompt = async (content) => {
                     rows="4"
                     placeholder="Write a message..."
                 />
-                <p v-if="promptErrors['content.body']" class="error">{{ promptErrors['content.body'][0] }}</p>
+                <p v-if="promptErrors.body" class="error">{{ promptErrors.body[0] }}</p>
                 <p v-if="promptErrorMessage" class="error">{{ promptErrorMessage }}</p>
                 <p v-if="agentStatusMessage" class="thread__meta">{{ agentStatusMessage }}</p>
                 <button class="button" :disabled="isPrompting">

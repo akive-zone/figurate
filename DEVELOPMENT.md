@@ -109,3 +109,22 @@ if (config('nativephp-internal.running')) {
     $this->loadMigrationsFrom(database_path('migrations/server'));
 }
 ```
+
+## Archived Summary of Early Design Exploration (2026-02-03 to 2026-02-13)
+Archived summary from `PLAN.md` (2026-02-03 to 2026-02-13):
+
+1. Product scope was defined as a cross-platform system (web + Native shell) with Signal, Studio, and Station/admin surfaces.
+2. The fulfillment journey was stabilized around:
+   enquiry -> quote -> booking -> assessment -> acknowledge -> billing -> tracking -> settlement.
+3. Chatbox-first direction was adopted:
+   one visible user conversation, with internal lifecycle handling through channel/thread orchestration.
+4. Channel/thread architecture evolved to:
+   channel as UX container, thread as phase/purpose context, messages as timeline, actors for routing, and per-actor memory support.
+5. Orchestration direction introduced `ConversationOrchestrator` with explicit active-thread resolution, responder selection, and policy-safe transitions.
+6. Tooling direction added role-aware agent tools via resolver/executor patterns for domain writes (order/assessment style actions) with auditability.
+7. Data modeling explored both:
+   classic request/order/assessment/process/payment relationships, and an event-style `posts`/`post_relations` approach.
+8. Guardrails were repeatedly emphasized:
+   deterministic transitions, idempotent behavior, auditable system events, and clear policy boundaries.
+9. Runtime/deployment notes captured monolith dual-surface operation:
+   server DB migrations and Native-local DB migrations loaded conditionally by environment.
