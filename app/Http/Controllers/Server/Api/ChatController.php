@@ -8,7 +8,7 @@ use App\Actions\Server\Chat\ResolveChatThreadContext;
 use App\Actions\Server\Chat\SendPeerThreadMessage;
 use App\Ai\Support\ChatAgentExecutor;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Chat\StoreChatRequest;
+use App\Http\Requests\Server\Chat\StoreChatRequest;
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelActorState;
 use App\Models\Server\Message;
