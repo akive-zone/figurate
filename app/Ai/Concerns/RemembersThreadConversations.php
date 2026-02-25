@@ -4,6 +4,7 @@ namespace App\Ai\Concerns;
 
 use App\Ai\Agents\OrderAgent;
 use App\Ai\Agents\RequestAgent;
+use App\Ai\Storage\ConversationPersistenceResolver;
 use App\Models\Server\Thread;
 use Illuminate\Support\Str;
 use Laravel\Ai\Contracts\ConversationStore;
@@ -14,22 +15,45 @@ trait RemembersThreadConversations
 
     protected ?object $conversationUser = null;
 
+    protected ?string $conversationMode = null;
+
+    public function setConversationMode(?string $mode): static
+    {
+        $this->conversationMode = ConversationPersistenceResolver::normalizeMode($mode);
+
+        return $this;
+    }
+
+    public function conversationMode(): ?string
+    {
+        return $this->conversationMode;
+    }
+
     public function forUser($user): static
     {
+        $shouldUseThreadConversationIds = app(ConversationPersistenceResolver::class)
+            ->shouldUseThreadConversationIds($this->conversationPersistenceModePreference());
+
         $this->conversationUser = $user;
-        $this->conversationId = $this->threadConversationId();
+        $this->conversationId = $shouldUseThreadConversationIds
+            ? $this->threadConversationId()
+            : null;
 
         return $this;
     }
 
     public function continue(string $conversationId, object $as): static
     {
+        $thread = property_exists($this, 'thread') && $this->thread instanceof Thread ? $this->thread : null;
         $threadConversationId = $this->threadConversationId();
-        $threadUuid = property_exists($this, 'thread') && $this->thread instanceof Thread
-            ? (string) $this->thread->uuid
+        $threadUuid = $thread instanceof Thread
+            ? (string) $thread->uuid
             : '';
+        $shouldUseThreadConversationIds = app(ConversationPersistenceResolver::class)
+            ->shouldUseThreadConversationIds($this->conversationPersistenceModePreference());
 
-        $shouldUseThreadConversationId = $threadConversationId !== null
+        $shouldUseThreadConversationId = $shouldUseThreadConversationIds
+            && $threadConversationId !== null
             && $threadUuid !== ''
             && ! str_starts_with($conversationId, $threadUuid.':');
 
@@ -43,9 +67,12 @@ trait RemembersThreadConversations
 
     public function continueLastConversation(object $as): static
     {
+        $shouldUseThreadConversationIds = app(ConversationPersistenceResolver::class)
+            ->shouldUseThreadConversationIds($this->conversationPersistenceModePreference());
+
         $this->conversationUser = $as;
 
-        $this->conversationId = $this->threadConversationId()
+        $this->conversationId = ($shouldUseThreadConversationIds ? $this->threadConversationId() : null)
             ?? resolve(ConversationStore::class)->latestConversationId($as->id);
 
         return $this;
@@ -102,5 +129,10 @@ trait RemembersThreadConversations
             OrderAgent::class => 'order_agent',
             default => Str::snake(class_basename($this)),
         };
+    }
+
+    protected function conversationPersistenceModePreference(): ?string
+    {
+        return $this->conversationMode();
     }
 }

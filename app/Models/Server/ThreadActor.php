@@ -73,7 +73,12 @@ class ThreadActor extends Model
 
     public function memories(): HasMany
     {
-        return $this->hasMany(ThreadActorMemory::class);
+        return $this->hasMany(ThreadActorSession::class);
+    }
+
+    public function sessions(): HasMany
+    {
+        return $this->hasMany(ThreadActorSession::class);
     }
 
     public function actorName(): ?string

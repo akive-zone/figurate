@@ -66,9 +66,9 @@ class Thread extends Model
         return $this->hasMany(ThreadActor::class);
     }
 
-    public function actorMemories(): HasMany
+    public function actorSessions(): HasMany
     {
-        return $this->hasMany(ThreadActorMemory::class);
+        return $this->hasMany(ThreadActorSession::class);
     }
 
     public function presenterActors(): HasMany

@@ -6,10 +6,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class ThreadActorMemory extends Model
+class ThreadActorSession extends Model
 {
-    /** @use HasFactory<\Database\Factories\ThreadActorMemoryFactory> */
+    /** @use HasFactory<\Database\Factories\ThreadActorSessionFactory> */
     use HasFactory;
+
+    protected $table = 'thread_actor_sessions';
 
     /**
      * @var list<string>
@@ -17,6 +19,7 @@ class ThreadActorMemory extends Model
     protected $fillable = [
         'thread_id',
         'thread_actor_id',
+        'user_id',
         'provider',
         'model',
         'conversation_id',
@@ -30,6 +33,7 @@ class ThreadActorMemory extends Model
     protected function casts(): array
     {
         return [
+            'user_id' => 'integer',
             'state' => 'array',
             'last_used_at' => 'datetime',
         ];
@@ -43,5 +47,15 @@ class ThreadActorMemory extends Model
     public function threadActor(): BelongsTo
     {
         return $this->belongsTo(ThreadActor::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function conversation(): BelongsTo
+    {
+        return $this->belongsTo(AgentConversation::class, 'conversation_id', 'id');
     }
 }
