@@ -3,9 +3,21 @@
 namespace App\Ai\Support;
 
 use App\Ai\Tools\AcknowledgeAssessmentTool;
+use App\Ai\Tools\AutoModeSelectorTool;
+use App\Ai\Tools\ContextBudgetTool;
+use App\Ai\Tools\ConversationAuditTool;
 use App\Ai\Tools\CreateOrderFromQuoteTool;
 use App\Ai\Tools\CreateRequestFromConversationTool;
+use App\Ai\Tools\DualWriteDiffTool;
 use App\Ai\Tools\GetChannelFulfillmentFlowTool;
+use App\Ai\Tools\ModePolicyTool;
+use App\Ai\Tools\PrivacyGuardTool;
+use App\Ai\Tools\ReplayTool;
+use App\Ai\Tools\SessionForkTool;
+use App\Ai\Tools\SessionHealthTool;
+use App\Ai\Tools\SessionMergeSummaryTool;
+use App\Ai\Tools\SessionResetTool;
+use App\Ai\Tools\SessionTransferTool;
 use App\Ai\Tools\SuggestProfilesForRequestTool;
 use App\Ai\Tools\UpsertAssessmentTool;
 use App\Models\Server\Channel;
@@ -78,6 +90,18 @@ class ChatToolResolver
         return [
             new GetChannelFulfillmentFlowTool($thread, $user),
             new SuggestProfilesForRequestTool($thread, $user),
+            new AutoModeSelectorTool($thread, $user),
+            new ConversationAuditTool($thread, $user),
+            new SessionResetTool($thread, $user),
+            new SessionForkTool($thread, $user),
+            new SessionTransferTool($thread, $user),
+            new SessionMergeSummaryTool($thread, $user),
+            new ModePolicyTool($thread, $user),
+            new ContextBudgetTool($thread, $user),
+            new DualWriteDiffTool($thread, $user),
+            new ReplayTool($thread, $user),
+            new PrivacyGuardTool($thread, $user),
+            new SessionHealthTool($thread, $user),
         ];
     }
 
