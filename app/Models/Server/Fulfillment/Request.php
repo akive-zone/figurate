@@ -2,7 +2,13 @@
 
 namespace App\Models\Server\Fulfillment;
 
+use App\Models\Server\Channel;
+use App\Models\Server\Fulfillment\Concerns\HasPostMorphType;
+use App\Models\Server\Message;
 use App\Models\Server\Post;
+use App\Models\Server\Profile;
+use App\Models\Server\Thread;
+use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
@@ -11,6 +17,8 @@ use Illuminate\Database\QueryException;
 
 class Request extends Post
 {
+    use HasPostMorphType;
+
     protected $table = 'posts';
 
     public const ActionAsker = 'asker';

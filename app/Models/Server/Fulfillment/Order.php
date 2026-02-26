@@ -2,12 +2,17 @@
 
 namespace App\Models\Server\Fulfillment;
 
+use App\Models\Server\Fulfillment\Concerns\HasPostMorphType;
 use App\Models\Server\Post;
+use App\Models\Server\Profile;
+use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 class Order extends Post
 {
+    use HasPostMorphType;
+
     protected $table = 'posts';
 
     /**

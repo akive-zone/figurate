@@ -2,10 +2,15 @@
 
 namespace App\Models\Server\Fulfillment;
 
+use App\Models\Server\Fulfillment\Concerns\HasPostMorphType;
+use App\Models\Server\Post;
+use App\Models\Server\Profile;
 use Illuminate\Database\Eloquent\Builder;
 
 class Process extends Post
 {
+    use HasPostMorphType;
+
     protected $table = 'posts';
 
     /**

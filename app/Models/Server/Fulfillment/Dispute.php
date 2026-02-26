@@ -2,6 +2,7 @@
 
 namespace App\Models\Server\Fulfillment;
 
+use App\Models\Server\Fulfillment\Concerns\HasPostMorphType;
 use App\Models\Server\Post;
 use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -9,6 +10,8 @@ use Illuminate\Support\Carbon;
 
 class Dispute extends Post
 {
+    use HasPostMorphType;
+
     /**
      * @var list<string>
      */

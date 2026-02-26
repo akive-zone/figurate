@@ -2,12 +2,15 @@
 
 namespace App\Models\Server\Fulfillment;
 
+use App\Models\Server\Fulfillment\Concerns\HasPostMorphType;
 use App\Models\Server\Post;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 
 class Assessment extends Post
 {
+    use HasPostMorphType;
+
     protected $table = 'posts';
 
     /**

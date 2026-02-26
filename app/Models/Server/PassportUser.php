@@ -4,7 +4,7 @@ namespace App\Models\Server;
 
 use Laravel\Passport\HasApiTokens;
 
-class PassportUser extends User
+class PassportUser extends BaseUser
 {
     use HasApiTokens;
 }

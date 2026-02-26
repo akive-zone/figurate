@@ -3,7 +3,15 @@
 namespace App\Providers;
 
 use App\Http\Middleware\EnsureDeviceUser;
+use App\Models\Server\Channel;
+use App\Models\Server\Message;
+use App\Models\Server\Post;
+use App\Models\Server\Profile;
+use App\Models\Server\Store;
+use App\Models\Server\Thread;
+use App\Models\Server\User;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -29,10 +37,22 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+
         if ($this->isNativeRuntime()) {
             $this->loadMigrationsFrom(database_path('migrations/native'));
         } else {
             $this->loadMigrationsFrom(database_path('migrations/server'));
+
+            Relation::morphMap([
+                'channel' => Channel::class,
+                'message' => Message::class,
+                'post' => Post::class,
+                'profile' => Profile::class,
+                'store' => Store::class,
+                'thread' => Thread::class,
+                'user' => User::class,
+            ]);
+
             Route::middleware('api')
                 ->prefix('api')
                 ->group(base_path('routes/api.php'));

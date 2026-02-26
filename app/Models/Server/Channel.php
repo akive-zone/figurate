@@ -3,6 +3,7 @@
 namespace App\Models\Server;
 
 use App\Models\Concerns\HasPublicUuid;
+use App\Models\Server\Fulfillment\Request;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -171,22 +172,6 @@ class Channel extends Model
                 }
             })
             ->orderBy('occurred_at')
-            ->orderBy('created_at')
-            ->get();
-    }
-
-    /**
-     * @return Collection<int, Message>
-     */
-    public function conversationRequestMessages(): Collection
-    {
-        $requestRecord = $this->primaryRequest();
-
-        if (! $requestRecord) {
-            return collect();
-        }
-
-        return $requestRecord->messages()
             ->orderBy('created_at')
             ->get();
     }
