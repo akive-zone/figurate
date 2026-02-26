@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Models\Server;
+namespace App\Models\Server\Fulfillment;
 
+use App\Models\Server\Post;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;

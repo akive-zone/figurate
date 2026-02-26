@@ -6,6 +6,7 @@ use App\Actions\Server\Auth\MergeDeviceUserIntoPerson;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Auth\StudioLoginRequest;
 use App\Http\Requests\Server\Auth\StudioRegisterRequest;
+use App\Models\Server\SanctumUser;
 use App\Models\Server\User;
 use App\TokenAbility;
 use Illuminate\Http\JsonResponse;
@@ -22,7 +23,7 @@ class ApiTokenController extends Controller
 
         $deviceUser = $this->resolveDeviceUser($request);
 
-        $user = User::create([
+        $user = SanctumUser::create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
@@ -46,7 +47,7 @@ class ApiTokenController extends Controller
         $data = $request->validated();
         $deviceUser = $this->resolveDeviceUser($request);
 
-        $user = User::query()
+        $user = SanctumUser::query()
             ->where('email', $data['email'])
             ->first();
 
@@ -96,7 +97,7 @@ class ApiTokenController extends Controller
             return null;
         }
 
-        return User::query()
+        return SanctumUser::query()
             ->where('type', 'device')
             ->where('device_identifier', $deviceId)
             ->first();

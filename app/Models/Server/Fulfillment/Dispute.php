@@ -1,10 +1,11 @@
 <?php
 
-namespace App\Models\Server;
+namespace App\Models\Server\Fulfillment;
 
+use App\Models\Server\Post;
 use Illuminate\Database\Eloquent\Builder;
 
-class Dispute extends Thread
+class Dispute extends Post
 {
     /**
      * @var list<string>
