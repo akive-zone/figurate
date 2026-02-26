@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Thread extends Model
@@ -102,5 +103,12 @@ class Thread extends Model
     public function relations(): HasMany
     {
         return $this->hasMany(ThreadRelation::class);
+    }
+
+    public function stores(): MorphToMany
+    {
+        return $this->morphToMany(Store::class, 'storeable', 'storeables', 'storeable_id', 'store_id')
+            ->withPivot(['scope', 'created_by', 'meta'])
+            ->withTimestamps();
     }
 }

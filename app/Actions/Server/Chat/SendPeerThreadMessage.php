@@ -2,6 +2,7 @@
 
 namespace App\Actions\Server\Chat;
 
+use App\Ai\Support\Knowledge\MessageAttachmentStoreIngestor;
 use App\Jobs\ProcessThreadObservers;
 use App\Models\Server\Channel;
 use App\Models\Server\Message;
@@ -13,6 +14,7 @@ class SendPeerThreadMessage
 {
     public function __construct(
         protected StoreThreadMessage $storeThreadMessage,
+        protected MessageAttachmentStoreIngestor $messageAttachmentStoreIngestor,
     ) {}
 
     /**
@@ -49,6 +51,7 @@ class SendPeerThreadMessage
 
         if ($attachments->isNotEmpty()) {
             $message->syncAttachmentPayload();
+            $this->messageAttachmentStoreIngestor->ingest($thread, $message, $actor);
         }
 
         if ($dispatchObservers) {

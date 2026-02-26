@@ -2,6 +2,7 @@
 
 namespace App\Ai\Support;
 
+use App\Ai\Support\Knowledge\KnowledgeSearchStoreResolver;
 use App\Ai\Tools\AcknowledgeAssessmentTool;
 use App\Ai\Tools\AutoModeSelectorTool;
 use App\Ai\Tools\ContextBudgetTool;
@@ -20,15 +21,21 @@ use App\Ai\Tools\SessionResetTool;
 use App\Ai\Tools\SessionTransferTool;
 use App\Ai\Tools\SuggestProfilesForRequestTool;
 use App\Ai\Tools\UpsertAssessmentTool;
+use App\Ai\Tools\WriteMemoryFileTool;
 use App\Models\Server\Channel;
 use App\Models\Server\Request as ServiceRequest;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
 use Laravel\Ai\Contracts\Tool;
+use Laravel\Ai\Providers\Tools\FileSearch;
 
 class ChatToolResolver
 {
+    public function __construct(
+        protected KnowledgeSearchStoreResolver $knowledgeSearchStoreResolver = new KnowledgeSearchStoreResolver,
+    ) {}
+
     /**
      * @return list<Tool>
      */
@@ -102,6 +109,24 @@ class ChatToolResolver
             new ReplayTool($thread, $user),
             new PrivacyGuardTool($thread, $user),
             new SessionHealthTool($thread, $user),
+            new WriteMemoryFileTool($thread, $user),
+            ...$this->knowledgeSearchTools($thread),
+        ];
+    }
+
+    /**
+     * @return list<Tool>
+     */
+    protected function knowledgeSearchTools(Thread $thread): array
+    {
+        $storeIds = $this->knowledgeSearchStoreResolver->resolveExternalStoreIds($thread);
+
+        if ($storeIds === []) {
+            return [];
+        }
+
+        return [
+            new FileSearch(stores: $storeIds),
         ];
     }
 

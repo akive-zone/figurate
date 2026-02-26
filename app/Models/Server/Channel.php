@@ -55,6 +55,13 @@ class Channel extends Model
         return $this->morphMany(Post::class, 'postable');
     }
 
+    public function stores(): MorphToMany
+    {
+        return $this->morphToMany(Store::class, 'storeable', 'storeables', 'storeable_id', 'store_id')
+            ->withPivot(['scope', 'created_by', 'meta'])
+            ->withTimestamps();
+    }
+
     public function hasActor(User $user): bool
     {
         return $this->actorStates()
