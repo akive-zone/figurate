@@ -2,9 +2,11 @@
 
 namespace App\Ai\Tools;
 
+use App\Ai\Support\FulfillmentContext;
+use App\Ai\Support\ThreadContextResolver;
 use App\Models\Server\Channel;
+use App\Models\Server\Post;
 use App\Models\Server\Profile;
-use App\Models\Server\Request as ServiceRequest;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -17,6 +19,8 @@ class SuggestProfilesForRequestTool implements Tool
     public function __construct(
         protected Thread $thread,
         protected User $actor,
+        protected FulfillmentContext $fulfillmentContext = new FulfillmentContext,
+        protected ThreadContextResolver $threadContextResolver = new ThreadContextResolver,
     ) {}
 
     /**
@@ -32,14 +36,14 @@ class SuggestProfilesForRequestTool implements Tool
      */
     public function handle(ToolRequest $request): Stringable|string
     {
-        $channel = $this->resolveChannel();
-        $serviceRequest = $this->resolveServiceRequest($channel);
+        $channel = $this->threadContextResolver->resolveChannel($this->thread);
+        $requestPost = $this->fulfillmentContext->resolveSubjectFromThread($this->thread);
 
-        if (! $serviceRequest) {
+        if (! $requestPost) {
             return $this->encodeError('No request exists for this channel yet.');
         }
 
-        if ($channel && ! $this->channelAllowsActor($channel, $serviceRequest)) {
+        if ($channel && ! $this->channelAllowsActor($channel, $requestPost)) {
             return $this->encodeError('Actor does not have access to request profile suggestions.');
         }
 
@@ -49,9 +53,9 @@ class SuggestProfilesForRequestTool implements Tool
         $query = trim((string) ($request['query'] ?? ''));
         if ($query === '') {
             $query = trim(implode(' ', array_filter([
-                (string) $serviceRequest->title,
-                (string) $serviceRequest->description,
-                (string) $serviceRequest->flow_type,
+                (string) $this->fulfillmentContext->title($requestPost),
+                (string) $this->fulfillmentContext->description($requestPost),
+                (string) $this->fulfillmentContext->flowType($requestPost),
             ])));
         }
 
@@ -108,10 +112,10 @@ class SuggestProfilesForRequestTool implements Tool
         return json_encode([
             'ok' => true,
             'request' => [
-                'id' => $serviceRequest->id,
-                'ulid' => $serviceRequest->ulid,
-                'title' => $serviceRequest->title,
-                'status' => $serviceRequest->status,
+                'id' => $requestPost->id,
+                'ulid' => $requestPost->ulid,
+                'title' => $this->fulfillmentContext->title($requestPost),
+                'status' => $requestPost->status,
             ],
             'query' => $query,
             'suggestions' => $profiles,
@@ -129,35 +133,10 @@ class SuggestProfilesForRequestTool implements Tool
         ];
     }
 
-    protected function resolveChannel(): ?Channel
+    protected function channelAllowsActor(Channel $channel, Post $requestPost): bool
     {
-        $threadable = $this->thread->threadable;
-
-        if ($threadable instanceof Channel) {
-            return $threadable;
-        }
-
-        if ($threadable instanceof ServiceRequest) {
-            return $threadable->channels()->latest('channels.id')->first();
-        }
-
-        return null;
-    }
-
-    protected function resolveServiceRequest(?Channel $channel): ?ServiceRequest
-    {
-        $threadable = $this->thread->threadable;
-
-        if ($threadable instanceof ServiceRequest) {
-            return $threadable;
-        }
-
-        return $channel?->primaryRequest();
-    }
-
-    protected function channelAllowsActor(Channel $channel, ServiceRequest $serviceRequest): bool
-    {
-        return $serviceRequest->hasParticipant($this->actor) || $channel->hasActor($this->actor);
+        return $this->fulfillmentContext->hasParticipant($requestPost, $this->actor)
+            || $channel->hasActor($this->actor);
     }
 
     /**

@@ -14,7 +14,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
-use App\Models\Server\Dispute as DisputeModel;
+use App\Models\Server\Fulfillment\Dispute as DisputeModel;
 
 #[ApiResource(
     shortName: 'Platform Dispute',
@@ -47,6 +47,6 @@ use App\Models\Server\Dispute as DisputeModel;
     ],
 )]
 #[QueryParameter(key: 'status', filter: EqualsFilter::class, property: 'status')]
-#[QueryParameter(key: 'phase', filter: EqualsFilter::class, property: 'phase')]
+#[QueryParameter(key: 'type', filter: EqualsFilter::class, property: 'type')]
 #[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
 final class DisputeResource {}

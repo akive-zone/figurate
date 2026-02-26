@@ -2,7 +2,8 @@
 
 namespace App\Ai\Tools;
 
-use App\Models\Server\Request as ServiceRequest;
+use App\Ai\Support\FulfillmentContext;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -14,8 +15,9 @@ class AcknowledgeAssessmentTool implements Tool
 {
     public function __construct(
         protected Thread $thread,
-        protected ServiceRequest $serviceRequest,
+        protected Post $requestPost,
         protected User $actor,
+        protected FulfillmentContext $fulfillmentContext = new FulfillmentContext,
     ) {}
 
     /**
@@ -31,63 +33,21 @@ class AcknowledgeAssessmentTool implements Tool
      */
     public function handle(ToolRequest $request): Stringable|string
     {
-        if (! $this->serviceRequest->hasUserActor($this->actor, ServiceRequest::ActionAsker)) {
+        if (! $this->fulfillmentContext->isRequester($this->requestPost, $this->actor)) {
             return $this->encodeError('Only the request asker can acknowledge assessment.');
         }
 
-        $order = $this->serviceRequest->currentOrder();
-
-        if (! $order) {
-            return $this->encodeError('No order exists for this request.');
-        }
-
-        $assessment = $order->assessment();
-
-        if (! $assessment) {
-            return $this->encodeError('No assessment exists for this order.');
-        }
-
-        $assessment->forceFill([
-            'type' => 'assessment.acknowledged',
-            'status' => 'acknowledged',
-            'payload' => array_merge($assessment->payload ?? [], [
-                'acknowledged_at' => now()->toIso8601String(),
-            ]),
-            'meta' => array_merge($assessment->meta ?? [], [
-                'source' => 'tool.acknowledge_assessment',
-            ]),
-            'occurred_at' => now(),
-        ])->save();
-
-        $order->forceFill([
-            'status' => 'assessment_acknowledged',
-        ])->save();
-
         $note = trim((string) ($request['note'] ?? ''));
 
-        $this->thread->messages()->create([
-            'senderable_type' => null,
-            'senderable_id' => null,
-            'type' => 'system',
-            'tag' => 'assessment_acknowledged',
-            'body' => $note !== ''
-                ? "Assessment #{$assessment->id} acknowledged. {$note}"
-                : "Assessment #{$assessment->id} acknowledged.",
-            'attachments' => null,
-            'meta' => [
-                'source' => 'tool',
-                'tool' => self::class,
-                'order_id' => $order->id,
-                'assessment_id' => $assessment->id,
-            ],
-        ]);
-
-        return json_encode([
-            'ok' => true,
-            'assessment_id' => $assessment->id,
-            'order_id' => $order->id,
-            'status' => $assessment->status,
-        ], JSON_UNESCAPED_SLASHES);
+        return json_encode(
+            $this->fulfillmentContext->acknowledgeAssessment(
+                thread: $this->thread,
+                requestPost: $this->requestPost,
+                actor: $this->actor,
+                note: $note,
+            ),
+            JSON_UNESCAPED_SLASHES,
+        );
     }
 
     /**

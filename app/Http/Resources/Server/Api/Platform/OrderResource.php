@@ -14,7 +14,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
-use App\Models\Server\Order as OrderModel;
+use App\Models\Server\Fulfillment\Order as OrderModel;
 
 #[ApiResource(
     shortName: 'Platform Order',

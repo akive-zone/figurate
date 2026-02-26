@@ -2,7 +2,7 @@
 
 namespace App\Policies\Server;
 
-use App\Models\Server\Quote;
+use App\Models\Server\Fulfillment\Quote;
 use App\Models\Server\User;
 
 class QuotePolicy

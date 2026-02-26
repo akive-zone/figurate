@@ -22,7 +22,6 @@ use App\Ai\Middleware\Workflows\ResolveAudienceContext;
 use App\Ai\Middleware\Workflows\SelectPresenters;
 use App\Ai\Middleware\Workflows\UseThreadConversationStore;
 use App\Ai\Support\ChatToolResolver;
-use App\Models\Server\Request;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Laravel\Ai\Contracts\Agent;
@@ -33,43 +32,41 @@ use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Promptable;
 use Stringable;
 
-class OrderAgent implements Agent, Conversational, HasMiddleware, HasTools
+class PresenterAgent implements Agent, Conversational, HasMiddleware, HasTools
 {
     use Promptable, RemembersThreadConversations;
 
     public function __construct(
         public ?Thread $thread = null,
         public ?User $actor = null,
+        protected ?string $presenterActorKey = null,
     ) {}
+
+    public function setPresenterActorKey(?string $actorKey): static
+    {
+        $this->presenterActorKey = is_string($actorKey) && $actorKey !== ''
+            ? $actorKey
+            : null;
+
+        return $this;
+    }
+
+    public function presenterActorKey(): ?string
+    {
+        return $this->presenterActorKey;
+    }
 
     /**
      * Get the instructions that the agent should follow.
      */
     public function instructions(): Stringable|string
     {
-        $request = $this->thread?->threadable;
-
-        if (! $request instanceof Request) {
-            $request = null;
-        }
-        $order = $request?->currentOrder();
-
-        if (! $request) {
-            return 'You are an Agent. Help askers navigate booked orders and fulfillment.';
-        }
-
-        $orderContext = $order
-            ? "- Order #{$order->id} status: {$order->status}"
-            : '- No order exists yet.';
-
-        return "You are OrderAgent for the flow.\n".
-            "Current fulfillment context:\n".
-            "- Request #{$request->id} status: {$request->status}\n".
-            "{$orderContext}\n\n".
-            'Your role:\n'.
-            '- Guide the asker through booked-order fulfillment.\n'.
-            '- Highlight pending confirmations and milestones.\n'.
-            '- Keep responses direct and operational.';
+        return "You are an Agent for conversation and fulfillment orchestration.\n"
+            ."Operating mode:\n"
+            ."- Use tools first to inspect flow/state before committing decisions.\n"
+            ."- Use knowledge retrieval (RAG / file search) whenever facts are document-backed.\n"
+            ."- Keep responses concise, operational, and evidence-aware.\n"
+            .'- When state-changing actions are needed, call the appropriate tool instead of free-text promises.';
     }
 
     /**

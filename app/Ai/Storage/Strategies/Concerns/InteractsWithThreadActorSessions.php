@@ -2,8 +2,7 @@
 
 namespace App\Ai\Storage\Strategies\Concerns;
 
-use App\Ai\Agents\OrderAgent;
-use App\Ai\Agents\RequestAgent;
+use App\Ai\Agents\PresenterAgent;
 use App\Ai\Storage\ConversationId;
 use App\Models\Server\ChannelActorState;
 use App\Models\Server\Thread;
@@ -56,7 +55,9 @@ trait InteractsWithThreadActorSessions
             return [null, null];
         }
 
-        $actorKey = $encodedActorKey ?: $this->actorKeyForAgentClass($agentClass);
+        $actorKey = $encodedActorKey
+            ?: $this->actorKeyForAgentClass($agentClass)
+            ?: $thread->primaryPresenterActor()?->actorName();
 
         return [$thread, $actorKey];
     }
@@ -90,8 +91,7 @@ trait InteractsWithThreadActorSessions
     protected function actorKeyForAgentClass(?string $agentClass): ?string
     {
         return match ($agentClass) {
-            RequestAgent::class => ThreadActor::ActorRequestAgent,
-            OrderAgent::class => ThreadActor::ActorOrderAgent,
+            PresenterAgent::class => null,
             default => null,
         };
     }

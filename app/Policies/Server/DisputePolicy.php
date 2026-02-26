@@ -2,7 +2,7 @@
 
 namespace App\Policies\Server;
 
-use App\Models\Server\Dispute;
+use App\Models\Server\Fulfillment\Dispute;
 use App\Models\Server\User;
 
 class DisputePolicy

@@ -14,7 +14,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
-use App\Models\Server\Assessment as AssessmentModel;
+use App\Models\Server\Fulfillment\Assessment as AssessmentModel;
 
 #[ApiResource(
     shortName: 'Platform Assessment',

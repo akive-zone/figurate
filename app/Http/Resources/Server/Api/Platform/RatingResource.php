@@ -13,7 +13,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
-use App\Models\Server\Rating as RatingModel;
+use App\Models\Server\Fulfillment\Rating as RatingModel;
 
 #[ApiResource(
     shortName: 'Platform Rating',

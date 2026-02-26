@@ -2,11 +2,9 @@
 
 namespace App\Ai\Concerns;
 
-use App\Ai\Agents\OrderAgent;
-use App\Ai\Agents\RequestAgent;
 use App\Ai\Storage\ConversationPersistenceResolver;
 use App\Models\Server\Thread;
-use Illuminate\Support\Str;
+use App\Models\Server\ThreadActor;
 use Laravel\Ai\Contracts\ConversationStore;
 
 trait RemembersThreadConversations
@@ -124,11 +122,23 @@ trait RemembersThreadConversations
 
     protected function conversationActorKey(): string
     {
-        return match ($this::class) {
-            RequestAgent::class => 'request_agent',
-            OrderAgent::class => 'order_agent',
-            default => Str::snake(class_basename($this)),
-        };
+        if (method_exists($this, 'presenterActorKey')) {
+            $actorKey = $this->presenterActorKey();
+
+            if (is_string($actorKey) && $actorKey !== '') {
+                return $actorKey;
+            }
+        }
+
+        if (property_exists($this, 'thread') && $this->thread instanceof \App\Models\Server\Thread) {
+            $primaryActorKey = $this->thread->primaryPresenterActor()?->actorName();
+
+            if (is_string($primaryActorKey) && $primaryActorKey !== '') {
+                return $primaryActorKey;
+            }
+        }
+
+        return ThreadActor::ActorRequestAgent;
     }
 
     protected function conversationPersistenceModePreference(): ?string

@@ -2,7 +2,7 @@
 
 namespace Database\Factories;
 
-use App\Models\Server\Request;
+use App\Models\Server\Fulfillment\Request;
 use App\Models\Server\Thread;
 use Illuminate\Database\Eloquent\Factories\Factory;
 

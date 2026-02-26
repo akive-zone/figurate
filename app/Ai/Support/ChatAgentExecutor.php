@@ -3,8 +3,7 @@
 namespace App\Ai\Support;
 
 use App\Actions\Server\Chat\StoreThreadMessage;
-use App\Ai\Agents\OrderAgent;
-use App\Ai\Agents\RequestAgent;
+use App\Ai\Agents\PresenterAgent;
 use App\Ai\Storage\ConversationId;
 use App\Ai\Storage\ConversationPersistenceResolver;
 use App\Models\Server\Message;
@@ -111,15 +110,15 @@ class ChatAgentExecutor
         $conversationPersistenceMode = $this->requestedConversationPersistenceMode();
 
         $agent = match ($threadActor->actorName()) {
-            ThreadActor::ActorOrderAgent => OrderAgent::make(
-                thread: $thread,
-                actor: $user,
-            ),
-            default => RequestAgent::make(
+            default => PresenterAgent::make(
                 thread: $thread,
                 actor: $user,
             ),
         };
+
+        if (method_exists($agent, 'setPresenterActorKey')) {
+            $agent->setPresenterActorKey($threadActor->actorName());
+        }
 
         if ($conversationPersistenceMode !== null && method_exists($agent, 'setConversationMode')) {
             $agent->setConversationMode($conversationPersistenceMode);

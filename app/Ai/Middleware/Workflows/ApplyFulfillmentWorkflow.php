@@ -2,13 +2,18 @@
 
 namespace App\Ai\Middleware\Workflows;
 
-use App\Models\Server\Request as ServiceRequest;
+use App\Ai\Support\FulfillmentContext;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use Closure;
 use Laravel\Ai\Prompts\AgentPrompt;
 
 class ApplyFulfillmentWorkflow
 {
+    public function __construct(
+        protected FulfillmentContext $fulfillmentContext = new FulfillmentContext,
+    ) {}
+
     public function handle(AgentPrompt $prompt, Closure $next): mixed
     {
         $thread = $this->resolveThread($prompt);
@@ -17,14 +22,11 @@ class ApplyFulfillmentWorkflow
             return $next($prompt);
         }
 
-        $request = $thread->threadable;
-        if (! $request instanceof ServiceRequest) {
-            $request = null;
-        }
+        $requestPost = $this->fulfillmentContext->resolveSubjectFromThread($thread);
 
-        $order = $request?->currentOrder();
-        $stage = $this->inferStage($request, $order);
-        $workflowContext = $this->buildWorkflowContext($thread, $request, $order, $stage);
+        $order = $requestPost ? $this->fulfillmentContext->currentOrder($requestPost) : null;
+        $stage = $this->inferStage($requestPost, $order);
+        $workflowContext = $this->buildWorkflowContext($thread, $requestPost, $order, $stage);
 
         return $next($prompt->prepend($workflowContext));
     }
@@ -42,9 +44,9 @@ class ApplyFulfillmentWorkflow
         return $thread instanceof Thread ? $thread : null;
     }
 
-    protected function inferStage(?ServiceRequest $request, mixed $order): string
+    protected function inferStage(?Post $requestPost, mixed $order): string
     {
-        if (! $request) {
+        if (! $requestPost) {
             return 'intake';
         }
 
@@ -55,9 +57,9 @@ class ApplyFulfillmentWorkflow
         return 'order_active';
     }
 
-    protected function buildWorkflowContext(Thread $thread, ?ServiceRequest $request, mixed $order, string $stage): string
+    protected function buildWorkflowContext(Thread $thread, ?Post $requestPost, mixed $order, string $stage): string
     {
-        $requestLabel = $request ? "#{$request->id} ({$request->status})" : 'none';
+        $requestLabel = $requestPost ? "#{$requestPost->id} ({$requestPost->status})" : 'none';
         $orderLabel = $order ? "#{$order->id} ({$order->status})" : 'none';
 
         $stageRules = match ($stage) {

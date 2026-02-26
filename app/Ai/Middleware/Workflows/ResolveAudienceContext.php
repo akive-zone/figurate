@@ -2,8 +2,10 @@
 
 namespace App\Ai\Middleware\Workflows;
 
+use App\Ai\Support\FulfillmentContext;
+use App\Ai\Support\ThreadContextResolver;
 use App\Models\Server\Channel;
-use App\Models\Server\Request as ServiceRequest;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Closure;
@@ -11,6 +13,11 @@ use Laravel\Ai\Prompts\AgentPrompt;
 
 class ResolveAudienceContext
 {
+    public function __construct(
+        protected FulfillmentContext $fulfillmentContext = new FulfillmentContext,
+        protected ThreadContextResolver $threadContextResolver = new ThreadContextResolver,
+    ) {}
+
     public function handle(AgentPrompt $prompt, Closure $next): mixed
     {
         $thread = $this->resolveThread($prompt);
@@ -20,9 +27,10 @@ class ResolveAudienceContext
             return $next($prompt);
         }
 
-        [$channel, $request] = $this->resolveChannelAndRequest($thread);
-        $speakerParty = $this->resolveSpeakerParty($actor, $request);
-        $participantCount = $this->resolveParticipantCount($channel, $request);
+        $channel = $this->threadContextResolver->resolveChannel($thread);
+        $requestPost = $this->fulfillmentContext->resolveSubjectFromThread($thread);
+        $speakerParty = $this->resolveSpeakerParty($actor, $requestPost);
+        $participantCount = $this->resolveParticipantCount($channel, $requestPost);
         $conversationMode = $participantCount > 2 ? 'group' : 'direct';
         $audience = $this->resolveAudience($speakerParty, $conversationMode);
 
@@ -66,53 +74,35 @@ class ResolveAudienceContext
         return $actor instanceof User ? $actor : null;
     }
 
-    /**
-     * @return array{0: ?Channel, 1: ?ServiceRequest}
-     */
-    protected function resolveChannelAndRequest(Thread $thread): array
+    protected function resolveSpeakerParty(User $actor, ?Post $requestPost): string
     {
-        $threadable = $thread->threadable;
-
-        if ($threadable instanceof Channel) {
-            return [$threadable, $threadable->primaryRequest()];
-        }
-
-        if ($threadable instanceof ServiceRequest) {
-            return [$threadable->channels()->latest('channels.id')->first(), $threadable];
-        }
-
-        return [null, null];
-    }
-
-    protected function resolveSpeakerParty(User $actor, ?ServiceRequest $request): string
-    {
-        if (! $request) {
+        if (! $requestPost) {
             return 'member';
         }
 
-        if ($request->hasUserActor($actor, ServiceRequest::ActionAsker)) {
+        if ($this->fulfillmentContext->isRequester($requestPost, $actor)) {
             return 'asker';
         }
 
-        if ($request->hasProfileActorForUser($actor, ServiceRequest::ActionTargetProfile)) {
+        if ($this->fulfillmentContext->isTargetProfileParticipant($requestPost, $actor)) {
             return 'worker';
         }
 
-        $order = $request->currentOrder();
+        $order = $this->fulfillmentContext->currentOrder($requestPost);
         $sellerProfile = $order?->sellerProfileRecord();
 
         if ($sellerProfile && $sellerProfile->user_id === $actor->id) {
             return 'worker';
         }
 
-        if ($request->hasParticipant($actor)) {
+        if ($this->fulfillmentContext->hasParticipant($requestPost, $actor)) {
             return 'member';
         }
 
         return 'external';
     }
 
-    protected function resolveParticipantCount(?Channel $channel, ?ServiceRequest $request): int
+    protected function resolveParticipantCount(?Channel $channel, ?Post $requestPost): int
     {
         if ($channel) {
             return max(
@@ -125,17 +115,8 @@ class ResolveAudienceContext
             );
         }
 
-        if ($request) {
-            $askerCount = $request->users()
-                ->wherePivot('action', ServiceRequest::ActionAsker)
-                ->distinct('users.id')
-                ->count('users.id');
-            $workerCount = $request->profiles()
-                ->wherePivot('action', ServiceRequest::ActionTargetProfile)
-                ->distinct('profiles.user_id')
-                ->count('profiles.user_id');
-
-            return max(1, $askerCount + $workerCount);
+        if ($requestPost) {
+            return 2;
         }
 
         return 1;

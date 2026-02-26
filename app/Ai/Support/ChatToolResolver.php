@@ -23,7 +23,7 @@ use App\Ai\Tools\SuggestProfilesForRequestTool;
 use App\Ai\Tools\UpsertAssessmentTool;
 use App\Ai\Tools\WriteMemoryFileTool;
 use App\Models\Server\Channel;
-use App\Models\Server\Request as ServiceRequest;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
@@ -34,6 +34,7 @@ class ChatToolResolver
 {
     public function __construct(
         protected KnowledgeSearchStoreResolver $knowledgeSearchStoreResolver = new KnowledgeSearchStoreResolver,
+        protected FulfillmentContext $fulfillmentContext = new FulfillmentContext,
     ) {}
 
     /**
@@ -55,19 +56,19 @@ class ChatToolResolver
             }
         }
 
-        $serviceRequest = $thread->threadable;
-        if (! $serviceRequest instanceof ServiceRequest) {
+        $requestPost = $this->fulfillmentContext->resolveSubjectFromThread($thread);
+        if (! $requestPost instanceof Post) {
             return [];
         }
 
-        $isAsker = $this->isAsker($serviceRequest, $user);
-        $isWorker = $this->isWorker($serviceRequest, $user);
+        $isAsker = $this->isAsker($requestPost, $user);
+        $isWorker = $this->isWorker($requestPost, $user);
 
         if ($primaryActor === ThreadActor::ActorRequestAgent) {
             return $isAsker
                 ? [
                     ...$sharedTools,
-                    new CreateOrderFromQuoteTool($thread, $serviceRequest, $user),
+                    new CreateOrderFromQuoteTool($thread, $requestPost, $user),
                 ]
                 : $sharedTools;
         }
@@ -76,11 +77,11 @@ class ChatToolResolver
             $tools = [...$sharedTools];
 
             if ($isAsker) {
-                $tools[] = new AcknowledgeAssessmentTool($thread, $serviceRequest, $user);
+                $tools[] = new AcknowledgeAssessmentTool($thread, $requestPost, $user);
             }
 
             if ($isWorker) {
-                $tools[] = new UpsertAssessmentTool($thread, $serviceRequest, $user);
+                $tools[] = new UpsertAssessmentTool($thread, $requestPost, $user);
             }
 
             return $tools;
@@ -149,23 +150,13 @@ class ChatToolResolver
         return $thread->purpose === Thread::PurposeMain;
     }
 
-    protected function isAsker(ServiceRequest $serviceRequest, User $user): bool
+    protected function isAsker(Post $requestPost, User $user): bool
     {
-        try {
-            return $serviceRequest->hasUserActor($user, ServiceRequest::ActionAsker);
-        } catch (\Throwable) {
-            $channel = $serviceRequest->channels()->latest('channels.id')->first();
-
-            return $channel ? $channel->hasActor($user) : false;
-        }
+        return $this->fulfillmentContext->isRequester($requestPost, $user);
     }
 
-    protected function isWorker(ServiceRequest $serviceRequest, User $user): bool
+    protected function isWorker(Post $requestPost, User $user): bool
     {
-        try {
-            return $serviceRequest->hasProfileActorForUser($user);
-        } catch (\Throwable) {
-            return false;
-        }
+        return $this->fulfillmentContext->isTargetProfileParticipant($requestPost, $user);
     }
 }

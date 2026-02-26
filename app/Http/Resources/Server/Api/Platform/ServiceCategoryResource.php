@@ -10,7 +10,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\QueryParameter;
-use App\Models\Server\ServiceCategory as ServiceCategoryModel;
+use App\Models\Server\Fulfillment\ServiceCategory as ServiceCategoryModel;
 
 #[ApiResource(
     shortName: 'Platform Service Category',

@@ -13,7 +13,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
-use App\Models\Server\Payment as PaymentModel;
+use App\Models\Server\Fulfillment\Payment as PaymentModel;
 
 #[ApiResource(
     shortName: 'Platform Payment',

@@ -2,7 +2,7 @@
 
 namespace App\Policies\Server;
 
-use App\Models\Server\Rating;
+use App\Models\Server\Fulfillment\Rating;
 use App\Models\Server\User;
 
 class RatingPolicy

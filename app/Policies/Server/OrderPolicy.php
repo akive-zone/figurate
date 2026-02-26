@@ -2,7 +2,7 @@
 
 namespace App\Policies\Server;
 
-use App\Models\Server\Order;
+use App\Models\Server\Fulfillment\Order;
 use App\Models\Server\User;
 
 class OrderPolicy

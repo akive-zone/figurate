@@ -2,7 +2,7 @@
 
 namespace App\Policies\Server;
 
-use App\Models\Server\ServiceCategory;
+use App\Models\Server\Fulfillment\ServiceCategory;
 use App\Models\Server\User;
 
 class ServiceCategoryPolicy

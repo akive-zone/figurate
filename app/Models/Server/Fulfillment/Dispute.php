@@ -3,7 +3,9 @@
 namespace App\Models\Server\Fulfillment;
 
 use App\Models\Server\Post;
+use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 
 class Dispute extends Post
 {
@@ -11,70 +13,71 @@ class Dispute extends Post
      * @var list<string>
      */
     protected $fillable = [
-        'uuid',
-        'threadable_type',
-        'threadable_id',
-        'purpose',
-        'title',
-        'phase',
+        'ulid',
+        'postable_type',
+        'postable_id',
+        'type',
         'status',
+        'payload',
+        'meta',
+        'occurred_at',
     ];
 
     protected static function booted(): void
     {
-        static::addGlobalScope('dispute_phase', function (Builder $builder): void {
-            $builder->where('purpose', self::PurposeDispute);
+        static::addGlobalScope('dispute_type', function (Builder $builder): void {
+            $builder->where('type', 'like', 'dispute.%');
         });
 
         static::creating(function (Dispute $dispute): void {
+            if (! $dispute->type) {
+                $dispute->type = 'dispute.opened';
+            }
+
             if (! $dispute->status) {
                 $dispute->status = 'open';
             }
 
-            if (! $dispute->phase) {
-                $dispute->phase = 'opened';
+            if (! $dispute->occurred_at) {
+                $dispute->occurred_at = now();
             }
+        });
 
-            if (! $dispute->purpose) {
-                $dispute->purpose = self::PurposeDispute;
-            }
+        static::created(function (Dispute $dispute): void {
+            $orderId = data_get($dispute->meta, 'order_id');
 
-            if (! $dispute->title) {
-                $dispute->title = 'Dispute';
+            if (is_numeric($orderId) && ! $dispute->order) {
+                $order = Order::query()->find((int) $orderId);
+
+                if ($order) {
+                    $dispute->attachRelation($order, 'order');
+                }
             }
         });
     }
 
     public function getOrderAttribute(): ?Order
     {
-        if ($this->threadable instanceof Order) {
-            return $this->threadable;
-        }
-
-        if ($this->threadable_type !== (new Order)->getMorphClass()) {
-            return null;
-        }
-
-        $orderId = $this->threadable_id;
-
-        return is_numeric($orderId) ? Order::query()->find((int) $orderId) : null;
+        return $this->relatedOne(Order::class, 'order');
     }
 
     public function getOrderIdAttribute(): ?int
     {
-        $id = $this->order?->id ?? $this->threadable_id;
-
-        return is_numeric($id) ? (int) $id : null;
+        return $this->order?->id;
     }
 
     public function getOpenedByIdAttribute(): ?int
     {
-        return null;
+        $value = data_get($this->meta, 'opened_by');
+
+        return is_numeric($value) ? (int) $value : null;
     }
 
     public function getResolvedByIdAttribute(): ?int
     {
-        return null;
+        $value = data_get($this->meta, 'resolved_by');
+
+        return is_numeric($value) ? (int) $value : null;
     }
 
     public function getOpenedByAttribute(): ?int
@@ -89,34 +92,46 @@ class Dispute extends Post
 
     public function getReasonAttribute(): ?string
     {
-        return $this->title;
+        return data_get($this->payload, 'reason');
     }
 
-    public function getResolvedAtAttribute(): mixed
+    public function getResolvedAtAttribute(): ?Carbon
     {
-        return null;
+        $value = data_get($this->payload, 'resolved_at');
+
+        return is_string($value) ? Carbon::parse($value) : null;
     }
 
     public function setOrderIdAttribute(?int $value): void
     {
-        $this->threadable_type = (new Order)->getMorphClass();
-        $this->threadable_id = $value;
+        $this->putMetaValue('order_id', $value);
     }
 
-    public function setOpenedByAttribute(?int $value): void {}
+    public function setOpenedByAttribute(?int $value): void
+    {
+        $this->putMetaValue('opened_by', $value);
+    }
 
     public function setResolvedByAttribute(?int $value): void
     {
-        // Dispute resolution is represented by thread status/phase updates.
+        $this->putMetaValue('resolved_by', $value);
     }
 
     public function setReasonAttribute(?string $value): void
     {
-        $this->title = $value ?? 'Dispute';
+        $this->putPayloadValue('reason', $value);
     }
 
     public function setResolvedAtAttribute(mixed $value): void
     {
-        // Dispute resolution is represented by thread status/phase updates.
+        $serialized = $value instanceof Carbon ? $value->toIso8601String() : $value;
+        $this->putPayloadValue('resolved_at', $serialized);
+    }
+
+    public function opener(): ?User
+    {
+        $id = $this->openedById;
+
+        return $id ? User::query()->find($id) : null;
     }
 }

@@ -13,7 +13,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
-use App\Models\Server\Process as ProcessModel;
+use App\Models\Server\Fulfillment\Process as ProcessModel;
 
 #[ApiResource(
     shortName: 'Platform Process',

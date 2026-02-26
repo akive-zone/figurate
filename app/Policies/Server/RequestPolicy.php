@@ -2,7 +2,7 @@
 
 namespace App\Policies\Server;
 
-use App\Models\Server\Request;
+use App\Models\Server\Fulfillment\Request;
 use App\Models\Server\User;
 
 class RequestPolicy

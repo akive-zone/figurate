@@ -2,7 +2,7 @@
 
 namespace App\Policies\Server;
 
-use App\Models\Server\Payment;
+use App\Models\Server\Fulfillment\Payment;
 use App\Models\Server\User;
 
 class PaymentPolicy

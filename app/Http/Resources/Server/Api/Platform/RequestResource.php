@@ -15,7 +15,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
-use App\Models\Server\Request as RequestModel;
+use App\Models\Server\Fulfillment\Request as RequestModel;
 
 #[ApiResource(
     shortName: 'Platform Request',

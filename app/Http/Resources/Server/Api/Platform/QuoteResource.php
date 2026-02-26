@@ -14,7 +14,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
-use App\Models\Server\Quote as QuoteModel;
+use App\Models\Server\Fulfillment\Quote as QuoteModel;
 
 #[ApiResource(
     shortName: 'Platform Quote',

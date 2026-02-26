@@ -2,15 +2,21 @@
 
 namespace Database\Factories;
 
-use App\Models\Order;
-use App\Models\User;
+use App\Models\Server\Fulfillment\Dispute;
+use App\Models\Server\Fulfillment\Order;
+use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Dispute>
+ * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Server\Fulfillment\Dispute>
  */
 class DisputeFactory extends Factory
 {
+    /**
+     * @var class-string<\App\Models\Server\Fulfillment\Dispute>
+     */
+    protected $model = Dispute::class;
+
     /**
      * Define the model's default state.
      *
@@ -19,12 +25,18 @@ class DisputeFactory extends Factory
     public function definition(): array
     {
         return [
-            'order_id' => Order::factory(),
-            'opened_by' => User::factory(),
-            'reason' => fake()->sentence(),
+            'type' => 'dispute.opened',
             'status' => 'open',
-            'resolved_at' => null,
-            'resolved_by' => null,
+            'payload' => [
+                'reason' => fake()->sentence(),
+                'resolved_at' => null,
+            ],
+            'meta' => [
+                'order_id' => Order::factory(),
+                'opened_by' => User::factory(),
+                'resolved_by' => null,
+            ],
+            'occurred_at' => now(),
         ];
     }
 }

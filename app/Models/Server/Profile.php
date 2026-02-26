@@ -51,34 +51,4 @@ class Profile extends Model
         return $this->belongsTo(User::class, 'approved_by');
     }
 
-    public function categories(): BelongsToMany
-    {
-        return $this->belongsToMany(ServiceCategory::class, 'profile_service_category');
-    }
-
-    public function requests(): MorphToMany
-    {
-        return $this->morphToMany(Request::class, 'actor', 'request_actors')
-            ->withPivot(['action', 'status'])
-            ->withTimestamps();
-    }
-
-    public function quotes(): HasMany
-    {
-        return $this->hasMany(Quote::class);
-    }
-
-    public function orders(): Builder
-    {
-        return Order::query()->whereHas('relations', function (Builder $query): void {
-            $query->where('relationable_type', $this->getMorphClass())
-                ->where('relationable_id', $this->getKey())
-                ->where('role', 'seller_profile');
-        });
-    }
-
-    public function processes(): HasMany
-    {
-        return $this->hasMany(Process::class);
-    }
 }

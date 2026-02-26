@@ -2,12 +2,11 @@
 
 namespace App\Ai\Tools;
 
+use App\Ai\Support\FulfillmentContext;
 use App\Models\Server\Channel;
-use App\Models\Server\Request as ServiceRequest;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request as ToolRequest;
@@ -19,6 +18,7 @@ class CreateRequestFromConversationTool implements Tool
         protected Thread $thread,
         protected Channel $channel,
         protected User $actor,
+        protected FulfillmentContext $fulfillmentContext = new FulfillmentContext,
     ) {}
 
     /**
@@ -68,10 +68,8 @@ class CreateRequestFromConversationTool implements Tool
             $status = 'open';
         }
 
-        /** @var ServiceRequest $serviceRequest */
-        $serviceRequest = DB::transaction(function () use ($title, $description, $flowType, $status): ServiceRequest {
-            /** @var ServiceRequest $serviceRequest */
-            $serviceRequest = ServiceRequest::query()->create([
+        $requestPost = DB::transaction(function () use ($title, $description, $flowType, $status) {
+            $requestPost = $this->fulfillmentContext->createRequestPost([
                 'type' => 'request.created',
                 'status' => $status,
                 'payload' => [
@@ -87,12 +85,19 @@ class CreateRequestFromConversationTool implements Tool
                 'occurred_at' => now(),
             ]);
 
-            $this->channel->requests()->syncWithoutDetaching([$serviceRequest->id]);
-            $this->attachAsker($serviceRequest);
+            $this->channel->relations()->create([
+                'relationable_type' => $requestPost->getMorphClass(),
+                'relationable_id' => $requestPost->getKey(),
+                'type' => 'request',
+                'purpose' => 'primary',
+            ]);
+
+            $requestPost->attachRelation($this->channel, 'channel');
+            $this->fulfillmentContext->attachAsker($requestPost, $this->actor);
 
             $this->thread->forceFill([
-                'threadable_type' => $serviceRequest->getMorphClass(),
-                'threadable_id' => $serviceRequest->getKey(),
+                'threadable_type' => $requestPost->getMorphClass(),
+                'threadable_id' => $requestPost->getKey(),
                 'phase' => 'request_open',
                 'status' => 'open',
             ])->save();
@@ -102,26 +107,26 @@ class CreateRequestFromConversationTool implements Tool
                 'senderable_id' => null,
                 'type' => 'system',
                 'tag' => 'request_created',
-                'body' => "Request #{$serviceRequest->id} has been created for this conversation.",
+                'body' => "Request #{$requestPost->id} has been created for this conversation.",
                 'attachments' => null,
                 'meta' => [
                     'source' => 'tool',
                     'tool' => self::class,
-                    'request_id' => $serviceRequest->id,
-                    'request_ulid' => $serviceRequest->ulid,
+                    'request_id' => $requestPost->id,
+                    'request_ulid' => $requestPost->ulid,
                 ],
             ]);
 
-            return $serviceRequest;
+            return $requestPost;
         });
 
         return json_encode([
             'ok' => true,
             'created' => true,
-            'request_id' => $serviceRequest->id,
-            'request_ulid' => $serviceRequest->ulid,
-            'status' => $serviceRequest->status,
-            'flow_type' => $serviceRequest->flow_type,
+            'request_id' => $requestPost->id,
+            'request_ulid' => $requestPost->ulid,
+            'status' => $requestPost->status,
+            'flow_type' => $this->fulfillmentContext->flowType($requestPost),
             'thread_id' => $this->thread->id,
             'thread_uuid' => $this->thread->uuid,
         ], JSON_UNESCAPED_SLASHES);
@@ -138,20 +143,6 @@ class CreateRequestFromConversationTool implements Tool
             'flow_type' => $schema->string(),
             'status' => $schema->string(),
         ];
-    }
-
-    protected function attachAsker(ServiceRequest $serviceRequest): void
-    {
-        try {
-            $serviceRequest->users()->syncWithoutDetaching([
-                $this->actor->getKey() => [
-                    'action' => ServiceRequest::ActionAsker,
-                    'status' => 'active',
-                ],
-            ]);
-        } catch (QueryException) {
-            // request_actors may not exist in early schema states.
-        }
     }
 
     protected function encodeError(string $message): string

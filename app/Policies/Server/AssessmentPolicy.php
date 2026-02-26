@@ -2,7 +2,7 @@
 
 namespace App\Policies\Server;
 
-use App\Models\Server\Assessment;
+use App\Models\Server\Fulfillment\Assessment;
 use App\Models\Server\User;
 
 class AssessmentPolicy

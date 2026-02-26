@@ -2,8 +2,10 @@
 
 namespace App\Ai\Tools;
 
+use App\Ai\Support\FulfillmentContext;
+use App\Ai\Support\ThreadContextResolver;
 use App\Models\Server\Channel;
-use App\Models\Server\Request as ServiceRequest;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -16,6 +18,8 @@ class GetChannelFulfillmentFlowTool implements Tool
     public function __construct(
         protected Thread $thread,
         protected User $actor,
+        protected FulfillmentContext $fulfillmentContext = new FulfillmentContext,
+        protected ThreadContextResolver $threadContextResolver = new ThreadContextResolver,
     ) {}
 
     /**
@@ -31,32 +35,32 @@ class GetChannelFulfillmentFlowTool implements Tool
      */
     public function handle(ToolRequest $request): Stringable|string
     {
-        $channel = $this->resolveChannel();
-        $serviceRequest = $this->resolveServiceRequest($channel);
+        $channel = $this->threadContextResolver->resolveChannel($this->thread);
+        $requestPost = $this->fulfillmentContext->resolveSubjectFromThread($this->thread);
 
-        if ($channel && ! $this->channelAllowsActor($channel, $serviceRequest)) {
+        if ($channel && ! $this->channelAllowsActor($channel, $requestPost)) {
             return $this->encodeError('Actor does not have access to this channel flow.');
         }
 
-        $order = $serviceRequest?->currentOrder();
+        $order = $requestPost ? $this->fulfillmentContext->currentOrder($requestPost) : null;
 
         return json_encode([
             'ok' => true,
             'flow' => [
-                'stage' => $this->inferStage($serviceRequest, $order),
+                'stage' => $this->inferStage($requestPost, $order),
                 'channel' => $channel ? [
                     'id' => $channel->id,
                     'uuid' => $channel->uuid,
                     'status' => $channel->status,
                 ] : null,
-                'request' => $serviceRequest ? [
-                    'id' => $serviceRequest->id,
-                    'ulid' => $serviceRequest->ulid,
-                    'type' => $serviceRequest->type,
-                    'status' => $serviceRequest->status,
-                    'flow_type' => $serviceRequest->flow_type,
-                    'title' => $serviceRequest->title,
-                    'description' => $serviceRequest->description,
+                'request' => $requestPost ? [
+                    'id' => $requestPost->id,
+                    'ulid' => $requestPost->ulid,
+                    'type' => $requestPost->type,
+                    'status' => $requestPost->status,
+                    'flow_type' => $this->fulfillmentContext->flowType($requestPost),
+                    'title' => $this->fulfillmentContext->title($requestPost),
+                    'description' => $this->fulfillmentContext->description($requestPost),
                 ] : null,
                 'thread' => [
                     'id' => $this->thread->id,
@@ -69,7 +73,7 @@ class GetChannelFulfillmentFlowTool implements Tool
                     'id' => $order->id,
                     'status' => $order->status,
                 ] : null,
-                'recommended_next_actions' => $this->recommendedActions($serviceRequest, $order),
+                'recommended_next_actions' => $this->recommendedActions($requestPost, $order),
             ],
         ], JSON_UNESCAPED_SLASHES);
     }
@@ -82,44 +86,18 @@ class GetChannelFulfillmentFlowTool implements Tool
         return [];
     }
 
-    protected function resolveChannel(): ?Channel
+    protected function channelAllowsActor(Channel $channel, ?Post $requestPost): bool
     {
-        $threadable = $this->thread->threadable;
-
-        if ($threadable instanceof Channel) {
-            return $threadable;
-        }
-
-        if ($threadable instanceof ServiceRequest) {
-            return $threadable->channels()->latest('channels.id')->first();
-        }
-
-        return null;
-    }
-
-    protected function resolveServiceRequest(?Channel $channel): ?ServiceRequest
-    {
-        $threadable = $this->thread->threadable;
-
-        if ($threadable instanceof ServiceRequest) {
-            return $threadable;
-        }
-
-        return $channel?->primaryRequest();
-    }
-
-    protected function channelAllowsActor(Channel $channel, ?ServiceRequest $serviceRequest): bool
-    {
-        if ($serviceRequest) {
-            return $serviceRequest->hasParticipant($this->actor);
+        if ($requestPost) {
+            return $this->fulfillmentContext->hasParticipant($requestPost, $this->actor);
         }
 
         return $channel->hasActor($this->actor);
     }
 
-    protected function inferStage(?ServiceRequest $serviceRequest, mixed $order): string
+    protected function inferStage(?Post $requestPost, mixed $order): string
     {
-        if (! $serviceRequest) {
+        if (! $requestPost) {
             return 'intake';
         }
 
@@ -133,9 +111,9 @@ class GetChannelFulfillmentFlowTool implements Tool
     /**
      * @return list<string>
      */
-    protected function recommendedActions(?ServiceRequest $serviceRequest, mixed $order): array
+    protected function recommendedActions(?Post $requestPost, mixed $order): array
     {
-        if (! $serviceRequest) {
+        if (! $requestPost) {
             return [
                 'Collect minimum scope details from user.',
                 'Create request from conversation.',

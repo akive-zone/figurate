@@ -2,7 +2,7 @@
 
 namespace App\Policies\Server;
 
-use App\Models\Server\Process;
+use App\Models\Server\Fulfillment\Process;
 use App\Models\Server\User;
 
 class ProcessPolicy

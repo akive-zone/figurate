@@ -2,13 +2,11 @@
 
 namespace App\Ai\Tools;
 
-use App\Models\Server\Order;
-use App\Models\Server\Quote;
-use App\Models\Server\Request as ServiceRequest;
+use App\Ai\Support\FulfillmentContext;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Support\Facades\DB;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request as ToolRequest;
 use Stringable;
@@ -17,8 +15,9 @@ class CreateOrderFromQuoteTool implements Tool
 {
     public function __construct(
         protected Thread $thread,
-        protected ServiceRequest $serviceRequest,
+        protected Post $requestPost,
         protected User $actor,
+        protected FulfillmentContext $fulfillmentContext = new FulfillmentContext,
     ) {}
 
     /**
@@ -34,7 +33,7 @@ class CreateOrderFromQuoteTool implements Tool
      */
     public function handle(ToolRequest $request): Stringable|string
     {
-        if (! $this->serviceRequest->hasUserActor($this->actor, ServiceRequest::ActionAsker)) {
+        if (! $this->fulfillmentContext->isRequester($this->requestPost, $this->actor)) {
             return $this->encodeError('Only the request asker can create an order.');
         }
 
@@ -44,26 +43,6 @@ class CreateOrderFromQuoteTool implements Tool
             return $this->encodeError('quote_id is required.');
         }
 
-        /** @var Quote|null $quote */
-        $quote = $this->serviceRequest->quotes()->whereKey($quoteId)->first();
-
-        if (! $quote) {
-            return $this->encodeError('Quote not found for this request.');
-        }
-
-        /** @var Order|null $existingOrder */
-        $existingOrder = $this->serviceRequest->currentOrder();
-
-        if ($existingOrder) {
-            return json_encode([
-                'ok' => true,
-                'created' => false,
-                'order_id' => $existingOrder->id,
-                'status' => $existingOrder->status,
-                'message' => 'Order already exists for this request.',
-            ], JSON_UNESCAPED_SLASHES);
-        }
-
         $status = trim((string) ($request['status'] ?? 'booked'));
         $allowedStatuses = ['booked', 'fulfillment_in_progress'];
 
@@ -71,68 +50,16 @@ class CreateOrderFromQuoteTool implements Tool
             $status = 'booked';
         }
 
-        /** @var Order $order */
-        $order = DB::transaction(function () use ($quote, $status): Order {
-            $quote->forceFill([
-                'status' => 'accepted',
-            ])->save();
-
-            $this->serviceRequest->quotes()
-                ->whereKeyNot($quote->id)
-                ->where('status', 'pending')
-                ->update(['status' => 'rejected']);
-
-            $order = Order::query()->create([
-                'type' => 'order.booked',
-                'status' => $status,
-                'payload' => [
-                    'buyer_id' => $this->actor->id,
-                    'seller_profile_id' => $quote->profile_id,
-                ],
-                'meta' => [
-                    'source' => 'tool.create_order_from_quote',
-                ],
-                'occurred_at' => now(),
-            ]);
-
-            $order->attachRelation($this->thread, 'primary');
-            $order->attachRelation($this->serviceRequest, 'request');
-            $order->attachRelation($quote, 'quote');
-            $order->attachRelation($this->actor, 'buyer');
-
-            if ($quote->profile) {
-                $order->attachRelation($quote->profile, 'seller_profile');
-            }
-
-            $this->serviceRequest->forceFill([
-                'status' => $status,
-            ])->save();
-
-            $this->thread->messages()->create([
-                'senderable_type' => null,
-                'senderable_id' => null,
-                'type' => 'system',
-                'tag' => 'order_created',
-                'body' => "Order #{$order->id} was created from Quote #{$quote->id}.",
-                'attachments' => null,
-                'meta' => [
-                    'source' => 'tool',
-                    'tool' => self::class,
-                    'order_id' => $order->id,
-                    'quote_id' => $quote->id,
-                ],
-            ]);
-
-            return $order;
-        });
-
-        return json_encode([
-            'ok' => true,
-            'created' => true,
-            'order_id' => $order->id,
-            'quote_id' => $quote->id,
-            'status' => $order->status,
-        ], JSON_UNESCAPED_SLASHES);
+        return json_encode(
+            $this->fulfillmentContext->createOrderFromQuote(
+                thread: $this->thread,
+                requestPost: $this->requestPost,
+                actor: $this->actor,
+                quoteId: $quoteId,
+                status: $status,
+            ),
+            JSON_UNESCAPED_SLASHES,
+        );
     }
 
     /**

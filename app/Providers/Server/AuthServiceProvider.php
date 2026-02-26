@@ -2,18 +2,18 @@
 
 namespace App\Providers\Server;
 
-use App\Models\Server\Assessment;
 use App\Models\Server\Channel;
-use App\Models\Server\Dispute;
+use App\Models\Server\Fulfillment\Assessment;
+use App\Models\Server\Fulfillment\Dispute;
+use App\Models\Server\Fulfillment\Order;
+use App\Models\Server\Fulfillment\Payment;
+use App\Models\Server\Fulfillment\Process;
+use App\Models\Server\Fulfillment\Quote;
+use App\Models\Server\Fulfillment\Rating;
+use App\Models\Server\Fulfillment\Request;
+use App\Models\Server\Fulfillment\ServiceCategory;
 use App\Models\Server\Message;
-use App\Models\Server\Order;
-use App\Models\Server\Payment;
-use App\Models\Server\Process;
 use App\Models\Server\Profile;
-use App\Models\Server\Quote;
-use App\Models\Server\Rating;
-use App\Models\Server\Request;
-use App\Models\Server\ServiceCategory;
 use App\Models\Server\Thread;
 use App\Policies\Server\AssessmentPolicy;
 use App\Policies\Server\ChannelPolicy;

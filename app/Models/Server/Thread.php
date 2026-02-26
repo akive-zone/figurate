@@ -16,10 +16,6 @@ class Thread extends Model
     /** @use HasFactory<\Database\Factories\ThreadFactory> */
     use HasFactory, HasPublicUuid, SoftDeletes;
 
-    public const AgentRequest = 'request_agent';
-
-    public const AgentOrder = 'order_agent';
-
     public const PurposeMain = 'main';
 
     public const PurposePlanning = 'planning';
