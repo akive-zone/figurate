@@ -2,16 +2,14 @@
 
 namespace App\Ai\Middleware\Workflows;
 
-use App\Ai\Support\FulfillmentContext;
 use App\Ai\Support\ThreadContextResolver;
 use App\Models\Server\Thread;
 use Closure;
 use Laravel\Ai\Prompts\AgentPrompt;
 
-class InitializeFulfillmentContext
+class InitializeConversationContext
 {
     public function __construct(
-        protected FulfillmentContext $fulfillmentContext = new FulfillmentContext,
         protected ThreadContextResolver $threadContextResolver = new ThreadContextResolver,
     ) {}
 
@@ -23,21 +21,18 @@ class InitializeFulfillmentContext
             return $next($prompt);
         }
 
-        $requestPost = $this->fulfillmentContext->resolveSubjectFromThread($thread);
         $channel = $this->threadContextResolver->resolveChannel($thread);
 
         $presenterCount = $thread->presenterActors()->count();
         $observerCount = $thread->observerActors()->count();
 
         $context = implode("\n", [
-            'Fulfillment context bootstrap (system policy):',
+            'Conversation context bootstrap (system policy):',
             "- Thread id: {$thread->id}",
             "- Thread uuid: {$thread->uuid}",
             "- Thread purpose: {$thread->purpose}",
             "- Thread phase: {$thread->phase}",
             '- Channel id: '.($channel?->id ?? 'none'),
-            '- Request id: '.($requestPost?->id ?? 'none'),
-            '- Request status: '.($requestPost?->status ?? 'none'),
             "- Presenter actors: {$presenterCount}",
             "- Observer actors: {$observerCount}",
             '- Keep all decisions consistent with this thread context.',

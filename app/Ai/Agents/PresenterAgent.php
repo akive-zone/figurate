@@ -12,10 +12,9 @@ use App\Ai\Middleware\Rules\PreventDuplicateProcessing;
 use App\Ai\Middleware\Rules\RequireEvidenceForDecisions;
 use App\Ai\Middleware\Rules\ResponseQualityGate;
 use App\Ai\Middleware\Rules\ValidateInputContract;
-use App\Ai\Middleware\Workflows\ApplyFulfillmentWorkflow;
 use App\Ai\Middleware\Workflows\ComposeAndRouteResponse;
 use App\Ai\Middleware\Workflows\ExecuteToolsAndActions;
-use App\Ai\Middleware\Workflows\InitializeFulfillmentContext;
+use App\Ai\Middleware\Workflows\InitializeConversationContext;
 use App\Ai\Middleware\Workflows\PlanFulfillmentSteps;
 use App\Ai\Middleware\Workflows\PostResponseLearning;
 use App\Ai\Middleware\Workflows\ResolveAudienceContext;
@@ -61,9 +60,10 @@ class PresenterAgent implements Agent, Conversational, HasMiddleware, HasTools
      */
     public function instructions(): Stringable|string
     {
-        return "You are an Agent for conversation and fulfillment orchestration.\n"
+        return "You are an Agent for conversation orchestration.\n"
             ."Operating mode:\n"
             ."- Use tools first to inspect flow/state before committing decisions.\n"
+            ."- When process guidance is unclear, call skills tools to find relevant local skills.\n"
             ."- Use knowledge retrieval (RAG / file search) whenever facts are document-backed.\n"
             ."- Keep responses concise, operational, and evidence-aware.\n"
             .'- When state-changing actions are needed, call the appropriate tool instead of free-text promises.';
@@ -87,10 +87,9 @@ class PresenterAgent implements Agent, Conversational, HasMiddleware, HasTools
     {
         return [
             new UseThreadConversationStore,
-            new InitializeFulfillmentContext,
+            new InitializeConversationContext,
             new ResolveAudienceContext,
             new SelectPresenters,
-            new ApplyFulfillmentWorkflow,
             new PlanFulfillmentSteps,
             new ExecuteToolsAndActions,
             new ComposeAndRouteResponse,

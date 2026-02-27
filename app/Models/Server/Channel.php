@@ -76,6 +76,23 @@ class Channel extends Model
         return $this->requests()->latest('id')->first();
     }
 
+    public function primaryRequestPost(): ?Post
+    {
+        $postMorphClass = (new Post)->getMorphClass();
+
+        return Post::query()
+            ->whereIn('id', function ($query) use ($postMorphClass): void {
+                $query->from('channel_relations')
+                    ->select('relationable_id')
+                    ->where('channel_id', $this->getKey())
+                    ->whereIn('relationable_type', [$postMorphClass, Post::class])
+                    ->where('type', 'request');
+            })
+            ->where('type', 'like', 'request.%')
+            ->latest('id')
+            ->first();
+    }
+
     /**
      * @return Collection<int, Thread>
      */

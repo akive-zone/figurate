@@ -2,9 +2,9 @@
 
 namespace App\Ai\Support;
 
-use App\Ai\Support\Fulfillment\EloquentFulfillmentGateway;
-use App\Ai\Support\Fulfillment\FulfillmentGateway;
 use App\Models\Server\Channel;
+use App\Models\Server\Fulfillment\Order;
+use App\Models\Server\Fulfillment\Quote;
 use App\Models\Server\Post;
 use App\Models\Server\Profile;
 use App\Models\Server\Thread;
@@ -24,7 +24,6 @@ class FulfillmentContext
 
     public function __construct(
         protected ThreadContextResolver $threadContextResolver = new ThreadContextResolver,
-        protected FulfillmentGateway $gateway = new EloquentFulfillmentGateway,
     ) {}
 
     public function isFulfillmentSubject(mixed $post): bool
@@ -82,7 +81,7 @@ class FulfillmentContext
             return null;
         }
 
-        $request = $channel->primaryRequest();
+        $request = $channel->primaryRequestPost();
 
         return $request instanceof Post ? $request : null;
     }
@@ -194,27 +193,26 @@ class FulfillmentContext
 
     public function currentOrder(Post $requestPost): mixed
     {
-        return $this->gateway->currentOrder($requestPost);
+        return Order::query()
+            ->whereHas('relations', function (Builder $query) use ($requestPost): void {
+                $query->where('relationable_type', $requestPost->getMorphClass())
+                    ->where('relationable_id', $requestPost->getKey())
+                    ->where('role', 'request');
+            })
+            ->latest('id')
+            ->first();
     }
 
     public function quoteForRequest(Post $requestPost, int $quoteId): mixed
     {
-        return $this->gateway->quoteForRequest($requestPost, $quoteId);
-    }
-
-    public function createOrderFromQuote(Thread $thread, Post $requestPost, User $actor, int $quoteId, string $status): array
-    {
-        return $this->gateway->createOrderFromQuote($thread, $requestPost, $actor, $quoteId, $status);
-    }
-
-    public function acknowledgeAssessment(Thread $thread, Post $requestPost, User $actor, ?string $note = null): array
-    {
-        return $this->gateway->acknowledgeAssessment($thread, $requestPost, $actor, $note);
-    }
-
-    public function upsertAssessment(Thread $thread, Post $requestPost, User $actor, string $notes, string $status): array
-    {
-        return $this->gateway->upsertAssessment($thread, $requestPost, $actor, $notes, $status);
+        return Quote::query()
+            ->whereKey($quoteId)
+            ->whereHas('relations', function (Builder $query) use ($requestPost): void {
+                $query->where('relationable_type', $requestPost->getMorphClass())
+                    ->where('relationable_id', $requestPost->getKey())
+                    ->where('role', 'request');
+            })
+            ->first();
     }
 
     public function attachAsker(Post $requestPost, User $actor): void

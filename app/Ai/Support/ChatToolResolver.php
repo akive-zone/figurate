@@ -3,14 +3,12 @@
 namespace App\Ai\Support;
 
 use App\Ai\Support\Knowledge\KnowledgeSearchStoreResolver;
-use App\Ai\Tools\AcknowledgeAssessmentTool;
 use App\Ai\Tools\AutoModeSelectorTool;
 use App\Ai\Tools\ContextBudgetTool;
 use App\Ai\Tools\ConversationAuditTool;
-use App\Ai\Tools\CreateOrderFromQuoteTool;
-use App\Ai\Tools\CreateRequestFromConversationTool;
+use App\Ai\Tools\CreatePostFromConversationTool;
+use App\Ai\Tools\DiscoverSkillsTool;
 use App\Ai\Tools\DualWriteDiffTool;
-use App\Ai\Tools\GetChannelFulfillmentFlowTool;
 use App\Ai\Tools\ModePolicyTool;
 use App\Ai\Tools\PrivacyGuardTool;
 use App\Ai\Tools\ReplayTool;
@@ -19,13 +17,9 @@ use App\Ai\Tools\SessionHealthTool;
 use App\Ai\Tools\SessionMergeSummaryTool;
 use App\Ai\Tools\SessionResetTool;
 use App\Ai\Tools\SessionTransferTool;
-use App\Ai\Tools\SuggestProfilesForRequestTool;
-use App\Ai\Tools\UpsertAssessmentTool;
 use App\Ai\Tools\WriteMemoryFileTool;
 use App\Models\Server\Channel;
-use App\Models\Server\Post;
 use App\Models\Server\Thread;
-use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Providers\Tools\FileSearch;
@@ -34,7 +28,6 @@ class ChatToolResolver
 {
     public function __construct(
         protected KnowledgeSearchStoreResolver $knowledgeSearchStoreResolver = new KnowledgeSearchStoreResolver,
-        protected FulfillmentContext $fulfillmentContext = new FulfillmentContext,
     ) {}
 
     /**
@@ -42,49 +35,11 @@ class ChatToolResolver
      */
     public function resolve(Thread $thread, User $user): array
     {
-        $primaryActor = $thread->primaryPresenterActor()?->actorName();
         $sharedTools = $this->sharedTools($thread, $user);
+        $threadable = $thread->threadable;
 
-        if ($primaryActor === ThreadActor::ActorRequestAgent && $this->canCreateRequestFromThread($thread, $user)) {
-            $threadable = $thread->threadable;
-
-            if ($threadable instanceof Channel) {
-                return [
-                    ...$sharedTools,
-                    new CreateRequestFromConversationTool($thread, $threadable, $user),
-                ];
-            }
-        }
-
-        $requestPost = $this->fulfillmentContext->resolveSubjectFromThread($thread);
-        if (! $requestPost instanceof Post) {
-            return [];
-        }
-
-        $isAsker = $this->isAsker($requestPost, $user);
-        $isWorker = $this->isWorker($requestPost, $user);
-
-        if ($primaryActor === ThreadActor::ActorRequestAgent) {
-            return $isAsker
-                ? [
-                    ...$sharedTools,
-                    new CreateOrderFromQuoteTool($thread, $requestPost, $user),
-                ]
-                : $sharedTools;
-        }
-
-        if ($primaryActor === ThreadActor::ActorOrderAgent) {
-            $tools = [...$sharedTools];
-
-            if ($isAsker) {
-                $tools[] = new AcknowledgeAssessmentTool($thread, $requestPost, $user);
-            }
-
-            if ($isWorker) {
-                $tools[] = new UpsertAssessmentTool($thread, $requestPost, $user);
-            }
-
-            return $tools;
+        if ($threadable instanceof Channel) {
+            $sharedTools[] = new CreatePostFromConversationTool($thread, $threadable, $user);
         }
 
         return $sharedTools;
@@ -95,10 +50,7 @@ class ChatToolResolver
      */
     protected function sharedTools(Thread $thread, User $user): array
     {
-        return [
-            new GetChannelFulfillmentFlowTool($thread, $user),
-            new SuggestProfilesForRequestTool($thread, $user),
-            new AutoModeSelectorTool($thread, $user),
+        return [new AutoModeSelectorTool($thread, $user),
             new ConversationAuditTool($thread, $user),
             new SessionResetTool($thread, $user),
             new SessionForkTool($thread, $user),
@@ -106,6 +58,7 @@ class ChatToolResolver
             new SessionMergeSummaryTool($thread, $user),
             new ModePolicyTool($thread, $user),
             new ContextBudgetTool($thread, $user),
+            new DiscoverSkillsTool,
             new DualWriteDiffTool($thread, $user),
             new ReplayTool($thread, $user),
             new PrivacyGuardTool($thread, $user),
@@ -129,34 +82,5 @@ class ChatToolResolver
         return [
             new FileSearch(stores: $storeIds),
         ];
-    }
-
-    protected function canCreateRequestFromThread(Thread $thread, User $user): bool
-    {
-        $threadable = $thread->threadable;
-
-        if (! $threadable instanceof Channel) {
-            return false;
-        }
-
-        if (! $threadable->hasActor($user)) {
-            return false;
-        }
-
-        if ($threadable->primaryRequest()) {
-            return false;
-        }
-
-        return $thread->purpose === Thread::PurposeMain;
-    }
-
-    protected function isAsker(Post $requestPost, User $user): bool
-    {
-        return $this->fulfillmentContext->isRequester($requestPost, $user);
-    }
-
-    protected function isWorker(Post $requestPost, User $user): bool
-    {
-        return $this->fulfillmentContext->isTargetProfileParticipant($requestPost, $user);
     }
 }
