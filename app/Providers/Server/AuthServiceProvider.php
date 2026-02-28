@@ -2,6 +2,8 @@
 
 namespace App\Providers\Server;
 
+use App\Listeners\Server\Auth\MarkDeviceSessionAsPasskeyVerified;
+use App\Listeners\Server\Auth\MergeDeviceUsersAfterPasskeyAuthentication;
 use App\Models\Server\Channel;
 use App\Models\Server\Fulfillment\Assessment;
 use App\Models\Server\Fulfillment\Dispute;
@@ -28,8 +30,10 @@ use App\Policies\Server\RatingPolicy;
 use App\Policies\Server\RequestPolicy;
 use App\Policies\Server\ServiceCategoryPolicy;
 use App\Policies\Server\ThreadPolicy;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Spatie\LaravelPasskeys\Events\PasskeyUsedToAuthenticateEvent;
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -48,5 +52,8 @@ class AuthServiceProvider extends ServiceProvider
         Gate::policy(Channel::class, ChannelPolicy::class);
         Gate::policy(Message::class, MessagePolicy::class);
         Gate::policy(Thread::class, ThreadPolicy::class);
+
+        Event::listen(PasskeyUsedToAuthenticateEvent::class, MergeDeviceUsersAfterPasskeyAuthentication::class);
+        Event::listen(PasskeyUsedToAuthenticateEvent::class, MarkDeviceSessionAsPasskeyVerified::class);
     }
 }

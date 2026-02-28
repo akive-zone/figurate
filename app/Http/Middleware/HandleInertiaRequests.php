@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -41,6 +42,11 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
+        $passkeySession = $request->session()->get('auth.device_passkey');
+        $isVerifiedDevicePasskeySession = $user
+            && $user->type === 'device'
+            && is_array($passkeySession)
+            && ((int) ($passkeySession['user_id'] ?? 0) === (int) $user->id);
 
         return [
             ...parent::share($request),
@@ -71,9 +77,42 @@ class HandleInertiaRequests extends Middleware
                     'type' => $user->type,
                     'device_identifier' => $user->device_identifier,
                 ] : null,
+                'passkeys' => $user && method_exists($user, 'passkeys')
+                    ? $user->passkeys()
+                        ->get()
+                        ->map(fn ($passkey): array => [
+                            'id' => $passkey->id,
+                            'name' => $passkey->name,
+                            'last_used_at' => optional($passkey->last_used_at)?->toIso8601String(),
+                        ])
+                        ->values()
+                        ->all()
+                    : [],
                 'routes' => [
                     'google_redirect' => route('auth.redirect', ['provider' => 'google'], false),
                     'apple_redirect' => route('auth.redirect', ['provider' => 'apple'], false),
+                    'passkeys_authentication_options' => Route::has('passkeys.authentication_options')
+                        ? route('passkeys.authentication_options', [], false)
+                        : null,
+                    'passkeys_login' => Route::has('passkeys.login')
+                        ? route('passkeys.login', [], false)
+                        : null,
+                    'passkeys_manage_generate_options' => Route::has('passkeys.manage.generate-options')
+                        ? route('passkeys.manage.generate-options', [], false)
+                        : null,
+                    'passkeys_manage_store' => Route::has('passkeys.manage.store')
+                        ? route('passkeys.manage.store', [], false)
+                        : null,
+                    'passkeys_manage_destroy_template' => Route::has('passkeys.manage.destroy')
+                        ? route('passkeys.manage.destroy', ['passkey' => '__PASSKEY__'], false)
+                        : null,
+                ],
+                'passkey_session' => [
+                    'active' => $isVerifiedDevicePasskeySession,
+                    'passkey_id' => $isVerifiedDevicePasskeySession ? (int) ($passkeySession['passkey_id'] ?? 0) : null,
+                    'authenticated_at' => $isVerifiedDevicePasskeySession
+                        ? ($passkeySession['authenticated_at'] ?? null)
+                        : null,
                 ],
             ],
             'flash' => [

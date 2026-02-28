@@ -25,6 +25,7 @@ class MergeDeviceUserIntoPerson
         DB::transaction(function () use ($deviceUser, $personUser): void {
             $this->migrateRequestActors($deviceUser, $personUser);
             $this->migrateChannelActorStates($deviceUser, $personUser);
+            $this->migratePasskeys($deviceUser, $personUser);
 
             if ($personUser->device_identifier === null && $deviceUser->device_identifier !== null) {
                 $personUser->forceFill([
@@ -107,6 +108,64 @@ class MergeDeviceUserIntoPerson
                     'actorable_id' => $personUser->id,
                     'updated_at' => now(),
                 ]);
+        }
+    }
+
+    protected function migratePasskeys(User $deviceUser, User $personUser): void
+    {
+        if (! Schema::hasTable('passkeys')) {
+            return;
+        }
+
+        $rows = DB::table('passkeys')
+            ->where('authenticatable_id', $deviceUser->id)
+            ->get();
+
+        foreach ($rows as $row) {
+            $credentialId = is_string($row->credential_id ?? null) ? trim((string) $row->credential_id) : '';
+
+            if ($credentialId === '') {
+                DB::table('passkeys')
+                    ->where('id', $row->id)
+                    ->update([
+                        'authenticatable_id' => $personUser->id,
+                        'updated_at' => now(),
+                    ]);
+
+                continue;
+            }
+
+            $existing = DB::table('passkeys')
+                ->where('authenticatable_id', $personUser->id)
+                ->where('credential_id', $credentialId)
+                ->first();
+
+            if (! $existing) {
+                DB::table('passkeys')
+                    ->where('id', $row->id)
+                    ->update([
+                        'authenticatable_id' => $personUser->id,
+                        'updated_at' => now(),
+                    ]);
+
+                continue;
+            }
+
+            $sourceLastUsed = $row->last_used_at ? strtotime((string) $row->last_used_at) : null;
+            $targetLastUsed = $existing->last_used_at ? strtotime((string) $existing->last_used_at) : null;
+
+            if ($sourceLastUsed !== null && ($targetLastUsed === null || $sourceLastUsed > $targetLastUsed)) {
+                DB::table('passkeys')
+                    ->where('id', $existing->id)
+                    ->update([
+                        'last_used_at' => $row->last_used_at,
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            DB::table('passkeys')
+                ->where('id', $row->id)
+                ->delete();
         }
     }
 }

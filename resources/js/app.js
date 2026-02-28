@@ -1,5 +1,6 @@
 import '../css/app.css';
 import './echo';
+import './passkeys';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { router } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';

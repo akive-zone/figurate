@@ -689,6 +689,52 @@ body {
     gap: 0.55rem;
 }
 
+.passkeys {
+    border-top: 1px solid var(--border);
+    padding-top: 0.75rem;
+}
+
+.passkeys__title {
+    margin: 0 0 0.35rem;
+}
+
+.passkeys__form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.passkeys__list {
+    margin: 0.7rem 0 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.passkeys__item {
+    border: 1px solid var(--border);
+    border-radius: 0.6rem;
+    padding: 0.55rem 0.65rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.passkeys__name {
+    margin: 0;
+    font-weight: 700;
+}
+
+.passkeys__meta {
+    margin: 0.2rem 0 0;
+    color: var(--soft-ink);
+    font-size: 0.82rem;
+}
+
 .link--full {
     width: 100%;
 }

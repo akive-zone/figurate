@@ -46,6 +46,13 @@ class EnsureDeviceUser
             ]
         );
 
+        $request->attributes->set('initial_device_user_id', $user->id);
+
+        $passkeySession = $request->session()->get('auth.device_passkey');
+        if (is_array($passkeySession) && ((int) ($passkeySession['user_id'] ?? 0) !== (int) $user->id)) {
+            $request->session()->forget('auth.device_passkey');
+        }
+
         Auth::login($user);
 
         $response = $next($request);

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Native\Web\ChannelController as NativeChannelController;
 use App\Http\Controllers\Server\Web\ChannelController as ServerChannelController;
+use App\Http\Controllers\Server\Web\PasskeyController as ServerPasskeyController;
 use App\Http\Controllers\Server\Web\SocialiteController;
 use App\Http\Middleware\EnsureDeviceUser;
 use Illuminate\Support\Facades\Route;
@@ -31,6 +32,17 @@ if (\app_is_native_runtime()) {
                 ->name('redirect');
             Route::get('{provider}/callback', [SocialiteController::class, 'callback'])
                 ->name('callback');
+        });
+
+    Route::passkeys();
+
+    Route::middleware('auth')
+        ->prefix('passkeys/manage')
+        ->name('passkeys.manage.')
+        ->group(function () {
+            Route::get('/generate-options', [ServerPasskeyController::class, 'generateOptions'])->name('generate-options');
+            Route::post('/', [ServerPasskeyController::class, 'store'])->name('store');
+            Route::delete('/{passkey}', [ServerPasskeyController::class, 'destroy'])->name('destroy');
         });
 
     Route::middleware(EnsureDeviceUser::class)

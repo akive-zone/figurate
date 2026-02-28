@@ -32,6 +32,7 @@
         "phpdocumentor/type-resolver": "^1.7",
         "pusher/pusher-php-server": "^7.2",
         "spatie/laravel-medialibrary": "^11.0",
+        "spatie/laravel-passkeys": "^1.6",
         "spatie/laravel-permission": "^7.2",
         "wikimedia/composer-merge-plugin": "dev-master"
     },

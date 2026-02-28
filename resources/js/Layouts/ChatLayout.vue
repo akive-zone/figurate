@@ -1,5 +1,6 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
 import { fetchChatChatThreads, fetchChatChats } from '../api';
 
@@ -88,6 +89,30 @@ const appleLoginUrl = computed(() => {
 
     return value !== '' ? value : '/auth/apple/redirect';
 });
+const passkeyAuthenticationOptionsUrl = computed(() => {
+    const value = (authRoutes.value.passkeys_authentication_options ?? '').toString().trim();
+
+    return value !== '' ? value : '/passkeys/authentication-options';
+});
+const passkeyLoginUrl = computed(() => {
+    const value = (authRoutes.value.passkeys_login ?? '').toString().trim();
+
+    return value !== '' ? value : '/passkeys/authenticate';
+});
+const passkeyLoginError = ref('');
+const passkeyManageGenerateOptionsUrl = computed(() => {
+    const value = (authRoutes.value.passkeys_manage_generate_options ?? '').toString().trim();
+
+    return value !== '' ? value : '/passkeys/manage/generate-options';
+});
+const passkeyManageStoreUrl = computed(() => {
+    const value = (authRoutes.value.passkeys_manage_store ?? '').toString().trim();
+
+    return value !== '' ? value : '/passkeys/manage';
+});
+const passkeyCreateError = ref('');
+const isCreatingPasskey = ref(false);
+const newPasskeyName = ref('');
 const userInitials = computed(() => {
     const rawName = (authUser.value?.name ?? '').toString().trim();
     const name = showDeviceLoginPrompt.value ? 'Guest' : rawName;
@@ -205,6 +230,113 @@ const loadMoreThreads = async (chat) => {
 onMounted(() => {
     refreshSidebarChats();
 });
+
+const continueWithPasskey = async () => {
+    passkeyLoginError.value = '';
+
+    try {
+        if (typeof window.startAuthentication !== 'function') {
+            throw new Error('Passkey authentication is not available in this browser.');
+        }
+
+        if (typeof window.browserSupportsWebAuthn === 'function' && !window.browserSupportsWebAuthn()) {
+            throw new Error('This browser does not support passkeys.');
+        }
+
+        const optionsResponse = await fetch(passkeyAuthenticationOptionsUrl.value, {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+
+        if (!optionsResponse.ok) {
+            throw new Error(`Unable to start passkey login (${optionsResponse.status}).`);
+        }
+
+        const options = await optionsResponse.json();
+        const authenticationResponse = await window.startAuthentication({ optionsJSON: options });
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = passkeyLoginUrl.value;
+        form.style.display = 'none';
+
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = '_token';
+        csrfInput.value = csrfToken;
+
+        const responseInput = document.createElement('input');
+        responseInput.type = 'hidden';
+        responseInput.name = 'start_authentication_response';
+        responseInput.value = JSON.stringify(authenticationResponse);
+
+        form.appendChild(csrfInput);
+        form.appendChild(responseInput);
+        document.body.appendChild(form);
+        form.submit();
+    } catch (error) {
+        passkeyLoginError.value = error?.message ?? 'Unable to login with passkey.';
+    }
+};
+
+const createPasskey = async () => {
+    passkeyCreateError.value = '';
+
+    try {
+        if (typeof window.startRegistration !== 'function') {
+            throw new Error('Passkey setup is not available in this browser.');
+        }
+
+        if (typeof window.browserSupportsWebAuthn === 'function' && !window.browserSupportsWebAuthn()) {
+            throw new Error('This browser does not support passkeys.');
+        }
+
+        isCreatingPasskey.value = true;
+
+        const optionsResponse = await fetch(passkeyManageGenerateOptionsUrl.value, {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+
+        if (!optionsResponse.ok) {
+            throw new Error(`Unable to start passkey setup (${optionsResponse.status}).`);
+        }
+
+        const options = await optionsResponse.json();
+        const registrationResponse = await window.startRegistration({ optionsJSON: options });
+        const fallbackName = `Passkey ${new Date().toLocaleDateString()}`;
+
+        router.post(
+            passkeyManageStoreUrl.value,
+            {
+                name: (newPasskeyName.value ?? '').toString().trim() || fallbackName,
+                options: JSON.stringify(options),
+                passkey: JSON.stringify(registrationResponse),
+            },
+            {
+                preserveScroll: true,
+                onError: (errors) => {
+                    passkeyCreateError.value = errors?.passkey ?? errors?.name ?? 'Unable to create passkey.';
+                },
+                onSuccess: () => {
+                    newPasskeyName.value = '';
+                },
+            },
+        );
+    } catch (error) {
+        passkeyCreateError.value = error?.message ?? 'Unable to create passkey.';
+    } finally {
+        isCreatingPasskey.value = false;
+    }
+};
+
 </script>
 
 <template>
@@ -293,11 +425,35 @@ onMounted(() => {
                 <div class="modal__actions" v-if="showDeviceLoginPrompt">
                     <a :href="googleLoginUrl" class="button button--full">Continue with Google</a>
                     <a :href="appleLoginUrl" class="link link--full">Continue with Apple</a>
+                    <button type="button" class="link link--full" @click="continueWithPasskey">
+                        Continue with Passkey
+                    </button>
+                    <p v-if="passkeyLoginError" class="error">{{ passkeyLoginError }}</p>
                 </div>
 
                 <p class="modal__meta" v-else>
                     You are already signed in.
                 </p>
+
+                <section class="passkeys">
+                    <h4 class="passkeys__title">Add passkey</h4>
+                    <p class="modal__meta">Create a passkey for this device user account.</p>
+
+                    <form class="passkeys__form" @submit.prevent="createPasskey">
+                        <input
+                            v-model="newPasskeyName"
+                            type="text"
+                            class="input"
+                            maxlength="255"
+                            placeholder="Passkey name (optional)"
+                        >
+                        <button type="submit" class="button" :disabled="isCreatingPasskey">
+                            {{ isCreatingPasskey ? 'Creating...' : 'Add passkey' }}
+                        </button>
+                    </form>
+
+                    <p v-if="passkeyCreateError" class="error">{{ passkeyCreateError }}</p>
+                </section>
             </section>
         </div>
     </div>
