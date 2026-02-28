@@ -1,9 +1,9 @@
 <script setup>
-import ChatLayout from '../../../Layouts/ChatLayout.vue';
+import ChatLayout from '../../Layouts/ChatLayout.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { reactive, ref } from 'vue';
-import { sendChatChatMessage } from '../../../api';
+import { sendChatChatMessage } from '../../api';
 
 defineProps({
     channels: {
@@ -21,7 +21,7 @@ const chatCreateChannelUrl = computed(() => {
         return configured;
     }
 
-    return '/channels/new';
+    return '/channels';
 });
 const chatShowTemplate = computed(() => {
     const configured = (chatRoutes.value.show_template ?? '').toString().trim();

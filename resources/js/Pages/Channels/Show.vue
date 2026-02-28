@@ -1,12 +1,12 @@
 <script setup>
-import ChatLayout from '../../../Layouts/ChatLayout.vue';
+import ChatLayout from '../../Layouts/ChatLayout.vue';
 import FloatingChatWindow from './FloatingChatWindow.vue';
 import SlidingChatWindow from './SlidingChatWindow.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
-import { fetchChatChannelPosts, fetchChatThreadMessages, sendChatChatMessage } from '../../../api';
+import { fetchChatChannelPosts, fetchChatThreadMessages, sendChatChatMessage } from '../../api';
 
 const props = defineProps({
     channels: {

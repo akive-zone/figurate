@@ -27,7 +27,7 @@ class ControlPanelProvider extends PanelProvider
         return $panel
             ->default()
             ->id('native-control')
-            ->path('/')
+            ->path('p')
             ->login()
             ->colors([
                 'primary' => Color::Amber,

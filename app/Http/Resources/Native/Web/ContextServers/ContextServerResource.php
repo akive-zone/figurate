@@ -18,6 +18,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use UnitEnum;
 
 class ContextServerResource extends Resource
 {
@@ -29,7 +30,9 @@ class ContextServerResource extends Resource
 
     protected static ?string $modelLabel = 'Context Server';
 
-    protected static ?string $navigationGroup = 'AI';
+    protected static string|UnitEnum|null $navigationGroup = 'AI';
+
+    protected static ?string $slug = 'context-servers';
 
     public static function form(Schema $schema): Schema
     {

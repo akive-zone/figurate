@@ -15,9 +15,9 @@ if (\app_is_native_runtime()) {
         ->name('chat.')
         ->group(function () {
             Route::get('/', [NativeChannelController::class, 'index'])->name('index');
-            Route::get('/channels', [NativeChannelController::class, 'create'])->name('create');
-            Route::get('/channels/{channel}', [NativeChannelController::class, 'show'])->name('show');
-            Route::get('/channels/{channel}/threads/{thread}', [NativeChannelController::class, 'showThread'])->name('thread');
+            Route::get('/create', [NativeChannelController::class, 'create'])->name('create');
+            Route::get('/c/{channel}', [NativeChannelController::class, 'show'])->name('show');
+            Route::get('/c/{channel}/t/{thread}', [NativeChannelController::class, 'showThread'])->name('thread');
         });
 
     Route::fallback(function () {
@@ -37,8 +37,8 @@ if (\app_is_native_runtime()) {
         ->name('chat.')
         ->group(function () {
             Route::get('/', [ServerChannelController::class, 'index'])->name('index');
-            Route::get('/channels', [ServerChannelController::class, 'create'])->name('create');
-            Route::get('/channels/{channel}', [ServerChannelController::class, 'show'])->name('show');
-            Route::get('/channels/{channel}/threads/{thread}', [ServerChannelController::class, 'showThread'])->name('thread');
+            Route::get('/create', [ServerChannelController::class, 'index'])->name('create');
+            Route::get('/c/{channel}', [ServerChannelController::class, 'show'])->name('show');
+            Route::get('/c/{channel}/t/{thread}', [ServerChannelController::class, 'showThread'])->name('thread');
         });
 }

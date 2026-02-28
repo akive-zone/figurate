@@ -18,16 +18,9 @@ use Inertia\Response;
 
 class ChannelController extends Controller
 {
-    public function create(Request $request): Response
-    {
-        return Inertia::render('Chat/Requests/Create', [
-            'channels' => $this->safeChannelsPayload($request),
-        ]);
-    }
-
     public function index(Request $request): Response
     {
-        return Inertia::render('Chat/Channels/Index', [
+        return Inertia::render('Channels/Index', [
             'channels' => $this->safeChannelsPayload($request),
         ]);
     }
@@ -139,7 +132,7 @@ class ChannelController extends Controller
             'thread_messages' => $threadMessages,
         ];
 
-        return Inertia::render('Chat/Channels/Show', [
+        return Inertia::render('Channels/Show', [
             'channels' => $channels,
             'channel' => $channelPayload,
         ]);

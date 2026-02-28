@@ -13,19 +13,6 @@ use RuntimeException;
 
 class ChannelController extends Controller
 {
-    public function create(Request $request): Response
-    {
-        try {
-            $channels = $this->fetchChannels($request);
-        } catch (\Throwable) {
-            $channels = [];
-        }
-
-        return Inertia::render('Chat/Requests/Create', [
-            'channels' => $channels,
-        ]);
-    }
-
     public function index(Request $request): Response
     {
         try {
@@ -34,7 +21,7 @@ class ChannelController extends Controller
             $channels = [];
         }
 
-        return Inertia::render('Chat/Channels/Index', [
+        return Inertia::render('Channels/Index', [
             'channels' => $channels,
         ]);
     }
@@ -75,7 +62,7 @@ class ChannelController extends Controller
             $channels = [];
         }
 
-        return Inertia::render('Chat/Channels/Show', [
+        return Inertia::render('Channels/Show', [
             'channels' => $channels,
             'channel' => $channelPayload,
         ]);

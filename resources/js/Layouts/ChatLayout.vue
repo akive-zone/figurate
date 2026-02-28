@@ -42,7 +42,7 @@ const chatCreateChannelUrl = computed(() => {
         return configured;
     }
 
-    return '/channels/new';
+    return '/channels';
 });
 const chatShowTemplate = computed(() => {
     const configured = (chatRoutes.value.show_template ?? '').toString().trim();
