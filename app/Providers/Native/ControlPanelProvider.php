@@ -2,12 +2,11 @@
 
 namespace App\Providers\Native;
 
-use App\Native\Middleware\EnsurePersonUser;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Pages\Dashboard;
+use Filament\Navigation\NavigationItem;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -34,13 +33,16 @@ class ControlPanelProvider extends PanelProvider
             ])
             ->discoverResources(in: app_path('Http/Resources/Native'), for: 'App\Http\Resources\Native')
             ->discoverPages(in: app_path('View/Pages/Native'), for: 'App\View\Pages\Native')
-            // ->pages([
-            //     Dashboard::class,
-            // ])
             ->discoverWidgets(in: app_path('View/Widgets/Native'), for: 'App\View\Widgets\Native')
             ->widgets([
                 AccountWidget::class,
                 FilamentInfoWidget::class,
+            ])
+            ->navigationItems([
+                NavigationItem::make('Back to Chat')
+                    ->url(fn (): string => route('chat.index'))
+                    ->icon('heroicon-o-chat-bubble-left-right')
+                    ->sort(-100),
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -55,7 +57,6 @@ class ControlPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-                // EnsurePersonUser::class,
             ]);
     }
 }

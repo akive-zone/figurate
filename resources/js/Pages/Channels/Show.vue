@@ -53,6 +53,15 @@ const agentStatusMessage = ref('');
 const subscribedThreadId = ref('');
 const isFloatingChatOpen = ref(true);
 const isSlidingChatOpen = ref(false);
+const isEmbedPanelOpen = ref(false);
+const embedPanelRef = ref(null);
+const embedPanelSource = ref('');
+const embedPanelPreviousPath = ref('');
+const embedPanelKicker = ref('Panel');
+const embedPanelTitle = ref('');
+const embedPanelSuccessFromPath = ref('');
+const embedPanelSuccessPathPrefix = ref('');
+const embedPanelReloadOnSuccess = ref(false);
 
 const makeClientMessageId = () => {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -284,6 +293,76 @@ const submitSlidingPrompt = async (content) => {
     promptForm.content = content;
     await submitPrompt();
 };
+
+const buildContextServerCreateUrl = () => {
+    const channelId = (activeChannel.value?.id ?? '').toString().trim();
+
+    if (channelId === '') {
+        return '/p/context-servers/create';
+    }
+
+    const params = new URLSearchParams({
+        context_type: 'channel',
+        context_id: channelId,
+    });
+
+    return `/p/context-servers/create?${params.toString()}`;
+};
+
+const openEmbedPanel = ({
+    source,
+    kicker = 'Panel',
+    title = 'Open panel',
+    successFromPath = '',
+    successPathPrefix = '',
+    reloadOnSuccess = false,
+}) => {
+    embedPanelPreviousPath.value = '';
+    embedPanelSource.value = source;
+    embedPanelKicker.value = kicker;
+    embedPanelTitle.value = title;
+    embedPanelSuccessFromPath.value = successFromPath;
+    embedPanelSuccessPathPrefix.value = successPathPrefix;
+    embedPanelReloadOnSuccess.value = reloadOnSuccess;
+    isEmbedPanelOpen.value = true;
+};
+
+const closeEmbedPanel = () => {
+    isEmbedPanelOpen.value = false;
+};
+
+const handleEmbedPanelLoad = () => {
+    try {
+        const path = (embedPanelRef.value?.contentWindow?.location?.pathname ?? '').toString();
+        const completed =
+            embedPanelPreviousPath.value.includes(embedPanelSuccessFromPath.value)
+            && path.includes(embedPanelSuccessPathPrefix.value)
+            && !path.includes(embedPanelSuccessFromPath.value);
+
+        if (completed) {
+            isEmbedPanelOpen.value = false;
+
+            if (embedPanelReloadOnSuccess.value) {
+                router.reload({ only: ['channel'] });
+            }
+        }
+
+        embedPanelPreviousPath.value = path;
+    } catch {
+        // Ignore frame access exceptions when location cannot be read.
+    }
+};
+
+const openContextServerPanel = () => {
+    openEmbedPanel({
+        source: buildContextServerCreateUrl(),
+        kicker: 'Context Server',
+        title: 'Manage MCP for this channel',
+        successFromPath: '/p/context-servers/create',
+        successPathPrefix: '/p/context-servers',
+        reloadOnSuccess: true,
+    });
+};
 </script>
 
 <template>
@@ -300,6 +379,11 @@ const submitSlidingPrompt = async (content) => {
                     <p class="thread__kicker">Channel</p>
                     <h2 class="thread__title">Channel {{ activeChannel.id }}</h2>
                     <p class="thread__meta">Conversation view with channel updates and thread messages.</p>
+                </div>
+                <div class="thread__header-actions">
+                    <button type="button" class="button button--outline" @click="openContextServerPanel">
+                        Manage MCP
+                    </button>
                 </div>
             </header>
 
@@ -374,5 +458,27 @@ const submitSlidingPrompt = async (content) => {
             :sending="isPrompting"
             @send="submitSlidingPrompt"
         />
+
+        <teleport to="body">
+            <div v-if="isEmbedPanelOpen" class="embed-panel-overlay" @click.self="closeEmbedPanel">
+                <aside class="embed-panel">
+                    <header class="embed-panel__header">
+                        <div>
+                            <p class="thread__kicker">{{ embedPanelKicker }}</p>
+                            <h3 class="embed-panel__title">{{ embedPanelTitle }}</h3>
+                        </div>
+                        <button type="button" class="user-chip" @click="closeEmbedPanel">Close</button>
+                    </header>
+
+                    <iframe
+                        ref="embedPanelRef"
+                        :src="embedPanelSource"
+                        class="embed-panel__frame"
+                        title="Embedded manager"
+                        @load="handleEmbedPanelLoad"
+                    />
+                </aside>
+            </div>
+        </teleport>
     </ChatLayout>
 </template>
