@@ -45,6 +45,11 @@ class BaseUser extends Authenticatable
         return $this->morphMany(Message::class, 'senderable');
     }
 
+    public function contextServers(): MorphMany
+    {
+        return $this->morphMany(ContextServer::class, 'contextable');
+    }
+
     /**
      * Get the attributes that should be cast.
      *

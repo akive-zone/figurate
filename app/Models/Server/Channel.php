@@ -63,6 +63,11 @@ class Channel extends Model
             ->withTimestamps();
     }
 
+    public function contextServers(): MorphMany
+    {
+        return $this->morphMany(ContextServer::class, 'contextable');
+    }
+
     public function hasActor(User $user): bool
     {
         return $this->actorStates()

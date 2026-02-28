@@ -1,0 +1,75 @@
+<?php
+
+namespace App\Ai\Support\Mcp;
+
+use App\Models\Server\Thread;
+use App\Models\Server\User;
+
+class McpInvocationPolicy
+{
+    public function __construct(
+        protected McpServerResolver $serverResolver = new McpServerResolver,
+    ) {}
+
+    /**
+     * @return array{allowed: bool, reason?: string, context?: array<string, mixed>}
+     */
+    public function authorize(string $server, string $tool, ?Thread $thread = null, ?User $user = null): array
+    {
+        $context = $this->serverResolver->resolve($server, $thread, $user);
+
+        if (! ($context['enabled'] ?? false)) {
+            return [
+                'allowed' => false,
+                'reason' => 'MCP is disabled.',
+                'context' => $context,
+            ];
+        }
+
+        $transport = is_string($context['transport'] ?? null)
+            ? strtolower((string) $context['transport'])
+            : 'remote';
+
+        if ($transport === 'remote') {
+            $endpointUrl = $context['endpoint_url'] ?? null;
+            if (! is_string($endpointUrl) || trim($endpointUrl) === '') {
+                return [
+                    'allowed' => false,
+                    'reason' => 'MCP endpoint URL is not configured for this remote server.',
+                    'context' => $context,
+                ];
+            }
+        } else {
+            $handler = $context['handler'] ?? null;
+            if (! is_string($handler) || trim($handler) === '') {
+                return [
+                    'allowed' => false,
+                    'reason' => 'MCP handler is not configured for this local server.',
+                    'context' => $context,
+                ];
+            }
+        }
+
+        $allowedTools = $context['tools'] ?? [];
+        if (! is_array($allowedTools) || $allowedTools === []) {
+            return [
+                'allowed' => false,
+                'reason' => 'No MCP tools are allowlisted for this server.',
+                'context' => $context,
+            ];
+        }
+
+        if (! in_array('*', $allowedTools, true) && ! in_array($tool, $allowedTools, true)) {
+            return [
+                'allowed' => false,
+                'reason' => 'MCP tool is not allowlisted for this server.',
+                'context' => $context,
+            ];
+        }
+
+        return [
+            'allowed' => true,
+            'context' => $context,
+        ];
+    }
+}

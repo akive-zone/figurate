@@ -83,7 +83,7 @@ class ChannelController extends Controller
 
     protected function chatApiBaseUrl(): string
     {
-        return rtrim((string) config('services.server.base_url'), '/');
+        return rtrim((string) config('app.server.base_url'), '/');
     }
 
     protected function apiClient(Request $request): PendingRequest

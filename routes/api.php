@@ -4,6 +4,7 @@ use App\Http\Controllers\Server\Api\ApiTokenController;
 use App\Http\Controllers\Server\Api\ChatController;
 use App\Http\Controllers\Server\Api\ChatPostController;
 use App\Http\Controllers\Server\Api\ChatThreadController;
+use App\Http\Controllers\Server\Api\ContextServerController;
 use App\Http\Middleware\EnsureDeviceUser;
 use Illuminate\Support\Facades\Route;
 
@@ -20,4 +21,11 @@ Route::prefix('chats')->middleware([EnsureDeviceUser::class, 'auth:sanctum'])->g
     Route::get('/{chat}', [ChatController::class, 'show'])->name('api.chats.show');
     Route::get('/{chat}/threads', [ChatThreadController::class, 'index'])->name('api.chats.threads');
     Route::get('/{chat}/posts', [ChatPostController::class, 'index'])->name('api.chats.posts');
+});
+
+Route::prefix('context-servers')->middleware([EnsureDeviceUser::class, 'auth:sanctum'])->group(function (): void {
+    Route::get('/', [ContextServerController::class, 'index'])->name('api.context-servers.index');
+    Route::post('/', [ContextServerController::class, 'store'])->name('api.context-servers.store');
+    Route::patch('/{contextServer}', [ContextServerController::class, 'update'])->name('api.context-servers.update');
+    Route::delete('/{contextServer}', [ContextServerController::class, 'destroy'])->name('api.context-servers.destroy');
 });

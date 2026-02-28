@@ -107,4 +107,9 @@ class Thread extends Model
             ->withPivot(['scope', 'created_by', 'meta'])
             ->withTimestamps();
     }
+
+    public function contextServers(): MorphMany
+    {
+        return $this->morphMany(ContextServer::class, 'contextable');
+    }
 }

@@ -9,6 +9,8 @@ use App\Ai\Tools\ConversationAuditTool;
 use App\Ai\Tools\CreatePostFromConversationTool;
 use App\Ai\Tools\DiscoverSkillsTool;
 use App\Ai\Tools\DualWriteDiffTool;
+use App\Ai\Tools\InvokeMcpTool;
+use App\Ai\Tools\ListAvailableMcpToolsTool;
 use App\Ai\Tools\ModePolicyTool;
 use App\Ai\Tools\PrivacyGuardTool;
 use App\Ai\Tools\ReplayTool;
@@ -59,6 +61,7 @@ class ChatToolResolver
             new ModePolicyTool($thread, $user),
             new ContextBudgetTool($thread, $user),
             new DiscoverSkillsTool,
+            ...$this->mcpTools($thread, $user),
             new DualWriteDiffTool($thread, $user),
             new ReplayTool($thread, $user),
             new PrivacyGuardTool($thread, $user),
@@ -81,6 +84,21 @@ class ChatToolResolver
 
         return [
             new FileSearch(stores: $storeIds),
+        ];
+    }
+
+    /**
+     * @return list<Tool>
+     */
+    protected function mcpTools(Thread $thread, User $user): array
+    {
+        if (! ((bool) config('services.mcp.enabled', false))) {
+            return [];
+        }
+
+        return [
+            new ListAvailableMcpToolsTool($thread, $user),
+            new InvokeMcpTool($thread, $user),
         ];
     }
 }
