@@ -23,7 +23,21 @@ class MergeDeviceUsersAfterPasskeyAuthentication
         }
 
         $sourceDeviceUser = User::query()->find($sourceDeviceUserId);
+        if (! $sourceDeviceUser instanceof User || $sourceDeviceUser->type !== 'device') {
+            return;
+        }
 
         ($this->mergeDeviceUserIntoDeviceUser)($sourceDeviceUser, $targetAuthenticatedUser);
+
+        activity('auth')
+            ->causedBy($sourceDeviceUser)
+            ->performedOn($targetAuthenticatedUser)
+            ->event('auth.device_user_merged_after_passkey_login')
+            ->withProperties([
+                'source_user_id' => $sourceDeviceUser->id,
+                'target_user_id' => $targetAuthenticatedUser->id,
+                'passkey_id' => $event->passkey->id,
+            ])
+            ->log('Merged source device user into passkey owner after passkey authentication.');
     }
 }

@@ -20,5 +20,14 @@ class MarkDeviceSessionAsPasskeyVerified
             'passkey_id' => $event->passkey->id,
             'authenticated_at' => now()->toIso8601String(),
         ]);
+
+        activity('auth')
+            ->performedOn($authenticatable)
+            ->event('auth.device_passkey_verified')
+            ->withProperties([
+                'passkey_id' => $event->passkey->id,
+                'user_id' => $authenticatable->id,
+            ])
+            ->log('Device user authenticated with passkey and session was marked as verified.');
     }
 }

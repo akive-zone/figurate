@@ -18,6 +18,15 @@ class FindPasskeyToAuthenticateAction extends BaseFindPasskeyToAuthenticateActio
 
         $authenticatable = $passkey->authenticatable;
         if ($authenticatable instanceof User && $authenticatable->status === 'merged') {
+            activity('auth')
+                ->performedOn($authenticatable)
+                ->event('auth.passkey_login_denied_merged_user')
+                ->withProperties([
+                    'passkey_id' => $passkey->id,
+                    'user_id' => $authenticatable->id,
+                ])
+                ->log('Passkey authentication denied for merged user.');
+
             return null;
         }
 
