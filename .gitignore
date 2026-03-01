@@ -27,10 +27,14 @@ Thumbs.db
 
 /database/*.sqlite
 
+/.agents
+/.agent
+
 # Laravel Boost
 CLAUDE.md
 GEMINI.md
 opencode.json
+/.claude
 /.cursor
 /.gemini
 /.gemini-clipboard
