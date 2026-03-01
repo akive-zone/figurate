@@ -93,7 +93,7 @@ class InvokeMcpTool implements Tool
         return [
             'server' => $schema->string()->required(),
             'tool' => $schema->string()->required(),
-            'arguments' => $schema->array(),
+            'arguments' => $schema->object(),
             'idempotency_key' => $schema->string(),
             'timeout_ms' => $schema->integer(),
         ];

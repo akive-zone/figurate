@@ -76,7 +76,9 @@ class SessionMergeSummaryTool implements Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'conversation_ids' => $schema->array(),
+            'conversation_ids' => $schema->array()
+                ->items($schema->string())
+                ->min(1),
             'limit_per_conversation' => $schema->integer(),
         ];
     }
