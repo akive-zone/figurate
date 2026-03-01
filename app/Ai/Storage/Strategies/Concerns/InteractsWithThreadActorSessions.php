@@ -57,7 +57,11 @@ trait InteractsWithThreadActorSessions
 
         $actorKey = $encodedActorKey
             ?: $this->actorKeyForAgentClass($agentClass)
-            ?: $thread->primaryPresenterActor()?->actorName();
+            ?: $thread->actors()
+                ->where('role', ThreadActor::RolePresenter)
+                ->where('status', ThreadActor::StatusActive)
+                ->orderBy('priority')
+                ->first()?->actorName();
 
         return [$thread, $actorKey];
     }

@@ -68,29 +68,6 @@ class Thread extends Model
         return $this->hasMany(ThreadActorSession::class);
     }
 
-    public function presenterActors(): HasMany
-    {
-        return $this->actors()
-            ->where('role', ThreadActor::RolePresenter)
-            ->where('status', ThreadActor::StatusActive)
-            ->orderBy('priority');
-    }
-
-    public function primaryPresenterActor(): ?ThreadActor
-    {
-        return $this->presenterActors()->first();
-    }
-
-    public function primaryHandlerActor(): HasMany
-    {
-        return $this->presenterActors();
-    }
-
-    public function isPeerConversation(): bool
-    {
-        return $this->primaryPresenterActor() === null;
-    }
-
     public function events(): HasMany
     {
         return $this->hasMany(ThreadEvent::class);

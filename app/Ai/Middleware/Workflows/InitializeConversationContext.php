@@ -4,6 +4,7 @@ namespace App\Ai\Middleware\Workflows;
 
 use App\Ai\Support\ThreadContextResolver;
 use App\Models\Server\Thread;
+use App\Models\Server\ThreadActor;
 use Closure;
 use Laravel\Ai\Prompts\AgentPrompt;
 
@@ -23,8 +24,14 @@ class InitializeConversationContext
 
         $channel = $this->threadContextResolver->resolveChannel($thread);
 
-        $presenterCount = $thread->presenterActors()->count();
-        $observerCount = $thread->observerActors()->count();
+        $presenterCount = $thread->actors()
+            ->where('role', ThreadActor::RolePresenter)
+            ->where('status', ThreadActor::StatusActive)
+            ->count();
+        $observerCount = $thread->actors()
+            ->where('role', ThreadActor::RoleObserver)
+            ->where('status', ThreadActor::StatusActive)
+            ->count();
 
         $context = implode("\n", [
             'Conversation context bootstrap (system policy):',

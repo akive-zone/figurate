@@ -43,7 +43,11 @@ class ConversationOrchestrator
                 ]);
             }
 
-            $primaryPresenter = $resolvedThread->primaryPresenterActor();
+            $primaryPresenter = $resolvedThread->actors()
+                ->where('role', ThreadActor::RolePresenter)
+                ->where('status', ThreadActor::StatusActive)
+                ->orderBy('priority')
+                ->first();
             $hasPresenter = $primaryPresenter !== null;
 
             return new OrchestrationDecision(

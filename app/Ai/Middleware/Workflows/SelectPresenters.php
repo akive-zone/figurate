@@ -3,6 +3,7 @@
 namespace App\Ai\Middleware\Workflows;
 
 use App\Models\Server\Thread;
+use App\Models\Server\ThreadActor;
 use Closure;
 use Laravel\Ai\Prompts\AgentPrompt;
 
@@ -16,7 +17,11 @@ class SelectPresenters
             return $next($prompt);
         }
 
-        $presenterActors = $thread->presenterActors()->get();
+        $presenterActors = $thread->actors()
+            ->where('role', ThreadActor::RolePresenter)
+            ->where('status', ThreadActor::StatusActive)
+            ->orderBy('priority')
+            ->get();
         $presenterCount = $presenterActors->count();
         $presenterKeys = $presenterActors
             ->map(fn ($actor): ?string => $actor->actorName())

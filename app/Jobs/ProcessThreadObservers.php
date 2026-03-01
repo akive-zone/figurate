@@ -35,7 +35,16 @@ class ProcessThreadObservers implements ShouldQueue
 
         $message = Message::query()->find($this->messageId);
 
-        if (! $thread || ! $message || ! $thread->isPeerConversation()) {
+        if (! $thread || ! $message) {
+            return;
+        }
+
+        $hasPresenter = $thread->actors()
+            ->where('role', ThreadActor::RolePresenter)
+            ->where('status', ThreadActor::StatusActive)
+            ->exists();
+
+        if ($hasPresenter) {
             return;
         }
 

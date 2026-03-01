@@ -131,7 +131,11 @@ trait RemembersThreadConversations
         }
 
         if (property_exists($this, 'thread') && $this->thread instanceof \App\Models\Server\Thread) {
-            $primaryActorKey = $this->thread->primaryPresenterActor()?->actorName();
+            $primaryActorKey = $this->thread->actors()
+                ->where('role', ThreadActor::RolePresenter)
+                ->where('status', ThreadActor::StatusActive)
+                ->orderBy('priority')
+                ->first()?->actorName();
 
             if (is_string($primaryActorKey) && $primaryActorKey !== '') {
                 return $primaryActorKey;

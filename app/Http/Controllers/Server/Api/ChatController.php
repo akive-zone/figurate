@@ -259,7 +259,11 @@ class ChatController extends Controller
      */
     protected function resolveActivePresenters(Thread $thread): Collection
     {
-        return $thread->presenterActors()->get();
+        return $thread->actors()
+            ->where('role', ThreadActor::RolePresenter)
+            ->where('status', ThreadActor::StatusActive)
+            ->orderBy('priority')
+            ->get();
     }
 
     protected function broadcastChannelIdForThread(Thread $thread): string

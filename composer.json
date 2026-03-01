@@ -30,6 +30,7 @@
         "nativephp/mobile-network": "^1.0",
         "nativephp/mobile-share": "^1.0",
         "phpdocumentor/type-resolver": "^1.7",
+        "predis/predis": "^3.4",
         "pusher/pusher-php-server": "^7.2",
         "spatie/laravel-activitylog": "^4.12",
         "spatie/laravel-medialibrary": "^11.0",
