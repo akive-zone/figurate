@@ -6,6 +6,7 @@ use App\Http\Controllers\Server\Api\ChatPostController;
 use App\Http\Controllers\Server\Api\ChatThreadController;
 use App\Http\Controllers\Server\Api\ContextServerController;
 use App\Http\Middleware\EnsureDeviceUser;
+use Illuminate\Broadcasting\BroadcastController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function (): void {
@@ -14,6 +15,9 @@ Route::prefix('auth')->group(function (): void {
     Route::post('logout', [ApiTokenController::class, 'logout'])
         ->middleware(['auth:sanctum']);
 });
+
+Route::post('broadcasting/auth', [BroadcastController::class, 'authenticate'])
+    ->middleware([EnsureDeviceUser::class, 'auth:sanctum']);
 
 Route::prefix('chats')->middleware([EnsureDeviceUser::class, 'auth:sanctum'])->group(function (): void {
     Route::post('/', [ChatController::class, 'store'])->name('api.chats.store');

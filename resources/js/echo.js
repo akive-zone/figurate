@@ -27,8 +27,24 @@ const inferChatRuntime = () => {
 };
 
 const runtime = inferChatRuntime();
-const authEndpoint = chatApiUrl('/api/broadcasting/auth', runtime);
+const isNativeRuntime = runtime?.is_native === true;
+const authEndpoint = chatApiUrl(isNativeRuntime ? '/api/broadcasting/auth' : '/broadcasting/auth', runtime);
 const reverbKey = (import.meta.env.VITE_REVERB_APP_KEY ?? '').toString().trim();
+const webAuthHeaders = () => {
+    if (typeof document === 'undefined') {
+        return {};
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+
+    if (csrfToken === '') {
+        return {};
+    }
+
+    return {
+        'X-CSRF-TOKEN': csrfToken,
+    };
+};
 
 if (reverbKey !== '') {
     window.Echo = new Echo({
@@ -46,7 +62,7 @@ if (reverbKey !== '') {
                         socket_id: socketId,
                         channel_name: channel.name,
                     }, {
-                        headers: chatAuthHeaders(),
+                        headers: isNativeRuntime ? chatAuthHeaders() : webAuthHeaders(),
                     })
                     .then((response) => {
                         callback(false, response.data);

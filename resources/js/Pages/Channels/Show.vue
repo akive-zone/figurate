@@ -1,11 +1,10 @@
 <script setup>
 import ChatLayout from '../../Layouts/ChatLayout.vue';
-import FloatingChatWindow from './FloatingChatWindow.vue';
-import SlidingChatWindow from './SlidingChatWindow.vue';
+import AgentWorkspacePanel from './AgentWorkspacePanel.vue';
+import ChannelTimelinePanel from './ChannelTimelinePanel.vue';
+import HumanChatPanel from './HumanChatPanel.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
-import DOMPurify from 'dompurify';
-import { marked } from 'marked';
 import { fetchChatChannelPosts, fetchChatThreadMessages, sendChatChatMessage } from '../../api';
 
 const props = defineProps({
@@ -117,46 +116,44 @@ const submitPrompt = async () => {
     }
 };
 
-const formatTimestamp = (value) => new Date(value).toLocaleString();
 const activeThreadId = computed(() => (activeChannel.value?.active_thread ?? '').toString().trim());
 
-const visibleItems = computed(() => {
+const messageSource = (message) => (message?.source ?? '').toString().trim();
+const isAgentConversationMessage = (message) => {
+    const source = messageSource(message);
+
+    return source === 'agent_prompt' || source === 'agent_response';
+};
+const isHumanConversationMessage = (message) => {
+    return messageSource(message) === 'peer_message';
+};
+
+const channelFeedItems = computed(() => {
     if (!activeChannel.value) {
         return [];
     }
 
-    if (activeThreadId.value === '') {
-        return channelPosts.value;
-    }
-
-    return threadMessages.value;
+    return channelPosts.value;
 });
 
 const floatingChatMessages = computed(() => {
-    return visibleItems.value.slice(-10);
+    const messages = Array.isArray(threadMessages.value) ? threadMessages.value : [];
+
+    return messages
+        .filter((message) => isHumanConversationMessage(message))
+        .slice(-10);
 });
+
 const slidingChatMessages = computed(() => {
-    return visibleItems.value.slice(-25);
-});
+    const messages = Array.isArray(threadMessages.value) ? threadMessages.value : [];
 
-const floatingChatTitle = computed(() => {
-    if (!activeChannel.value) {
-        return 'Chat';
-    }
-
-    return `Channel ${activeChannel.value.id}`;
-});
-
-const floatingChatSubtitle = computed(() => {
-    if (!activeChannel.value) {
-        return 'Offline';
-    }
-
-    return activeThreadId.value !== '' ? 'Thread active' : 'Channel active';
+    return messages
+        .filter((message) => isAgentConversationMessage(message))
+        .slice(-25);
 });
 
 const loadChannelPosts = async () => {
-    if (!activeChannel.value || activeThreadId.value !== '') {
+    if (!activeChannel.value) {
         channelPostsError.value = '';
         return;
     }
@@ -223,21 +220,7 @@ const subscribeToThreadEvents = (threadId) => {
         })
         .listen('.agent.reply.completed', (event) => {
             agentStatusMessage.value = '';
-
-            const assistantMessage = event?.assistant_message ?? null;
-
-            if (assistantMessage && typeof assistantMessage.id === 'number') {
-                const existingIndex = threadMessages.value.findIndex((message) => message.id === assistantMessage.id);
-
-                if (existingIndex === -1) {
-                    threadMessages.value.push(assistantMessage);
-                } else {
-                    threadMessages.value.splice(existingIndex, 1, assistantMessage);
-                }
-            } else {
-                loadThreadMessages();
-            }
-
+            loadThreadMessages();
             router.reload({ only: ['channel'] });
         })
         .listen('.agent.reply.failed', (event) => {
@@ -264,25 +247,6 @@ watch(
 onBeforeUnmount(() => {
     leaveThreadEvents();
 });
-
-const renderMessageContent = (content) => {
-    const rawContent = (content ?? '').toString();
-
-    if (rawContent.trim() === '') {
-        return '';
-    }
-
-    const parsed = marked.parse(rawContent, {
-        breaks: true,
-        gfm: true,
-    });
-
-    return DOMPurify.sanitize(typeof parsed === 'string' ? parsed : '', {
-        USE_PROFILES: {
-            html: true,
-        },
-    });
-};
 
 const submitFloatingPrompt = async (content) => {
     promptForm.content = content;
@@ -373,65 +337,18 @@ const openContextServerPanel = () => {
         :active-channel-id="activeChannel?.id ?? null"
         :active-thread-id="activeChannel?.active_thread ?? null"
     >
-        <section class="thread" v-if="activeChannel">
-            <header class="thread__header">
-                <div>
-                    <p class="thread__kicker">Channel</p>
-                    <h2 class="thread__title">Channel {{ activeChannel.id }}</h2>
-                    <p class="thread__meta">Conversation view with channel updates and thread messages.</p>
-                </div>
-                <div class="thread__header-actions">
-                    <button type="button" class="button button--outline" @click="openContextServerPanel">
-                        Manage MCP
-                    </button>
-                </div>
-            </header>
-
-            <section class="thread__messages">
-                <article
-                    v-for="message in visibleItems"
-                    :key="`${message.kind ?? 'message'}-${message.scope ?? 'channel'}-${message.id}`"
-                    class="message"
-                >
-                    <p class="message__author">
-                        {{ message.scope === 'thread' ? 'Thread' : message.scope === 'channel' ? 'Channel' : 'Conversation' }}
-                    </p>
-                    <div class="message__content" v-html="renderMessageContent(message.content)" />
-                    <ul v-if="message.attachments?.length" class="thread__attachments">
-                        <li v-for="attachment in message.attachments" :key="attachment.path">
-                            {{ attachment.name }} ({{ attachment.mime }})
-                        </li>
-                    </ul>
-                    <p class="message__time">{{ formatTimestamp(message.created_at) }}</p>
-                </article>
-
-                <article v-if="!visibleItems.length" class="empty">
-                    <h3>No posts yet</h3>
-                    <p v-if="activeChannel.active_thread && threadLoadError" class="error">{{ threadLoadError }}</p>
-                    <p v-else-if="!activeChannel.active_thread && channelPostsError" class="error">{{ channelPostsError }}</p>
-                    <p v-else-if="isLoadingThreadMessages && activeChannel.active_thread">Loading thread messages...</p>
-                    <p v-else-if="isLoadingChannelPosts && !activeChannel.active_thread">Loading channel posts...</p>
-                    <p v-else-if="activeChannel.active_thread">No messages in this thread yet.</p>
-                    <p v-else-if="!channelPostsError">No channel posts yet.</p>
-                </article>
-            </section>
-
-            <form class="form" @submit.prevent="submitPrompt">
-                <label for="prompt" class="label">Message</label>
-                <textarea
-                    id="prompt"
-                    v-model="promptForm.content"
-                    class="input"
-                    rows="4"
-                    placeholder="Write a message..."
-                />
-                <p v-if="promptErrors.body" class="error">{{ promptErrors.body[0] }}</p>
-                <p v-if="promptErrorMessage" class="error">{{ promptErrorMessage }}</p>
-                <p v-if="agentStatusMessage" class="thread__meta">{{ agentStatusMessage }}</p>
-                <button class="button" :disabled="isPrompting">
-                    Send
-                </button>
-            </form>
+        <section v-if="activeChannel">
+            <ChannelTimelinePanel
+                :channel-id="activeChannel.id"
+                :messages="channelFeedItems"
+                :is-loading="isLoadingChannelPosts"
+                :error-message="channelPostsError"
+                @manage-mcp="openContextServerPanel"
+            />
+            <p v-if="activeChannel.active_thread && threadLoadError" class="error">{{ threadLoadError }}</p>
+            <p v-if="promptErrors.body" class="error">{{ promptErrors.body[0] }}</p>
+            <p v-if="promptErrorMessage" class="error">{{ promptErrorMessage }}</p>
+            <p v-if="agentStatusMessage" class="thread__meta">{{ agentStatusMessage }}</p>
         </section>
 
         <section v-else class="empty">
@@ -440,20 +357,18 @@ const openContextServerPanel = () => {
             <Link :href="chatIndexUrl" class="link">Back</Link>
         </section>
 
-        <FloatingChatWindow
+        <HumanChatPanel
             v-if="activeChannel"
             v-model="isFloatingChatOpen"
-            :title="floatingChatTitle"
-            :subtitle="floatingChatSubtitle"
+            :active-thread-id="activeThreadId"
             :messages="floatingChatMessages"
             :sending="isPrompting"
             @send="submitFloatingPrompt"
         />
 
-        <SlidingChatWindow
+        <AgentWorkspacePanel
             v-if="activeChannel"
             v-model="isSlidingChatOpen"
-            title="Assistant"
             :messages="slidingChatMessages"
             :sending="isPrompting"
             @send="submitSlidingPrompt"

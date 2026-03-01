@@ -58,6 +58,8 @@ class ChatController extends Controller
                     'thread_id' => $threadRecord->uuid,
                     'id' => $message->id,
                     'sender_name' => null,
+                    'source' => data_get($message->meta, 'source'),
+                    'is_agent' => data_get($message->meta, 'source') === 'agent_response',
                     'content' => $message->body,
                     'attachments' => is_array($message->attachments) ? $message->attachments : [],
                     'created_at' => optional($message->created_at)?->toIso8601String(),
