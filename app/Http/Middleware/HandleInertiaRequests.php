@@ -60,6 +60,9 @@ class HandleInertiaRequests extends Middleware
                     'chats_show_template' => \app_is_native_runtime()
                         ? route('chat.index', [], false)
                         : route('api.chats.show', ['chat' => '__CHAT__'], false),
+                    'chats_message_turns_template' => \app_is_native_runtime() || ! Route::has('api.chats.message-turns')
+                        ? route('chat.index', [], false)
+                        : route('api.chats.message-turns', ['chat' => '__CHAT__', 'message' => '__MESSAGE__'], false),
                     'chats_threads_template' => \app_is_native_runtime()
                         ? route('chat.index', [], false)
                         : route('api.chats.threads', ['chat' => '__CHAT__'], false),

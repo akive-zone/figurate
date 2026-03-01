@@ -3,9 +3,11 @@ import ChatLayout from '../../Layouts/ChatLayout.vue';
 import AgentWorkspacePanel from './AgentWorkspacePanel.vue';
 import ChannelTimelinePanel from './ChannelTimelinePanel.vue';
 import HumanChatPanel from './HumanChatPanel.vue';
+import PendingTurnCards from './PendingTurnCards.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
-import { fetchChatChannelPosts, fetchChatThreadMessages, sendChatChatMessage } from '../../api';
+import { computed, reactive, ref, watch } from 'vue';
+import { fetchChatChannelPosts, fetchChatMessageTurns, fetchChatThreadMessages, sendChatChatMessage } from '../../api';
+import { useThreadEcho } from '../../composables/useThreadEcho';
 
 const props = defineProps({
     channels: {
@@ -46,11 +48,12 @@ const channelPosts = ref([]);
 const isLoadingChannelPosts = ref(false);
 const channelPostsError = ref('');
 const threadMessages = ref([]);
+const threadTurns = ref([]);
 const isLoadingThreadMessages = ref(false);
 const threadLoadError = ref('');
 const agentStatusMessage = ref('');
-const subscribedThreadId = ref('');
-const isFloatingChatOpen = ref(true);
+const latestSubmittedPromptMessageId = ref(null);
+const isFloatingChatOpen = ref(false);
 const isSlidingChatOpen = ref(false);
 const isEmbedPanelOpen = ref(false);
 const embedPanelRef = ref(null);
@@ -92,7 +95,7 @@ const submitPrompt = async () => {
     const clientMessageId = ensureClientMessageId(promptForm.content);
 
     try {
-        await sendChatChatMessage({
+        const response = await sendChatChatMessage({
             channel: activeChannel.value.id,
             thread: activeChannel.value.active_thread ?? null,
             body: promptForm.content,
@@ -100,6 +103,11 @@ const submitPrompt = async () => {
         }, runtime.value, {
             idempotencyKey: clientMessageId,
         });
+        const submittedMessageId = Number(response?.data?.message_id ?? 0);
+        if (Number.isFinite(submittedMessageId) && submittedMessageId > 0) {
+            latestSubmittedPromptMessageId.value = submittedMessageId;
+            await loadTurnsForMessage(submittedMessageId);
+        }
         agentStatusMessage.value = 'Agent is thinking...';
         promptForm.content = '';
         promptForm.clientMessageId = '';
@@ -144,7 +152,41 @@ const floatingChatMessages = computed(() => {
         .slice(-10);
 });
 
+const shouldShowHumanChatPanel = computed(() => {
+    return activeThreadId.value !== '' && floatingChatMessages.value.length > 0;
+});
+
+const pendingTurns = computed(() => {
+    const turns = Array.isArray(threadTurns.value) ? threadTurns.value : [];
+
+    return turns.filter((turn) => {
+        const status = (turn?.status ?? '').toString().trim();
+
+        return status !== 'completed';
+    });
+});
+
 const slidingChatMessages = computed(() => {
+    const turns = Array.isArray(threadTurns.value) ? threadTurns.value : [];
+
+    if (turns.length > 0) {
+        return turns
+            .map((turn) => ({
+                id: turn.assistant_message_id ?? turn.id,
+                source: 'agent_response',
+                content: (turn.assistant_text ?? '').toString(),
+                created_at: turn.completed_at ?? turn.created_at ?? null,
+                meta: {
+                    actor_key: turn.actor_key ?? null,
+                    invocation_id: turn.invocation_id ?? null,
+                    status: turn.status ?? null,
+                    usage: turn.usage ?? {},
+                },
+            }))
+            .filter((message) => message.content.trim() !== '')
+            .slice(-25);
+    }
+
     const messages = Array.isArray(threadMessages.value) ? threadMessages.value : [];
 
     return messages
@@ -185,68 +227,118 @@ const loadThreadMessages = async () => {
     try {
         const payload = await fetchChatThreadMessages(activeThreadId.value, runtime.value);
         threadMessages.value = Array.isArray(payload?.data) ? payload.data : [];
+        threadTurns.value = Array.isArray(payload?.turns) ? payload.turns : [];
     } catch (error) {
         threadLoadError.value = error.response?.data?.message ?? `Unable to load thread messages (${error.response?.status ?? 'network'}).`;
         threadMessages.value = [];
+        threadTurns.value = [];
     } finally {
         isLoadingThreadMessages.value = false;
     }
 };
 
-const leaveThreadEvents = () => {
-    if (subscribedThreadId.value === '') {
+const mergeThreadTurns = (incomingTurns) => {
+    const existing = Array.isArray(threadTurns.value) ? threadTurns.value : [];
+    const incoming = Array.isArray(incomingTurns) ? incomingTurns : [];
+    const byId = new Map();
+
+    existing.forEach((turn) => {
+        const key = (turn?.id ?? '').toString();
+        if (key !== '') {
+            byId.set(key, turn);
+        }
+    });
+
+    incoming.forEach((turn) => {
+        const key = (turn?.id ?? '').toString();
+        if (key !== '') {
+            byId.set(key, turn);
+        }
+    });
+
+    threadTurns.value = Array.from(byId.values()).sort((left, right) => {
+        const leftPromptId = Number(left?.prompt_message_id ?? 0);
+        const rightPromptId = Number(right?.prompt_message_id ?? 0);
+
+        if (leftPromptId !== rightPromptId) {
+            return leftPromptId - rightPromptId;
+        }
+
+        const leftActor = (left?.actor_key ?? '').toString();
+        const rightActor = (right?.actor_key ?? '').toString();
+
+        return leftActor.localeCompare(rightActor);
+    });
+};
+
+const loadTurnsForMessage = async (messageId) => {
+    const normalizedMessageId = Number(messageId ?? 0);
+
+    if (!activeThreadId.value || !Number.isFinite(normalizedMessageId) || normalizedMessageId <= 0) {
         return;
     }
 
-    if (window.Echo && typeof window.Echo.leave === 'function') {
-        window.Echo.leave(`threads.${subscribedThreadId.value}`);
+    try {
+        const payload = await fetchChatMessageTurns(activeThreadId.value, normalizedMessageId, runtime.value);
+        mergeThreadTurns(payload?.data ?? []);
+    } catch {
+        // Keep current turn state if scoped refresh fails.
     }
-
-    subscribedThreadId.value = '';
 };
 
-const subscribeToThreadEvents = (threadId) => {
-    if (!threadId || !window.Echo || typeof window.Echo.private !== 'function') {
-        return;
-    }
+useThreadEcho({
+    threadId: activeThreadId,
+    enabled: computed(() => activeChannel.value !== null),
+    onReplyStarted: () => {
+        agentStatusMessage.value = 'Agent is thinking...';
+    },
+    onReplyCompleted: () => {
+        agentStatusMessage.value = '';
+        if (latestSubmittedPromptMessageId.value) {
+            loadTurnsForMessage(latestSubmittedPromptMessageId.value);
+        }
+        loadThreadMessages();
+        router.reload({ only: ['channel'] });
+    },
+    onReplyFailed: (event) => {
+        agentStatusMessage.value = '';
+        promptErrorMessage.value = event?.message ?? 'AI response failed. Please retry.';
+    },
+    onStreamStart: () => {
+        agentStatusMessage.value = 'Agent is thinking...';
+    },
+    onTextDelta: (_event, payload) => {
+        const delta = (payload?.delta ?? '').toString().trim();
 
-    leaveThreadEvents();
+        if (delta !== '') {
+            agentStatusMessage.value = 'Agent is typing...';
+        }
+    },
+    onStreamEnd: () => {
+        agentStatusMessage.value = '';
+        if (latestSubmittedPromptMessageId.value) {
+            loadTurnsForMessage(latestSubmittedPromptMessageId.value);
+        }
+        loadThreadMessages();
+        router.reload({ only: ['channel'] });
+    },
+    onError: (_event, payload) => {
+        const message = (payload?.message ?? '').toString().trim();
 
-    subscribedThreadId.value = threadId;
-
-    window.Echo.private(`threads.${threadId}`)
-        .listen('.agent.reply.started', () => {
-            agentStatusMessage.value = 'Agent is thinking...';
-        })
-        .listen('.agent.reply.completed', (event) => {
-            agentStatusMessage.value = '';
-            loadThreadMessages();
-            router.reload({ only: ['channel'] });
-        })
-        .listen('.agent.reply.failed', (event) => {
-            agentStatusMessage.value = '';
-            promptErrorMessage.value = event?.message ?? 'AI response failed. Please retry.';
-        });
-};
+        agentStatusMessage.value = '';
+        promptErrorMessage.value = message !== '' ? message : 'AI response failed. Please retry.';
+    },
+});
 
 watch(
     () => [activeChannel.value?.id ?? null, activeThreadId.value],
     () => {
+        latestSubmittedPromptMessageId.value = null;
         loadChannelPosts();
         loadThreadMessages();
-
-        if (activeThreadId.value !== '') {
-            subscribeToThreadEvents(activeThreadId.value);
-        } else {
-            leaveThreadEvents();
-        }
     },
     { immediate: true },
 );
-
-onBeforeUnmount(() => {
-    leaveThreadEvents();
-});
 
 const submitFloatingPrompt = async (content) => {
     promptForm.content = content;
@@ -255,6 +347,19 @@ const submitFloatingPrompt = async (content) => {
 
 const submitSlidingPrompt = async (content) => {
     promptForm.content = content;
+    await submitPrompt();
+};
+
+const retryFailedTurn = async (turn) => {
+    const prompt = (turn?.prompt_text ?? '').toString().trim();
+
+    if (prompt === '') {
+        return;
+    }
+
+    promptForm.content = prompt;
+    promptForm.clientMessageId = '';
+    promptForm.draftForClientId = '';
     await submitPrompt();
 };
 
@@ -349,6 +454,7 @@ const openContextServerPanel = () => {
             <p v-if="promptErrors.body" class="error">{{ promptErrors.body[0] }}</p>
             <p v-if="promptErrorMessage" class="error">{{ promptErrorMessage }}</p>
             <p v-if="agentStatusMessage" class="thread__meta">{{ agentStatusMessage }}</p>
+            <PendingTurnCards :turns="pendingTurns" @retry="retryFailedTurn" />
         </section>
 
         <section v-else class="empty">
@@ -358,7 +464,7 @@ const openContextServerPanel = () => {
         </section>
 
         <HumanChatPanel
-            v-if="activeChannel"
+            v-if="activeChannel && shouldShowHumanChatPanel"
             v-model="isFloatingChatOpen"
             :active-thread-id="activeThreadId"
             :messages="floatingChatMessages"

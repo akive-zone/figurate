@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Server\Api;
 
+use App\Actions\Server\Chat\ProjectAgentTurns;
 use App\Actions\Server\Chat\ResolveChatChannelContext;
 use App\Actions\Server\Chat\ResolveChatThreadContext;
 use App\Actions\Server\Chat\SendPeerThreadMessage;
@@ -30,7 +31,7 @@ class ChatController extends Controller
         return response()->json($this->cursorPageForRequest($request));
     }
 
-    public function show(Request $request, string $chat): JsonResponse
+    public function show(Request $request, string $chat, ProjectAgentTurns $projectAgentTurns): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
@@ -39,6 +40,7 @@ class ChatController extends Controller
         if (! $threadRecord) {
             return response()->json([
                 'data' => [],
+                'turns' => [],
                 'chat' => [
                     'id' => $chat,
                     'channel_id' => $channelRecord?->uuid,
@@ -48,9 +50,11 @@ class ChatController extends Controller
             ]);
         }
 
-        $messages = $threadRecord->messages()
+        $threadMessages = $threadRecord->messages()
             ->orderBy('created_at')
-            ->get()
+            ->get();
+
+        $messages = $threadMessages
             ->map(function (Message $message) use ($threadRecord): array {
                 return [
                     'kind' => 'message',
@@ -68,8 +72,11 @@ class ChatController extends Controller
             ->values()
             ->all();
 
+        $turns = ($projectAgentTurns)($threadRecord, $threadMessages, $actor);
+
         return response()->json([
             'data' => $messages,
+            'turns' => $turns,
             'chat' => [
                 'id' => $chat,
                 'channel_id' => $channelRecord?->uuid,
@@ -81,6 +88,42 @@ class ChatController extends Controller
                 'phase' => $threadRecord->phase,
                 'status' => $threadRecord->status,
             ],
+        ]);
+    }
+
+    public function showMessageTurns(
+        Request $request,
+        string $chat,
+        Message $message,
+        ProjectAgentTurns $projectAgentTurns
+    ): JsonResponse {
+        /** @var User $actor */
+        $actor = $request->user();
+        [$threadRecord] = $this->resolveThreadForChat($chat, $actor);
+
+        if (! $threadRecord) {
+            abort(404, 'Thread not found.');
+        }
+
+        if (
+            $message->messageable_type !== $threadRecord->getMorphClass()
+            || $message->messageable_id !== $threadRecord->getKey()
+        ) {
+            abort(404, 'Message not found in this thread.');
+        }
+
+        $threadMessages = $threadRecord->messages()
+            ->orderBy('created_at')
+            ->get();
+        $turns = collect(($projectAgentTurns)($threadRecord, $threadMessages, $actor))
+            ->filter(fn (array $turn): bool => (int) ($turn['prompt_message_id'] ?? 0) === (int) $message->id)
+            ->values()
+            ->all();
+
+        return response()->json([
+            'data' => $turns,
+            'thread' => $threadRecord->uuid,
+            'message_id' => $message->id,
         ]);
     }
 

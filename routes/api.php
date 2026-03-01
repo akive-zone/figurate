@@ -23,6 +23,7 @@ Route::prefix('chats')->middleware([EnsureDeviceUser::class, 'auth:sanctum'])->g
     Route::post('/', [ChatController::class, 'store'])->name('api.chats.store');
     Route::get('/', [ChatController::class, 'index'])->name('api.chats.index');
     Route::get('/{chat}', [ChatController::class, 'show'])->name('api.chats.show');
+    Route::get('/{chat}/messages/{message}/turns', [ChatController::class, 'showMessageTurns'])->name('api.chats.message-turns');
     Route::get('/{chat}/threads', [ChatThreadController::class, 'index'])->name('api.chats.threads');
     Route::get('/{chat}/posts', [ChatPostController::class, 'index'])->name('api.chats.posts');
 });

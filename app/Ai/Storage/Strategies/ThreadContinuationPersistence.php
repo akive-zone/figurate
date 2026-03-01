@@ -85,6 +85,15 @@ class ThreadContinuationPersistence implements ThreadConversationPersistence
         $messageId = (string) Str::uuid7();
         $storageConversationId = $this->storageConversationId($conversationId);
         $resolvedUserId = $this->resolveUserId($userId);
+        [$thread, $actorKey] = $this->resolveConversationContext($conversationId, $prompt->agent::class);
+
+        $telemetryMeta = $this->toArrayValue($response->meta);
+        $telemetryMeta['invocation_id'] = $response->invocationId;
+        $telemetryMeta['conversation_id'] = $conversationId;
+        $telemetryMeta['conversation_storage_id'] = $storageConversationId;
+        $telemetryMeta['actor_key'] = $actorKey;
+        $telemetryMeta['thread_uuid'] = $thread?->uuid;
+        $telemetryMeta['thread_id'] = $thread?->id;
 
         if ($resolvedUserId !== null) {
             $this->ensureAgentConversationExists($storageConversationId, $resolvedUserId, $conversationId);
@@ -97,10 +106,10 @@ class ThreadContinuationPersistence implements ThreadConversationPersistence
                 'role' => 'assistant',
                 'content' => trim((string) ($response->text ?? '')),
                 'attachments' => '[]',
-                'tool_calls' => json_encode(is_array($response->toolCalls) ? $response->toolCalls : []),
-                'tool_results' => json_encode(is_array($response->toolResults) ? $response->toolResults : []),
-                'usage' => json_encode(is_array($response->usage) ? $response->usage : []),
-                'meta' => json_encode(is_array($response->meta) ? $response->meta : []),
+                'tool_calls' => json_encode($this->toArrayValue($response->toolCalls)),
+                'tool_results' => json_encode($this->toArrayValue($response->toolResults)),
+                'usage' => json_encode($this->toArrayValue($response->usage)),
+                'meta' => json_encode($telemetryMeta),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -112,7 +121,6 @@ class ThreadContinuationPersistence implements ThreadConversationPersistence
             ]);
         }
 
-        [$thread, $actorKey] = $this->resolveConversationContext($conversationId, $prompt->agent::class);
         if (! $thread || ! $actorKey) {
             $this->logContextMiss('storeAssistantMessage', $conversationId, $prompt->agent::class, $userId);
 
@@ -181,5 +189,24 @@ class ThreadContinuationPersistence implements ThreadConversationPersistence
                 (string) ($message->role ?? 'user'),
                 is_string($message->content) ? $message->content : '',
             ));
+    }
+
+    protected function toArrayValue(mixed $value): array
+    {
+        if ($value instanceof Collection) {
+            return $value->values()->all();
+        }
+
+        if ($value instanceof \Illuminate\Contracts\Support\Arrayable) {
+            return $value->toArray();
+        }
+
+        if ($value instanceof \JsonSerializable) {
+            $normalized = $value->jsonSerialize();
+
+            return is_array($normalized) ? $normalized : [];
+        }
+
+        return is_array($value) ? $value : [];
     }
 }
