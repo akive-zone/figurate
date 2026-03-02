@@ -126,6 +126,25 @@ export const fetchChatChatThreads = async (chatId, runtime = {}, query = {}) => 
     }
 };
 
+export const createChatThread = async (chatId, payload, runtime = {}) => {
+    const template = (runtime?.routes?.chats_threads_template ?? '').toString().trim();
+    const path = template !== ''
+        ? template.replace('__CHAT__', chatId)
+        : `/api/chats/${chatId}/threads`;
+
+    try {
+        const response = await axios.post(chatApiUrl(path, runtime), payload, {
+            headers: chatAuthHeaders(),
+        });
+        persistChatBootstrapHeaders(response);
+
+        return response.data;
+    } catch (error) {
+        persistChatBootstrapHeaders(error.response);
+        throw error;
+    }
+};
+
 export const fetchChatThreadMessages = async (chatId, runtime = {}) => {
     const template = (runtime?.routes?.chats_show_template ?? '').toString().trim();
     const path = template !== ''

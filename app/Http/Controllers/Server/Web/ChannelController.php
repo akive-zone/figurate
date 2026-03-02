@@ -7,6 +7,7 @@ use App\Models\Server\Channel;
 use App\Models\Server\ChannelActorState;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
+use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -50,22 +51,49 @@ class ChannelController extends Controller
         $threads = $channelRecord->conversationThreads();
         $threadsPayload = $threads
             ->map(function ($thread): array {
+                $actors = $thread->actors;
+                $nature = $this->resolveThreadNature($actors);
+
                 return [
                     'id' => $thread->uuid,
                     'title' => $thread->title ?: 'Thread',
                     'purpose' => $thread->purpose,
+                    'nature' => $nature,
                     'status' => $thread->status,
+                    'actors' => $actors->map(fn ($actor) => [
+                        'role' => $actor->role,
+                        'name' => $actor->actorReference(),
+                        'is_agent' => $this->isAgentActor($actor),
+                    ])->all(),
                     'created_at' => optional($thread->created_at)?->toIso8601String(),
                 ];
             })
             ->all();
+
         $activeThread = $requestedThread;
         $knownThreadIds = collect($threadsPayload)->pluck('id');
         if ($activeThread !== null && ! $knownThreadIds->contains($activeThread)) {
             $activeThread = null;
         }
-        $channelFeed = [];
 
+        // Identify suggested open threads for the workspace (e.g., latest agent and latest human)
+        $latestAgentThread = collect($threadsPayload)->first(fn ($t) => in_array($t['nature'], ['agent', 'mixed']));
+        $latestHumanThread = collect($threadsPayload)->first(fn ($t) => in_array($t['nature'], ['human', 'mixed']));
+
+        $suggestedOpenThreads = collect([$latestAgentThread, $latestHumanThread])
+            ->filter()
+            ->pluck('id')
+            ->unique()
+            ->values();
+
+        // If no nature-specific threads found, suggest the latest thread as a fallback
+        if ($suggestedOpenThreads->isEmpty() && ! empty($threadsPayload)) {
+            $suggestedOpenThreads->push(collect($threadsPayload)->first()['id']);
+        }
+
+        $suggestedOpenThreads = $suggestedOpenThreads->all();
+
+        $channelFeed = [];
         $threadMessages = [];
         if ($activeThread !== null) {
             $activeThreadRecord = $threads->firstWhere('uuid', $activeThread);
@@ -103,6 +131,8 @@ class ChannelController extends Controller
                 return [
                     'kind' => 'post',
                     'scope' => 'channel',
+                    'type' => $post->type,
+                    'status' => $post->status,
                     'thread_id' => null,
                     'id' => $post->id,
                     'sender_name' => null,
@@ -113,7 +143,21 @@ class ChannelController extends Controller
             })
             ->all();
 
-        $channelFeed = collect(array_merge($channelFeed, $channelPosts))
+        $threadHistory = $threads
+            ->map(function ($thread): array {
+                return [
+                    'kind' => 'thread_event',
+                    'scope' => 'channel',
+                    'id' => $thread->uuid,
+                    'title' => $thread->title ?: 'Thread started',
+                    'nature' => $this->resolveThreadNature($thread->actors),
+                    'content' => sprintf('Started a new %s conversation: **%s**', $this->resolveThreadNature($thread->actors), $thread->title ?: 'New Thread'),
+                    'created_at' => optional($thread->created_at)?->toIso8601String(),
+                ];
+            })
+            ->all();
+
+        $channelFeed = collect(array_merge($channelFeed, $channelPosts, $threadHistory))
             ->filter(fn (array $item): bool => is_string($item['created_at'] ?? null))
             ->sortBy('created_at')
             ->values()
@@ -130,6 +174,7 @@ class ChannelController extends Controller
             'status' => $channelRecord->status ?? 'open',
             'threads' => $threadsPayload,
             'active_thread' => $activeThread,
+            'suggested_open_threads' => $suggestedOpenThreads,
             'channel_feed' => $channelFeed,
             'thread_messages' => $threadMessages,
         ];
@@ -289,15 +334,54 @@ class ChannelController extends Controller
      */
     protected function mapThreadListItem(Thread $thread, ?ChannelActorState $actorState): array
     {
+        $actors = $thread->actors;
+        $nature = $this->resolveThreadNature($actors);
+
         return [
             'id' => $thread->uuid,
             'title' => $thread->title ?: 'Thread',
             'purpose' => $thread->purpose,
+            'nature' => $nature,
             'status' => $thread->status,
             'created_at' => optional($thread->created_at)?->toIso8601String(),
             'last_message_at' => $this->formatIso8601($thread->messages_max_created_at),
             'is_active_for_actor' => is_int($actorState?->thread_id) && $actorState->thread_id === $thread->id,
         ];
+    }
+
+    protected function resolveThreadNature(Collection $actors): string
+    {
+        $hasAgent = false;
+        $hasHuman = false;
+
+        foreach ($actors as $actor) {
+            if ($this->isAgentActor($actor)) {
+                $hasAgent = true;
+            } else {
+                $hasHuman = true;
+            }
+        }
+
+        if ($hasAgent && $hasHuman) {
+            return 'mixed';
+        }
+
+        if ($hasAgent) {
+            return 'agent';
+        }
+
+        return 'human';
+    }
+
+    protected function isAgentActor(ThreadActor $actor): bool
+    {
+        if ($actor->actorable_id === null) {
+            return true;
+        }
+
+        // Logic to determine if a morphable is an agent
+        // Assuming App\Models\Server\User is human, others (like AI Agents) are agents.
+        return $actor->actorable_type !== User::class;
     }
 
     protected function formatIso8601(mixed $value): ?string

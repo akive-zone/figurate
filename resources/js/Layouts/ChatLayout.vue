@@ -19,6 +19,8 @@ const props = defineProps({
     },
 });
 
+const emit = defineEmits(['open-thread']);
+
 const page = usePage();
 const authUser = computed(() => page.props.auth?.user ?? null);
 const authRoutes = computed(() => page.props.auth?.routes ?? {});
@@ -134,6 +136,15 @@ const displayAccountName = computed(() => {
 
     return (authUser.value?.name ?? 'Account').toString();
 });
+
+const handleThreadClick = (chat, thread) => {
+    emit('open-thread', {
+        channelId: chatChannelId(chat),
+        threadId: thread.id,
+        thread: thread
+    });
+};
+
 const sidebarChannels = ref(props.channels ?? []);
 const loadingMoreThreadsByChat = ref({});
 
@@ -365,15 +376,16 @@ const createPasskey = async () => {
                         v-if="props.activeChannelId === chatChannelId(chat) && chatThreads(chat).length > 0"
                         class="thread-tree"
                     >
-                        <Link
+                        <button
                             v-for="thread in chatThreads(chat)"
                             :key="thread.id"
-                            :href="chatChannelThreadUrl(chatChannelId(chat), thread.id)"
+                            type="button"
                             class="thread-tree__item"
                             :class="{ 'thread-tree__item--active': props.activeThreadId === thread.id }"
+                            @click="handleThreadClick(chat, thread)"
                         >
                             {{ thread.title ?? 'Thread' }}
-                        </Link>
+                        </button>
                         <button
                             v-if="canLoadMoreThreads(chat)"
                             type="button"

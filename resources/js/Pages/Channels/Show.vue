@@ -3,10 +3,9 @@ import ChatLayout from '../../Layouts/ChatLayout.vue';
 import AgentWorkspacePanel from './AgentWorkspacePanel.vue';
 import ChannelTimelinePanel from './ChannelTimelinePanel.vue';
 import HumanChatPanel from './HumanChatPanel.vue';
-import PendingTurnCards from './PendingTurnCards.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, reactive, ref, watch } from 'vue';
-import { fetchChatChannelPosts, fetchChatMessageTurns, fetchChatThreadMessages, sendChatChatMessage } from '../../api';
+import { createChatThread, fetchChatChannelPosts, fetchChatMessageTurns, fetchChatThreadMessages, sendChatChatMessage } from '../../api';
 import { useThreadEcho } from '../../composables/useThreadEcho';
 
 const props = defineProps({
@@ -47,14 +46,16 @@ const isPrompting = ref(false);
 const channelPosts = ref([]);
 const isLoadingChannelPosts = ref(false);
 const channelPostsError = ref('');
-const threadMessages = ref([]);
-const threadTurns = ref([]);
-const isLoadingThreadMessages = ref(false);
+const workspaceMessages = ref({});
+const workspaceTurns = ref({});
+const isLoadingThreads = ref({});
 const threadLoadError = ref('');
 const agentStatusMessage = ref('');
 const latestSubmittedPromptMessageId = ref(null);
 const isFloatingChatOpen = ref(false);
 const isSlidingChatOpen = ref(false);
+const openAgentThreadIds = ref(new Set());
+const activeAgentThreadId = ref(null);
 const isEmbedPanelOpen = ref(false);
 const embedPanelRef = ref(null);
 const embedPanelSource = ref('');
@@ -88,16 +89,17 @@ const ensureClientMessageId = (content) => {
     return promptForm.clientMessageId;
 };
 
-const submitPrompt = async () => {
+const submitPrompt = async (targetThreadId = null) => {
     promptErrors.value = {};
     promptErrorMessage.value = '';
     isPrompting.value = true;
     const clientMessageId = ensureClientMessageId(promptForm.content);
+    const threadId = targetThreadId || activeThreadId.value;
 
     try {
         const response = await sendChatChatMessage({
             channel: activeChannel.value.id,
-            thread: activeChannel.value.active_thread ?? null,
+            thread: threadId ?? null,
             body: promptForm.content,
             attachments: [],
         }, runtime.value, {
@@ -106,13 +108,15 @@ const submitPrompt = async () => {
         const submittedMessageId = Number(response?.data?.message_id ?? 0);
         if (Number.isFinite(submittedMessageId) && submittedMessageId > 0) {
             latestSubmittedPromptMessageId.value = submittedMessageId;
-            await loadTurnsForMessage(submittedMessageId);
+            await loadTurnsForMessage(submittedMessageId, threadId);
         }
         agentStatusMessage.value = 'Agent is thinking...';
         promptForm.content = '';
         promptForm.clientMessageId = '';
         promptForm.draftForClientId = '';
-        await loadThreadMessages();
+        if (threadId) {
+            await loadThreadMessages(threadId);
+        }
     } catch (error) {
         if (error.response?.status === 422) {
             promptErrors.value = error.response.data.errors ?? {};
@@ -125,13 +129,37 @@ const submitPrompt = async () => {
 };
 
 const activeThreadId = computed(() => (activeChannel.value?.active_thread ?? '').toString().trim());
+const suggestedOpenThreads = computed(() => Array.isArray(activeChannel.value?.suggested_open_threads) ? activeChannel.value.suggested_open_threads : []);
+const allThreads = computed(() => Array.isArray(activeChannel.value?.threads) ? activeChannel.value.threads : []);
+
+const openThreadTabs = computed(() => {
+    const uniqueIds = new Set([activeThreadId.value, ...suggestedOpenThreads.value, ...Array.from(openAgentThreadIds.value)].filter(Boolean));
+
+    return allThreads.value.filter(t => uniqueIds.has(t.id));
+});
+
+const dockedAgentThreads = computed(() => {
+    return allThreads.value.filter(t => openAgentThreadIds.value.has(t.id));
+});
+
+const latestAgentThread = computed(() => {
+    if (activeAgentThreadId.value && openAgentThreadIds.value.has(activeAgentThreadId.value)) {
+        return allThreads.value.find(t => t.id === activeAgentThreadId.value);
+    }
+    const active = allThreads.value.find(t => t.id === activeThreadId.value && (t.nature === 'agent' || t.nature === 'mixed'));
+    if (active) return active;
+    return allThreads.value.find(t => t.nature === 'agent' || t.nature === 'mixed');
+});
+
+const latestHumanThread = computed(() => {
+    const active = allThreads.value.find(t => t.id === activeThreadId.value && t.nature === 'human');
+    if (active) return active;
+    return allThreads.value.find(t => t.nature === 'human');
+});
+
+const getThreadMessages = (threadId) => workspaceMessages.value[threadId] ?? [];
 
 const messageSource = (message) => (message?.source ?? '').toString().trim();
-const isAgentConversationMessage = (message) => {
-    const source = messageSource(message);
-
-    return source === 'agent_prompt' || source === 'agent_response';
-};
 const isHumanConversationMessage = (message) => {
     return messageSource(message) === 'peer_message';
 };
@@ -145,7 +173,10 @@ const channelFeedItems = computed(() => {
 });
 
 const floatingChatMessages = computed(() => {
-    const messages = Array.isArray(threadMessages.value) ? threadMessages.value : [];
+    const threadId = latestHumanThread.value?.id;
+    if (!threadId) return [];
+
+    const messages = getThreadMessages(threadId);
 
     return messages
         .filter((message) => isHumanConversationMessage(message))
@@ -153,45 +184,56 @@ const floatingChatMessages = computed(() => {
 });
 
 const shouldShowHumanChatPanel = computed(() => {
-    return activeThreadId.value !== '' && floatingChatMessages.value.length > 0;
-});
-
-const pendingTurns = computed(() => {
-    const turns = Array.isArray(threadTurns.value) ? threadTurns.value : [];
-
-    return turns.filter((turn) => {
-        const status = (turn?.status ?? '').toString().trim();
-
-        return status !== 'completed';
-    });
+    return latestHumanThread.value !== undefined;
 });
 
 const slidingChatMessages = computed(() => {
-    const turns = Array.isArray(threadTurns.value) ? threadTurns.value : [];
-
-    if (turns.length > 0) {
-        return turns
-            .map((turn) => ({
-                id: turn.assistant_message_id ?? turn.id,
-                source: 'agent_response',
-                content: (turn.assistant_text ?? '').toString(),
-                created_at: turn.completed_at ?? turn.created_at ?? null,
-                meta: {
-                    actor_key: turn.actor_key ?? null,
-                    invocation_id: turn.invocation_id ?? null,
-                    status: turn.status ?? null,
-                    usage: turn.usage ?? {},
-                },
-            }))
-            .filter((message) => message.content.trim() !== '')
-            .slice(-25);
-    }
-
-    const messages = Array.isArray(threadMessages.value) ? threadMessages.value : [];
-
-    return messages
-        .filter((message) => isAgentConversationMessage(message))
+    const threadId = latestAgentThread.value?.id;
+    if (!threadId) return [];
+    const prompts = getThreadMessages(threadId)
+        .filter((message) => messageSource(message) === 'agent_prompt')
         .slice(-25);
+    const turns = Array.isArray(workspaceTurns.value[threadId]) ? workspaceTurns.value[threadId] : [];
+    const turnsByPrompt = turns.reduce((carry, turn) => {
+        const promptId = Number(turn?.prompt_message_id ?? 0);
+        if (!Number.isFinite(promptId) || promptId <= 0) {
+            return carry;
+        }
+
+        if (!Array.isArray(carry[promptId])) {
+            carry[promptId] = [];
+        }
+
+        carry[promptId].push({
+            id: turn.id,
+            status: (turn.status ?? '').toString(),
+            actor_key: turn.actor_key ?? null,
+            invocation_id: turn.invocation_id ?? null,
+            prompt_text: '',
+            assistant_text: (turn.assistant_text ?? '').toString(),
+            error_message: (turn?.telemetry?.meta?.error_message ?? '').toString(),
+            usage: turn.usage ?? {},
+            completed_at: turn.completed_at ?? null,
+        });
+
+        return carry;
+    }, {});
+
+    return prompts.map((prompt) => {
+        const promptText = (prompt.content ?? '').toString();
+        const scopedTurns = Array.isArray(turnsByPrompt[prompt.id]) ? turnsByPrompt[prompt.id] : [];
+
+        return {
+            kind: 'turn_prompt',
+            id: prompt.id,
+            content: promptText,
+            created_at: prompt.created_at ?? null,
+            turns: scopedTurns.map((turn) => ({
+                ...turn,
+                prompt_text: promptText,
+            })),
+        };
+    });
 });
 
 const loadChannelPosts = async () => {
@@ -214,31 +256,108 @@ const loadChannelPosts = async () => {
     }
 };
 
-const loadThreadMessages = async () => {
-    if (!activeChannel.value || activeThreadId.value === '') {
-        threadMessages.value = [];
-        threadLoadError.value = '';
+const loadThreadMessages = async (threadId) => {
+    if (!activeChannel.value || !threadId) {
         return;
     }
 
-    isLoadingThreadMessages.value = true;
+    isLoadingThreads.value[threadId] = true;
     threadLoadError.value = '';
 
     try {
-        const payload = await fetchChatThreadMessages(activeThreadId.value, runtime.value);
-        threadMessages.value = Array.isArray(payload?.data) ? payload.data : [];
-        threadTurns.value = Array.isArray(payload?.turns) ? payload.turns : [];
+        const payload = await fetchChatThreadMessages(threadId, runtime.value);
+        workspaceMessages.value[threadId] = Array.isArray(payload?.data) ? payload.data : [];
+        workspaceTurns.value[threadId] = Array.isArray(payload?.turns) ? payload.turns : [];
     } catch (error) {
         threadLoadError.value = error.response?.data?.message ?? `Unable to load thread messages (${error.response?.status ?? 'network'}).`;
-        threadMessages.value = [];
-        threadTurns.value = [];
     } finally {
-        isLoadingThreadMessages.value = false;
+        isLoadingThreads.value[threadId] = false;
     }
 };
 
-const mergeThreadTurns = (incomingTurns) => {
-    const existing = Array.isArray(threadTurns.value) ? threadTurns.value : [];
+const loadWorkspace = async () => {
+    const threadsToLoad = new Set([activeThreadId.value, ...suggestedOpenThreads.value, ...Array.from(openAgentThreadIds.value)].filter(Boolean));
+
+    for (const threadId of Array.from(threadsToLoad)) {
+        loadThreadMessages(threadId);
+    }
+};
+
+const chatShowThreadTemplate = computed(() => {
+    const configured = (chatRoutes.value.show_thread_template ?? '').toString().trim();
+    if (configured !== '') {
+        return configured;
+    }
+
+    return '/channels/__CHANNEL__/threads/__THREAD__';
+});
+
+const chatChannelThreadUrl = (channelId, threadId) => {
+    return chatShowThreadTemplate.value
+        .replace('__CHANNEL__', channelId)
+        .replace('__THREAD__', threadId);
+};
+
+const handleOpenThread = ({ threadId, thread }) => {
+    const nature = (thread?.nature ?? '').toString().toLowerCase();
+
+    if (nature === 'agent' || nature === 'mixed') {
+        openAgentThreadIds.value.add(threadId);
+        activeAgentThreadId.value = threadId;
+        isSlidingChatOpen.value = true;
+    } else {
+        isFloatingChatOpen.value = true;
+    }
+
+    if (threadId !== activeThreadId.value) {
+        router.visit(chatChannelThreadUrl(activeChannel.value.id, threadId), {
+            preserveScroll: true,
+            preserveState: true,
+            only: ['channel'],
+        });
+    }
+
+    loadThreadMessages(threadId);
+};
+
+const handleCloseAgentThread = (threadId) => {
+    openAgentThreadIds.value.delete(threadId);
+    if (activeAgentThreadId.value === threadId) {
+        activeAgentThreadId.value = Array.from(openAgentThreadIds.value).pop() || null;
+    }
+};
+
+const handleSwitchAgentThread = (threadId) => {
+    activeAgentThreadId.value = threadId;
+    loadThreadMessages(threadId);
+};
+
+const handleCreateThread = async () => {
+    const title = prompt('Enter a title for this new workstream:');
+    if (!title) return;
+
+    try {
+        const response = await createChatThread(activeChannel.value.id, {
+            title: title,
+            purpose: 'execution',
+            nature: 'human'
+        }, runtime.value);
+
+        if (response?.data) {
+            router.reload({
+                only: ['channel'],
+                onSuccess: () => {
+                    handleOpenThread({ threadId: response.data.id, thread: response.data });
+                }
+            });
+        }
+    } catch (error) {
+        alert('Failed to create workstream.');
+    }
+};
+
+const mergeThreadTurns = (threadId, incomingTurns) => {
+    const existing = Array.isArray(workspaceTurns.value[threadId]) ? workspaceTurns.value[threadId] : [];
     const incoming = Array.isArray(incomingTurns) ? incomingTurns : [];
     const byId = new Map();
 
@@ -256,7 +375,7 @@ const mergeThreadTurns = (incomingTurns) => {
         }
     });
 
-    threadTurns.value = Array.from(byId.values()).sort((left, right) => {
+    workspaceTurns.value[threadId] = Array.from(byId.values()).sort((left, right) => {
         const leftPromptId = Number(left?.prompt_message_id ?? 0);
         const rightPromptId = Number(right?.prompt_message_id ?? 0);
 
@@ -271,16 +390,17 @@ const mergeThreadTurns = (incomingTurns) => {
     });
 };
 
-const loadTurnsForMessage = async (messageId) => {
+const loadTurnsForMessage = async (messageId, threadId = null) => {
     const normalizedMessageId = Number(messageId ?? 0);
+    const targetThreadId = (threadId ?? activeAgentThreadId.value ?? activeThreadId.value ?? '').toString();
 
-    if (!activeThreadId.value || !Number.isFinite(normalizedMessageId) || normalizedMessageId <= 0) {
+    if (targetThreadId === '' || !Number.isFinite(normalizedMessageId) || normalizedMessageId <= 0) {
         return;
     }
 
     try {
-        const payload = await fetchChatMessageTurns(activeThreadId.value, normalizedMessageId, runtime.value);
-        mergeThreadTurns(payload?.data ?? []);
+        const payload = await fetchChatMessageTurns(targetThreadId, normalizedMessageId, runtime.value);
+        mergeThreadTurns(targetThreadId, payload?.data ?? []);
     } catch {
         // Keep current turn state if scoped refresh fails.
     }
@@ -295,9 +415,9 @@ useThreadEcho({
     onReplyCompleted: () => {
         agentStatusMessage.value = '';
         if (latestSubmittedPromptMessageId.value) {
-            loadTurnsForMessage(latestSubmittedPromptMessageId.value);
+            loadTurnsForMessage(latestSubmittedPromptMessageId.value, activeAgentThreadId.value);
         }
-        loadThreadMessages();
+        loadWorkspace();
         router.reload({ only: ['channel'] });
     },
     onReplyFailed: (event) => {
@@ -317,9 +437,9 @@ useThreadEcho({
     onStreamEnd: () => {
         agentStatusMessage.value = '';
         if (latestSubmittedPromptMessageId.value) {
-            loadTurnsForMessage(latestSubmittedPromptMessageId.value);
+            loadTurnsForMessage(latestSubmittedPromptMessageId.value, activeAgentThreadId.value);
         }
-        loadThreadMessages();
+        loadWorkspace();
         router.reload({ only: ['channel'] });
     },
     onError: (_event, payload) => {
@@ -331,23 +451,34 @@ useThreadEcho({
 });
 
 watch(
+    () => activeChannel.value?.id ?? null,
+    (newId, oldId) => {
+        if (newId !== oldId) {
+            workspaceMessages.value = {};
+            workspaceTurns.value = {};
+            isLoadingThreads.value = {};
+        }
+    }
+);
+
+watch(
     () => [activeChannel.value?.id ?? null, activeThreadId.value],
     () => {
         latestSubmittedPromptMessageId.value = null;
         loadChannelPosts();
-        loadThreadMessages();
+        loadWorkspace();
     },
     { immediate: true },
 );
 
 const submitFloatingPrompt = async (content) => {
     promptForm.content = content;
-    await submitPrompt();
+    await submitPrompt(latestHumanThread.value?.id);
 };
 
 const submitSlidingPrompt = async (content) => {
     promptForm.content = content;
-    await submitPrompt();
+    await submitPrompt(latestAgentThread.value?.id);
 };
 
 const retryFailedTurn = async (turn) => {
@@ -360,7 +491,7 @@ const retryFailedTurn = async (turn) => {
     promptForm.content = prompt;
     promptForm.clientMessageId = '';
     promptForm.draftForClientId = '';
-    await submitPrompt();
+    await submitPrompt(latestAgentThread.value?.id);
 };
 
 const buildContextServerCreateUrl = () => {
@@ -441,20 +572,38 @@ const openContextServerPanel = () => {
         :channels="props.channels"
         :active-channel-id="activeChannel?.id ?? null"
         :active-thread-id="activeChannel?.active_thread ?? null"
+        @open-thread="handleOpenThread"
     >
         <section v-if="activeChannel">
+            <nav v-if="openThreadTabs.length > 0" class="workspace-tabs">
+                <button
+                    v-for="thread in openThreadTabs"
+                    :key="thread.id"
+                    type="button"
+                    class="workspace-tab"
+                    :class="{ 'workspace-tab--active': activeThreadId === thread.id }"
+                    @click="handleOpenThread({ threadId: thread.id, thread: thread })"
+                >
+                    <span v-if="thread.nature === 'agent' || thread.nature === 'mixed'" class="workspace-tab__icon">✦</span>
+                    <span v-else class="workspace-tab__icon">💬</span>
+                    <span class="workspace-tab__title">{{ thread.title ?? 'Thread' }}</span>
+                </button>
+            </nav>
+
             <ChannelTimelinePanel
                 :channel-id="activeChannel.id"
                 :messages="channelFeedItems"
+                :threads="allThreads"
                 :is-loading="isLoadingChannelPosts"
                 :error-message="channelPostsError"
                 @manage-mcp="openContextServerPanel"
+                @open-thread="handleOpenThread"
+                @create-thread="handleCreateThread"
             />
             <p v-if="activeChannel.active_thread && threadLoadError" class="error">{{ threadLoadError }}</p>
             <p v-if="promptErrors.body" class="error">{{ promptErrors.body[0] }}</p>
             <p v-if="promptErrorMessage" class="error">{{ promptErrorMessage }}</p>
             <p v-if="agentStatusMessage" class="thread__meta">{{ agentStatusMessage }}</p>
-            <PendingTurnCards :turns="pendingTurns" @retry="retryFailedTurn" />
         </section>
 
         <section v-else class="empty">
@@ -466,7 +615,7 @@ const openContextServerPanel = () => {
         <HumanChatPanel
             v-if="activeChannel && shouldShowHumanChatPanel"
             v-model="isFloatingChatOpen"
-            :active-thread-id="activeThreadId"
+            :active-thread-id="latestHumanThread?.id"
             :messages="floatingChatMessages"
             :sending="isPrompting"
             @send="submitFloatingPrompt"
@@ -475,9 +624,14 @@ const openContextServerPanel = () => {
         <AgentWorkspacePanel
             v-if="activeChannel"
             v-model="isSlidingChatOpen"
+            :active-thread-id="activeAgentThreadId"
+            :threads="dockedAgentThreads"
             :messages="slidingChatMessages"
             :sending="isPrompting"
             @send="submitSlidingPrompt"
+            @switch-thread="handleSwitchAgentThread"
+            @close-thread="handleCloseAgentThread"
+            @retry-turn="retryFailedTurn"
         />
 
         <teleport to="body">

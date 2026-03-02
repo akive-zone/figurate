@@ -25,6 +25,42 @@ class ChatThreadController extends Controller
         return response()->json($this->cursorPageForRequest($request, $channel));
     }
 
+    public function store(Request $request, string $chat): JsonResponse
+    {
+        $channel = Channel::query()
+            ->where('uuid', $chat)
+            ->firstOrFail();
+
+        Gate::authorize('update', $channel);
+
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'purpose' => ['nullable', 'string', 'max:50'],
+            'nature' => ['nullable', 'string', 'in:agent,human,mixed'],
+        ]);
+
+        $thread = $channel->threads()->create([
+            'title' => $data['title'],
+            'purpose' => $data['purpose'] ?? Thread::PurposeExecution,
+            'phase' => $this->defaultPhase($data['purpose'] ?? Thread::PurposeExecution),
+            'status' => 'open',
+        ]);
+
+        $actor = $request->user();
+        if ($actor) {
+            $thread->actors()->create([
+                'actorable_type' => $actor->getMorphClass(),
+                'actorable_id' => $actor->id,
+                'role' => 'member',
+                'status' => 'active',
+            ]);
+        }
+
+        return response()->json([
+            'data' => $this->mapThreadListItem($thread, null),
+        ], 201);
+    }
+
     /**
      * @return array{data: array<int, array<string, mixed>>, meta: array<string, mixed>}
      */
@@ -115,5 +151,18 @@ class ChatThreadController extends Controller
         }
 
         return null;
+    }
+
+    protected function defaultPhase(string $purpose): string
+    {
+        return match ($purpose) {
+            Thread::PurposePlanning => 'scope_planning',
+            Thread::PurposeExecution => 'order_kickoff',
+            Thread::PurposeBilling => 'billing_review',
+            Thread::PurposeDispute => 'opened',
+            Thread::PurposeSupport => 'support_open',
+            Thread::PurposeSystem => 'system_open',
+            default => 'request_intake',
+        };
     }
 }

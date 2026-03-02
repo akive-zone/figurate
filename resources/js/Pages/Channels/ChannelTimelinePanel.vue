@@ -11,6 +11,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    threads: {
+        type: Array,
+        default: () => [],
+    },
     isLoading: {
         type: Boolean,
         default: false,
@@ -21,7 +25,7 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['manage-mcp']);
+const emit = defineEmits(['manage-mcp', 'open-thread', 'create-thread']);
 
 const formatTimestamp = (value) => new Date(value).toLocaleString();
 
@@ -54,6 +58,9 @@ const renderMessageContent = (content) => {
                 <p class="thread__meta">Relevant channel posts for your account.</p>
             </div>
             <div class="thread__header-actions">
+                <button type="button" class="button" @click="emit('create-thread')">
+                    New Workstream
+                </button>
                 <button type="button" class="button button--outline" @click="emit('manage-mcp')">
                     Manage MCP
                 </button>
@@ -61,28 +68,73 @@ const renderMessageContent = (content) => {
         </header>
 
         <section class="thread__messages">
-            <article
-                v-for="message in props.messages"
-                :key="`${message.kind ?? 'message'}-${message.scope ?? 'channel'}-${message.id}`"
-                class="message"
-            >
-                <p class="message__author">
-                    {{ message.scope === 'channel' ? 'Channel' : 'Conversation' }}
-                </p>
-                <div class="message__content" v-html="renderMessageContent(message.content)" />
-                <ul v-if="message.attachments?.length" class="thread__attachments">
-                    <li v-for="attachment in message.attachments" :key="attachment.path">
-                        {{ attachment.name }} ({{ attachment.mime }})
-                    </li>
-                </ul>
-                <p class="message__time">{{ formatTimestamp(message.created_at) }}</p>
-            </article>
+            <template v-for="message in props.messages" :key="`${message.kind ?? 'message'}-${message.scope ?? 'channel'}-${message.id}`">
+                <article
+                    v-if="message.kind === 'thread_event'"
+                    class="history-marker"
+                >
+                    <div class="history-marker__line"></div>
+                    <div class="history-marker__content">
+                        <span class="history-marker__icon">{{ message.nature === 'agent' ? '✦' : '💬' }}</span>
+                        <p class="history-marker__text" v-html="renderMessageContent(message.content)"></p>
+                        <button
+                            type="button"
+                            class="history-marker__action"
+                            @click="emit('open-thread', { threadId: message.id, thread: message })"
+                        >
+                            Jump to conversation →
+                        </button>
+                    </div>
+                    <p class="message__time">{{ formatTimestamp(message.created_at) }}</p>
+                </article>
+
+                <article
+                    v-else
+                    class="message"
+                    :class="[
+                        message.scope === 'channel' ? 'message--channel' : 'message--conversation'
+                    ]"
+                >
+                    <p class="message__author">
+                        {{ message.scope === 'channel' ? (message.type ? message.type.toUpperCase() : 'Channel') : 'Conversation' }}
+                    </p>
+                    <div class="message__content" v-html="renderMessageContent(message.content)" />
+                    <ul v-if="message.attachments?.length" class="thread__attachments">
+                        <li v-for="attachment in message.attachments" :key="attachment.path">
+                            {{ attachment.name }} ({{ attachment.mime }})
+                        </li>
+                    </ul>
+                    <p class="message__time">{{ formatTimestamp(message.created_at) }}</p>
+                </article>
+            </template>
 
             <article v-if="!props.messages.length" class="empty">
-                <h3>No posts yet</h3>
-                <p v-if="props.errorMessage" class="error">{{ props.errorMessage }}</p>
-                <p v-else-if="props.isLoading">Loading channel posts...</p>
-                <p v-else>No channel posts yet.</p>
+                <header class="empty__header">
+                    <h3>Start a Conversation</h3>
+                    <p>Start a new conversation or jump into an existing thread.</p>
+                </header>
+
+                <div v-if="props.threads.length > 0" class="empty__grid">
+                    <button
+                        v-for="thread in props.threads"
+                        :key="thread.id"
+                        type="button"
+                        class="thread-card"
+                        @click="emit('open-thread', { threadId: thread.id, thread: thread })"
+                    >
+                        <span class="thread-card__icon">{{ (thread.nature === 'agent' || thread.nature === 'mixed') ? '✦' : '💬' }}</span>
+                        <div class="thread-card__body">
+                            <p class="thread-card__title">{{ thread.title }}</p>
+                            <p class="thread-card__meta">Started {{ formatTimestamp(thread.created_at) }}</p>
+                        </div>
+                    </button>
+                </div>
+
+                <div v-else class="empty__fallback">
+                    <p v-if="props.errorMessage" class="error">{{ props.errorMessage }}</p>
+                    <p v-else-if="props.isLoading">Loading workspace...</p>
+                    <p v-else>No conversations started yet.</p>
+                </div>
             </article>
         </section>
     </section>

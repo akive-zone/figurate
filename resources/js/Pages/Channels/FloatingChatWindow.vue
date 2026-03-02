@@ -38,10 +38,6 @@ const closeWindow = () => {
     emit('update:modelValue', false);
 };
 
-const openWindow = () => {
-    emit('update:modelValue', true);
-};
-
 const isOutgoing = (message) => {
     return props.outgoingScopes.includes(message?.scope ?? '');
 };
@@ -58,11 +54,7 @@ const submitDraft = () => {
 </script>
 
 <template>
-    <button v-if="!isOpen" type="button" class="float-chat__fab" @click="openWindow">
-        Open Chat
-    </button>
-
-    <section v-else class="float-chat" aria-label="Floating chat">
+    <section v-if="isOpen" class="float-chat" aria-label="Floating chat">
         <header class="float-chat__header">
             <div class="float-chat__identity">
                 <div class="float-chat__avatar">{{ title.slice(0, 1).toUpperCase() }}</div>
