@@ -14,15 +14,22 @@ return new class extends Migration
         Schema::create('thread_events', function (Blueprint $table) {
             $table->id();
             $table->uuid('uuid')->unique();
-            $table->foreignId('thread_id')->constrained('threads')->cascadeOnDelete();
-            $table->foreignId('message_id')->nullable()->constrained('messages')->nullOnDelete();
-            $table->string('actor_key');
-            $table->string('event_type');
-            $table->string('severity')->default('low');
+            $table->foreignId('thread_id');
+            $table->foreignId('thread_actor_id')->nullable();
+            $table->foreignId('message_id')->nullable();
+            $table->string('event_key');
+            $table->string('event_type')->nullable();
+            $table->string('layer', 40)->default('execution');
+            $table->string('kind', 60)->nullable();
+            $table->string('operation', 120)->nullable();
+            $table->string('state', 40)->nullable();
+            $table->string('severity')->nullable();
             $table->json('payload')->nullable();
             $table->timestamps();
 
             $table->index(['thread_id', 'created_at']);
+            $table->index(['thread_id', 'layer', 'kind'], 'thread_events_execution_kind_idx');
+            $table->index(['thread_id', 'state'], 'thread_events_execution_state_idx');
             $table->index(['message_id']);
             $table->index(['event_type', 'severity']);
         });

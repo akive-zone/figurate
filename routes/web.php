@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Native\Web\ChannelController as NativeChannelController;
+use App\Http\Controllers\Server\Api\A2a\AgentCardController;
 use App\Http\Controllers\Server\Web\ChannelController as ServerChannelController;
 use App\Http\Controllers\Server\Web\PasskeyController as ServerPasskeyController;
 use App\Http\Controllers\Server\Web\SocialiteController;
@@ -25,6 +26,8 @@ if (\app_is_native_runtime()) {
         return redirect()->to('/chat');
     });
 } else {
+    Route::get('/.well-known/agent-card', AgentCardController::class)->name('a2a.agent-card');
+
     Route::prefix('auth')
         ->name('auth.')
         ->group(function () {

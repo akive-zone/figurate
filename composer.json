@@ -32,10 +32,15 @@
         "phpdocumentor/type-resolver": "^1.7",
         "predis/predis": "^3.4",
         "pusher/pusher-php-server": "^7.2",
+        "sajya/client": "^1.4",
+        "sajya/server": "^7.0",
         "spatie/laravel-activitylog": "^4.12",
         "spatie/laravel-medialibrary": "^11.0",
         "spatie/laravel-passkeys": "^1.6",
         "spatie/laravel-permission": "^7.2",
+        "spatie/laravel-webhook-client": "^3.5",
+        "spatie/laravel-webhook-server": "^3.10",
+        "staudenmeir/eloquent-json-relations": "^1.1",
         "wikimedia/composer-merge-plugin": "dev-master"
     },
     "require-dev": {

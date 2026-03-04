@@ -12,6 +12,7 @@ use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadActorSession;
 use App\Models\Server\User;
+use App\Support\A2a\TaskPushNotificationDispatcher;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Support\Facades\DB;
 use Laravel\Ai\Contracts\Agent;
@@ -23,6 +24,7 @@ class ChatAgentExecutor
 {
     public function __construct(
         protected StoreThreadMessage $storeThreadMessage,
+        protected TaskPushNotificationDispatcher $taskPushNotificationDispatcher,
     ) {}
 
     public function queue(
@@ -43,6 +45,10 @@ class ChatAgentExecutor
         $existingAssistantMessage = $this->findAssistantReplyForThreadActor($thread, $userMessage, $threadActor);
 
         if ($existingAssistantMessage) {
+            return;
+        }
+
+        if ($this->isInvocationCanceled($userMessage, $threadActor)) {
             return;
         }
 
@@ -205,6 +211,10 @@ class ChatAgentExecutor
             return;
         }
 
+        if ($this->isInvocationCanceled($userMessage, $threadActor)) {
+            return;
+        }
+
         $session = $this->resolveThreadActorSession($thread, $threadActor, $userId);
 
         $this->markPromptInvocationState(
@@ -301,6 +311,51 @@ class ChatAgentExecutor
         $userMessage->forceFill([
             'meta' => $promptMeta,
         ])->save();
+
+        if (is_string(data_get($promptMeta, 'a2a_task_id')) && trim((string) data_get($promptMeta, 'a2a_task_id')) !== '') {
+            $this->taskPushNotificationDispatcher->dispatchTaskUpdate(
+                promptMessage: $userMessage,
+                state: $this->resolveTaskState($invocations),
+            );
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $invocations
+     */
+    protected function resolveTaskState(array $invocations): string
+    {
+        if ($invocations === []) {
+            return 'submitted';
+        }
+
+        $statuses = collect($invocations)
+            ->map(fn (mixed $entry): ?string => is_array($entry) ? data_get($entry, 'status') : null)
+            ->filter(fn (mixed $status): bool => is_string($status) && trim($status) !== '')
+            ->map(fn (string $status): string => strtolower(trim($status)))
+            ->values();
+
+        if ($statuses->isEmpty()) {
+            return 'submitted';
+        }
+
+        if ($statuses->every(fn (string $status): bool => $status === 'completed')) {
+            return 'completed';
+        }
+
+        if ($statuses->every(fn (string $status): bool => $status === 'canceled')) {
+            return 'canceled';
+        }
+
+        if ($statuses->contains('failed') && ! $statuses->contains('pending')) {
+            return 'failed';
+        }
+
+        if ($statuses->contains('pending') || $statuses->contains('canceled')) {
+            return 'working';
+        }
+
+        return 'working';
     }
 
     protected function linkAgentTelemetryToThreadMessages(
@@ -376,11 +431,28 @@ class ChatAgentExecutor
             return;
         }
 
+        if ($this->isInvocationCanceled($userMessage, $threadActor)) {
+            return;
+        }
+
         $this->markPromptInvocationState(
             userMessage: $userMessage,
             threadActor: $threadActor,
             status: 'failed',
             errorMessage: $exception->getMessage(),
         );
+    }
+
+    protected function isInvocationCanceled(Message $userMessage, ThreadActor $threadActor): bool
+    {
+        $actorKey = $threadActor->actorName();
+
+        if (! is_string($actorKey) || $actorKey === '') {
+            $actorKey = ThreadActor::ActorRequestAgent;
+        }
+
+        $status = data_get($userMessage->meta, "invocations.{$actorKey}.status");
+
+        return is_string($status) && $status === 'canceled';
     }
 }

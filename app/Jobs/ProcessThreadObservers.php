@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
+use App\Models\Server\ThreadEvent;
 use App\Support\Observer\ObserverRegistry;
 use App\Support\Observer\ObserverResult;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -65,8 +66,13 @@ class ProcessThreadObservers implements ShouldQueue
             }
 
             $thread->events()->create([
+                'thread_actor_id' => $threadActor->id,
                 'message_id' => $message->id,
-                'actor_key' => $threadActor->actorReference(),
+                'event_key' => $threadActor->actorReference(),
+                'layer' => ThreadEvent::LayerExecution,
+                'kind' => ThreadEvent::KindObserver,
+                'operation' => $result->eventType,
+                'state' => ThreadEvent::StateCompleted,
                 'event_type' => $result->eventType,
                 'severity' => $result->severity,
                 'payload' => $result->payload,

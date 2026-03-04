@@ -22,6 +22,7 @@ use App\Ai\Middleware\Workflows\SelectPresenters;
 use App\Ai\Middleware\Workflows\UseThreadConversationStore;
 use App\Ai\Support\ChatToolResolver;
 use App\Models\Server\Thread;
+use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\Conversational;
@@ -80,7 +81,7 @@ class PresenterAgent implements Agent, Conversational, HasMiddleware, HasTools
             return [];
         }
 
-        return app(ChatToolResolver::class)->resolve($this->thread, $this->actor);
+        return app(ChatToolResolver::class)->resolve($this->thread, $this->actor, $this->resolveThreadActor());
     }
 
     public function middleware(): array
@@ -104,5 +105,20 @@ class PresenterAgent implements Agent, Conversational, HasMiddleware, HasTools
             new ResponseQualityGate,
             new ApplyPresenterResponseRules,
         ];
+    }
+
+    protected function resolveThreadActor(): ?ThreadActor
+    {
+        if (! $this->thread || ! is_string($this->presenterActorKey) || trim($this->presenterActorKey) === '') {
+            return null;
+        }
+
+        return ThreadActor::query()
+            ->where('thread_id', $this->thread->id)
+            ->where('actorable_type', trim($this->presenterActorKey))
+            ->where('role', ThreadActor::RolePresenter)
+            ->where('status', ThreadActor::StatusActive)
+            ->orderBy('priority')
+            ->first();
     }
 }

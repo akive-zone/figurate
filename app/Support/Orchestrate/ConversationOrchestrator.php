@@ -6,6 +6,7 @@ use App\Models\Server\Channel;
 use App\Models\Server\ChannelActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
+use App\Models\Server\ThreadEvent;
 use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -34,10 +35,17 @@ class ConversationOrchestrator
             $this->persistActiveState($channel, $actor, $resolvedThread);
 
             foreach ($actions as $action) {
+                $eventType = (string) $action['event_type'];
+
                 $resolvedThread->events()->create([
+                    'thread_actor_id' => null,
                     'message_id' => null,
-                    'actor_key' => 'orchestrator',
-                    'event_type' => (string) $action['event_type'],
+                    'event_key' => 'orchestrator',
+                    'layer' => ThreadEvent::LayerExecution,
+                    'kind' => ThreadEvent::KindOrchestration,
+                    'operation' => str_replace('orchestration.', '', $eventType),
+                    'state' => ThreadEvent::StateCompleted,
+                    'event_type' => $eventType,
                     'severity' => 'low',
                     'payload' => $action,
                 ]);

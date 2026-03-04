@@ -1,0 +1,935 @@
+<?php
+
+namespace App\Support\A2a;
+
+use App\Actions\Server\Chat\ResolveChatChannelContext;
+use App\Actions\Server\Chat\ResolveChatThreadContext;
+use App\Actions\Server\Chat\SendPeerThreadMessage;
+use App\Ai\Support\ChatAgentExecutor;
+use App\Models\Server\Message;
+use App\Models\Server\Thread;
+use App\Models\Server\ThreadActor;
+use App\Models\Server\User;
+use App\Support\Orchestrate\ConversationOrchestrator;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
+
+class A2aMethodRouter
+{
+    public function __construct(
+        protected ConversationOrchestrator $orchestrator,
+        protected ResolveChatChannelContext $resolveChatChannelContext,
+        protected ResolveChatThreadContext $resolveChatThreadContext,
+        protected SendPeerThreadMessage $sendPeerThreadMessage,
+        protected ChatAgentExecutor $chatAgentExecutor,
+        protected TaskPushNotificationDispatcher $taskPushNotificationDispatcher,
+    ) {}
+
+    /**
+     * @param  array<string, mixed>  $params
+     * @return array<string, mixed>
+     */
+    public function handle(string $method, array $params): array
+    {
+        return match ($method) {
+            'message/send' => $this->messageSend($params),
+            'tasks/get' => $this->tasksGet($params),
+            'tasks/list' => $this->tasksList($params),
+            'tasks/cancel' => $this->tasksCancel($params),
+            'tasks/resubscribe' => $this->tasksResubscribe($params),
+            'tasks/pushNotificationConfig/set' => $this->tasksPushNotificationConfigSet($params),
+            'tasks/pushNotificationConfig/create' => $this->tasksPushNotificationConfigSet($params),
+            'tasks/pushNotificationConfig/get' => $this->tasksPushNotificationConfigGet($params),
+            'tasks/pushNotificationConfig/list' => $this->tasksPushNotificationConfigList($params),
+            'tasks/pushNotificationConfig/delete' => $this->tasksPushNotificationConfigDelete($params),
+            'message/stream' => $this->messageStream($params),
+            default => [
+                'error' => [
+                    'code' => -32601,
+                    'message' => 'Method not found.',
+                ],
+            ],
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     * @return array<string, mixed>
+     */
+    protected function messageSend(array $params): array
+    {
+        $validation = Validator::make($params, [
+            'user_uuid' => ['required', 'uuid', 'exists:users,uuid'],
+            'channel' => ['nullable', 'uuid', 'exists:channels,uuid'],
+            'thread' => ['nullable', 'uuid', 'exists:threads,uuid'],
+        ]);
+
+        if ($validation->fails()) {
+            return $this->invalidParams($validation->errors()->toArray());
+        }
+
+        $user = User::query()
+            ->where('uuid', (string) $validation->validated()['user_uuid'])
+            ->first();
+
+        if (! $user) {
+            return $this->invalidParams(['user_uuid' => ['The selected user was not found.']]);
+        }
+
+        $content = $this->resolveContent($params);
+
+        if (! is_string($content) || trim($content) === '') {
+            return $this->invalidParams(['message' => ['Message text is required.']]);
+        }
+
+        $content = trim($content);
+        if (mb_strlen($content) > 5000) {
+            return $this->invalidParams(['message' => ['Message text may not exceed 5000 characters.']]);
+        }
+
+        $channelUuid = $this->trimmedString($params['channel'] ?? null);
+        $threadUuid = $this->trimmedString($params['thread'] ?? null);
+        $threadId = null;
+
+        if ($threadUuid) {
+            [$channel, $threadId] = ($this->resolveChatThreadContext)($threadUuid, $channelUuid);
+        } else {
+            $channel = ($this->resolveChatChannelContext)($channelUuid, $user);
+        }
+
+        $decision = $this->orchestrator->resolve(
+            channel: $channel,
+            actor: $user,
+            thread: $threadId,
+            message: $content,
+        );
+        $thread = $decision->thread;
+
+        $activePresenters = $this->resolveActivePresenters($thread);
+        $taskId = $this->resolveTaskId($params);
+
+        if ($activePresenters->isEmpty()) {
+            $message = ($this->sendPeerThreadMessage)(
+                channel: $channel,
+                thread: $thread,
+                actor: $user,
+                body: $content,
+                attachments: collect(),
+                source: 'peer_message',
+                dispatchObservers: true,
+            );
+
+            $meta = is_array($message->meta) ? $message->meta : [];
+            $meta['a2a_task_id'] = $taskId;
+            $meta['a2a_source'] = 'jsonrpc';
+            $meta['a2a_owner'] = $this->resolveAuthenticatedOwner();
+            $message->forceFill(['meta' => $meta])->save();
+            $this->taskPushNotificationDispatcher->dispatchTaskUpdate($message, 'completed');
+
+            return [
+                'result' => $this->taskPayload(
+                    taskId: $taskId,
+                    state: 'completed',
+                    context: [
+                        'thread_id' => $thread->uuid,
+                        'channel_id' => $channel->uuid,
+                        'prompt_message_ulid' => $message->ulid,
+                    ],
+                ),
+            ];
+        }
+
+        $message = ($this->sendPeerThreadMessage)(
+            channel: $channel,
+            thread: $thread,
+            actor: $user,
+            body: $content,
+            attachments: collect(),
+            source: 'agent_prompt',
+            dispatchObservers: false,
+        );
+
+        $meta = is_array($message->meta) ? $message->meta : [];
+        $meta['a2a_task_id'] = $taskId;
+        $meta['a2a_source'] = 'jsonrpc';
+        $meta['a2a_owner'] = $this->resolveAuthenticatedOwner();
+        $message->forceFill(['meta' => $meta])->save();
+        $this->taskPushNotificationDispatcher->dispatchTaskUpdate($message, 'submitted');
+
+        $broadcastChannelId = "threads.{$thread->uuid}";
+
+        $activePresenters->each(function (ThreadActor $presenter) use ($thread, $message, $user, $broadcastChannelId): void {
+            $this->chatAgentExecutor->queue(
+                thread: $thread,
+                userMessage: $message,
+                user: $user,
+                threadActor: $presenter,
+                broadcastChannelId: $broadcastChannelId,
+            );
+        });
+
+        return [
+            'result' => $this->taskPayload(
+                taskId: $taskId,
+                state: 'submitted',
+                context: [
+                    'thread_id' => $thread->uuid,
+                    'channel_id' => $channel->uuid,
+                    'prompt_message_ulid' => $message->ulid,
+                    'pending_presenters' => $activePresenters->count(),
+                ],
+            ),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     * @return array<string, mixed>
+     */
+    protected function tasksGet(array $params): array
+    {
+        $taskId = $this->resolveTaskId($params);
+        $promptMessage = $this->resolvePromptMessage($taskId);
+
+        if (! $promptMessage) {
+            return $this->invalidParams(['task_id' => ['Task was not found.']]);
+        }
+
+        $thread = $this->resolveMessageThread($promptMessage);
+        $invocations = is_array(data_get($promptMessage->meta, 'invocations')) ? data_get($promptMessage->meta, 'invocations') : [];
+        $assistantReplies = $this->assistantRepliesForPrompt($thread, $promptMessage);
+
+        $state = $this->resolveTaskState($invocations, $assistantReplies);
+        $artifacts = $assistantReplies
+            ->map(fn (Message $message): array => [
+                'id' => $message->ulid,
+                'kind' => 'text',
+                'actor_key' => data_get($message->meta, 'actor_key'),
+                'text' => $message->body,
+                'created_at' => optional($message->created_at)?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
+
+        $invocationStates = collect($invocations)
+            ->map(function (mixed $entry, string $actorKey): ?array {
+                if (! is_array($entry)) {
+                    return null;
+                }
+
+                return [
+                    'actor_key' => $actorKey,
+                    'status' => $entry['status'] ?? null,
+                    'invocation_id' => $entry['invocation_id'] ?? null,
+                    'conversation_id' => $entry['conversation_id'] ?? null,
+                    'error_message' => $entry['error_message'] ?? null,
+                    'recorded_at' => $entry['recorded_at'] ?? null,
+                ];
+            })
+            ->filter(fn (mixed $entry): bool => is_array($entry))
+            ->values()
+            ->all();
+
+        return [
+            'result' => $this->taskPayload(
+                taskId: $taskId,
+                state: $state,
+                context: [
+                    'thread_id' => $thread?->uuid,
+                    'prompt_message_ulid' => $promptMessage->ulid,
+                    'prompt_message_id' => $promptMessage->id,
+                    'invocations' => $invocationStates,
+                ],
+                artifacts: $artifacts,
+            ),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     * @return array<string, mixed>
+     */
+    protected function tasksList(array $params): array
+    {
+        $limit = max(1, min(100, (int) ($params['maxItems'] ?? $params['limit'] ?? 20)));
+        $userUuid = $this->trimmedString($params['user_uuid'] ?? null);
+
+        $query = Message::query()
+            ->whereIn('meta->source', ['agent_prompt', 'peer_message'])
+            ->whereNotNull('meta->a2a_task_id')
+            ->latest('id')
+            ->limit($limit);
+
+        $owner = $this->resolveAuthenticatedOwner();
+
+        if (is_array($owner)) {
+            $query
+                ->where('meta->a2a_owner.subject_type', $owner['subject_type'])
+                ->where('meta->a2a_owner.subject_id', $owner['subject_id']);
+        } else {
+            $query->whereRaw('1 = 0');
+        }
+
+        if ($userUuid !== null) {
+            $query->where('senderable_type', (new User)->getMorphClass())
+                ->whereHasMorph(
+                    'senderable',
+                    [User::class],
+                    fn ($builder) => $builder->where('uuid', $userUuid),
+                );
+        }
+
+        $tasks = $query->get()
+            ->map(function (Message $message): array {
+                $taskId = is_string(data_get($message->meta, 'a2a_task_id')) && trim((string) data_get($message->meta, 'a2a_task_id')) !== ''
+                    ? trim((string) data_get($message->meta, 'a2a_task_id'))
+                    : $message->ulid;
+                $thread = $this->resolveMessageThread($message);
+                $invocations = is_array(data_get($message->meta, 'invocations')) ? data_get($message->meta, 'invocations') : [];
+                $assistantReplies = $this->assistantRepliesForPrompt($thread, $message);
+
+                return [
+                    'id' => $taskId,
+                    'kind' => 'task',
+                    'status' => [
+                        'state' => $this->resolveTaskState($invocations, $assistantReplies),
+                        'timestamp' => now()->toIso8601String(),
+                    ],
+                    'context' => [
+                        'thread_id' => $thread?->uuid,
+                        'prompt_message_ulid' => $message->ulid,
+                    ],
+                ];
+            })
+            ->values()
+            ->all();
+
+        return [
+            'result' => [
+                'tasks' => $tasks,
+                'nextPageToken' => null,
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     * @return array<string, mixed>
+     */
+    protected function tasksCancel(array $params): array
+    {
+        $taskId = $this->resolveTaskId($params);
+        $promptMessage = $this->resolvePromptMessage($taskId);
+
+        if (! $promptMessage) {
+            return $this->invalidParams(['task_id' => ['Task was not found.']]);
+        }
+
+        $meta = is_array($promptMessage->meta) ? $promptMessage->meta : [];
+        $invocations = is_array($meta['invocations'] ?? null) ? $meta['invocations'] : [];
+
+        foreach ($invocations as $actorKey => $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            $status = $entry['status'] ?? null;
+            if ($status === 'completed' || $status === 'failed') {
+                continue;
+            }
+
+            $entry['status'] = 'canceled';
+            $entry['canceled_at'] = now()->toIso8601String();
+            $invocations[$actorKey] = $entry;
+        }
+
+        $meta['invocations'] = $invocations;
+        $meta['a2a_canceled_at'] = now()->toIso8601String();
+        $promptMessage->forceFill(['meta' => $meta])->save();
+        $this->taskPushNotificationDispatcher->dispatchTaskUpdate($promptMessage, 'canceled');
+
+        return [
+            'result' => $this->taskPayload(
+                taskId: $taskId,
+                state: 'canceled',
+                context: [
+                    'prompt_message_ulid' => $promptMessage->ulid,
+                ],
+            ),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     * @return array<string, mixed>
+     */
+    protected function tasksResubscribe(array $params): array
+    {
+        $taskId = $this->resolveTaskId($params);
+        $taskSnapshot = $this->tasksGet([
+            ...$params,
+            'task_id' => $taskId,
+        ]);
+
+        if (is_array($taskSnapshot['error'] ?? null)) {
+            return $taskSnapshot;
+        }
+
+        $result = is_array($taskSnapshot['result'] ?? null) ? $taskSnapshot['result'] : [];
+        $task = is_array($result['task'] ?? null) ? $result['task'] : [];
+
+        return [
+            'result' => [
+                'task' => $task,
+                'streaming' => [
+                    'enabled' => true,
+                    'transport' => 'sse',
+                    'channel' => '/api/a2a/stream',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     * @return array<string, mixed>
+     */
+    protected function messageStream(array $params): array
+    {
+        $sendResult = $this->messageSend($params);
+
+        if (is_array($sendResult['error'] ?? null)) {
+            return $sendResult;
+        }
+
+        $taskPayload = is_array($sendResult['result']['task'] ?? null) ? $sendResult['result']['task'] : [];
+
+        return [
+            'result' => [
+                'task' => $taskPayload,
+                'stream' => [
+                    'transport' => 'sse',
+                    'channel' => '/api/a2a/stream',
+                    'status' => 'streaming_prepared',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     * @return array<string, mixed>
+     */
+    protected function tasksPushNotificationConfigSet(array $params): array
+    {
+        $taskId = $this->resolveTaskId($params);
+        $promptMessage = $this->resolvePromptMessage($taskId);
+
+        if (! $promptMessage) {
+            return $this->invalidParams(['task_id' => ['Task was not found.']]);
+        }
+
+        $config = is_array($params['pushNotificationConfig'] ?? null)
+            ? $params['pushNotificationConfig']
+            : (is_array($params['push_notification_config'] ?? null) ? $params['push_notification_config'] : $params);
+        $url = $this->trimmedString($config['url'] ?? $config['endpoint'] ?? null);
+
+        if ($url === null) {
+            return $this->invalidParams(['url' => ['Push notification URL is required.']]);
+        }
+
+        if (! filter_var($url, FILTER_VALIDATE_URL)) {
+            return $this->invalidParams(['url' => ['Push notification URL must be a valid URL.']]);
+        }
+
+        $token = $this->trimmedString($config['token'] ?? null)
+            ?? $this->trimmedString(data_get($config, 'authentication.credentials'));
+
+        $normalizedConfig = [
+            'id' => $this->trimmedString($config['id'] ?? null) ?? (string) Str::uuid7(),
+            'url' => $url,
+            'secret' => $token ?? $this->trimmedString($config['secret'] ?? null),
+            'headers' => $this->normalizeHeaders($config['headers'] ?? config('a2a.inbound.push_notifications.default_headers', [])),
+            'state_filter' => $this->normalizeStates($config['stateFilter'] ?? $config['state_filter'] ?? $config['states'] ?? config('a2a.inbound.push_notifications.default_state_filter', [])),
+            'created_at' => now()->toIso8601String(),
+            'updated_at' => now()->toIso8601String(),
+        ];
+
+        $meta = is_array($promptMessage->meta) ? $promptMessage->meta : [];
+        $configs = is_array(data_get($meta, 'a2a.push_notification_configs')) ? data_get($meta, 'a2a.push_notification_configs') : [];
+        $existingIndex = collect($configs)->search(fn (mixed $entry): bool => is_array($entry) && ($entry['id'] ?? null) === $normalizedConfig['id']);
+
+        if (is_int($existingIndex)) {
+            $existing = is_array($configs[$existingIndex] ?? null) ? $configs[$existingIndex] : [];
+            $normalizedConfig['created_at'] = $existing['created_at'] ?? $normalizedConfig['created_at'];
+            $configs[$existingIndex] = $normalizedConfig;
+        } else {
+            $configs[] = $normalizedConfig;
+        }
+
+        data_set($meta, 'a2a.push_notification_configs', array_values($configs));
+        $promptMessage->forceFill(['meta' => $meta])->save();
+
+        return [
+            'result' => [
+                'taskId' => $taskId,
+                'task_id' => $taskId,
+                'pushNotificationConfig' => $this->toPushNotificationConfig($normalizedConfig),
+                'push_notification_config' => $normalizedConfig,
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     * @return array<string, mixed>
+     */
+    protected function tasksPushNotificationConfigGet(array $params): array
+    {
+        $taskId = $this->resolveTaskId($params);
+        $promptMessage = $this->resolvePromptMessage($taskId);
+
+        if (! $promptMessage) {
+            return $this->invalidParams(['task_id' => ['Task was not found.']]);
+        }
+
+        $configId = $this->trimmedString($params['pushNotificationConfigId'] ?? $params['push_notification_config_id'] ?? null);
+        $configs = $this->pushConfigs($promptMessage);
+
+        if ($configId === null) {
+            $first = $configs[0] ?? null;
+
+            if (! is_array($first)) {
+                return $this->invalidParams(['push_notification_config_id' => ['Push notification config was not found.']]);
+            }
+
+            return [
+                'result' => [
+                    'taskId' => $taskId,
+                    'task_id' => $taskId,
+                    'pushNotificationConfig' => $this->toPushNotificationConfig($first),
+                    'push_notification_config' => $first,
+                ],
+            ];
+        }
+
+        $resolved = collect($configs)
+            ->first(fn (mixed $entry): bool => is_array($entry) && ($entry['id'] ?? null) === $configId);
+
+        if (! is_array($resolved)) {
+            return $this->invalidParams(['push_notification_config_id' => ['Push notification config was not found.']]);
+        }
+
+        return [
+            'result' => [
+                'taskId' => $taskId,
+                'task_id' => $taskId,
+                'pushNotificationConfig' => $this->toPushNotificationConfig($resolved),
+                'push_notification_config' => $resolved,
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     * @return array<string, mixed>
+     */
+    protected function tasksPushNotificationConfigList(array $params): array
+    {
+        $taskId = $this->resolveTaskId($params);
+        $promptMessage = $this->resolvePromptMessage($taskId);
+
+        if (! $promptMessage) {
+            return $this->invalidParams(['task_id' => ['Task was not found.']]);
+        }
+
+        return [
+            'result' => [
+                'taskId' => $taskId,
+                'task_id' => $taskId,
+                'pushNotificationConfigs' => collect($this->pushConfigs($promptMessage))
+                    ->map(fn (array $config): array => $this->toPushNotificationConfig($config))
+                    ->values()
+                    ->all(),
+                'push_notification_configs' => $this->pushConfigs($promptMessage),
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     * @return array<string, mixed>
+     */
+    protected function tasksPushNotificationConfigDelete(array $params): array
+    {
+        $taskId = $this->resolveTaskId($params);
+        $promptMessage = $this->resolvePromptMessage($taskId);
+
+        if (! $promptMessage) {
+            return $this->invalidParams(['task_id' => ['Task was not found.']]);
+        }
+
+        $configId = $this->trimmedString($params['pushNotificationConfigId'] ?? $params['push_notification_config_id'] ?? null);
+
+        if ($configId === null) {
+            return $this->invalidParams(['push_notification_config_id' => ['Push notification config id is required.']]);
+        }
+
+        $meta = is_array($promptMessage->meta) ? $promptMessage->meta : [];
+        $configs = $this->pushConfigs($promptMessage);
+
+        $updatedConfigs = collect($configs)
+            ->filter(fn (mixed $entry): bool => ! (is_array($entry) && ($entry['id'] ?? null) === $configId))
+            ->values()
+            ->all();
+
+        data_set($meta, 'a2a.push_notification_configs', $updatedConfigs);
+        $promptMessage->forceFill(['meta' => $meta])->save();
+
+        return [
+            'result' => [
+                'taskId' => $taskId,
+                'task_id' => $taskId,
+                'deleted' => count($updatedConfigs) !== count($configs),
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     */
+    protected function resolveTaskId(array $params): string
+    {
+        $taskId = $params['id'] ?? $params['taskId'] ?? $params['task_id'] ?? null;
+
+        if (! is_string($taskId) || trim($taskId) === '') {
+            return (string) Str::uuid7();
+        }
+
+        return trim($taskId);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $context
+     * @param  array<int, array<string, mixed>>  $artifacts
+     * @return array<string, mixed>
+     */
+    protected function taskPayload(
+        string $taskId,
+        string $state,
+        ?array $context = null,
+        array $artifacts = [],
+    ): array {
+        return [
+            'task' => [
+                'id' => $taskId,
+                'kind' => 'task',
+                'status' => [
+                    'state' => $state,
+                    'timestamp' => now()->toIso8601String(),
+                ],
+                'context' => $context ?? [],
+                'artifacts' => $artifacts,
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $errors
+     * @return array<string, mixed>
+     */
+    protected function invalidParams(array $errors): array
+    {
+        return [
+            'error' => [
+                'code' => -32602,
+                'message' => 'Invalid params.',
+                'data' => [
+                    'errors' => $errors,
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     */
+    protected function resolveContent(array $params): ?string
+    {
+        $direct = $this->trimmedString($params['body'] ?? null)
+            ?? $this->trimmedString($params['content'] ?? null)
+            ?? $this->trimmedString($params['text'] ?? null);
+
+        if ($direct) {
+            return $direct;
+        }
+
+        $message = $params['message'] ?? null;
+        if (! is_array($message)) {
+            return null;
+        }
+
+        $parts = $message['parts'] ?? [];
+        if (! is_array($parts)) {
+            return null;
+        }
+
+        foreach ($parts as $part) {
+            if (! is_array($part)) {
+                continue;
+            }
+
+            $text = $this->trimmedString($part['text'] ?? null);
+            if ($text) {
+                return $text;
+            }
+        }
+
+        return null;
+    }
+
+    protected function resolvePromptMessage(string $taskId): ?Message
+    {
+        $promptMessage = Message::query()
+            ->where(function ($query) use ($taskId): void {
+                $query->where('meta->a2a_task_id', $taskId)
+                    ->orWhere('ulid', $taskId);
+            })
+            ->whereIn('meta->source', ['agent_prompt', 'peer_message'])
+            ->latest('id')
+            ->first();
+
+        if (! $promptMessage) {
+            return null;
+        }
+
+        return $this->ownsTask($promptMessage) ? $promptMessage : null;
+    }
+
+    /**
+     * @return array{subject_type: string, subject_id: int|string, token_id: int|null}|null
+     */
+    protected function resolveAuthenticatedOwner(): ?array
+    {
+        $principal = auth('sanctum')->user();
+
+        if (! $principal instanceof Authenticatable) {
+            return null;
+        }
+
+        $subjectType = method_exists($principal, 'getMorphClass')
+            ? $principal->getMorphClass()
+            : get_class($principal);
+        $subjectId = $principal->getAuthIdentifier();
+
+        if (! is_string($subjectType) || $subjectType === '' || (! is_int($subjectId) && ! is_string($subjectId))) {
+            return null;
+        }
+
+        $token = method_exists($principal, 'currentAccessToken') ? $principal->currentAccessToken() : null;
+
+        return [
+            'subject_type' => $subjectType,
+            'subject_id' => $subjectId,
+            'token_id' => is_object($token) && isset($token->id) ? (int) $token->id : null,
+        ];
+    }
+
+    protected function ownsTask(Message $promptMessage): bool
+    {
+        $owner = $this->resolveAuthenticatedOwner();
+        $taskOwner = data_get($promptMessage->meta, 'a2a_owner');
+
+        if (! is_array($owner) || ! is_array($taskOwner)) {
+            return false;
+        }
+
+        $taskOwnerType = $this->trimmedString($taskOwner['subject_type'] ?? null);
+        $taskOwnerId = $taskOwner['subject_id'] ?? null;
+
+        if ($taskOwnerType === null || (! is_int($taskOwnerId) && ! is_string($taskOwnerId))) {
+            return false;
+        }
+
+        return $owner['subject_type'] === $taskOwnerType
+            && (string) $owner['subject_id'] === (string) $taskOwnerId;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    protected function pushConfigs(Message $promptMessage): array
+    {
+        $configs = data_get($promptMessage->meta, 'a2a.push_notification_configs');
+
+        if (! is_array($configs)) {
+            return [];
+        }
+
+        return collect($configs)
+            ->filter(fn (mixed $entry): bool => is_array($entry))
+            ->values()
+            ->all();
+    }
+
+    protected function resolveMessageThread(Message $message): ?Thread
+    {
+        if ($message->messageable_type !== (new Thread)->getMorphClass()) {
+            return null;
+        }
+
+        return Thread::query()->find($message->messageable_id);
+    }
+
+    /**
+     * @return Collection<int, Message>
+     */
+    protected function assistantRepliesForPrompt(?Thread $thread, Message $promptMessage): Collection
+    {
+        if (! $thread) {
+            return collect();
+        }
+
+        return Message::query()
+            ->where('messageable_type', $thread->getMorphClass())
+            ->where('messageable_id', $thread->getKey())
+            ->whereNull('senderable_type')
+            ->whereNull('senderable_id')
+            ->where('meta->source', 'agent_response')
+            ->where('meta->in_reply_to_message_id', $promptMessage->id)
+            ->oldest('id')
+            ->get();
+    }
+
+    /**
+     * @param  array<string, mixed>  $invocations
+     * @param  Collection<int, Message>  $assistantReplies
+     */
+    protected function resolveTaskState(array $invocations, Collection $assistantReplies): string
+    {
+        if ($invocations === []) {
+            return $assistantReplies->isNotEmpty() ? 'completed' : 'submitted';
+        }
+
+        $statuses = collect($invocations)
+            ->map(fn (mixed $entry): ?string => is_array($entry) ? $this->trimmedString($entry['status'] ?? null) : null)
+            ->filter()
+            ->values();
+
+        if ($statuses->isEmpty()) {
+            return $assistantReplies->isNotEmpty() ? 'completed' : 'submitted';
+        }
+
+        if ($statuses->every(fn (string $status): bool => $status === 'completed')) {
+            return 'completed';
+        }
+
+        if ($statuses->every(fn (string $status): bool => $status === 'canceled')) {
+            return 'canceled';
+        }
+
+        if ($statuses->contains(fn (string $status): bool => $status === 'failed') && ! $statuses->contains('pending')) {
+            return 'failed';
+        }
+
+        if ($statuses->contains(fn (string $status): bool => in_array($status, ['pending', 'canceled'], true))) {
+            return 'working';
+        }
+
+        return 'working';
+    }
+
+    /**
+     * @return Collection<int, ThreadActor>
+     */
+    protected function resolveActivePresenters(Thread $thread): Collection
+    {
+        return $thread->actors()
+            ->where('role', ThreadActor::RolePresenter)
+            ->where('status', ThreadActor::StatusActive)
+            ->orderBy('priority')
+            ->get();
+    }
+
+    protected function trimmedString(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return $trimmed === '' ? null : $trimmed;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function normalizeHeaders(mixed $headers): array
+    {
+        if (! is_array($headers)) {
+            return [];
+        }
+
+        $normalized = [];
+
+        foreach ($headers as $key => $value) {
+            if (! is_string($key) || ! is_string($value)) {
+                continue;
+            }
+
+            $normalizedKey = trim($key);
+
+            if ($normalizedKey === '') {
+                continue;
+            }
+
+            $normalized[$normalizedKey] = $value;
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function normalizeStates(mixed $states): array
+    {
+        if (! is_array($states)) {
+            return [];
+        }
+
+        return collect($states)
+            ->filter(fn (mixed $state): bool => is_string($state) && trim($state) !== '')
+            ->map(fn (string $state): string => strtolower(trim($state)))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $config
+     * @return array<string, mixed>
+     */
+    protected function toPushNotificationConfig(array $config): array
+    {
+        return [
+            'id' => $config['id'] ?? null,
+            'url' => $config['url'] ?? null,
+            'token' => $config['secret'] ?? null,
+            'authentication' => [
+                'schemes' => ['bearer'],
+                'credentials' => $config['secret'] ?? null,
+            ],
+            'headers' => is_array($config['headers'] ?? null) ? $config['headers'] : [],
+            'stateFilter' => is_array($config['state_filter'] ?? null) ? $config['state_filter'] : [],
+            'state_filter' => is_array($config['state_filter'] ?? null) ? $config['state_filter'] : [],
+            'createdAt' => $config['created_at'] ?? null,
+            'created_at' => $config['created_at'] ?? null,
+            'updatedAt' => $config['updated_at'] ?? null,
+            'updated_at' => $config['updated_at'] ?? null,
+        ];
+    }
+}

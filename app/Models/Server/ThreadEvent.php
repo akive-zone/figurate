@@ -6,11 +6,30 @@ use App\Models\Concerns\HasPublicUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class ThreadEvent extends Model
 {
     /** @use HasFactory<\Database\Factories\ThreadEventFactory> */
     use HasFactory, HasPublicUuid;
+
+    public const LayerExecution = 'execution';
+
+    public const KindA2a = 'a2a';
+
+    public const KindMcp = 'mcp';
+
+    public const KindOrchestration = 'orchestration';
+
+    public const KindObserver = 'observer';
+
+    public const StateRequested = 'requested';
+
+    public const StateReceived = 'received';
+
+    public const StateCompleted = 'completed';
+
+    public const StateFailed = 'failed';
 
     /**
      * @var list<string>
@@ -18,8 +37,13 @@ class ThreadEvent extends Model
     protected $fillable = [
         'uuid',
         'thread_id',
+        'thread_actor_id',
         'message_id',
-        'actor_key',
+        'event_key',
+        'layer',
+        'kind',
+        'operation',
+        'state',
         'event_type',
         'severity',
         'payload',
@@ -43,5 +67,21 @@ class ThreadEvent extends Model
     public function message(): BelongsTo
     {
         return $this->belongsTo(Message::class);
+    }
+
+    public function threadActor(): BelongsTo
+    {
+        return $this->belongsTo(ThreadActor::class);
+    }
+
+    public function agentTasks(): BelongsToMany
+    {
+        return $this->belongsToMany(AgentTask::class, 'thread_event_agent_tasks')
+            ->withTimestamps();
+    }
+
+    public function tasks(): BelongsToMany
+    {
+        return $this->agentTasks();
     }
 }

@@ -7,9 +7,12 @@ use App\Ai\Tools\AutoModeSelectorTool;
 use App\Ai\Tools\ContextBudgetTool;
 use App\Ai\Tools\ConversationAuditTool;
 use App\Ai\Tools\CreatePostFromConversationTool;
+use App\Ai\Tools\DelegateA2aTaskTool;
 use App\Ai\Tools\DiscoverSkillsTool;
 use App\Ai\Tools\DualWriteDiffTool;
+use App\Ai\Tools\InvokeA2aAgentTool;
 use App\Ai\Tools\InvokeMcpTool;
+use App\Ai\Tools\ListAvailableA2aAgentsTool;
 use App\Ai\Tools\ListAvailableMcpToolsTool;
 use App\Ai\Tools\ModePolicyTool;
 use App\Ai\Tools\PrivacyGuardTool;
@@ -22,6 +25,7 @@ use App\Ai\Tools\SessionTransferTool;
 use App\Ai\Tools\WriteMemoryFileTool;
 use App\Models\Server\Channel;
 use App\Models\Server\Thread;
+use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Providers\Tools\FileSearch;
@@ -35,9 +39,9 @@ class ChatToolResolver
     /**
      * @return list<Tool>
      */
-    public function resolve(Thread $thread, User $user): array
+    public function resolve(Thread $thread, User $user, ?ThreadActor $threadActor = null): array
     {
-        $sharedTools = $this->sharedTools($thread, $user);
+        $sharedTools = $this->sharedTools($thread, $user, $threadActor);
         $threadable = $thread->threadable;
 
         if ($threadable instanceof Channel) {
@@ -50,7 +54,7 @@ class ChatToolResolver
     /**
      * @return list<Tool>
      */
-    protected function sharedTools(Thread $thread, User $user): array
+    protected function sharedTools(Thread $thread, User $user, ?ThreadActor $threadActor = null): array
     {
         return [new AutoModeSelectorTool($thread, $user),
             new ConversationAuditTool($thread, $user),
@@ -61,7 +65,8 @@ class ChatToolResolver
             new ModePolicyTool($thread, $user),
             new ContextBudgetTool($thread, $user),
             new DiscoverSkillsTool,
-            ...$this->mcpTools($thread, $user),
+            ...$this->mcpTools($thread, $user, $threadActor),
+            ...$this->a2aTools($thread, $user, $threadActor),
             new DualWriteDiffTool($thread, $user),
             new ReplayTool($thread, $user),
             new PrivacyGuardTool($thread, $user),
@@ -90,7 +95,7 @@ class ChatToolResolver
     /**
      * @return list<Tool>
      */
-    protected function mcpTools(Thread $thread, User $user): array
+    protected function mcpTools(Thread $thread, User $user, ?ThreadActor $threadActor = null): array
     {
         if (! ((bool) config('services.mcp.enabled', false))) {
             return [];
@@ -98,7 +103,23 @@ class ChatToolResolver
 
         return [
             new ListAvailableMcpToolsTool($thread, $user),
-            new InvokeMcpTool($thread, $user),
+            new InvokeMcpTool($thread, $user, $threadActor),
+        ];
+    }
+
+    /**
+     * @return list<Tool>
+     */
+    protected function a2aTools(Thread $thread, User $user, ?ThreadActor $threadActor = null): array
+    {
+        if (! ((bool) config('a2a.outbound.enabled', false))) {
+            return [];
+        }
+
+        return [
+            new ListAvailableA2aAgentsTool,
+            new InvokeA2aAgentTool($thread, $user, $threadActor),
+            new DelegateA2aTaskTool($thread, $user, $threadActor),
         ];
     }
 }
