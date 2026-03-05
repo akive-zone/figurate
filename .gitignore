@@ -38,3 +38,5 @@ opencode.json
 /.cursor
 /.gemini
 /.gemini-clipboard
+
+/skills-lock.json

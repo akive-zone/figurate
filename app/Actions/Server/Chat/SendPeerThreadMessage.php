@@ -24,7 +24,7 @@ class SendPeerThreadMessage
         Channel $channel,
         Thread $thread,
         User $actor,
-        ?string $body,
+        ?string $text,
         Collection $attachments,
         string $source = 'peer_message',
         bool $dispatchObservers = true,
@@ -36,7 +36,7 @@ class SendPeerThreadMessage
         $message = ($this->storeThreadMessage)(
             thread: $thread,
             sender: $actor,
-            body: $body,
+            text: $text,
             meta: [
                 'source' => $source,
             ],

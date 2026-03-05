@@ -1,4 +1,5 @@
 <script setup>
+import A2uiActionCard from './A2uiActionCard.vue';
 import { computed, ref } from 'vue';
 
 const props = defineProps({
@@ -36,7 +37,7 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['update:modelValue', 'send', 'switch-thread', 'close-thread', 'retry-turn']);
+const emit = defineEmits(['update:modelValue', 'send', 'switch-thread', 'close-thread', 'retry-turn', 'submit-a2ui-action']);
 
 const draft = ref('');
 const isOpen = computed(() => props.modelValue === true);
@@ -190,6 +191,12 @@ const submitDraft = () => {
                                     </span>
                                 </button>
                             </footer>
+                            <A2uiActionCard
+                                v-if="turn.assistant_extra?.a2ui?.surface && typeof turn.assistant_extra.a2ui.surface === 'object'"
+                                :payload="turn.assistant_extra.a2ui.surface"
+                                :disabled="props.sending"
+                                @submit="emit('submit-a2ui-action', $event)"
+                            />
                         </article>
                     </section>
                 </template>

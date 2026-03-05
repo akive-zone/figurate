@@ -30,7 +30,9 @@ class MessageFactory extends Factory
             'senderable_type' => User::class,
             'senderable_id' => User::factory(),
             'type' => 'text',
-            'body' => fake()->paragraph(),
+            'text' => fake()->paragraph(),
+            'actions' => null,
+            'errors' => null,
             'attachments' => null,
             'meta' => null,
         ];

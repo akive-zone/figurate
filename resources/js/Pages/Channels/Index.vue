@@ -69,8 +69,10 @@ const submit = async () => {
         }
 
         const response = await sendChatChatMessage({
-            body: message,
-            attachments: [],
+            content: {
+                text: message,
+                attachments: [],
+            },
         }, runtime.value);
         const channelId = response.data?.channel;
         const threadId = response.data?.thread;
@@ -111,7 +113,7 @@ const submit = async () => {
                     placeholder="Ask anything..."
                 />
                 <p v-if="errors.message" class="error">{{ errors.message[0] }}</p>
-                <p v-if="errors.body" class="error">{{ errors.body[0] }}</p>
+                <p v-if="errors['content.text']" class="error">{{ errors['content.text'][0] }}</p>
                 <p v-if="formError" class="error">{{ formError }}</p>
                 <div class="form__actions">
                     <Link :href="chatCreateChannelUrl" class="link">Open Full Composer</Link>

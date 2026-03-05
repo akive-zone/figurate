@@ -78,7 +78,15 @@ const chatChannelThreadUrl = (channelId, threadId) => {
 const chatChannelId = (chat) => (chat?.channel?.id ?? '').toString();
 const chatThreads = (chat) => (Array.isArray(chat?.threads) ? chat.threads : []);
 const channelTitle = (chat) => (chat?.name ?? '').toString();
-const chatLatestMessageBody = (chat) => (chat?.channel?.latest_message?.body ?? 'No messages yet').toString();
+const chatLatestMessageBody = (chat) => {
+    const latest = chat?.channel?.latest_message;
+
+    if (typeof latest?.content === 'object' && latest?.content !== null) {
+        return (latest.content.text ?? 'No messages yet').toString();
+    }
+
+    return (latest?.text ?? 'No messages yet').toString();
+};
 const showDeviceLoginPrompt = computed(() => !isNativeRuntime.value && authUser.value?.type === 'device');
 const showAccountModal = ref(false);
 const googleLoginUrl = computed(() => {

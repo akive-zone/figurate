@@ -64,8 +64,8 @@ class ChatController extends Controller
                     'sender_name' => null,
                     'source' => data_get($message->meta, 'source'),
                     'is_agent' => data_get($message->meta, 'source') === 'agent_response',
-                    'content' => $message->body,
-                    'attachments' => is_array($message->attachments) ? $message->attachments : [],
+                    'content' => $this->messageContent($message),
+                    'extra' => $this->messageExtra($message),
                     'created_at' => optional($message->created_at)?->toIso8601String(),
                 ];
             })
@@ -137,6 +137,23 @@ class ChatController extends Controller
     ): JsonResponse {
         $channelUuid = $request->validated('channel');
         $threadUuid = $request->validated('thread');
+        $contentPayload = $request->validated('content');
+        $extraPayload = $request->validated('extra');
+        $extraPayload = is_array($extraPayload) ? $extraPayload : [];
+        $a2uiActions = collect($contentPayload['actions'] ?? [])
+            ->map(fn (mixed $action): ?array => is_array($action) ? $this->normalizeA2uiAction($action) : null)
+            ->filter(fn (mixed $action): bool => is_array($action))
+            ->values()
+            ->all();
+        $a2uiErrors = collect($contentPayload['errors'] ?? [])
+            ->map(fn (mixed $error): ?array => is_array($error) ? $this->normalizeA2uiError($error) : null)
+            ->filter(fn (mixed $error): bool => is_array($error))
+            ->values()
+            ->all();
+        $a2uiClientDataModel = $this->trimmedString(data_get($extraPayload, 'a2ui.config.a2uiClientDataModel'));
+        $a2uiClientCapabilities = is_array(data_get($extraPayload, 'a2ui.config.a2uiClientCapabilities'))
+            ? data_get($extraPayload, 'a2ui.config.a2uiClientCapabilities')
+            : null;
         $thread = null;
 
         if (is_string($threadUuid) && $threadUuid !== '') {
@@ -148,11 +165,13 @@ class ChatController extends Controller
         Gate::authorize('view', $channel);
         Gate::authorize('create', Message::class);
 
+        $normalizedRequestContent = $this->normalizedContentForStoreRequest($request, $a2uiActions, $a2uiErrors);
+
         $decision = $orchestrator->resolve(
             channel: $channel,
             actor: $request->user(),
             thread: $thread,
-            message: $request->validated('body'),
+            message: $normalizedRequestContent,
         );
         $thread = $decision->thread;
 
@@ -160,21 +179,19 @@ class ChatController extends Controller
 
         if ($activePresenters->isNotEmpty()) {
             $broadcastChannelId = $this->broadcastChannelIdForThread($thread);
-            $content = $request->validated('body');
+            $content = $normalizedRequestContent;
 
-            if (! is_string($content) || trim($content) === '') {
+            if ($content === null) {
                 abort(422, 'A text message is required for agent prompts.');
             }
-
-            $content = trim($content);
             $actor = $request->user();
             $idempotencyKey = $this->idempotencyKey($request);
             $existingUserMessage = $this->findExistingUserMessage($thread, $actor, $idempotencyKey);
 
             if ($existingUserMessage) {
-                if ($existingUserMessage->body !== $content) {
+                if ($existingUserMessage->text !== $content) {
                     $existingUserMessage->forceFill([
-                        'body' => $content,
+                        'text' => $content,
                     ])->save();
                 }
 
@@ -188,14 +205,14 @@ class ChatController extends Controller
                     'thread' => $thread->uuid,
                     'channel' => $channel->uuid,
                     'broadcast_channel' => $broadcastChannelId,
-                    'text' => $firstAssistantMessage?->body,
+                    'text' => $firstAssistantMessage?->text,
                     'message_id' => $existingUserMessage->id,
                     'assistant_message_id' => $firstAssistantMessage?->id,
                     'assistant_messages' => $existingAssistantMessages
                         ->map(fn (Message $message): array => [
                             'id' => $message->id,
                             'actor_key' => data_get($message->meta, 'actor_key'),
-                            'text' => $message->body,
+                            'text' => $message->text,
                             'created_at' => optional($message->created_at)?->toIso8601String(),
                         ])
                         ->values()
@@ -210,11 +227,12 @@ class ChatController extends Controller
                 channel: $channel,
                 thread: $thread,
                 actor: $actor,
-                body: $content,
+                text: $content,
                 attachments: collect(),
                 source: 'agent_prompt',
                 dispatchObservers: false,
             );
+            $this->applyA2uiMetadata($userMessage, $a2uiActions, $a2uiErrors, $a2uiClientDataModel, $a2uiClientCapabilities);
             $activePresenters->each(function (ThreadActor $presenter) use (
                 $chatAgentExecutor,
                 $thread,
@@ -241,14 +259,14 @@ class ChatController extends Controller
                 'assistant_message_id' => null,
                 'pending_presenters' => $this->expectedPresenterReplyCount($activePresenters),
                 'pending' => true,
+                'message_action_accepted' => $a2uiActions !== [],
+                'message_error_accepted' => $a2uiErrors !== [],
             ], 202);
         }
 
         $actor = $request->user();
-        $body = $request->validated('body');
-        $normalizedBody = is_string($body) ? trim($body) : null;
-        $normalizedBody = $normalizedBody === '' ? null : $normalizedBody;
-        $attachmentFiles = collect($request->file('attachments', []))
+        $normalizedBody = $normalizedRequestContent;
+        $attachmentFiles = collect($this->resolveAttachmentFiles($request))
             ->filter(fn (mixed $file): bool => $file instanceof UploadedFile)
             ->map(fn (UploadedFile $file): array => [
                 'path' => (string) $file->getRealPath(),
@@ -261,9 +279,9 @@ class ChatController extends Controller
         $existingUserMessage = $this->findExistingUserMessage($thread, $actor, $idempotencyKey);
 
         if ($existingUserMessage) {
-            if ($normalizedBody !== null && $existingUserMessage->body !== $normalizedBody) {
+            if ($normalizedBody !== null && $existingUserMessage->text !== $normalizedBody) {
                 $existingUserMessage->forceFill([
-                    'body' => $normalizedBody,
+                    'text' => $normalizedBody,
                 ])->save();
             }
 
@@ -281,11 +299,12 @@ class ChatController extends Controller
             channel: $channel,
             thread: $thread,
             actor: $actor,
-            body: $normalizedBody,
+            text: $normalizedBody,
             attachments: $attachmentFiles,
             source: 'peer_message',
             dispatchObservers: true,
         );
+        $this->applyA2uiMetadata($message, $a2uiActions, $a2uiErrors, $a2uiClientDataModel, $a2uiClientCapabilities);
         $this->cacheIdempotentMessage($thread, $actor, $idempotencyKey, $message);
 
         return response()->json([
@@ -294,7 +313,105 @@ class ChatController extends Controller
             'thread' => $thread->uuid,
             'message_id' => $message->id,
             'observer_status' => 'queued',
+            'message_action_accepted' => $a2uiActions !== [],
+            'message_error_accepted' => $a2uiErrors !== [],
         ]);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $a2uiActions
+     * @param  array<int, array<string, mixed>>  $a2uiErrors
+     */
+    protected function normalizedContentForStoreRequest(StoreChatRequest $request, array $a2uiActions, array $a2uiErrors): ?string
+    {
+        $text = data_get($request->validated('content'), 'text');
+        $normalizedText = is_string($text) ? trim($text) : null;
+        $normalizedText = $normalizedText === '' ? null : $normalizedText;
+
+        if ($normalizedText !== null) {
+            return $normalizedText;
+        }
+
+        return $this->composeA2uiFallbackBody($a2uiActions, $a2uiErrors);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $a2uiActions
+     * @param  array<int, array<string, mixed>>  $a2uiErrors
+     */
+    protected function composeA2uiFallbackBody(array $a2uiActions, array $a2uiErrors): ?string
+    {
+        if ($a2uiActions !== []) {
+            $firstAction = collect($a2uiActions)->first(fn (mixed $action): bool => is_array($action));
+
+            if (! is_array($firstAction)) {
+                return 'A2UI actions submitted.';
+            }
+
+            $actionName = $this->trimmedString($firstAction['name'] ?? null);
+
+            if ($actionName === null) {
+                return 'A2UI actions submitted.';
+            }
+
+            return "A2UI actions submitted: {$actionName}";
+        }
+
+        if ($a2uiErrors !== []) {
+            $firstError = collect($a2uiErrors)->first(fn (mixed $error): bool => is_array($error));
+
+            if (! is_array($firstError)) {
+                return 'A2UI client errors reported.';
+            }
+
+            $errorMessage = $this->trimmedString($firstError['message'] ?? null);
+            $errorCode = $this->trimmedString($firstError['code'] ?? null);
+
+            if ($errorMessage !== null) {
+                return "A2UI client error: {$errorMessage}";
+            }
+
+            if ($errorCode !== null) {
+                return "A2UI client error code: {$errorCode}";
+            }
+
+            return 'A2UI client errors reported.';
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $a2uiActions
+     * @param  array<int, array<string, mixed>>  $a2uiErrors
+     * @param  array<string, mixed>|null  $a2uiClientCapabilities
+     */
+    protected function applyA2uiMetadata(
+        Message $message,
+        array $a2uiActions,
+        array $a2uiErrors,
+        ?string $a2uiClientDataModel,
+        ?array $a2uiClientCapabilities,
+    ): void {
+        if ($a2uiActions === [] && $a2uiErrors === [] && $a2uiClientDataModel === null && $a2uiClientCapabilities === null) {
+            return;
+        }
+
+        $meta = is_array($message->meta) ? $message->meta : [];
+
+        if ($a2uiClientDataModel !== null) {
+            $meta['a2ui_client_data_model'] = $a2uiClientDataModel;
+        }
+        if (is_array($a2uiClientCapabilities)) {
+            $meta['a2ui_client_capabilities'] = $a2uiClientCapabilities;
+        }
+        $meta['a2ui_actions_received_at'] = now()->toIso8601String();
+
+        $message->forceFill([
+            'actions' => $a2uiActions !== [] ? $a2uiActions : $message->actions,
+            'errors' => $a2uiErrors !== [] ? $a2uiErrors : $message->errors,
+            'meta' => $meta,
+        ])->save();
     }
 
     /**
@@ -388,7 +505,8 @@ class ChatController extends Controller
         if ($latestMessageModel) {
             $latestMessage = [
                 'id' => $latestMessageModel->id,
-                'body' => $latestMessageModel->body,
+                'content' => $this->messageContent($latestMessageModel),
+                'extra' => $this->messageExtra($latestMessageModel),
                 'created_at' => optional($latestMessageModel->created_at)?->toIso8601String(),
                 'sender_name' => null,
             ];
@@ -396,7 +514,7 @@ class ChatController extends Controller
 
         return [
             'id' => $channel->uuid,
-            'name' => $this->inferChatName($channel, $threads, $latestMessageModel?->body),
+            'name' => $this->inferChatName($channel, $threads, $latestMessageModel?->text),
             'channel' => [
                 'id' => $channel->uuid,
                 'status' => $channel->status ?? 'open',
@@ -599,6 +717,162 @@ class ChatController extends Controller
             $actor->getKey(),
             sha1($idempotencyKey),
         );
+    }
+
+    protected function trimmedString(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return $trimmed === '' ? null : $trimmed;
+    }
+
+    /**
+     * @param  array<string, mixed>  $action
+     * @return array<string, mixed>|null
+     */
+    protected function normalizeA2uiAction(array $action): ?array
+    {
+        $protocol = $this->trimmedString($action['protocol'] ?? null) ?? 'a2ui';
+        $name = $this->trimmedString($action['name'] ?? null);
+        $id = $this->trimmedString($action['id'] ?? null);
+        $surfaceId = $this->trimmedString($action['surfaceId'] ?? null);
+        $sourceComponentId = $this->trimmedString($action['sourceComponentId'] ?? null);
+        $timestamp = $this->trimmedString($action['timestamp'] ?? null);
+        $context = $this->normalizeAssocArray($action['context'] ?? null);
+        $values = $this->normalizeAssocArray($action['values'] ?? null);
+
+        if (
+            $name === null
+            && $id === null
+            && $surfaceId === null
+            && $sourceComponentId === null
+            && $timestamp === null
+            && $context === []
+            && $values === []
+        ) {
+            return null;
+        }
+
+        return array_filter([
+            'protocol' => $protocol,
+            'name' => $name,
+            'id' => $id,
+            'surfaceId' => $surfaceId,
+            'sourceComponentId' => $sourceComponentId,
+            'timestamp' => $timestamp,
+            'context' => $context !== [] ? $context : null,
+            'values' => $values !== [] ? $values : null,
+        ], fn (mixed $value): bool => $value !== null);
+    }
+
+    /**
+     * @param  array<string, mixed>  $error
+     * @return array<string, mixed>|null
+     */
+    protected function normalizeA2uiError(array $error): ?array
+    {
+        $protocol = $this->trimmedString($error['protocol'] ?? null) ?? 'a2ui';
+        $code = $this->trimmedString($error['code'] ?? null);
+        $path = $this->trimmedString($error['path'] ?? null);
+        $message = $this->trimmedString($error['message'] ?? null);
+        $userActionRaw = $error['userAction'] ?? null;
+        $userAction = is_array($userActionRaw) ? $this->normalizeA2uiAction($userActionRaw) : null;
+
+        if ($code === null && $path === null && $message === null && $userAction === null) {
+            return null;
+        }
+
+        return array_filter([
+            'protocol' => $protocol,
+            'code' => $code,
+            'path' => $path,
+            'message' => $message,
+            'userAction' => $userAction,
+        ], fn (mixed $value): bool => $value !== null);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function normalizeAssocArray(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return $this->isAssoc($value) ? $value : [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $value
+     */
+    protected function isAssoc(array $value): bool
+    {
+        if ($value === []) {
+            return false;
+        }
+
+        return array_keys($value) !== range(0, count($value) - 1);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function messageContent(Message $message): array
+    {
+        return [
+            'text' => is_string($message->text) ? $message->text : '',
+            'attachments' => is_array($message->attachments) ? $message->attachments : [],
+            'actions' => is_array($message->actions) ? $message->actions : [],
+            'errors' => is_array($message->errors) ? $message->errors : [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    protected function messageExtra(Message $message): ?array
+    {
+        $surface = data_get($message->meta, 'a2ui');
+        $surface = is_array($surface) ? $surface : null;
+        $dataModel = $this->trimmedString(data_get($message->meta, 'a2ui_client_data_model'));
+        $capabilities = data_get($message->meta, 'a2ui_client_capabilities');
+        $capabilities = is_array($capabilities) ? $capabilities : null;
+
+        if ($surface === null && $dataModel === null && $capabilities === null) {
+            return null;
+        }
+
+        return [
+            'a2ui' => [
+                'surface' => $surface,
+                'config' => [
+                    'a2uiClientDataModel' => $dataModel,
+                    'a2uiClientCapabilities' => $capabilities,
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<int, mixed>
+     */
+    protected function resolveAttachmentFiles(StoreChatRequest $request): array
+    {
+        $attachments = [];
+        $contentAttachments = $request->file('content.attachments', []);
+
+        if (is_array($contentAttachments)) {
+            $attachments = [...$attachments, ...$contentAttachments];
+        } elseif ($contentAttachments instanceof UploadedFile) {
+            $attachments[] = $contentAttachments;
+        }
+
+        return $attachments;
     }
 
     /**

@@ -100,8 +100,10 @@ const submitPrompt = async (targetThreadId = null) => {
         const response = await sendChatChatMessage({
             channel: activeChannel.value.id,
             thread: threadId ?? null,
-            body: promptForm.content,
-            attachments: [],
+            content: {
+                text: promptForm.content,
+                attachments: [],
+            },
         }, runtime.value, {
             idempotencyKey: clientMessageId,
         });
@@ -158,6 +160,27 @@ const latestHumanThread = computed(() => {
 });
 
 const getThreadMessages = (threadId) => workspaceMessages.value[threadId] ?? [];
+const contentText = (message) => {
+    if (typeof message?.content === 'string') {
+        return message.content;
+    }
+
+    return (message?.content?.text ?? '').toString();
+};
+
+const normalizeThreadMessage = (message) => {
+    const nestedContent = message?.content && typeof message.content === 'object' ? message.content : null;
+    const nestedAttachments = Array.isArray(nestedContent?.attachments) ? nestedContent.attachments : null;
+    const nestedExtra = message?.extra && typeof message.extra === 'object' ? message.extra : null;
+    const topLevelAttachments = Array.isArray(message?.attachments) ? message.attachments : [];
+
+    return {
+        ...message,
+        content: contentText(message),
+        attachments: nestedAttachments ?? topLevelAttachments,
+        extra: nestedExtra ?? null,
+    };
+};
 
 const messageSource = (message) => (message?.source ?? '').toString().trim();
 const isHumanConversationMessage = (message) => {
@@ -211,6 +234,8 @@ const slidingChatMessages = computed(() => {
             invocation_id: turn.invocation_id ?? null,
             prompt_text: '',
             assistant_text: (turn.assistant_text ?? '').toString(),
+            assistant_content: turn.assistant_content ?? null,
+            assistant_extra: turn.assistant_extra ?? null,
             error_message: (turn?.telemetry?.meta?.error_message ?? '').toString(),
             usage: turn.usage ?? {},
             completed_at: turn.completed_at ?? null,
@@ -220,7 +245,7 @@ const slidingChatMessages = computed(() => {
     }, {});
 
     return prompts.map((prompt) => {
-        const promptText = (prompt.content ?? '').toString();
+        const promptText = contentText(prompt);
         const scopedTurns = Array.isArray(turnsByPrompt[prompt.id]) ? turnsByPrompt[prompt.id] : [];
 
         return {
@@ -242,13 +267,17 @@ const loadChannelPosts = async () => {
         return;
     }
 
-    channelPosts.value = Array.isArray(activeChannel.value.channel_feed) ? activeChannel.value.channel_feed : [];
+    channelPosts.value = Array.isArray(activeChannel.value.channel_feed)
+        ? activeChannel.value.channel_feed.map((item) => (item?.kind === 'message' ? normalizeThreadMessage(item) : item))
+        : [];
     isLoadingChannelPosts.value = true;
     channelPostsError.value = '';
 
     try {
         const payload = await fetchChatChannelPosts(activeChannel.value.id, runtime.value);
-        channelPosts.value = Array.isArray(payload?.data) ? payload.data : [];
+        channelPosts.value = Array.isArray(payload?.data)
+            ? payload.data.map((item) => (item?.kind === 'message' ? normalizeThreadMessage(item) : item))
+            : [];
     } catch (error) {
         channelPostsError.value = error.response?.data?.message ?? `Unable to load channel posts (${error.response?.status ?? 'network'}).`;
     } finally {
@@ -266,7 +295,9 @@ const loadThreadMessages = async (threadId) => {
 
     try {
         const payload = await fetchChatThreadMessages(threadId, runtime.value);
-        workspaceMessages.value[threadId] = Array.isArray(payload?.data) ? payload.data : [];
+        workspaceMessages.value[threadId] = Array.isArray(payload?.data)
+            ? payload.data.map((item) => normalizeThreadMessage(item))
+            : [];
         workspaceTurns.value[threadId] = Array.isArray(payload?.turns) ? payload.turns : [];
     } catch (error) {
         threadLoadError.value = error.response?.data?.message ?? `Unable to load thread messages (${error.response?.status ?? 'network'}).`;
@@ -481,6 +512,62 @@ const submitSlidingPrompt = async (content) => {
     await submitPrompt(latestAgentThread.value?.id);
 };
 
+const submitA2uiAction = async (actionPayload) => {
+    if (!activeChannel.value) {
+        return;
+    }
+
+    const threadId = latestAgentThread.value?.id ?? activeThreadId.value;
+    if (!threadId) {
+        return;
+    }
+
+    promptErrors.value = {};
+    promptErrorMessage.value = '';
+    isPrompting.value = true;
+
+    try {
+        const response = await sendChatChatMessage({
+            channel: activeChannel.value.id,
+            thread: threadId,
+            content: {
+                text: null,
+                attachments: [],
+                actions: [actionPayload],
+                errors: [],
+            },
+            extra: {
+                a2ui: {
+                    config: {
+                        a2uiClientDataModel: 'v1.0',
+                        a2uiClientCapabilities: {
+                            actions: true,
+                            errors: true,
+                        },
+                    },
+                },
+            },
+        }, runtime.value, {
+            idempotencyKey: makeClientMessageId(),
+        });
+        const submittedMessageId = Number(response?.data?.message_id ?? 0);
+        if (Number.isFinite(submittedMessageId) && submittedMessageId > 0) {
+            latestSubmittedPromptMessageId.value = submittedMessageId;
+            await loadTurnsForMessage(submittedMessageId, threadId);
+        }
+        agentStatusMessage.value = 'Agent is thinking...';
+        await loadThreadMessages(threadId);
+    } catch (error) {
+        if (error.response?.status === 422) {
+            promptErrors.value = error.response.data.errors ?? {};
+        } else {
+            promptErrorMessage.value = error.response?.data?.message ?? `Action submit failed (${error.response?.status ?? 'network'}).`;
+        }
+    } finally {
+        isPrompting.value = false;
+    }
+};
+
 const retryFailedTurn = async (turn) => {
     const prompt = (turn?.prompt_text ?? '').toString().trim();
 
@@ -601,7 +688,7 @@ const openContextServerPanel = () => {
                 @create-thread="handleCreateThread"
             />
             <p v-if="activeChannel.active_thread && threadLoadError" class="error">{{ threadLoadError }}</p>
-            <p v-if="promptErrors.body" class="error">{{ promptErrors.body[0] }}</p>
+            <p v-if="promptErrors['content.text']" class="error">{{ promptErrors['content.text'][0] }}</p>
             <p v-if="promptErrorMessage" class="error">{{ promptErrorMessage }}</p>
             <p v-if="agentStatusMessage" class="thread__meta">{{ agentStatusMessage }}</p>
         </section>
@@ -632,6 +719,7 @@ const openContextServerPanel = () => {
             @switch-thread="handleSwitchAgentThread"
             @close-thread="handleCloseAgentThread"
             @retry-turn="retryFailedTurn"
+            @submit-a2ui-action="submitA2uiAction"
         />
 
         <teleport to="body">

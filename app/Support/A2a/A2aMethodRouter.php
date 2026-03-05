@@ -78,6 +78,10 @@ class A2aMethodRouter
             return $this->invalidParams(['user_uuid' => ['The selected user was not found.']]);
         }
 
+        $a2uiClientCapabilities = $this->resolveA2uiClientCapabilities($params);
+        $a2uiClientDataModel = $this->resolveA2uiClientDataModel($params);
+        $a2uiActions = $this->resolveA2uiActions($params);
+        $a2uiErrors = $this->resolveA2uiErrors($params);
         $content = $this->resolveContent($params);
 
         if (! is_string($content) || trim($content) === '') {
@@ -115,7 +119,7 @@ class A2aMethodRouter
                 channel: $channel,
                 thread: $thread,
                 actor: $user,
-                body: $content,
+                text: $content,
                 attachments: collect(),
                 source: 'peer_message',
                 dispatchObservers: true,
@@ -125,7 +129,17 @@ class A2aMethodRouter
             $meta['a2a_task_id'] = $taskId;
             $meta['a2a_source'] = 'jsonrpc';
             $meta['a2a_owner'] = $this->resolveAuthenticatedOwner();
-            $message->forceFill(['meta' => $meta])->save();
+            if (is_array($a2uiClientCapabilities)) {
+                $meta['a2ui_client_capabilities'] = $a2uiClientCapabilities;
+            }
+            if ($a2uiClientDataModel !== null) {
+                $meta['a2ui_client_data_model'] = $a2uiClientDataModel;
+            }
+            $message->forceFill([
+                'actions' => $a2uiActions !== [] ? $a2uiActions : null,
+                'errors' => $a2uiErrors !== [] ? $a2uiErrors : null,
+                'meta' => $meta,
+            ])->save();
             $this->taskPushNotificationDispatcher->dispatchTaskUpdate($message, 'completed');
 
             return [
@@ -145,7 +159,7 @@ class A2aMethodRouter
             channel: $channel,
             thread: $thread,
             actor: $user,
-            body: $content,
+            text: $content,
             attachments: collect(),
             source: 'agent_prompt',
             dispatchObservers: false,
@@ -155,7 +169,17 @@ class A2aMethodRouter
         $meta['a2a_task_id'] = $taskId;
         $meta['a2a_source'] = 'jsonrpc';
         $meta['a2a_owner'] = $this->resolveAuthenticatedOwner();
-        $message->forceFill(['meta' => $meta])->save();
+        if (is_array($a2uiClientCapabilities)) {
+            $meta['a2ui_client_capabilities'] = $a2uiClientCapabilities;
+        }
+        if ($a2uiClientDataModel !== null) {
+            $meta['a2ui_client_data_model'] = $a2uiClientDataModel;
+        }
+        $message->forceFill([
+            'actions' => $a2uiActions !== [] ? $a2uiActions : null,
+            'errors' => $a2uiErrors !== [] ? $a2uiErrors : null,
+            'meta' => $meta,
+        ])->save();
         $this->taskPushNotificationDispatcher->dispatchTaskUpdate($message, 'submitted');
 
         $broadcastChannelId = "threads.{$thread->uuid}";
@@ -200,16 +224,11 @@ class A2aMethodRouter
         $thread = $this->resolveMessageThread($promptMessage);
         $invocations = is_array(data_get($promptMessage->meta, 'invocations')) ? data_get($promptMessage->meta, 'invocations') : [];
         $assistantReplies = $this->assistantRepliesForPrompt($thread, $promptMessage);
+        $promptPayload = $this->messagePayload($promptMessage);
 
         $state = $this->resolveTaskState($invocations, $assistantReplies);
         $artifacts = $assistantReplies
-            ->map(fn (Message $message): array => [
-                'id' => $message->ulid,
-                'kind' => 'text',
-                'actor_key' => data_get($message->meta, 'actor_key'),
-                'text' => $message->body,
-                'created_at' => optional($message->created_at)?->toIso8601String(),
-            ])
+            ->map(fn (Message $message): array => $this->toTaskArtifactPayload($message))
             ->values()
             ->all();
 
@@ -241,6 +260,7 @@ class A2aMethodRouter
                     'prompt_message_ulid' => $promptMessage->ulid,
                     'prompt_message_id' => $promptMessage->id,
                     'invocations' => $invocationStates,
+                    'payload' => $promptPayload,
                 ],
                 artifacts: $artifacts,
             ),
@@ -658,9 +678,7 @@ class A2aMethodRouter
      */
     protected function resolveContent(array $params): ?string
     {
-        $direct = $this->trimmedString($params['body'] ?? null)
-            ?? $this->trimmedString($params['content'] ?? null)
-            ?? $this->trimmedString($params['text'] ?? null);
+        $direct = $this->trimmedString(data_get($params, 'content.text'));
 
         if ($direct) {
             return $direct;
@@ -685,6 +703,454 @@ class A2aMethodRouter
             if ($text) {
                 return $text;
             }
+
+            $a2uiSummary = $this->resolveA2uiSummaryFromPart($part);
+            if ($a2uiSummary !== null) {
+                return $a2uiSummary;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $part
+     */
+    protected function resolveA2uiSummaryFromPart(array $part): ?string
+    {
+        if (! $this->isA2uiDataPart($part)) {
+            return null;
+        }
+
+        $payload = $part['data'] ?? null;
+
+        if (! is_array($payload)) {
+            return null;
+        }
+
+        if ($this->isAssoc($payload)) {
+            $summary = $this->resolveA2uiSummaryFromEntry($payload);
+            if ($summary !== null) {
+                return $summary;
+            }
+        }
+
+        foreach ($payload as $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            $summary = $this->resolveA2uiSummaryFromEntry($entry);
+
+            if ($summary !== null) {
+                return $summary;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $entry
+     */
+    protected function resolveA2uiSummaryFromEntry(array $entry): ?string
+    {
+        $action = $entry['userAction'] ?? $entry['action'] ?? null;
+        if (is_array($action)) {
+            $normalizedAction = $this->normalizeA2uiAction($action);
+            $actionName = $this->trimmedString($normalizedAction['name'] ?? null);
+
+            if ($actionName !== null) {
+                return "A2UI action: {$actionName}";
+            }
+
+            return 'A2UI action submitted.';
+        }
+
+        $error = $entry['error'] ?? null;
+        if (is_array($error)) {
+            $normalizedError = $this->normalizeA2uiError($error);
+            $errorMessage = $this->trimmedString($normalizedError['message'] ?? null);
+            $errorCode = $this->trimmedString($normalizedError['code'] ?? null);
+
+            if ($errorMessage !== null) {
+                return "A2UI error: {$errorMessage}";
+            }
+
+            if ($errorCode !== null) {
+                return "A2UI error code: {$errorCode}";
+            }
+
+            return 'A2UI error reported.';
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     * @return array<string, mixed>|null
+     */
+    protected function resolveA2uiClientCapabilities(array $params): ?array
+    {
+        $capabilities = data_get($params, 'metadata.a2uiClientCapabilities');
+
+        if (! is_array($capabilities)) {
+            $capabilities = data_get($params, 'message.metadata.a2uiClientCapabilities');
+        }
+
+        if (! is_array($capabilities)) {
+            $capabilities = data_get($params, 'extra.a2ui.config.a2uiClientCapabilities');
+        }
+
+        if (! is_array($capabilities)) {
+            return null;
+        }
+
+        return $capabilities;
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     */
+    protected function resolveA2uiClientDataModel(array $params): ?string
+    {
+        $model = $this->trimmedString(
+            data_get($params, 'metadata.a2uiClientDataModel')
+            ?? data_get($params, 'message.metadata.a2uiClientDataModel')
+            ?? data_get($params, 'extra.a2ui.config.a2uiClientDataModel')
+        );
+
+        return $model;
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     * @return array<int, array<string, mixed>>
+     */
+    protected function resolveA2uiActions(array $params): array
+    {
+        $actions = collect(data_get($params, 'content.actions', []))
+            ->map(fn (mixed $action): ?array => is_array($action) ? $this->normalizeA2uiAction($action) : null)
+            ->filter(fn (mixed $entry): bool => is_array($entry))
+            ->values()
+            ->all();
+        $parts = data_get($params, 'message.parts');
+
+        if (! is_array($parts)) {
+            return $actions;
+        }
+
+        foreach ($parts as $part) {
+            if (! is_array($part) || ! $this->isA2uiDataPart($part)) {
+                continue;
+            }
+
+            $payload = $part['data'] ?? null;
+
+            if (! is_array($payload)) {
+                continue;
+            }
+
+            if ($this->isAssoc($payload)) {
+                $entryActions = $this->resolveA2uiActionsFromEntry($payload);
+                $actions = [...$actions, ...$entryActions];
+
+                continue;
+            }
+
+            foreach ($payload as $entry) {
+                if (! is_array($entry)) {
+                    continue;
+                }
+
+                $entryActions = $this->resolveA2uiActionsFromEntry($entry);
+                $actions = [...$actions, ...$entryActions];
+            }
+        }
+
+        return collect($actions)
+            ->filter(fn (mixed $entry): bool => is_array($entry))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     * @return array<int, array<string, mixed>>
+     */
+    protected function resolveA2uiErrors(array $params): array
+    {
+        $errors = collect(data_get($params, 'content.errors', []))
+            ->map(fn (mixed $error): ?array => is_array($error) ? $this->normalizeA2uiError($error) : null)
+            ->filter(fn (mixed $entry): bool => is_array($entry))
+            ->values()
+            ->all();
+        $parts = data_get($params, 'message.parts');
+
+        if (! is_array($parts)) {
+            return $errors;
+        }
+
+        foreach ($parts as $part) {
+            if (! is_array($part) || ! $this->isA2uiDataPart($part)) {
+                continue;
+            }
+
+            $payload = $part['data'] ?? null;
+
+            if (! is_array($payload)) {
+                continue;
+            }
+
+            if ($this->isAssoc($payload)) {
+                $entryErrors = $this->resolveA2uiErrorsFromEntry($payload);
+                $errors = [...$errors, ...$entryErrors];
+
+                continue;
+            }
+
+            foreach ($payload as $entry) {
+                if (! is_array($entry)) {
+                    continue;
+                }
+
+                $entryErrors = $this->resolveA2uiErrorsFromEntry($entry);
+                $errors = [...$errors, ...$entryErrors];
+            }
+        }
+
+        return collect($errors)
+            ->filter(fn (mixed $entry): bool => is_array($entry))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $entry
+     * @return array<int, array<string, mixed>>
+     */
+    protected function resolveA2uiActionsFromEntry(array $entry): array
+    {
+        $actions = [];
+
+        $action = $entry['userAction'] ?? $entry['action'] ?? null;
+
+        if (is_array($action)) {
+            $normalizedAction = $this->normalizeA2uiAction($action);
+            if (is_array($normalizedAction)) {
+                $actions[] = $normalizedAction;
+            }
+        } elseif ($this->looksLikeAction($entry)) {
+            $normalizedAction = $this->normalizeA2uiAction($entry);
+            if (is_array($normalizedAction)) {
+                $actions[] = $normalizedAction;
+            }
+        }
+
+        return $actions;
+    }
+
+    /**
+     * @param  array<string, mixed>  $entry
+     * @return array<int, array<string, mixed>>
+     */
+    protected function resolveA2uiErrorsFromEntry(array $entry): array
+    {
+        $errors = [];
+        $error = $entry['error'] ?? null;
+
+        if (! is_array($error)) {
+            return $errors;
+        }
+
+        $normalizedError = $this->normalizeA2uiError($error);
+        if (is_array($normalizedError)) {
+            $errors[] = $normalizedError;
+        }
+
+        return $errors;
+    }
+
+    /**
+     * @param  array<string, mixed>  $action
+     * @return array<string, mixed>|null
+     */
+    protected function normalizeA2uiAction(array $action): ?array
+    {
+        $protocol = $this->trimmedString($action['protocol'] ?? null) ?? 'a2ui';
+        $name = $this->trimmedString($action['name'] ?? $action['type'] ?? null);
+        $id = $this->trimmedString($action['id'] ?? null);
+        $surfaceId = $this->trimmedString($action['surfaceId'] ?? null);
+        $sourceComponentId = $this->trimmedString($action['sourceComponentId'] ?? null);
+        $timestamp = $this->trimmedString($action['timestamp'] ?? null);
+        $context = $this->normalizeAssocArray($action['context'] ?? null);
+        $values = $this->normalizeAssocArray($action['values'] ?? null);
+
+        if ($name === null && $id === null && $surfaceId === null && $sourceComponentId === null && $timestamp === null && $context === [] && $values === []) {
+            return null;
+        }
+
+        return array_filter([
+            'protocol' => $protocol,
+            'name' => $name,
+            'id' => $id,
+            'surfaceId' => $surfaceId,
+            'sourceComponentId' => $sourceComponentId,
+            'timestamp' => $timestamp,
+            'context' => $context,
+            'values' => $values,
+        ], fn (mixed $value): bool => $value !== null);
+    }
+
+    /**
+     * @param  array<string, mixed>  $error
+     * @return array<string, mixed>|null
+     */
+    protected function normalizeA2uiError(array $error): ?array
+    {
+        $protocol = $this->trimmedString($error['protocol'] ?? null) ?? 'a2ui';
+        $code = $this->trimmedString($error['code'] ?? null);
+        $path = $this->trimmedString($error['path'] ?? null);
+        $message = $this->trimmedString($error['message'] ?? null);
+        $userActionRaw = $error['userAction'] ?? null;
+        $userAction = is_array($userActionRaw) ? $this->normalizeA2uiAction($userActionRaw) : null;
+
+        if ($code === null && $path === null && $message === null && ! is_array($userAction)) {
+            return null;
+        }
+
+        return array_filter([
+            'protocol' => $protocol,
+            'code' => $code,
+            'path' => $path,
+            'message' => $message,
+            'userAction' => $userAction,
+        ], fn (mixed $value): bool => $value !== null);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function normalizeAssocArray(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return $this->isAssoc($value) ? $value : [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $part
+     */
+    protected function isA2uiDataPart(array $part): bool
+    {
+        $kind = $this->trimmedString($part['kind'] ?? null);
+        $mimeType = $this->trimmedString(data_get($part, 'metadata.mimeType'));
+
+        if ($kind !== 'data') {
+            return false;
+        }
+
+        return $mimeType === 'application/json+a2ui';
+    }
+
+    /**
+     * @param  array<string, mixed>  $value
+     */
+    protected function isAssoc(array $value): bool
+    {
+        if ($value === []) {
+            return false;
+        }
+
+        return array_keys($value) !== range(0, count($value) - 1);
+    }
+
+    /**
+     * @param  array<string, mixed>  $value
+     */
+    protected function looksLikeAction(array $value): bool
+    {
+        return $this->trimmedString($value['name'] ?? $value['type'] ?? null) !== null
+            || $this->trimmedString($value['id'] ?? null) !== null;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    protected function messagePayload(Message $message): ?array
+    {
+        $surface = data_get($message->meta, 'a2ui');
+        $surface = is_array($surface) ? $surface : null;
+        $actions = is_array($message->actions) ? $message->actions : [];
+        $errors = is_array($message->errors) ? $message->errors : [];
+        $dataModel = $this->trimmedString(data_get($message->meta, 'a2ui_client_data_model'));
+        $capabilities = data_get($message->meta, 'a2ui_client_capabilities');
+        $capabilities = is_array($capabilities) ? $capabilities : null;
+
+        if ($surface === null && $actions === [] && $errors === [] && $dataModel === null && $capabilities === null) {
+            return null;
+        }
+
+        return [
+            'protocol' => 'a2ui',
+            'surface' => $surface,
+            'actions' => $actions,
+            'errors' => $errors,
+            'config' => [
+                'a2uiClientDataModel' => $dataModel,
+                'a2uiClientCapabilities' => $capabilities,
+            ],
+            'data_model' => $dataModel,
+            'capabilities' => $capabilities,
+        ];
+    }
+
+    protected function toTaskArtifactPayload(Message $message): array
+    {
+        $artifact = [
+            'id' => $message->ulid,
+            'kind' => 'text',
+            'actor_key' => data_get($message->meta, 'actor_key'),
+            'text' => $message->text,
+            'created_at' => optional($message->created_at)?->toIso8601String(),
+        ];
+
+        $a2uiPayload = $this->resolveA2uiAssistantPayload($message);
+
+        if (is_array($a2uiPayload)) {
+            $dataModel = $this->trimmedString(data_get($message->meta, 'a2ui_client_data_model'));
+            $capabilities = data_get($message->meta, 'a2ui_client_capabilities');
+            $capabilities = is_array($capabilities) ? $capabilities : null;
+
+            $artifact['parts'] = [[
+                'kind' => 'data',
+                'data' => $a2uiPayload,
+                'metadata' => [
+                    'mimeType' => 'application/json+a2ui',
+                    'protocol' => 'a2ui',
+                    'config' => [
+                        'a2uiClientDataModel' => $dataModel,
+                        'a2uiClientCapabilities' => $capabilities,
+                    ],
+                ],
+            ]];
+        }
+
+        return $artifact;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    protected function resolveA2uiAssistantPayload(Message $message): ?array
+    {
+        $payload = data_get($message->meta, 'a2ui');
+
+        if (is_array($payload)) {
+            return $payload;
         }
 
         return null;

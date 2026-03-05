@@ -17,6 +17,11 @@ return [
             'push_notifications' => (bool) env('A2A_PUSH_NOTIFICATIONS_ENABLED', true),
             'history' => true,
         ],
+        'a2ui' => [
+            'enabled' => (bool) env('A2A_A2UI_ENABLED', true),
+            'uri' => env('A2A_A2UI_URI', 'https://a2ui.org/specification/v0.8-a2ui/'),
+            'required' => (bool) env('A2A_A2UI_REQUIRED', false),
+        ],
         'auth' => [
             'method_abilities' => [
                 'message/send' => 'a2a:message.send',

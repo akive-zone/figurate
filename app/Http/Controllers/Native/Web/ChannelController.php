@@ -187,7 +187,7 @@ class ChannelController extends Controller
                 if (is_array($latestRawMessage)) {
                     $latestMessage = [
                         'id' => $this->pick($latestRawMessage, ['id']),
-                        'body' => $this->pick($latestRawMessage, ['body']),
+                        'text' => $this->pick($latestRawMessage, ['text']),
                         'created_at' => $this->pick($latestRawMessage, ['createdAt', 'created_at']),
                         'sender_name' => null,
                     ];
@@ -251,7 +251,7 @@ class ChannelController extends Controller
                 return [
                     'id' => $this->pick($message, ['id']),
                     'sender_name' => null,
-                    'content' => $this->pick($message, ['body']),
+                    'content' => $this->pick($message, ['text']),
                     'attachments' => $this->pick($message, ['attachments'], []),
                     'created_at' => $this->pick($message, ['createdAt', 'created_at']),
                 ];

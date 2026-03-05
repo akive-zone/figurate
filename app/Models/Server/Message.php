@@ -26,7 +26,9 @@ class Message extends Model implements HasMedia
         'senderable_type',
         'senderable_id',
         'type',
-        'body',
+        'text',
+        'actions',
+        'errors',
         'attachments',
         'meta',
     ];
@@ -38,6 +40,8 @@ class Message extends Model implements HasMedia
     {
         return [
             'attachments' => 'array',
+            'actions' => 'array',
+            'errors' => 'array',
             'meta' => 'array',
         ];
     }

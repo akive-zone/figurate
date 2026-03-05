@@ -91,7 +91,7 @@ class ProcessThreadObservers implements ShouldQueue
             ) {
                 $updatedMeta['moderation_status'] = 'blocked';
                 $updatedMeta['observer_flags'][] = $threadActor->actorReference();
-                $message->body = '[Message removed by safety policy]';
+                $message->text = '[Message removed by safety policy]';
                 $messageChanged = true;
             }
         }
@@ -113,7 +113,7 @@ class ProcessThreadObservers implements ShouldQueue
         try {
             $rawResult = $observerTool->handle(new ToolRequest([
                 'message_id' => $message->id,
-                'message_body' => $message->body,
+                'message_body' => $message->text,
                 'actor_key' => $threadActor->actorReference(),
                 'attachments' => collect($message->attachments ?? [])
                     ->map(fn (mixed $item): string => is_array($item) ? ($item['name'] ?? 'file') : 'file')

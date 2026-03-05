@@ -51,6 +51,6 @@ use App\Models\Server\Message as MessageModel;
 #[QueryParameter(key: 'messageable_id', filter: EqualsFilter::class, property: 'messageable_id')]
 #[QueryParameter(key: 'senderable_type', filter: EqualsFilter::class, property: 'senderable_type')]
 #[QueryParameter(key: 'senderable_id', filter: EqualsFilter::class, property: 'senderable_id')]
-#[QueryParameter(key: 'body', filter: PartialSearchFilter::class, property: 'body')]
+#[QueryParameter(key: 'text', filter: PartialSearchFilter::class, property: 'text')]
 #[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
 final class MessageResource {}

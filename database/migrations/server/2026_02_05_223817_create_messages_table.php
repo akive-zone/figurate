@@ -16,11 +16,13 @@ return new class extends Migration
             $table->ulid('ulid')->unique();
             $table->morphs('messageable');
             $table->nullableMorphs('senderable');
-            $table->string('type')->default('text');
+            $table->string('type')->nullable();
             $table->string('tag')->nullable();
-            $table->text('body')->nullable();
+            $table->text('text')->nullable();
             $table->json('attachments')->nullable();
-            $table->json('meta')->nullable();
+            $table->json('actions')->nullable();
+            $table->json('errors')->nullable();
+            $table->jsonb('meta')->nullable();
             $table->timestamps();
             $table->softDeletes();
 

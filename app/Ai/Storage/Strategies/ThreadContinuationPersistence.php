@@ -170,7 +170,7 @@ class ThreadContinuationPersistence implements ThreadConversationPersistence
                 ->values()
                 ->map(fn (ThreadMessageModel $message): Message => new Message(
                     $message->senderable_type === null ? 'assistant' : 'user',
-                    is_string($message->body) ? $message->body : '',
+                    is_string($message->text) ? $message->text : '',
                 ));
         }
 

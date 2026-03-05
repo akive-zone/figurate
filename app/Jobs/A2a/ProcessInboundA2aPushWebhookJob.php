@@ -196,7 +196,7 @@ class ProcessInboundA2aPushWebhookJob extends ProcessWebhookJob
         return $storeThreadMessage(
             thread: $thread,
             sender: null,
-            body: $body,
+            text: $body,
             meta: [
                 'source' => 'a2a_remote_response',
                 'remote_agent_id' => $remoteAgentId,

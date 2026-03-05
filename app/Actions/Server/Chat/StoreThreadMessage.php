@@ -14,7 +14,7 @@ class StoreThreadMessage
     public function __invoke(
         Thread $thread,
         ?User $sender,
-        ?string $body,
+        ?string $text,
         array $meta = [],
         string $type = 'text',
         ?string $tag = null,
@@ -24,7 +24,7 @@ class StoreThreadMessage
             'senderable_id' => $sender?->getKey(),
             'type' => $type,
             'tag' => $tag,
-            'body' => $body,
+            'text' => $text,
             'attachments' => null,
             'meta' => $meta,
         ]);

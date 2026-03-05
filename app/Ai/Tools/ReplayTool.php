@@ -41,7 +41,7 @@ class ReplayTool implements Tool
                 ->map(fn ($message): array => [
                     'id' => $message->id,
                     'role' => $message->senderable_id ? 'user' : 'assistant',
-                    'content' => (string) $message->body,
+                    'content' => (string) $message->text,
                 ])
                 ->all();
 

@@ -111,8 +111,8 @@ class ChannelController extends Controller
                             'sender_name' => null,
                             'source' => data_get($message->meta, 'source'),
                             'is_agent' => data_get($message->meta, 'source') === 'agent_response',
-                            'content' => $message->body,
-                            'attachments' => is_array($message->attachments) ? $message->attachments : [],
+                            'content' => $this->messageContent($message),
+                            'extra' => $this->messageExtra($message),
                             'created_at' => optional($message->created_at)?->toIso8601String(),
                         ];
                     })
@@ -254,7 +254,8 @@ class ChannelController extends Controller
         if ($latestMessageModel) {
             $latestMessage = [
                 'id' => $latestMessageModel->id,
-                'body' => $latestMessageModel->body,
+                'content' => $this->messageContent($latestMessageModel),
+                'extra' => $this->messageExtra($latestMessageModel),
                 'created_at' => optional($latestMessageModel->created_at)?->toIso8601String(),
                 'sender_name' => null,
             ];
@@ -262,7 +263,7 @@ class ChannelController extends Controller
 
         return [
             'id' => $channel->uuid,
-            'name' => $this->inferChatName($channel, $threads, $latestMessageModel?->body),
+            'name' => $this->inferChatName($channel, $threads, $latestMessageModel?->text),
             'channel' => [
                 'id' => $channel->uuid,
                 'status' => $channel->status ?? 'open',
@@ -395,5 +396,55 @@ class ChannelController extends Controller
         }
 
         return null;
+    }
+
+    protected function trimmedString(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return $trimmed === '' ? null : $trimmed;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function messageContent(Message $message): array
+    {
+        return [
+            'text' => is_string($message->text) ? $message->text : '',
+            'attachments' => is_array($message->attachments) ? $message->attachments : [],
+            'actions' => is_array($message->actions) ? $message->actions : [],
+            'errors' => is_array($message->errors) ? $message->errors : [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    protected function messageExtra(Message $message): ?array
+    {
+        $surface = data_get($message->meta, 'a2ui');
+        $surface = is_array($surface) ? $surface : null;
+        $dataModel = $this->trimmedString(data_get($message->meta, 'a2ui_client_data_model'));
+        $capabilities = data_get($message->meta, 'a2ui_client_capabilities');
+        $capabilities = is_array($capabilities) ? $capabilities : null;
+
+        if ($surface === null && $dataModel === null && $capabilities === null) {
+            return null;
+        }
+
+        return [
+            'a2ui' => [
+                'surface' => $surface,
+                'config' => [
+                    'a2uiClientDataModel' => $dataModel,
+                    'a2uiClientCapabilities' => $capabilities,
+                ],
+            ],
+        ];
     }
 }

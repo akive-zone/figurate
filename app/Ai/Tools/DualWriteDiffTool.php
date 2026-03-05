@@ -46,7 +46,7 @@ class DualWriteDiffTool implements Tool
             ->get()
             ->reverse()
             ->values()
-            ->map(fn ($message): string => trim((string) $message->body))
+            ->map(fn ($message): string => trim((string) $message->text))
             ->all();
 
         $conversationRows = DB::table('agent_conversation_messages')

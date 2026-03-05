@@ -37,7 +37,7 @@ class ContextBudgetTool implements Tool
             ->get()
             ->reverse()
             ->values()
-            ->map(fn ($message): string => (string) $message->body)
+            ->map(fn ($message): string => (string) $message->text)
             ->implode("\n");
 
         $session = ThreadActorSession::query()

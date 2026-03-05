@@ -92,10 +92,10 @@ class SafetyGuardObserver implements Tool
             'observer_actor' => $this->threadActor->actorReference(),
             'message' => [
                 'id' => $request->integer('message_id') ?: $this->message->id,
-                'body' => $request->string('message_body')->toString() ?: $this->message->body,
+                'body' => $request->string('message_body')->toString() ?: $this->message->text,
                 'attachments' => $request->array('attachments') ?: $attachments,
             ],
-        ], JSON_PRETTY_PRINT) ?: (string) $this->message->body;
+        ], JSON_PRETTY_PRINT) ?: (string) $this->message->text;
     }
 
     /**
@@ -149,7 +149,7 @@ class SafetyGuardObserver implements Tool
      */
     protected function fallbackKeywordRules(Message $message): array
     {
-        $content = mb_strtolower($message->body);
+        $content = mb_strtolower($message->text);
 
         foreach ($this->blockedKeywords as $keyword) {
             if (str_contains($content, $keyword)) {

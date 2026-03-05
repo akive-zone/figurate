@@ -52,7 +52,7 @@ class ChatAgentExecutor
             return;
         }
 
-        $content = is_string($userMessage->body) ? trim($userMessage->body) : '';
+        $content = is_string($userMessage->text) ? trim($userMessage->text) : '';
 
         if ($content === '') {
             return;
@@ -245,21 +245,23 @@ class ChatAgentExecutor
         }
 
         $assistantText = is_string($response->text) ? trim($response->text) : '';
+        [$assistantText, $assistantA2ui] = $this->extractAssistantA2uiPayload($assistantText);
 
-        if ($assistantText === '') {
+        if ($assistantText === '' && ! is_array($assistantA2ui)) {
             return;
         }
 
         $assistantMessage = ($this->storeThreadMessage)(
             thread: $thread,
             sender: null,
-            body: $assistantText,
+            text: $assistantText !== '' ? $assistantText : 'Interactive step ready.',
             meta: [
                 'source' => 'agent_response',
                 'actor_key' => $threadActor->actorName(),
                 'conversation_id' => $response->conversationId ?? $session->conversation_id,
                 'in_reply_to_message_id' => $userMessage->id,
                 'invocation_id' => $response->invocationId,
+                'a2ui' => is_array($assistantA2ui) ? $assistantA2ui : null,
             ],
         );
 
@@ -454,5 +456,241 @@ class ChatAgentExecutor
         $status = data_get($userMessage->meta, "invocations.{$actorKey}.status");
 
         return is_string($status) && $status === 'canceled';
+    }
+
+    /**
+     * @return array{0: string, 1: array<string, mixed>|null}
+     */
+    protected function extractAssistantA2uiPayload(string $assistantText): array
+    {
+        $decoded = $this->decodePossibleJsonObject($assistantText);
+
+        if (! is_array($decoded)) {
+            return [$assistantText, null];
+        }
+
+        $payload = is_array($decoded['a2ui'] ?? null) ? $decoded['a2ui'] : null;
+
+        if (! is_array($payload) && $this->looksLikeA2uiPayload($decoded)) {
+            $payload = $decoded;
+        }
+
+        if (! is_array($payload)) {
+            return [$assistantText, null];
+        }
+
+        $resolvedText = $this->resolvedAssistantTextFromDecodedPayload($decoded, $assistantText);
+        $payload = $this->normalizeAssistantA2uiPayload($payload);
+
+        if (! is_array($payload)) {
+            return [$assistantText, null];
+        }
+
+        return [$resolvedText, $payload];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    protected function decodePossibleJsonObject(string $assistantText): ?array
+    {
+        $trimmed = trim($assistantText);
+
+        if ($trimmed === '') {
+            return null;
+        }
+
+        $decoded = json_decode($trimmed, true);
+
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+
+        if (! preg_match('/```(?:json)?\s*(\{.*\})\s*```/is', $trimmed, $matches)) {
+            return null;
+        }
+
+        $fencedDecoded = json_decode((string) ($matches[1] ?? ''), true);
+
+        return is_array($fencedDecoded) ? $fencedDecoded : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $decoded
+     */
+    protected function looksLikeA2uiPayload(array $decoded): bool
+    {
+        return array_key_exists('surfaceUpdate', $decoded)
+            || array_key_exists('dataModelUpdate', $decoded)
+            || array_key_exists('beginRendering', $decoded)
+            || array_key_exists('deleteSurface', $decoded);
+    }
+
+    /**
+     * @param  array<string, mixed>  $decoded
+     */
+    protected function resolvedAssistantTextFromDecodedPayload(array $decoded, string $assistantText): string
+    {
+        $candidates = [
+            $decoded['text'] ?? null,
+            $decoded['message'] ?? null,
+            data_get($decoded, 'a2ui.text'),
+            data_get($decoded, 'a2ui.message'),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (! is_string($candidate)) {
+                continue;
+            }
+
+            $trimmed = trim($candidate);
+
+            if ($trimmed !== '') {
+                return $trimmed;
+            }
+        }
+
+        return $this->looksLikeA2uiPayload($decoded) || is_array($decoded['a2ui'] ?? null)
+            ? ''
+            : $assistantText;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>|null
+     */
+    protected function normalizeAssistantA2uiPayload(array $payload): ?array
+    {
+        $normalized = $payload;
+        $hasRecognizedKey = false;
+
+        foreach (['beginRendering', 'surfaceUpdate'] as $key) {
+            if (! is_array($normalized[$key] ?? null)) {
+                continue;
+            }
+
+            $surface = $this->normalizeAssistantA2uiSurface($normalized[$key]);
+
+            if ($surface === null) {
+                unset($normalized[$key]);
+
+                continue;
+            }
+
+            $normalized[$key] = $surface;
+            $hasRecognizedKey = true;
+        }
+
+        if (is_array($normalized['dataModelUpdate'] ?? null) || is_string($normalized['dataModelUpdate'] ?? null)) {
+            $hasRecognizedKey = true;
+        }
+
+        if (is_string($normalized['deleteSurface'] ?? null) && trim($normalized['deleteSurface']) !== '') {
+            $normalized['deleteSurface'] = trim($normalized['deleteSurface']);
+            $hasRecognizedKey = true;
+        }
+
+        if (! $hasRecognizedKey && $this->looksLikeAssistantSurface($normalized)) {
+            $surface = $this->normalizeAssistantA2uiSurface($normalized);
+
+            if ($surface === null) {
+                return null;
+            }
+
+            return ['beginRendering' => $surface];
+        }
+
+        return $hasRecognizedKey ? $normalized : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $surface
+     * @return array<string, mixed>|null
+     */
+    protected function normalizeAssistantA2uiSurface(array $surface): ?array
+    {
+        $surfaceId = is_string($surface['id'] ?? null) ? trim($surface['id']) : '';
+
+        if ($surfaceId === '') {
+            $surfaceId = is_string($surface['surfaceId'] ?? null) ? trim($surface['surfaceId']) : '';
+        }
+
+        if ($surfaceId === '') {
+            $surfaceId = 'surface_'.substr(sha1(json_encode($surface)), 0, 12);
+        }
+
+        $fields = is_array($surface['fields'] ?? null) ? $surface['fields'] : [];
+        $actions = is_array($surface['actions'] ?? null) ? $surface['actions'] : [];
+
+        $normalizedActions = collect($actions)
+            ->map(fn (mixed $action, int $index): ?array => is_array($action) ? $this->normalizeAssistantA2uiAction($action, $index, $surfaceId) : null)
+            ->filter(fn (mixed $action): bool => is_array($action))
+            ->values()
+            ->all();
+
+        if ($normalizedActions === [] && $fields !== []) {
+            $normalizedActions = [[
+                'id' => "{$surfaceId}_submit",
+                'name' => 'submit',
+                'type' => 'submit',
+                'label' => 'Submit',
+            ]];
+        }
+
+        $normalized = $surface;
+        $normalized['id'] = $surfaceId;
+        $normalized['actions'] = $normalizedActions;
+
+        return $normalized;
+    }
+
+    /**
+     * @param  array<string, mixed>  $action
+     * @return array<string, mixed>|null
+     */
+    protected function normalizeAssistantA2uiAction(array $action, int $index, string $surfaceId): ?array
+    {
+        $name = is_string($action['name'] ?? null) && trim($action['name']) !== ''
+            ? trim($action['name'])
+            : null;
+        $type = is_string($action['type'] ?? null) && trim($action['type']) !== ''
+            ? trim($action['type'])
+            : null;
+        $id = is_string($action['id'] ?? null) && trim($action['id']) !== ''
+            ? trim($action['id'])
+            : null;
+
+        if ($id === null) {
+            $id = "{$surfaceId}_action_".($index + 1);
+        }
+
+        if ($name === null && $type === null) {
+            $name = 'submit';
+            $type = 'submit';
+        }
+
+        $sourceComponentId = is_string($action['sourceComponentId'] ?? null) && trim($action['sourceComponentId']) !== ''
+            ? trim($action['sourceComponentId'])
+            : null;
+
+        return array_filter([
+            ...$action,
+            'id' => $id,
+            'name' => $name,
+            'type' => $type,
+            'sourceComponentId' => $sourceComponentId,
+        ], fn (mixed $value): bool => $value !== null);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    protected function looksLikeAssistantSurface(array $payload): bool
+    {
+        return is_array($payload['fields'] ?? null)
+            || is_array($payload['actions'] ?? null)
+            || is_array(data_get($payload, 'schema.fields'))
+            || (is_string($payload['title'] ?? null) && trim($payload['title']) !== '')
+            || (is_string($payload['question'] ?? null) && trim($payload['question']) !== '');
     }
 }
