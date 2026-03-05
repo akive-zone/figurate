@@ -1,8 +1,8 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3';
 import { router } from '@inertiajs/vue3';
-import { computed, onMounted, ref, watch } from 'vue';
-import { fetchChatChatThreads, fetchChatChats } from '../api';
+import { computed, ref } from 'vue';
+import { useChatSidebar } from '../composables/useChatSidebar';
 
 const props = defineProps({
     channels: {
@@ -153,102 +153,12 @@ const handleThreadClick = (chat, thread) => {
     });
 };
 
-const sidebarChannels = ref(props.channels ?? []);
-const loadingMoreThreadsByChat = ref({});
-
-watch(
-    () => props.channels,
-    (value) => {
-        sidebarChannels.value = value ?? [];
-    },
-    { deep: true },
-);
-
-const refreshSidebarChats = async () => {
-    try {
-        const payloadResponse = await fetchChatChats(runtime.value);
-        const payload = payloadResponse?.data;
-        if (Array.isArray(payload)) {
-            sidebarChannels.value = payload;
-        }
-    } catch {
-        // Keep page-provided fallback data when request fails.
-    }
-};
-
-const canLoadMoreThreads = (chat) => {
-    const cursor = (chat?.threads_meta?.next_cursor ?? '').toString().trim();
-
-    return cursor !== '';
-};
-
-const isLoadingMoreThreads = (chatId) => loadingMoreThreadsByChat.value[chatId] === true;
-
-const mergeThreads = (existingThreads, incomingThreads) => {
-    const existing = Array.isArray(existingThreads) ? existingThreads : [];
-    const incoming = Array.isArray(incomingThreads) ? incomingThreads : [];
-    const seen = new Set();
-    const merged = [];
-
-    [...existing, ...incoming].forEach((thread) => {
-        const id = (thread?.id ?? '').toString().trim();
-        if (id === '' || seen.has(id)) {
-            return;
-        }
-
-        seen.add(id);
-        merged.push(thread);
-    });
-
-    return merged;
-};
-
-const loadMoreThreads = async (chat) => {
-    const chatId = (chat?.id ?? '').toString().trim();
-    const cursor = (chat?.threads_meta?.next_cursor ?? '').toString().trim();
-
-    if (chatId === '' || cursor === '' || isLoadingMoreThreads(chatId)) {
-        return;
-    }
-
-    loadingMoreThreadsByChat.value = {
-        ...loadingMoreThreadsByChat.value,
-        [chatId]: true,
-    };
-
-    try {
-        const payload = await fetchChatChatThreads(chatId, runtime.value, { cursor });
-        const nextThreads = Array.isArray(payload?.data) ? payload.data : [];
-        const nextMeta = payload?.meta ?? {};
-
-        sidebarChannels.value = sidebarChannels.value.map((item) => {
-            if (item?.id !== chatId) {
-                return item;
-            }
-
-            return {
-                ...item,
-                threads: mergeThreads(item.threads, nextThreads),
-                threads_meta: {
-                    next_cursor: nextMeta.next_cursor ?? null,
-                    prev_cursor: nextMeta.prev_cursor ?? null,
-                    per_page: nextMeta.per_page ?? item?.threads_meta?.per_page ?? 5,
-                },
-            };
-        });
-    } catch {
-        // Keep existing threads list when request fails.
-    } finally {
-        loadingMoreThreadsByChat.value = {
-            ...loadingMoreThreadsByChat.value,
-            [chatId]: false,
-        };
-    }
-};
-
-onMounted(() => {
-    refreshSidebarChats();
-});
+const {
+    sidebarChannels,
+    canLoadMoreThreads,
+    isLoadingMoreThreads,
+    loadMoreThreads,
+} = useChatSidebar(runtime, computed(() => props.channels ?? []));
 
 const continueWithPasskey = async () => {
     passkeyLoginError.value = '';

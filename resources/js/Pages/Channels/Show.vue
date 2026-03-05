@@ -3,9 +3,10 @@ import ChatLayout from '../../Layouts/ChatLayout.vue';
 import AgentWorkspacePanel from './AgentWorkspacePanel.vue';
 import ChannelTimelinePanel from './ChannelTimelinePanel.vue';
 import HumanChatPanel from './HumanChatPanel.vue';
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed, reactive, ref, watch } from 'vue';
-import { createChatThread, fetchChatChannelPosts, fetchChatMessageTurns, fetchChatThreadMessages, sendChatChatMessage } from '../../api';
+import { chatDataService } from '../../services/chatDataService';
+import { inertiaNavigationService } from '../../services/inertiaNavigationService';
 import { useThreadEcho } from '../../composables/useThreadEcho';
 
 const props = defineProps({
@@ -13,13 +14,21 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    channelId: {
+        type: String,
+        default: '',
+    },
+    threadId: {
+        type: String,
+        default: null,
+    },
     channel: {
         type: Object,
         default: null,
     },
 });
 
-const activeChannel = computed(() => props.channel);
+const activeChannel = ref(null);
 const page = usePage();
 const runtime = computed(() => page.props.runtime ?? {});
 const chatRoutes = computed(() => runtime.value.routes ?? {});
@@ -66,6 +75,59 @@ const embedPanelSuccessFromPath = ref('');
 const embedPanelSuccessPathPrefix = ref('');
 const embedPanelReloadOnSuccess = ref(false);
 
+const deriveSuggestedOpenThreads = (threads = []) => {
+    const list = Array.isArray(threads) ? threads : [];
+    const latestAgentThread = list.find((thread) => ['agent', 'mixed'].includes((thread?.nature ?? '').toString().toLowerCase()));
+    const latestHumanThread = list.find((thread) => ['human', 'mixed'].includes((thread?.nature ?? '').toString().toLowerCase()));
+    const suggested = [latestAgentThread?.id, latestHumanThread?.id].filter((id, index, all) => id && all.indexOf(id) === index);
+
+    if (suggested.length === 0 && list.length > 0) {
+        suggested.push(list[0].id);
+    }
+
+    return suggested;
+};
+
+const loadActiveChannel = async () => {
+    const channelId = (props.channelId ?? props.channel?.id ?? '').toString().trim();
+
+    if (channelId === '') {
+        activeChannel.value = null;
+        return;
+    }
+
+    try {
+        const chatsPayload = await chatDataService.listChats(runtime.value);
+        const chats = Array.isArray(chatsPayload?.data) ? chatsPayload.data : [];
+        const matched = chats.find((chat) => (chat?.id ?? '').toString() === channelId);
+
+        if (!matched) {
+            activeChannel.value = null;
+            return;
+        }
+
+        const threadsPayload = await chatDataService.listChatThreads(channelId, runtime.value);
+        const threads = Array.isArray(threadsPayload?.data) ? threadsPayload.data : (Array.isArray(matched?.threads) ? matched.threads : []);
+        const requestedThreadId = (props.threadId ?? '').toString().trim();
+        const defaultThreadId = (matched?.channel?.active_thread_id ?? '').toString().trim();
+        const resolvedThreadId = requestedThreadId !== ''
+            ? requestedThreadId
+            : (defaultThreadId !== '' ? defaultThreadId : ((threads[0]?.id ?? '').toString().trim() || null));
+
+        activeChannel.value = {
+            id: channelId,
+            status: (matched?.channel?.status ?? 'open').toString(),
+            threads,
+            active_thread: resolvedThreadId,
+            suggested_open_threads: deriveSuggestedOpenThreads(threads),
+            channel_feed: [],
+            thread_messages: [],
+        };
+    } catch {
+        activeChannel.value = null;
+    }
+};
+
 const makeClientMessageId = () => {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
         return crypto.randomUUID();
@@ -97,7 +159,7 @@ const submitPrompt = async (targetThreadId = null) => {
     const threadId = targetThreadId || activeThreadId.value;
 
     try {
-        const response = await sendChatChatMessage({
+        const response = await chatDataService.sendMessage({
             channel: activeChannel.value.id,
             thread: threadId ?? null,
             content: {
@@ -274,7 +336,7 @@ const loadChannelPosts = async () => {
     channelPostsError.value = '';
 
     try {
-        const payload = await fetchChatChannelPosts(activeChannel.value.id, runtime.value);
+        const payload = await chatDataService.listChannelPosts(activeChannel.value.id, runtime.value);
         channelPosts.value = Array.isArray(payload?.data)
             ? payload.data.map((item) => (item?.kind === 'message' ? normalizeThreadMessage(item) : item))
             : [];
@@ -294,7 +356,7 @@ const loadThreadMessages = async (threadId) => {
     threadLoadError.value = '';
 
     try {
-        const payload = await fetchChatThreadMessages(threadId, runtime.value);
+        const payload = await chatDataService.listThreadMessages(threadId, runtime.value);
         workspaceMessages.value[threadId] = Array.isArray(payload?.data)
             ? payload.data.map((item) => normalizeThreadMessage(item))
             : [];
@@ -341,13 +403,13 @@ const handleOpenThread = ({ threadId, thread }) => {
     }
 
     if (threadId !== activeThreadId.value) {
-        router.visit(chatChannelThreadUrl(activeChannel.value.id, threadId), {
-            preserveScroll: true,
-            preserveState: true,
-            only: ['channel'],
-        });
+        inertiaNavigationService.visitPreservingState(chatChannelThreadUrl(activeChannel.value.id, threadId));
     }
 
+    activeChannel.value = {
+        ...activeChannel.value,
+        active_thread: threadId,
+    };
     loadThreadMessages(threadId);
 };
 
@@ -368,19 +430,16 @@ const handleCreateThread = async () => {
     if (!title) return;
 
     try {
-        const response = await createChatThread(activeChannel.value.id, {
+        const response = await chatDataService.createThread(activeChannel.value.id, {
             title: title,
             purpose: 'execution',
             nature: 'human'
         }, runtime.value);
 
         if (response?.data) {
-            router.reload({
-                only: ['channel'],
-                onSuccess: () => {
-                    handleOpenThread({ threadId: response.data.id, thread: response.data });
-                }
-            });
+            await loadActiveChannel();
+            handleOpenThread({ threadId: response.data.id, thread: response.data });
+            inertiaNavigationService.visitPreservingState(chatChannelThreadUrl(activeChannel.value.id, response.data.id));
         }
     } catch (error) {
         alert('Failed to create workstream.');
@@ -430,7 +489,7 @@ const loadTurnsForMessage = async (messageId, threadId = null) => {
     }
 
     try {
-        const payload = await fetchChatMessageTurns(targetThreadId, normalizedMessageId, runtime.value);
+        const payload = await chatDataService.listMessageTurns(targetThreadId, normalizedMessageId, runtime.value);
         mergeThreadTurns(targetThreadId, payload?.data ?? []);
     } catch {
         // Keep current turn state if scoped refresh fails.
@@ -449,7 +508,7 @@ useThreadEcho({
             loadTurnsForMessage(latestSubmittedPromptMessageId.value, activeAgentThreadId.value);
         }
         loadWorkspace();
-        router.reload({ only: ['channel'] });
+        loadActiveChannel();
     },
     onReplyFailed: (event) => {
         agentStatusMessage.value = '';
@@ -471,7 +530,7 @@ useThreadEcho({
             loadTurnsForMessage(latestSubmittedPromptMessageId.value, activeAgentThreadId.value);
         }
         loadWorkspace();
-        router.reload({ only: ['channel'] });
+        loadActiveChannel();
     },
     onError: (_event, payload) => {
         const message = (payload?.message ?? '').toString().trim();
@@ -480,6 +539,14 @@ useThreadEcho({
         promptErrorMessage.value = message !== '' ? message : 'AI response failed. Please retry.';
     },
 });
+
+watch(
+    () => [props.channelId, props.channel?.id ?? null, props.threadId],
+    () => {
+        loadActiveChannel();
+    },
+    { immediate: true },
+);
 
 watch(
     () => activeChannel.value?.id ?? null,
@@ -527,7 +594,7 @@ const submitA2uiAction = async (actionPayload) => {
     isPrompting.value = true;
 
     try {
-        const response = await sendChatChatMessage({
+        const response = await chatDataService.sendMessage({
             channel: activeChannel.value.id,
             thread: threadId,
             content: {
@@ -630,7 +697,7 @@ const handleEmbedPanelLoad = () => {
             isEmbedPanelOpen.value = false;
 
             if (embedPanelReloadOnSuccess.value) {
-                router.reload({ only: ['channel'] });
+                loadActiveChannel();
             }
         }
 
@@ -656,7 +723,6 @@ const openContextServerPanel = () => {
     <Head :title="activeChannel ? `Chat #${activeChannel.id}` : 'Chat Chat'" />
 
     <ChatLayout
-        :channels="props.channels"
         :active-channel-id="activeChannel?.id ?? null"
         :active-thread-id="activeChannel?.active_thread ?? null"
         @open-thread="handleOpenThread"

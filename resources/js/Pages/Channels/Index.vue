@@ -3,12 +3,12 @@ import ChatLayout from '../../Layouts/ChatLayout.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { reactive, ref } from 'vue';
-import { sendChatChatMessage } from '../../api';
+import { chatDataService } from '../../services/chatDataService';
 
 defineProps({
     channels: {
         type: Array,
-        required: true,
+        default: () => [],
     },
 });
 
@@ -68,7 +68,7 @@ const submit = async () => {
             return;
         }
 
-        const response = await sendChatChatMessage({
+        const response = await chatDataService.sendMessage({
             content: {
                 text: message,
                 attachments: [],
