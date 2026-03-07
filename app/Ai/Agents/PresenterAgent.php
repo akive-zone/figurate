@@ -3,7 +3,7 @@
 namespace App\Ai\Agents;
 
 use App\Ai\Concerns\RemembersThreadConversations;
-use App\Ai\Middleware\Rules\ApplyPresenterResponseRules;
+use App\Ai\Middleware\Rules\ApplyResponseRules;
 use App\Ai\Middleware\Rules\ApplySafetyAndPolicyRules;
 use App\Ai\Middleware\Rules\EnforceActorPermissions;
 use App\Ai\Middleware\Rules\EnforceThreadParticipation;
@@ -103,7 +103,7 @@ class PresenterAgent implements Agent, Conversational, HasMiddleware, HasTools
             new EnforceToolBudgetAndTimeouts,
             new RequireEvidenceForDecisions,
             new ResponseQualityGate,
-            new ApplyPresenterResponseRules,
+            new ApplyResponseRules,
         ];
     }
 
