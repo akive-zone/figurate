@@ -62,14 +62,14 @@ class A2uiCatalogRegistry
             return $payload;
         }
 
-        $supportedIds = $this->supportedCatalogIds();
+        $allowedCatalogIds = $this->resolveAllowedCatalogIds($clientCapabilities);
 
-        if ($supportedIds === []) {
+        if ($allowedCatalogIds === []) {
             return $payload;
         }
 
         $resolvedIds = collect($referencedIds)
-            ->filter(fn (string $catalogId): bool => in_array($catalogId, $supportedIds, true))
+            ->filter(fn (string $catalogId): bool => in_array($catalogId, $allowedCatalogIds, true))
             ->values()
             ->all();
 
@@ -210,6 +210,38 @@ class A2uiCatalogRegistry
         $items = config('a2a.inbound.a2ui.catalogs.items', []);
 
         return is_array($items) ? $items : [];
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $clientCapabilities
+     * @return array<int, string>
+     */
+    protected function resolveAllowedCatalogIds(?array $clientCapabilities): array
+    {
+        $serverSupportedIds = $this->supportedCatalogIds();
+
+        if ($serverSupportedIds === []) {
+            return [];
+        }
+
+        if (! is_array($clientCapabilities)) {
+            return $serverSupportedIds;
+        }
+
+        $clientSupportedIds = collect($clientCapabilities['supportedCatalogIds'] ?? [])
+            ->map(fn (mixed $entry): ?string => $this->trimmedString($entry))
+            ->filter(fn (mixed $entry): bool => is_string($entry) && $entry !== '')
+            ->values()
+            ->all();
+
+        if ($clientSupportedIds === []) {
+            return $serverSupportedIds;
+        }
+
+        return collect($serverSupportedIds)
+            ->intersect($clientSupportedIds)
+            ->values()
+            ->all();
     }
 
     protected function trimmedString(mixed $value): ?string

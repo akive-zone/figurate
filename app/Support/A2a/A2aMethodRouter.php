@@ -20,6 +20,10 @@ use Illuminate\Support\Str;
 
 class A2aMethodRouter
 {
+    protected const int MAX_A2UI_ACTIONS = 16;
+
+    protected const int MAX_A2UI_ERRORS = 16;
+
     public function __construct(
         protected ConversationOrchestrator $orchestrator,
         protected ResolveChatChannelContext $resolveChatChannelContext,
@@ -837,10 +841,16 @@ class A2aMethodRouter
             ->filter(fn (mixed $entry): bool => is_array($entry))
             ->values()
             ->all();
+        $actions = $this->dedupeA2uiActions($actions);
+
+        if (count($actions) >= self::MAX_A2UI_ACTIONS) {
+            return array_slice($actions, 0, self::MAX_A2UI_ACTIONS);
+        }
+
         $parts = data_get($params, 'message.parts');
 
         if (! is_array($parts)) {
-            return $actions;
+            return array_slice($actions, 0, self::MAX_A2UI_ACTIONS);
         }
 
         foreach ($parts as $part) {
@@ -857,6 +867,11 @@ class A2aMethodRouter
             if ($this->isAssoc($payload)) {
                 $entryActions = $this->resolveA2uiActionsFromEntry($payload);
                 $actions = [...$actions, ...$entryActions];
+                $actions = $this->dedupeA2uiActions($actions);
+
+                if (count($actions) >= self::MAX_A2UI_ACTIONS) {
+                    break;
+                }
 
                 continue;
             }
@@ -868,13 +883,26 @@ class A2aMethodRouter
 
                 $entryActions = $this->resolveA2uiActionsFromEntry($entry);
                 $actions = [...$actions, ...$entryActions];
+                $actions = $this->dedupeA2uiActions($actions);
+
+                if (count($actions) >= self::MAX_A2UI_ACTIONS) {
+                    break;
+                }
+            }
+
+            if (count($actions) >= self::MAX_A2UI_ACTIONS) {
+                break;
             }
         }
 
-        return collect($actions)
-            ->filter(fn (mixed $entry): bool => is_array($entry))
-            ->values()
-            ->all();
+        return array_slice(
+            collect($actions)
+                ->filter(fn (mixed $entry): bool => is_array($entry))
+                ->values()
+                ->all(),
+            0,
+            self::MAX_A2UI_ACTIONS
+        );
     }
 
     /**
@@ -888,10 +916,16 @@ class A2aMethodRouter
             ->filter(fn (mixed $entry): bool => is_array($entry))
             ->values()
             ->all();
+        $errors = $this->dedupeA2uiErrors($errors);
+
+        if (count($errors) >= self::MAX_A2UI_ERRORS) {
+            return array_slice($errors, 0, self::MAX_A2UI_ERRORS);
+        }
+
         $parts = data_get($params, 'message.parts');
 
         if (! is_array($parts)) {
-            return $errors;
+            return array_slice($errors, 0, self::MAX_A2UI_ERRORS);
         }
 
         foreach ($parts as $part) {
@@ -908,6 +942,11 @@ class A2aMethodRouter
             if ($this->isAssoc($payload)) {
                 $entryErrors = $this->resolveA2uiErrorsFromEntry($payload);
                 $errors = [...$errors, ...$entryErrors];
+                $errors = $this->dedupeA2uiErrors($errors);
+
+                if (count($errors) >= self::MAX_A2UI_ERRORS) {
+                    break;
+                }
 
                 continue;
             }
@@ -919,13 +958,26 @@ class A2aMethodRouter
 
                 $entryErrors = $this->resolveA2uiErrorsFromEntry($entry);
                 $errors = [...$errors, ...$entryErrors];
+                $errors = $this->dedupeA2uiErrors($errors);
+
+                if (count($errors) >= self::MAX_A2UI_ERRORS) {
+                    break;
+                }
+            }
+
+            if (count($errors) >= self::MAX_A2UI_ERRORS) {
+                break;
             }
         }
 
-        return collect($errors)
-            ->filter(fn (mixed $entry): bool => is_array($entry))
-            ->values()
-            ->all();
+        return array_slice(
+            collect($errors)
+                ->filter(fn (mixed $entry): bool => is_array($entry))
+                ->values()
+                ->all(),
+            0,
+            self::MAX_A2UI_ERRORS
+        );
     }
 
     /**
@@ -998,13 +1050,96 @@ class A2aMethodRouter
     protected function isA2uiDataPart(array $part): bool
     {
         $kind = $this->trimmedString($part['kind'] ?? null);
-        $mimeType = $this->trimmedString(data_get($part, 'metadata.mimeType'));
+        $mimeType = $this->trimmedString(
+            data_get($part, 'metadata.mimeType')
+            ?? data_get($part, 'metadata.mimetype')
+            ?? data_get($part, 'metadata.contentType')
+            ?? data_get($part, 'metadata.content_type')
+        );
 
         if ($kind !== 'data') {
             return false;
         }
 
-        return $mimeType === 'application/json+a2ui';
+        if ($mimeType === null) {
+            return false;
+        }
+
+        return $this->matchesA2uiMimeType($mimeType);
+    }
+
+    protected function matchesA2uiMimeType(string $mimeType): bool
+    {
+        $normalized = strtolower(trim($mimeType));
+        $normalized = explode(';', $normalized, 2)[0] ?? $normalized;
+        $normalized = trim($normalized);
+
+        return $normalized === 'application/json+a2ui';
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $actions
+     * @return array<int, array<string, mixed>>
+     */
+    protected function dedupeA2uiActions(array $actions): array
+    {
+        $seen = [];
+        $deduped = [];
+
+        foreach ($actions as $action) {
+            if (! is_array($action)) {
+                continue;
+            }
+
+            $key = implode('|', [
+                $this->trimmedString($action['protocol'] ?? null) ?? 'a2ui',
+                $this->trimmedString($action['name'] ?? null) ?? '',
+                $this->trimmedString($action['id'] ?? null) ?? '',
+                $this->trimmedString($action['surfaceId'] ?? null) ?? '',
+                $this->trimmedString($action['timestamp'] ?? null) ?? '',
+            ]);
+
+            if (array_key_exists($key, $seen)) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $deduped[] = $action;
+        }
+
+        return $deduped;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $errors
+     * @return array<int, array<string, mixed>>
+     */
+    protected function dedupeA2uiErrors(array $errors): array
+    {
+        $seen = [];
+        $deduped = [];
+
+        foreach ($errors as $error) {
+            if (! is_array($error)) {
+                continue;
+            }
+
+            $key = implode('|', [
+                $this->trimmedString($error['protocol'] ?? null) ?? 'a2ui',
+                $this->trimmedString($error['code'] ?? null) ?? '',
+                $this->trimmedString($error['path'] ?? null) ?? '',
+                $this->trimmedString($error['message'] ?? null) ?? '',
+            ]);
+
+            if (array_key_exists($key, $seen)) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $deduped[] = $error;
+        }
+
+        return $deduped;
     }
 
     /**
@@ -1067,13 +1202,18 @@ class A2aMethodRouter
 
     protected function toTaskArtifactPayload(Message $message, Message $promptMessage): array
     {
+        $text = is_string($message->text) ? trim($message->text) : '';
+
         $artifact = [
             'id' => $message->ulid,
-            'kind' => 'text',
+            'kind' => $text !== '' ? 'text' : 'data',
             'actor_key' => data_get($message->meta, 'actor_key'),
-            'text' => $message->text,
             'created_at' => optional($message->created_at)?->toIso8601String(),
         ];
+
+        if ($text !== '') {
+            $artifact['text'] = $text;
+        }
 
         $dataModel = $this->trimmedString(data_get($promptMessage->meta, 'a2ui_client_data_model'))
             ?? $this->trimmedString(data_get($message->meta, 'a2ui_client_data_model'));
