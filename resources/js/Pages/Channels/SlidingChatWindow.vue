@@ -1,6 +1,6 @@
 <script setup>
-import A2uiActionCard from './A2uiActionCard.vue';
 import { computed, ref } from 'vue';
+import { A2uiSurfaceRenderer } from '../../a2ui';
 
 const props = defineProps({
     modelValue: {
@@ -191,11 +191,11 @@ const submitDraft = () => {
                                     </span>
                                 </button>
                             </footer>
-                            <A2uiActionCard
+                            <A2uiSurfaceRenderer
                                 v-if="turn.assistant_extra?.a2ui?.surface && typeof turn.assistant_extra.a2ui.surface === 'object'"
                                 :payload="turn.assistant_extra.a2ui.surface"
                                 :disabled="props.sending"
-                                @submit="emit('submit-a2ui-action', $event)"
+                                @submit-action="emit('submit-a2ui-action', $event)"
                             />
                         </article>
                     </section>

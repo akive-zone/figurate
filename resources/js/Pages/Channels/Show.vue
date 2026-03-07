@@ -8,6 +8,7 @@ import { computed, reactive, ref, watch } from 'vue';
 import { chatDataService } from '../../services/chatDataService';
 import { inertiaNavigationService } from '../../services/inertiaNavigationService';
 import { useThreadEcho } from '../../composables/useThreadEcho';
+import { buildA2uiActionRequest } from '../../a2ui';
 
 const props = defineProps({
     channels: {
@@ -594,27 +595,11 @@ const submitA2uiAction = async (actionPayload) => {
     isPrompting.value = true;
 
     try {
-        const response = await chatDataService.sendMessage({
+        const response = await chatDataService.sendMessage(buildA2uiActionRequest({
             channel: activeChannel.value.id,
             thread: threadId,
-            content: {
-                text: null,
-                attachments: [],
-                actions: [actionPayload],
-                errors: [],
-            },
-            extra: {
-                a2ui: {
-                    config: {
-                        a2uiClientDataModel: 'v1.0',
-                        a2uiClientCapabilities: {
-                            actions: true,
-                            errors: true,
-                        },
-                    },
-                },
-            },
-        }, runtime.value, {
+            action: actionPayload,
+        }), runtime.value, {
             idempotencyKey: makeClientMessageId(),
         });
         const submittedMessageId = Number(response?.data?.message_id ?? 0);
