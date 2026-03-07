@@ -21,6 +21,20 @@ return [
             'enabled' => (bool) env('A2A_A2UI_ENABLED', true),
             'uri' => env('A2A_A2UI_URI', 'https://a2ui.org/specification/v0.8-a2ui/'),
             'required' => (bool) env('A2A_A2UI_REQUIRED', false),
+            'catalogs' => [
+                'supported_ids' => [],
+                'accepts_inline' => true,
+                'items' => [
+                    // 'industry.skills' => [
+                    //     'id' => 'industry.skills',
+                    //     'title' => 'Industry Skills',
+                    //     'entries' => [
+                    //         ['id' => 'plumbing', 'label' => 'Plumbing'],
+                    //         ['id' => 'electrical', 'label' => 'Electrical'],
+                    //     ],
+                    // ],
+                ],
+            ],
         ],
         'auth' => [
             'method_abilities' => [

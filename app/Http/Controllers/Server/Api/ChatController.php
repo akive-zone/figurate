@@ -15,6 +15,8 @@ use App\Models\Server\Message;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
+use App\Support\A2ui\A2uiCatalogRegistry;
+use App\Support\A2ui\A2uiPayloadContract;
 use App\Support\Orchestrate\ConversationOrchestrator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -26,6 +28,11 @@ use Illuminate\Support\Facades\Gate;
 
 class ChatController extends Controller
 {
+    public function __construct(
+        protected A2uiPayloadContract $a2uiPayloadContract,
+        protected A2uiCatalogRegistry $a2uiCatalogRegistry,
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
         return response()->json($this->cursorPageForRequest($request));
@@ -151,9 +158,11 @@ class ChatController extends Controller
             ->values()
             ->all();
         $a2uiClientDataModel = $this->trimmedString(data_get($extraPayload, 'a2ui.config.a2uiClientDataModel'));
-        $a2uiClientCapabilities = is_array(data_get($extraPayload, 'a2ui.config.a2uiClientCapabilities'))
-            ? data_get($extraPayload, 'a2ui.config.a2uiClientCapabilities')
-            : null;
+        $a2uiClientCapabilities = $this->a2uiPayloadContract->normalizeClientCapabilities(
+            is_array(data_get($extraPayload, 'a2ui.config.a2uiClientCapabilities'))
+                ? data_get($extraPayload, 'a2ui.config.a2uiClientCapabilities')
+                : null
+        );
         $thread = null;
 
         if (is_string($threadUuid) && $threadUuid !== '') {
@@ -736,37 +745,7 @@ class ChatController extends Controller
      */
     protected function normalizeA2uiAction(array $action): ?array
     {
-        $protocol = $this->trimmedString($action['protocol'] ?? null) ?? 'a2ui';
-        $name = $this->trimmedString($action['name'] ?? null);
-        $id = $this->trimmedString($action['id'] ?? null);
-        $surfaceId = $this->trimmedString($action['surfaceId'] ?? null);
-        $sourceComponentId = $this->trimmedString($action['sourceComponentId'] ?? null);
-        $timestamp = $this->trimmedString($action['timestamp'] ?? null);
-        $context = $this->normalizeAssocArray($action['context'] ?? null);
-        $values = $this->normalizeAssocArray($action['values'] ?? null);
-
-        if (
-            $name === null
-            && $id === null
-            && $surfaceId === null
-            && $sourceComponentId === null
-            && $timestamp === null
-            && $context === []
-            && $values === []
-        ) {
-            return null;
-        }
-
-        return array_filter([
-            'protocol' => $protocol,
-            'name' => $name,
-            'id' => $id,
-            'surfaceId' => $surfaceId,
-            'sourceComponentId' => $sourceComponentId,
-            'timestamp' => $timestamp,
-            'context' => $context !== [] ? $context : null,
-            'values' => $values !== [] ? $values : null,
-        ], fn (mixed $value): bool => $value !== null);
+        return $this->a2uiPayloadContract->normalizeAction($action);
     }
 
     /**
@@ -775,48 +754,7 @@ class ChatController extends Controller
      */
     protected function normalizeA2uiError(array $error): ?array
     {
-        $protocol = $this->trimmedString($error['protocol'] ?? null) ?? 'a2ui';
-        $code = $this->trimmedString($error['code'] ?? null);
-        $path = $this->trimmedString($error['path'] ?? null);
-        $message = $this->trimmedString($error['message'] ?? null);
-        $userActionRaw = $error['userAction'] ?? null;
-        $userAction = is_array($userActionRaw) ? $this->normalizeA2uiAction($userActionRaw) : null;
-
-        if ($code === null && $path === null && $message === null && $userAction === null) {
-            return null;
-        }
-
-        return array_filter([
-            'protocol' => $protocol,
-            'code' => $code,
-            'path' => $path,
-            'message' => $message,
-            'userAction' => $userAction,
-        ], fn (mixed $value): bool => $value !== null);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    protected function normalizeAssocArray(mixed $value): array
-    {
-        if (! is_array($value)) {
-            return [];
-        }
-
-        return $this->isAssoc($value) ? $value : [];
-    }
-
-    /**
-     * @param  array<string, mixed>  $value
-     */
-    protected function isAssoc(array $value): bool
-    {
-        if ($value === []) {
-            return false;
-        }
-
-        return array_keys($value) !== range(0, count($value) - 1);
+        return $this->a2uiPayloadContract->normalizeError($error);
     }
 
     /**
@@ -840,11 +778,18 @@ class ChatController extends Controller
         $surface = data_get($message->meta, 'a2ui');
         $surface = is_array($surface) ? $surface : null;
         $dataModel = $this->trimmedString(data_get($message->meta, 'a2ui_client_data_model'));
-        $capabilities = data_get($message->meta, 'a2ui_client_capabilities');
-        $capabilities = is_array($capabilities) ? $capabilities : null;
+        $capabilities = $this->a2uiPayloadContract->normalizeClientCapabilities(
+            is_array(data_get($message->meta, 'a2ui_client_capabilities'))
+                ? data_get($message->meta, 'a2ui_client_capabilities')
+                : null
+        );
 
         if ($surface === null && $dataModel === null && $capabilities === null) {
             return null;
+        }
+
+        if (is_array($surface)) {
+            $surface = $this->a2uiCatalogRegistry->decoratePayload($surface, $capabilities);
         }
 
         return [

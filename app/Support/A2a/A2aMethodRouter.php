@@ -10,6 +10,8 @@ use App\Models\Server\Message;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
+use App\Support\A2ui\A2uiCatalogRegistry;
+use App\Support\A2ui\A2uiPayloadContract;
 use App\Support\Orchestrate\ConversationOrchestrator;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Collection;
@@ -25,6 +27,8 @@ class A2aMethodRouter
         protected SendPeerThreadMessage $sendPeerThreadMessage,
         protected ChatAgentExecutor $chatAgentExecutor,
         protected TaskPushNotificationDispatcher $taskPushNotificationDispatcher,
+        protected A2uiPayloadContract $a2uiPayloadContract,
+        protected A2uiCatalogRegistry $a2uiCatalogRegistry,
     ) {}
 
     /**
@@ -228,7 +232,7 @@ class A2aMethodRouter
 
         $state = $this->resolveTaskState($invocations, $assistantReplies);
         $artifacts = $assistantReplies
-            ->map(fn (Message $message): array => $this->toTaskArtifactPayload($message))
+            ->map(fn (Message $message): array => $this->toTaskArtifactPayload($message, $promptMessage))
             ->values()
             ->all();
 
@@ -803,11 +807,9 @@ class A2aMethodRouter
             $capabilities = data_get($params, 'extra.a2ui.config.a2uiClientCapabilities');
         }
 
-        if (! is_array($capabilities)) {
-            return null;
-        }
-
-        return $capabilities;
+        return $this->a2uiPayloadContract->normalizeClientCapabilities(
+            is_array($capabilities) ? $capabilities : null
+        );
     }
 
     /**
@@ -978,29 +980,7 @@ class A2aMethodRouter
      */
     protected function normalizeA2uiAction(array $action): ?array
     {
-        $protocol = $this->trimmedString($action['protocol'] ?? null) ?? 'a2ui';
-        $name = $this->trimmedString($action['name'] ?? $action['type'] ?? null);
-        $id = $this->trimmedString($action['id'] ?? null);
-        $surfaceId = $this->trimmedString($action['surfaceId'] ?? null);
-        $sourceComponentId = $this->trimmedString($action['sourceComponentId'] ?? null);
-        $timestamp = $this->trimmedString($action['timestamp'] ?? null);
-        $context = $this->normalizeAssocArray($action['context'] ?? null);
-        $values = $this->normalizeAssocArray($action['values'] ?? null);
-
-        if ($name === null && $id === null && $surfaceId === null && $sourceComponentId === null && $timestamp === null && $context === [] && $values === []) {
-            return null;
-        }
-
-        return array_filter([
-            'protocol' => $protocol,
-            'name' => $name,
-            'id' => $id,
-            'surfaceId' => $surfaceId,
-            'sourceComponentId' => $sourceComponentId,
-            'timestamp' => $timestamp,
-            'context' => $context,
-            'values' => $values,
-        ], fn (mixed $value): bool => $value !== null);
+        return $this->a2uiPayloadContract->normalizeAction($action);
     }
 
     /**
@@ -1009,36 +989,7 @@ class A2aMethodRouter
      */
     protected function normalizeA2uiError(array $error): ?array
     {
-        $protocol = $this->trimmedString($error['protocol'] ?? null) ?? 'a2ui';
-        $code = $this->trimmedString($error['code'] ?? null);
-        $path = $this->trimmedString($error['path'] ?? null);
-        $message = $this->trimmedString($error['message'] ?? null);
-        $userActionRaw = $error['userAction'] ?? null;
-        $userAction = is_array($userActionRaw) ? $this->normalizeA2uiAction($userActionRaw) : null;
-
-        if ($code === null && $path === null && $message === null && ! is_array($userAction)) {
-            return null;
-        }
-
-        return array_filter([
-            'protocol' => $protocol,
-            'code' => $code,
-            'path' => $path,
-            'message' => $message,
-            'userAction' => $userAction,
-        ], fn (mixed $value): bool => $value !== null);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    protected function normalizeAssocArray(mixed $value): array
-    {
-        if (! is_array($value)) {
-            return [];
-        }
-
-        return $this->isAssoc($value) ? $value : [];
+        return $this->a2uiPayloadContract->normalizeError($error);
     }
 
     /**
@@ -1073,8 +1024,7 @@ class A2aMethodRouter
      */
     protected function looksLikeAction(array $value): bool
     {
-        return $this->trimmedString($value['name'] ?? $value['type'] ?? null) !== null
-            || $this->trimmedString($value['id'] ?? null) !== null;
+        return $this->a2uiPayloadContract->looksLikeAction($value);
     }
 
     /**
@@ -1087,11 +1037,18 @@ class A2aMethodRouter
         $actions = is_array($message->actions) ? $message->actions : [];
         $errors = is_array($message->errors) ? $message->errors : [];
         $dataModel = $this->trimmedString(data_get($message->meta, 'a2ui_client_data_model'));
-        $capabilities = data_get($message->meta, 'a2ui_client_capabilities');
-        $capabilities = is_array($capabilities) ? $capabilities : null;
+        $capabilities = $this->a2uiPayloadContract->normalizeClientCapabilities(
+            is_array(data_get($message->meta, 'a2ui_client_capabilities'))
+                ? data_get($message->meta, 'a2ui_client_capabilities')
+                : null
+        );
 
         if ($surface === null && $actions === [] && $errors === [] && $dataModel === null && $capabilities === null) {
             return null;
+        }
+
+        if (is_array($surface)) {
+            $surface = $this->a2uiCatalogRegistry->decoratePayload($surface, $capabilities);
         }
 
         return [
@@ -1108,7 +1065,7 @@ class A2aMethodRouter
         ];
     }
 
-    protected function toTaskArtifactPayload(Message $message): array
+    protected function toTaskArtifactPayload(Message $message, Message $promptMessage): array
     {
         $artifact = [
             'id' => $message->ulid,
@@ -1118,13 +1075,18 @@ class A2aMethodRouter
             'created_at' => optional($message->created_at)?->toIso8601String(),
         ];
 
-        $a2uiPayload = $this->resolveA2uiAssistantPayload($message);
+        $dataModel = $this->trimmedString(data_get($promptMessage->meta, 'a2ui_client_data_model'))
+            ?? $this->trimmedString(data_get($message->meta, 'a2ui_client_data_model'));
+        $capabilities = $this->a2uiPayloadContract->normalizeClientCapabilities(
+            is_array(data_get($promptMessage->meta, 'a2ui_client_capabilities'))
+                ? data_get($promptMessage->meta, 'a2ui_client_capabilities')
+                : (is_array(data_get($message->meta, 'a2ui_client_capabilities'))
+                    ? data_get($message->meta, 'a2ui_client_capabilities')
+                    : null)
+        );
+        $a2uiPayload = $this->resolveA2uiAssistantPayload($message, $capabilities);
 
         if (is_array($a2uiPayload)) {
-            $dataModel = $this->trimmedString(data_get($message->meta, 'a2ui_client_data_model'));
-            $capabilities = data_get($message->meta, 'a2ui_client_capabilities');
-            $capabilities = is_array($capabilities) ? $capabilities : null;
-
             $artifact['parts'] = [[
                 'kind' => 'data',
                 'data' => $a2uiPayload,
@@ -1145,12 +1107,12 @@ class A2aMethodRouter
     /**
      * @return array<string, mixed>|null
      */
-    protected function resolveA2uiAssistantPayload(Message $message): ?array
+    protected function resolveA2uiAssistantPayload(Message $message, ?array $clientCapabilities = null): ?array
     {
         $payload = data_get($message->meta, 'a2ui');
 
         if (is_array($payload)) {
-            return $payload;
+            return $this->a2uiCatalogRegistry->decoratePayload($payload, $clientCapabilities);
         }
 
         return null;

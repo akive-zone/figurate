@@ -3,10 +3,15 @@
 namespace App\Http\Controllers\Server\Api\A2a;
 
 use App\Http\Controllers\Controller;
+use App\Support\A2ui\A2uiCatalogRegistry;
 use Illuminate\Http\JsonResponse;
 
 class AgentCardController extends Controller
 {
+    public function __construct(
+        protected A2uiCatalogRegistry $a2uiCatalogRegistry,
+    ) {}
+
     public function __invoke(): JsonResponse
     {
         $a2uiEnabled = (bool) config('a2a.inbound.a2ui.enabled', false);
@@ -38,6 +43,8 @@ class AgentCardController extends Controller
                 'required' => (bool) config('a2a.inbound.a2ui.required', false),
                 'params' => [
                     'mimeType' => 'application/json+a2ui',
+                    'supportedCatalogIds' => $this->a2uiCatalogRegistry->supportedCatalogIds(),
+                    'acceptsInlineCatalogs' => (bool) config('a2a.inbound.a2ui.catalogs.accepts_inline', true),
                 ],
             ]] : [],
             'security' => [

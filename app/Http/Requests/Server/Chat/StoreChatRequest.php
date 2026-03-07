@@ -23,6 +23,17 @@ class StoreChatRequest extends FormRequest
                     'a2ui.config.a2uiClientDataModel',
                     $this->trimmedString(data_get($extra, 'a2ui.config.a2uiClientDataModel'))
                 );
+
+                $supportedCatalogIds = data_get($extra, 'a2ui.config.a2uiClientCapabilities.supportedCatalogIds');
+                if (is_array($supportedCatalogIds)) {
+                    $normalizedCatalogIds = collect($supportedCatalogIds)
+                        ->map(fn (mixed $catalogId): ?string => $this->trimmedString($catalogId))
+                        ->filter(fn (mixed $catalogId): bool => is_string($catalogId) && $catalogId !== '')
+                        ->values()
+                        ->all();
+
+                    data_set($extra, 'a2ui.config.a2uiClientCapabilities.supportedCatalogIds', $normalizedCatalogIds);
+                }
             }
             $this->merge(['extra' => $extra]);
         }
@@ -79,7 +90,10 @@ class StoreChatRequest extends FormRequest
             'extra.a2ui' => ['nullable', 'array:config,surface'],
             'extra.a2ui.config' => ['nullable', 'array:a2uiClientDataModel,a2uiClientCapabilities'],
             'extra.a2ui.config.a2uiClientDataModel' => ['nullable', 'string', 'max:40'],
-            'extra.a2ui.config.a2uiClientCapabilities' => ['nullable', 'array'],
+            'extra.a2ui.config.a2uiClientCapabilities' => ['nullable', 'array:supportedCatalogIds,acceptsInlineCatalogs'],
+            'extra.a2ui.config.a2uiClientCapabilities.supportedCatalogIds' => ['nullable', 'array', 'max:64'],
+            'extra.a2ui.config.a2uiClientCapabilities.supportedCatalogIds.*' => ['string', 'max:160'],
+            'extra.a2ui.config.a2uiClientCapabilities.acceptsInlineCatalogs' => ['nullable', 'boolean'],
             'extra.a2ui.surface' => ['nullable', 'array'],
         ];
     }
