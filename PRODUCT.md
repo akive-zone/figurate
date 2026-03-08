@@ -1,8 +1,4 @@
-- So this product is a platform for finding agents (workers)
-
-- The callers / workers follow a fufillment process
-
-## LOG 1
+## Log 1
 FLOW of Fullfillment:
    * Enquiry
    * Quote
@@ -26,7 +22,7 @@ FLOW of Fullfillment:
 8. The artisan declares the work as done and the customer...
 9. The customer rates the Artisan and selects the work as done.
 
-## Log 2 
+## Log 2
 So i am thinking a chat like flow for a request fulfillment system.
 
 A customer makes a request in a conversation like flow ... and in there they can find relevant agents or mention the agent they intend to contact.
@@ -48,8 +44,34 @@ This agent will be what can for the quote from the worker and then we can ask fo
 
 - AssessmentAgent 
 
+#### Fulfillment Flows (Design Exploration)
 
-## LOG 3: 
+The following are product flow candidates to evaluate and refine:
+
+- `ubuy` candidate:
+- Asker targets a specific profile/tasker.
+- Request starts with an intake thread using `RequestAgent`.
+- Quote/booking/fulfillment likely stays bound to that selected profile unless reassigned.
+
+- `upwork` candidate:
+- Asker creates an open request.
+- Multiple profiles can express interest and submit quotes/bids.
+- Asker selects one quote to book, then flow can switch into fulfillment with `OrderAgent`.
+
+- `uber` candidate:
+- Asker creates a request without selecting a worker.
+- System may auto-assign the best matching profile using availability + matching rules.
+- After assignment, flow can proceed to quote or direct booking based on service configuration.
+
+Thread usage (working design hypothesis):
+
+- Main thread begins at request intake (`RequestAgent`).
+- Additional threads can be used for scoped phases (for example negotiation, booking, fulfillment, disputes).
+- A single request context may own multiple threads while preserving one primary user-facing conversation.
+- Final rules for thread creation/switching remain open pending product decisions.
+
+
+## Log 3: 
 - Date- 13-02-2026
 
 What i am looking at is agnostic system for channel <-> post <-> thread ... where thread is sort of like a session of messages happening 
@@ -85,11 +107,48 @@ The goal is knowing when to orchesterate creating a new thread and which agent s
 
 
 ## Log 4:
-- Case A: Thread where the user is talking to an agent (handler prompting)
-- Case B: Thread where the multiple user (group) is talking to an agent (handler prompting)
+- Case A: Thread where the user is talking to an agent (presenter prompting)
+- Case B: Thread where the multiple user (group) is talking to an agent (presenter prompting)
 - Case C: Case A but with multiple agent as handler
 - Case D: Case B but with multiple agent as handler
 - Case E: Thread where the user is talking to another user (observer prompting if allowed)
-- Case F: Thread where the user is talking to multiple user (obser prompting if allowed)
+- Case F: Thread where the user is talking to multiple user (observer prompting if allowed)
 
 Observer prompting will always assume multiple observer agent can exist in a thread conversation
+
+
+# Log 5:
+- Date: 25-02-2026
+
+- 1. Cameo.com
+- 2. Taskrabbit.com
+- 3. Backstage.com
+- 4. handy.com
+- 5. Chowdeck.com
+
+# Log 6:
+- Date: 02-03-2026
+
+## Explorer POV: Navigating the Figurate Interface
+
+From an explorer's perspective, Figurate is a dynamic project workspace organized under a single **Channel**.
+
+### 1. Landing: The "Agenda" (Index Page)
+- **The Entrypoint:** A minimal interface with a large composer box ("What’s on the agenda today?").
+- **The Goal:** To move the user from an abstract idea to a concrete **Channel**.
+
+### 2. Contextualization: The "Channel" (Show Page)
+- **The Sidebar:** Displays a history of "Chats" (Channels) and their nested "Threads" (active work sessions).
+- **The Timeline (Main Feed):** A central "source of truth" rendering **Posts**—markdown-formatted artifacts like assessments, quotes, or project updates. It provides a persistent, high-level summary of achievement.
+
+### 3. Interacting: The Dual-Panel Flow
+- **The AI Assistant (Sliding Panel):** A private workspace for planning, asking questions, and providing details (e.g., photos). This is where `EnquiryAgent` or other agents interact with the user.
+- **The Peer Chat (Floating Bubble):** A separate space for **human-to-human** communication with artisans or workers. The AI observes from its panel without interfering in the direct conversation.
+
+### 4. Technical Deep-Dive: The "Embed Panel"
+- **The Manage MCP Button:** Allows users to slide out a management interface (iframe) to connect external Model Context Protocol (MCP) servers to the current channel, plugging in new capabilities (like Google Maps or database searchers).
+
+### 5. The "Thread" Navigator
+- **Branching Work:** Users can create new **Threads** for specific sub-problems (e.g., "Finding a part" vs "Main repair") while maintaining the shared context of the overall Channel.
+
+

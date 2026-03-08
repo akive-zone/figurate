@@ -7,8 +7,6 @@ Using tools like
 
 There are two main parts to the project that will be served inside the NativePHP app using [InertiaJS + FilamentPHP]
 
-The app launcher will be a blade view in NativePHP that allows the user switch between various auth session
-
 Orchestration model (product design direction, not locked policy):
 - Candidate direction is one user-facing `conversation` per request context for the asker chatbox.
 - Candidate direction is many internal `threads` per request/order lifecycle to handle agent switching and phase isolation.
@@ -66,50 +64,6 @@ So a typical flow of the platform
 
 - both parties can rate each other
 
-## Signal Fulfillment Flows (Design Exploration)
-
-The following are product flow candidates to evaluate and refine:
-
-- `ubuy` candidate:
-- Asker targets a specific profile/tasker.
-- Request starts with an intake thread using `RequestAgent`.
-- Quote/booking/fulfillment likely stays bound to that selected profile unless reassigned.
-
-- `upwork` candidate:
-- Asker creates an open request.
-- Multiple profiles can express interest and submit quotes/bids.
-- Asker selects one quote to book, then flow can switch into fulfillment with `OrderAgent`.
-
-- `uber` candidate:
-- Asker creates a request without selecting a worker.
-- System may auto-assign the best matching profile using availability + matching rules.
-- After assignment, flow can proceed to quote or direct booking based on service configuration.
-
-Thread usage (working design hypothesis):
-
-- Main thread begins at request intake (`RequestAgent`).
-- Additional threads can be used for scoped phases (for example negotiation, booking, fulfillment, disputes).
-- A single request context may own multiple threads while preserving one primary user-facing conversation.
-- Final rules for thread creation/switching remain open pending product decisions.
-
-## Database & Migrations
-
-Since the project is a monolith deployed on both the Server (MySQL/PostgreSQL) and Mobile (SQLite via NativePHP), we use a conditional migration strategy in `AppServiceProvider`:
-
-- **Server Migrations:** Located in `database/migrations/server`. These contain schemas for the central database (Users, Profiles, Orders, etc.).
-- **Mobile Migrations:** Located in `database/migrations/native`. These contain schemas for the local device database.
-- **Shared Migrations:** Located in `database/migrations`.
-
-The `AppServiceProvider` detects the environment using `config('nativephp-internal.running')` and loads the appropriate paths:
-
-```php
-if (config('nativephp-internal.running')) {
-    $this->loadMigrationsFrom(database_path('migrations/native'));
-} else {
-    $this->loadMigrationsFrom(database_path('migrations/server'));
-}
-```
-
 ## Archived Summary of Early Design Exploration (2026-02-03 to 2026-02-13)
 Archived summary from `PLAN.md` (2026-02-03 to 2026-02-13):
 
@@ -128,3 +82,53 @@ Archived summary from `PLAN.md` (2026-02-03 to 2026-02-13):
    deterministic transitions, idempotent behavior, auditable system events, and clear policy boundaries.
 9. Runtime/deployment notes captured monolith dual-surface operation:
    server DB migrations and Native-local DB migrations loaded conditionally by environment.
+
+## ADR Scope: AI Interoperability (A2A, A2UI, MCP)
+
+Date range: 2026-03-02 to 2026-03-08  
+Status: Implemented baseline and in active hardening
+
+### Why this was needed
+
+We needed our AI service to work safely with:
+
+- other agents (A2A),
+- dynamic UI payloads from agents (A2UI),
+- external tools/context servers (MCP),
+
+while keeping one consistent product experience for users.
+
+### Decisions we made
+
+1. We support A2A as a first-class integration path for inbound and outbound agent collaboration.
+2. We keep ownership boundaries on tasks so callers can only access their own task lifecycles.
+3. We model execution as traceable events, so task history and agent actions are auditable.
+4. We support A2UI as a reusable rendering/runtime layer so agent-provided UI can be shown consistently.
+5. We support MCP through controlled server resolution and invocation policy instead of open-ended tool execution.
+
+### What is done
+
+1. A2A transport endpoints, task lifecycle operations, streaming updates, and push callback flow are implemented.
+2. A2A authentication and per-method access controls are in place.
+3. Task ownership checks are enforced for task reads, listing, cancellation, and subscription-style flows.
+4. Outbound agent delegation and remote-task reconciliation are implemented.
+5. A2UI runtime pieces are in place (surface renderer, field registry, client/runtime composables, page integration).
+6. MCP support for context server discovery, resolution, and tool invocation is integrated with the AI tool layer.
+7. Core execution/event linkage is in place so A2A and MCP activity can be tracked end-to-end.
+
+### What remains
+
+1. Complete webhook trust hardening (signature, replay-window protection, and stricter deny logging).
+2. Expand contract/security test coverage for lifecycle edge cases and reconnect behavior.
+3. Finalize stricter outbound callback trust rules for non-local environments.
+4. Continue simplifying documentation and ops playbooks so implementation details stay in code and tests.
+
+### Product-level outcome
+
+The platform now has a practical interoperability baseline:
+
+- agents can coordinate with other agents,
+- agent-generated UI can be rendered consistently,
+- approved external tools can be invoked safely,
+
+without changing the user-facing chat-first experience.
