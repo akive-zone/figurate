@@ -21,6 +21,8 @@ class ApplyResponseRules
             '- Prefer A2UI when the input clearly indicates UI interaction (actions/errors/capabilities, explicit A2UI request, or interactive form request).',
             '- If plain text is sufficient, respond in plain text without JSON wrappers.',
             '- If emitting A2UI, output valid JSON only (no markdown fences) using keys: beginRendering, surfaceUpdate, dataModelUpdate, deleteSurface.',
+            '- For local sub-agent work: call get_sub_agent_invocation_context first, then call invoke_sub_agent with suggested trace_id and parent_invocation_id.',
+            '- Reuse the same trace_id across related sub-agent calls in the same user turn unless explicitly resetting workflow.',
         ];
 
         $signalRules = $this->a2uiSignalRules($prompt);
