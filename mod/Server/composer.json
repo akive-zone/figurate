@@ -1,6 +1,0 @@
-{
-    "name": "figurate/server",
-    "description": "Server-side dependencies for Akive Figurate",
-    "require": {
-    }
-}

@@ -1,0 +1,6 @@
+{
+    "name": "figurate/account-manager",
+    "description": "Manage user accounts for Akive Figurate",
+    "require": {
+    }
+}
