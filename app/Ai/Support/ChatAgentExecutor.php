@@ -12,7 +12,7 @@ use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadActorSession;
 use App\Models\Server\User;
-use App\Support\A2a\TaskPushNotificationDispatcher;
+use App\A2a\TaskPushNotificationDispatcher;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Support\Facades\DB;
 use Laravel\Ai\Contracts\Agent;

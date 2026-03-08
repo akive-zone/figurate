@@ -7,10 +7,10 @@ use App\Actions\Server\Chat\ResolveChatThreadContext;
 use App\Actions\Server\Chat\SendPeerThreadMessage;
 use App\Ai\Support\ChatAgentExecutor;
 use App\Models\Server\Message;
-use App\Support\A2a\A2aMethodRouter;
-use App\Support\A2a\TaskPushNotificationDispatcher;
-use App\Support\A2ui\A2uiCatalogRegistry;
-use App\Support\A2ui\A2uiPayloadContract;
+use App\A2a\A2aMethodRouter;
+use App\A2a\TaskPushNotificationDispatcher;
+use App\A2ui\A2uiCatalogRegistry;
+use App\A2ui\A2uiPayloadContract;
 use App\Support\Orchestrate\ConversationOrchestrator;
 use PHPUnit\Framework\TestCase;
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Support\A2ui;
+namespace App\A2ui;
 
 class A2uiPayloadContract
 {

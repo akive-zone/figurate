@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Support\A2a;
+namespace App\A2a;
 
 use App\Actions\Server\Chat\ResolveChatChannelContext;
 use App\Actions\Server\Chat\ResolveChatThreadContext;
@@ -10,8 +10,8 @@ use App\Models\Server\Message;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
-use App\Support\A2ui\A2uiCatalogRegistry;
-use App\Support\A2ui\A2uiPayloadContract;
+use App\A2ui\A2uiCatalogRegistry;
+use App\A2ui\A2uiPayloadContract;
 use App\Support\Orchestrate\ConversationOrchestrator;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Collection;
@@ -20,9 +20,9 @@ use Illuminate\Support\Str;
 
 class A2aMethodRouter
 {
-    protected const int MAX_A2UI_ACTIONS = 16;
+    protected const MAX_A2UI_ACTIONS = 16;
 
-    protected const int MAX_A2UI_ERRORS = 16;
+    protected const MAX_A2UI_ERRORS = 16;
 
     public function __construct(
         protected ConversationOrchestrator $orchestrator,

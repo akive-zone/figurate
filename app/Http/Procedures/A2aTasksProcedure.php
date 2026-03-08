@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Procedures;
 
-use App\Support\A2a\A2aMethodRouter;
+use App\A2a\A2aMethodRouter;
 use Illuminate\Http\Request;
 use Sajya\Server\Exceptions\RuntimeRpcException;
 use Sajya\Server\Procedure;
