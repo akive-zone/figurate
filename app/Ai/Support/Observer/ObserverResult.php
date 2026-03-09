@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Support\Observer;
+namespace App\Ai\Support\Observer;
 
 class ObserverResult
 {

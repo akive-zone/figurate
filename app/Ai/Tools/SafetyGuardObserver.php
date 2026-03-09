@@ -3,80 +3,109 @@
 namespace App\Ai\Tools;
 
 use App\Ai\Agents\ObserverAgent;
+use App\Ai\Support\Observer\Contracts\ObserverSkill;
+use App\Ai\Support\Observer\ObserverResult;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
-use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Laravel\Ai\Contracts\Tool;
-use Laravel\Ai\Tools\Request as ToolRequest;
-use Stringable;
 use Throwable;
 
-class SafetyGuardObserver implements Tool
+class SafetyGuardObserver implements ObserverSkill
 {
-    /**
-     * @var list<string>
-     */
-    protected array $blockedKeywords = [
-        'credit card',
-        'card number',
-        'cvv',
-        'otp',
-        'one time password',
-        'social security number',
-    ];
-
-    /**
-     * @var list<string>
-     */
-    protected array $flaggedKeywords = [
-        'whatsapp',
-        'telegram',
-        'pay outside',
-        'off platform',
-        'bank transfer',
-        'send money directly',
-    ];
-
     public function __construct(
         protected Thread $thread,
         protected Message $message,
         protected ThreadActor $threadActor,
+        protected array $skill = [],
     ) {}
 
-    public function description(): Stringable|string
-    {
-        return 'Assess the message for safety risks and return normalized observer output.';
-    }
-
-    public function handle(ToolRequest $request): Stringable|string
+    public function observe(): ?ObserverResult
     {
         try {
-            $response = ObserverAgent::make(thread: $this->thread, message: $this->message)
-                ->prompt($this->buildPrompt($request));
+            $response = ObserverAgent::make(
+                thread: $this->thread,
+                message: $this->message,
+                threadActor: $this->threadActor,
+            )->prompt($this->buildPrompt());
 
-            return json_encode(
-                $this->normalizeAgentResponse(is_array($response) ? $response : []),
-                JSON_UNESCAPED_SLASHES
-            ) ?: $this->encodeAllow();
+            return $this->normalizeAgentResponse(is_array($response) ? $response : []);
         } catch (Throwable) {
-            return json_encode(
-                $this->fallbackKeywordRules($this->message),
-                JSON_UNESCAPED_SLASHES
-            ) ?: $this->encodeAllow();
+            return $this->fallbackKeywordRules($this->message);
         }
     }
 
-    public function schema(JsonSchema $schema): array
+    /**
+     * @param  array<string, mixed>  $response
+     */
+    protected function normalizeAgentResponse(array $response): ?ObserverResult
     {
-        return [
-            'message_id' => $schema->integer(),
-            'message_body' => $schema->string(),
-            'attachments' => $schema->array($schema->string()),
-        ];
+        $action = mb_strtolower(trim((string) ($response['action'] ?? 'allow')));
+        $reason = trim((string) ($response['reason'] ?? ''));
+        $suggestion = trim((string) ($response['suggestion'] ?? ''));
+        $severity = $this->normalizeSeverity(
+            mb_strtolower(trim((string) ($response['severity'] ?? 'low'))),
+            'low',
+        );
+
+        return match ($action) {
+            'block' => $this->result(
+                eventType: 'message_blocked',
+                severity: $this->normalizeSeverity($severity, 'high'),
+                payload: ['reason' => $reason, 'source' => $this->eventSource()],
+                redactMessage: true,
+            ),
+            'flag' => $this->result(
+                eventType: 'moderation_flagged',
+                severity: $this->normalizeSeverity($severity, 'medium'),
+                payload: ['reason' => $reason, 'source' => $this->eventSource()],
+            ),
+            'suggest' => $this->result(
+                eventType: 'suggestion_created',
+                severity: $this->normalizeSeverity($severity, 'low'),
+                payload: [
+                    'reason' => $reason,
+                    'suggestion' => $suggestion,
+                    'source' => $this->eventSource(),
+                ],
+            ),
+            default => null,
+        };
     }
 
-    protected function buildPrompt(ToolRequest $request): string
+    protected function fallbackKeywordRules(Message $message): ?ObserverResult
+    {
+        $content = mb_strtolower((string) $message->text);
+
+        foreach ($this->blockedKeywords() as $keyword) {
+            if (str_contains($content, $keyword)) {
+                return $this->result(
+                    eventType: 'message_blocked',
+                    severity: 'high',
+                    payload: ['reason' => 'sensitive_term', 'term' => $keyword, 'source' => 'fallback_keyword'],
+                    redactMessage: true,
+                );
+            }
+        }
+
+        foreach ($this->flaggedKeywords() as $keyword) {
+            if (str_contains($content, $keyword)) {
+                return $this->result(
+                    eventType: 'moderation_flagged',
+                    severity: 'medium',
+                    payload: ['reason' => 'risky_term', 'term' => $keyword, 'source' => 'fallback_keyword'],
+                );
+            }
+        }
+
+        return null;
+    }
+
+    protected function normalizeSeverity(string $severity, string $default): string
+    {
+        return in_array($severity, ['low', 'medium', 'high'], true) ? $severity : $default;
+    }
+
+    protected function buildPrompt(): string
     {
         $attachments = collect($this->message->attachments ?? [])
             ->map(fn (mixed $item): string => is_array($item) ? ($item['name'] ?? 'file') : 'file')
@@ -91,103 +120,96 @@ class SafetyGuardObserver implements Tool
             ],
             'observer_actor' => $this->threadActor->actorReference(),
             'message' => [
-                'id' => $request->integer('message_id') ?: $this->message->id,
-                'body' => $request->string('message_body')->toString() ?: $this->message->text,
-                'attachments' => $request->array('attachments') ?: $attachments,
+                'id' => $this->message->id,
+                'body' => $this->message->text,
+                'attachments' => $attachments,
             ],
         ], JSON_PRETTY_PRINT) ?: (string) $this->message->text;
     }
 
     /**
-     * @param  array<string, mixed>  $response
-     * @return array<string, mixed>
+     * @return list<string>
      */
-    protected function normalizeAgentResponse(array $response): array
+    protected function blockedKeywords(): array
     {
-        $action = mb_strtolower(trim((string) ($response['action'] ?? 'allow')));
-        $reason = trim((string) ($response['reason'] ?? ''));
-        $suggestion = trim((string) ($response['suggestion'] ?? ''));
-        $severity = $this->normalizeSeverity(
-            mb_strtolower(trim((string) ($response['severity'] ?? 'low'))),
-            'low',
-        );
+        $configured = data_get($this->skill, 'rules.blocked_keywords');
 
-        return match ($action) {
-            'block' => [
-                'event_type' => 'message_blocked',
-                'severity' => $this->normalizeSeverity($severity, 'high'),
-                'payload' => ['reason' => $reason, 'source' => 'observer_agent'],
-                'redact_message' => true,
-            ],
-            'flag' => [
-                'event_type' => 'moderation_flagged',
-                'severity' => $this->normalizeSeverity($severity, 'medium'),
-                'payload' => ['reason' => $reason, 'source' => 'observer_agent'],
-                'redact_message' => false,
-            ],
-            'suggest' => [
-                'event_type' => 'suggestion_created',
-                'severity' => $this->normalizeSeverity($severity, 'low'),
-                'payload' => [
-                    'reason' => $reason,
-                    'suggestion' => $suggestion,
-                    'source' => 'observer_agent',
-                ],
-                'redact_message' => false,
-            ],
-            default => [
-                'event_type' => null,
-                'severity' => 'low',
-                'payload' => ['source' => 'observer_agent'],
-                'redact_message' => false,
-            ],
-        };
-    }
+        if (is_array($configured)) {
+            $keywords = collect($configured)
+                ->filter(fn (mixed $keyword): bool => is_string($keyword) && trim($keyword) !== '')
+                ->map(fn (string $keyword): string => mb_strtolower(trim($keyword)))
+                ->values()
+                ->all();
 
-    /**
-     * @return array<string, mixed>
-     */
-    protected function fallbackKeywordRules(Message $message): array
-    {
-        $content = mb_strtolower($message->text);
-
-        foreach ($this->blockedKeywords as $keyword) {
-            if (str_contains($content, $keyword)) {
-                return [
-                    'event_type' => 'message_blocked',
-                    'severity' => 'high',
-                    'payload' => ['reason' => 'sensitive_term', 'term' => $keyword, 'source' => 'fallback_keyword'],
-                    'redact_message' => true,
-                ];
-            }
-        }
-
-        foreach ($this->flaggedKeywords as $keyword) {
-            if (str_contains($content, $keyword)) {
-                return [
-                    'event_type' => 'moderation_flagged',
-                    'severity' => 'medium',
-                    'payload' => ['reason' => 'risky_term', 'term' => $keyword, 'source' => 'fallback_keyword'],
-                    'redact_message' => false,
-                ];
+            if ($keywords !== []) {
+                return $keywords;
             }
         }
 
         return [
-            'event_type' => null,
-            'severity' => 'low',
-            'payload' => ['source' => 'fallback_keyword'],
-            'redact_message' => false,
+            'credit card',
+            'card number',
+            'cvv',
+            'otp',
+            'one time password',
+            'social security number',
         ];
     }
 
-    protected function normalizeSeverity(string $severity, string $default): string
+    /**
+     * @return list<string>
+     */
+    protected function flaggedKeywords(): array
     {
-        return in_array($severity, ['low', 'medium', 'high'], true) ? $severity : $default;
+        $configured = data_get($this->skill, 'rules.flagged_keywords');
+
+        if (is_array($configured)) {
+            $keywords = collect($configured)
+                ->filter(fn (mixed $keyword): bool => is_string($keyword) && trim($keyword) !== '')
+                ->map(fn (string $keyword): string => mb_strtolower(trim($keyword)))
+                ->values()
+                ->all();
+
+            if ($keywords !== []) {
+                return $keywords;
+            }
+        }
+
+        return [
+            'whatsapp',
+            'telegram',
+            'pay outside',
+            'off platform',
+            'bank transfer',
+            'send money directly',
+        ];
     }
 
-    protected function encodeAllow(): string
+    protected function eventSource(): string
     {
-        return '{"event_type":null,"severity":"low","payload":{"source":"observer_tool"},"redact_message":false}';
+        $source = data_get($this->skill, 'source');
+
+        if (! is_string($source) || trim($source) === '') {
+            return 'observer_agent';
+        }
+
+        return trim($source);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $payload
+     */
+    protected function result(
+        string $eventType,
+        string $severity,
+        ?array $payload = null,
+        bool $redactMessage = false,
+    ): ObserverResult {
+        return new ObserverResult(
+            eventType: $eventType,
+            severity: $severity,
+            payload: $payload,
+            redactMessage: $redactMessage,
+        );
     }
 }

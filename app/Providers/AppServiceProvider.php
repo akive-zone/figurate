@@ -107,6 +107,7 @@ class AppServiceProvider extends ServiceProvider
             \ApiPlatform\Laravel\ApiPlatformProvider::class,
             \ApiPlatform\Laravel\ApiPlatformDeferredProvider::class,
             \ApiPlatform\Laravel\Eloquent\ApiPlatformEventProvider::class,
+            \App\Providers\Server\ChatServiceProvider::class,
             \App\Providers\Server\AuthServiceProvider::class,
             \App\Providers\Server\ControlPanelProvider::class,
         ];

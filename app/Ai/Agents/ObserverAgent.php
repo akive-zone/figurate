@@ -5,6 +5,7 @@ namespace App\Ai\Agents;
 use App\Ai\Middleware\Workflows\ApplyObserverWorkflow;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
+use App\Models\Server\ThreadActor;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Ai\Attributes\UseCheapestModel;
 use Laravel\Ai\Contracts\Agent;
@@ -21,6 +22,7 @@ class ObserverAgent implements Agent, HasMiddleware, HasStructuredOutput
     public function __construct(
         public Thread $thread,
         public Message $message,
+        public ?ThreadActor $threadActor = null,
     ) {}
 
     /**

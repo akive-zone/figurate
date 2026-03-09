@@ -69,7 +69,7 @@ return [
             'webhook_response' => \Spatie\WebhookClient\WebhookResponse\DefaultRespondsTo::class,
             'webhook_model' => \Spatie\WebhookClient\Models\WebhookCall::class,
             'store_headers' => ['*'],
-            'process_webhook_job' => \App\Jobs\A2a\ProcessInboundA2aPushWebhookJob::class,
+            'process_webhook_job' => \App\Jobs\ProcessInboundA2aPushWebhookJob::class,
         ],
     ],
 

@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Jobs\A2a;
+namespace App\Jobs;
 
-use App\Actions\Server\Chat\StoreThreadMessage;
+use App\Actions\Server\Chat\DispatchThreadMessage;
+use App\Actions\Server\Chat\ThreadMessageEntry;
 use App\Models\Server\AgentTask;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
@@ -190,21 +191,20 @@ class ProcessInboundA2aPushWebhookJob extends ProcessWebhookJob
             return $dedupe;
         }
 
-        /** @var StoreThreadMessage $storeThreadMessage */
-        $storeThreadMessage = app(StoreThreadMessage::class);
+        /** @var DispatchThreadMessage $dispatchThreadMessage */
+        $dispatchThreadMessage = app(DispatchThreadMessage::class);
 
-        return $storeThreadMessage(
+        return $dispatchThreadMessage(ThreadMessageEntry::agentMessage(
             thread: $thread,
-            sender: null,
             text: $body,
             meta: [
-                'source' => 'a2a_remote_response',
                 'remote_agent_id' => $remoteAgentId,
                 'remote_task_id' => $taskId,
                 'status' => $state,
                 'webhook_call_id' => $this->webhookCall->id,
             ],
-        );
+            source: 'a2a_remote_response',
+        ));
     }
 
     /**

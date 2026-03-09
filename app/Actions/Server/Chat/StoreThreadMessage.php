@@ -2,6 +2,7 @@
 
 namespace App\Actions\Server\Chat;
 
+use App\Events\Server\Chat\ThreadMessageStored;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
@@ -19,7 +20,7 @@ class StoreThreadMessage
         string $type = 'text',
         ?string $tag = null,
     ): Message {
-        return $thread->messages()->create([
+        $message = $thread->messages()->create([
             'senderable_type' => $sender?->getMorphClass(),
             'senderable_id' => $sender?->getKey(),
             'type' => $type,
@@ -28,5 +29,9 @@ class StoreThreadMessage
             'attachments' => null,
             'meta' => $meta,
         ]);
+
+        ThreadMessageStored::dispatch($message);
+
+        return $message;
     }
 }

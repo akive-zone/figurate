@@ -2,8 +2,6 @@
 
 namespace App\Actions\Server\Chat;
 
-use App\Ai\Support\Knowledge\MessageAttachmentStoreIngestor;
-use App\Jobs\ProcessThreadObservers;
 use App\Models\Server\Channel;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
@@ -13,8 +11,7 @@ use Illuminate\Support\Collection;
 class SendPeerThreadMessage
 {
     public function __construct(
-        protected StoreThreadMessage $storeThreadMessage,
-        protected MessageAttachmentStoreIngestor $messageAttachmentStoreIngestor,
+        protected DispatchThreadMessage $dispatchThreadMessage,
     ) {}
 
     /**
@@ -29,44 +26,14 @@ class SendPeerThreadMessage
         string $source = 'peer_message',
         bool $dispatchObservers = true,
     ): Message {
-        if (! $this->canActorWrite($channel, $thread, $actor)) {
-            abort(403);
-        }
-
-        $message = ($this->storeThreadMessage)(
+        return ($this->dispatchThreadMessage)(ThreadMessageEntry::peerMessage(
+            channel: $channel,
             thread: $thread,
-            sender: $actor,
+            actor: $actor,
             text: $text,
-            meta: [
-                'source' => $source,
-            ],
-        );
-
-        $attachments->each(function (array $attachment) use ($message): void {
-            $message->addMedia($attachment['path'])
-                ->usingName(pathinfo($attachment['original_name'], PATHINFO_FILENAME))
-                ->usingFileName($attachment['original_name'])
-                ->toMediaCollection('attachments');
-        });
-
-        if ($attachments->isNotEmpty()) {
-            $message->syncAttachmentPayload();
-            $this->messageAttachmentStoreIngestor->ingest($thread, $message, $actor);
-        }
-
-        if ($dispatchObservers) {
-            ProcessThreadObservers::dispatch($thread->id, $message->id);
-        }
-
-        return $message;
-    }
-
-    protected function canActorWrite(Channel $channel, Thread $thread, User $actor): bool
-    {
-        if (! $channel->conversationThreadIds()->contains($thread->getKey())) {
-            return false;
-        }
-
-        return $channel->hasActor($actor);
+            attachments: $attachments,
+            source: $source,
+            dispatchObservers: $dispatchObservers,
+        ));
     }
 }

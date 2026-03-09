@@ -2,7 +2,9 @@
 
 namespace App\Ai\Support;
 
-use App\Actions\Server\Chat\StoreThreadMessage;
+use App\A2a\TaskPushNotificationDispatcher;
+use App\Actions\Server\Chat\DispatchThreadMessage;
+use App\Actions\Server\Chat\ThreadMessageEntry;
 use App\Ai\Agents\PresenterAgent;
 use App\Ai\Storage\ConversationId;
 use App\Ai\Storage\ConversationPersistenceResolver;
@@ -12,7 +14,6 @@ use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadActorSession;
 use App\Models\Server\User;
-use App\A2a\TaskPushNotificationDispatcher;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Support\Facades\DB;
 use Laravel\Ai\Contracts\Agent;
@@ -23,7 +24,7 @@ use Throwable;
 class ChatAgentExecutor
 {
     public function __construct(
-        protected StoreThreadMessage $storeThreadMessage,
+        protected DispatchThreadMessage $dispatchThreadMessage,
         protected TaskPushNotificationDispatcher $taskPushNotificationDispatcher,
     ) {}
 
@@ -251,19 +252,18 @@ class ChatAgentExecutor
             return;
         }
 
-        $assistantMessage = ($this->storeThreadMessage)(
+        $assistantMessage = ($this->dispatchThreadMessage)(ThreadMessageEntry::agentMessage(
             thread: $thread,
-            sender: null,
             text: $assistantText !== '' ? $assistantText : 'Interactive step ready.',
             meta: [
-                'source' => 'agent_response',
                 'actor_key' => $threadActor->actorName(),
                 'conversation_id' => $response->conversationId ?? $session->conversation_id,
                 'in_reply_to_message_id' => $userMessage->id,
                 'invocation_id' => $response->invocationId,
                 'a2ui' => is_array($assistantA2ui) ? $assistantA2ui : null,
             ],
-        );
+            source: 'agent_response',
+        ));
 
         $this->linkAgentTelemetryToThreadMessages($thread, $userMessage, $assistantMessage, $threadActor, $userId, $response);
     }
