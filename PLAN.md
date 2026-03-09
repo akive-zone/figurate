@@ -28,15 +28,13 @@ Stabilize chat orchestration and fulfillment execution around Laravel AI primiti
 1. Thin-controller objective is improved but not fully complete (`ChatController` still owns significant orchestration and shaping logic).
 2. Legacy naming cleanup is mostly done, but some `Signal` wording remains.
 3. Bigint-over-UUID internal consistency improved, but prior risk remains for older paths.
-4. Planned feature test coverage for controller contract/idempotency/thread resolution/queue+broadcast is not yet complete.
 5. Product intent for observer-agent prompting in human threads is documented, but orchestration rules are not yet codified in implementation-facing plan criteria.
 
 ### Open Work
 
 1. Move more orchestration/request-shaping logic out of `ChatController` into dedicated actions/services.
-2. Add missing feature tests for controller contract, idempotency, thread resolution, and queue+broadcast behavior.
-3. Decide whether remaining `ServiceRequest`-typed policy coupling should be generalized now or left as-is.
-4. Re-verify and close earlier route/provider drift risk after refactor history.
+2. Decide whether remaining `ServiceRequest`-typed policy coupling should be generalized now or left as-is.
+3. Re-verify and close earlier route/provider drift risk after refactor history.
 5. Define and implement observer-agent orchestration for human-participant threads, including:
    - allow/deny gating for observer prompting,
    - support for multiple observer agents in a single thread,
@@ -83,8 +81,7 @@ Implement A2A-compliant transport and task lifecycle on top of existing thread o
 
 1. Complete inbound webhook replay/timestamp controls and deny-path observability.
 2. Implement outbound callback URL trust policy (environment-aware URL restrictions and optional allowlist).
-3. Expand automated A2A contract/security coverage (shape, lifecycle, auth/owner failures, streaming/reconnect, webhook trust checks).
-4. Evaluate optional Reverb-backed replay for stream/resubscribe path.
+3. Evaluate optional Reverb-backed replay for stream/resubscribe path.
 
 ### Exit Criteria Check
 
@@ -92,7 +89,6 @@ Implement A2A-compliant transport and task lifecycle on top of existing thread o
 2. Task lifecycle state is derived from persisted execution data: Met.
 3. Owner-boundary authorization is enforced: Met.
 4. Inbound push webhook signature + replay protection enforced: Not met (replay still open).
-5. Automated A2A contract/security coverage across core paths: Not met.
 
 ---
 
@@ -118,19 +114,136 @@ Implement backend A2UI compatibility for inbound/outbound agent interactions, va
 
 ### Partially Completed
 
-1. Backend contract/security test coverage is still narrow (current tests focus on router transport edge cases).
-2. Catalog governance is implemented structurally, but production catalog policy/content governance is still open.
+1. Catalog governance is implemented structurally, but production catalog policy/content governance is still open.
 
 ### Open Work
 
-1. Add broader backend tests for A2UI validation, normalization, persistence, and response projection paths.
-2. Add negative-path tests for malformed/unsupported A2UI payloads and capability mismatches.
-3. Finalize backend policy decisions for allowed catalogs and stricter inline-catalog acceptance rules by environment.
-4. Add operational guidance for backend A2UI troubleshooting and payload auditability.
+1. Tighten backend handling paths for malformed/unsupported A2UI payloads and capability mismatches.
+2. Finalize backend policy decisions for allowed catalogs and stricter inline-catalog acceptance rules by environment.
+3. Add operational guidance for backend A2UI troubleshooting and payload auditability.
 
 ### Exit Criteria Check
 
 1. Backend accepts and normalizes supported A2UI payloads safely: Met.
 2. Backend persists and re-projects A2UI interaction context consistently: Met.
-3. Backend enforces mature test coverage for A2UI contract and failure paths: Not met.
-4. Backend catalog policy/governance is fully locked for production: Not met.
+3. Backend catalog policy/governance is fully locked for production: Not met.
+
+---
+
+## Plan Entry: AI Interop Security and Trust (Backend)
+
+Date opened: 2026-03-08  
+Current status: Open
+
+### Goal
+Define and deliver backend trust boundaries for A2A and MCP flows so integrations are secure by default across environments.
+
+### Planned Scope
+
+1. Inbound A2A webhook trust hardening (replay-window enforcement and explicit deny behavior).
+2. Outbound callback trust policy (environment-aware URL restrictions and optional allowlist controls).
+3. Clear token/ability boundary model for machine-to-machine A2A operations.
+4. MCP invocation trust boundaries (allowlist, policy enforcement, and failure behavior standards).
+
+### Exit Criteria
+
+1. A2A inbound webhook trust policy is fully enforced in runtime.
+2. Outbound callback trust policy is implemented and environment-aware.
+3. A2A ability boundaries are documented and aligned with runtime behavior.
+4. MCP trust boundaries are locked and consistently applied.
+
+---
+
+## Plan Entry: A2UI Catalog Governance (Backend)
+
+Date opened: 2026-03-08  
+Current status: Open
+
+### Goal
+Lock backend governance for A2UI catalogs so payload behavior is predictable, policy-controlled, and production-safe.
+
+### Planned Scope
+
+1. Define allowed catalog IDs by environment and rollout strategy.
+2. Define inline catalog acceptance policy by environment.
+3. Define backend behavior for unsupported catalog references and policy denials.
+4. Align agent-card A2UI extension metadata with enforced backend policy.
+
+### Exit Criteria
+
+1. Catalog allow/deny policy is production-ready and environment-scoped.
+2. Inline catalog policy is explicitly enforced.
+3. Unsupported catalog behavior is deterministic and documented.
+4. Advertised A2UI capabilities match actual backend enforcement.
+
+---
+
+## Plan Entry: A2A Ownership and Tenancy Evolution (Backend)
+
+Date opened: 2026-03-08  
+Current status: Open
+
+### Goal
+Evolve task ownership boundaries from principal-only scoping to tenancy-ready boundaries without breaking current integrations.
+
+### Planned Scope
+
+1. Document current principal-based owner model and constraints.
+2. Define target org/workspace-aware ownership model for A2A task access.
+3. Define migration path for owner metadata and task filtering semantics.
+4. Preserve backward compatibility expectations for existing machine clients.
+
+### Exit Criteria
+
+1. Target tenancy ownership model is locked.
+2. Migration approach is defined and sequenced.
+3. Runtime authorization semantics are clearly versioned for clients.
+4. Existing principal-bound behavior remains stable during transition.
+
+---
+
+## Plan Entry: AI Interop Operations and Recovery (Backend)
+
+Date opened: 2026-03-08  
+Current status: Open
+
+### Goal
+Define backend operational behavior for interop failures and recovery so A2A/MCP flows are supportable in production.
+
+### Planned Scope
+
+1. Define task lifecycle recovery behavior for delayed/failed callbacks and stream interruptions.
+2. Define operator-visible status and failure states for remote task linkage.
+3. Define backend retry/escalation policy boundaries for push and remote task sync.
+4. Define minimum observability events needed for production support and incident triage.
+
+### Exit Criteria
+
+1. Recovery behavior is deterministic for common failure modes.
+2. Operator-facing status model is defined for task linkage and sync state.
+3. Retry/escalation policy is explicit and enforced where required.
+4. Observability requirements are documented and aligned with runtime events.
+
+---
+
+## Plan Entry: A2A/A2UI Compatibility and Versioning (Backend)
+
+Date opened: 2026-03-08  
+Current status: Open
+
+### Goal
+Define backend compatibility policy for A2A/A2UI spec evolution so integrations remain stable as protocols change.
+
+### Planned Scope
+
+1. Define compatibility window and support policy for canonical + legacy method aliases.
+2. Define versioned behavior for payload shape evolution and deprecation timelines.
+3. Define rollout expectations for agent-card capability/version signaling.
+4. Define policy for introducing and retiring compatibility shims.
+
+### Exit Criteria
+
+1. Compatibility policy is explicit and version-aware.
+2. Deprecation approach is defined with stable client expectations.
+3. Agent-card signaling is aligned with supported runtime behavior.
+4. Shim lifecycle policy is clear for future protocol changes.
