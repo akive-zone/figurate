@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Server\Api\A2a\StreamController as A2aStreamController;
+use App\Http\Controllers\Server\Api\Acp\SessionController as AcpSessionController;
+use App\Http\Controllers\Server\Api\Acp\TaskController as AcpTaskController;
 use App\Http\Controllers\Server\Api\ApiTokenController;
 use App\Http\Controllers\Server\Api\ChatController;
 use App\Http\Controllers\Server\Api\ChatPostController;
@@ -41,6 +43,15 @@ Route::prefix('context-servers')->middleware([EnsureDeviceUser::class, 'auth:san
     Route::post('/', [ContextServerController::class, 'store'])->name('api.context-servers.store');
     Route::patch('/{contextServer}', [ContextServerController::class, 'update'])->name('api.context-servers.update');
     Route::delete('/{contextServer}', [ContextServerController::class, 'destroy'])->name('api.context-servers.destroy');
+});
+
+Route::prefix('acp')->middleware([EnsureDeviceUser::class, 'auth:sanctum'])->group(function (): void {
+    Route::get('/sessions', [AcpSessionController::class, 'index'])->name('api.acp.sessions.index');
+    Route::post('/sessions', [AcpSessionController::class, 'store'])->name('api.acp.sessions.store');
+    Route::get('/sessions/{session}', [AcpSessionController::class, 'show'])->name('api.acp.sessions.show');
+    Route::post('/sessions/{session}/prompt', [AcpSessionController::class, 'prompt'])->name('api.acp.sessions.prompt');
+    Route::get('/tasks/{task}', [AcpTaskController::class, 'show'])->name('api.acp.tasks.show');
+    Route::post('/tasks/{task}/cancel', [AcpTaskController::class, 'cancel'])->name('api.acp.tasks.cancel');
 });
 
 Route::prefix('a2a')->group(function (): void {

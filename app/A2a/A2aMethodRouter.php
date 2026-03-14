@@ -2,17 +2,18 @@
 
 namespace App\A2a;
 
-use App\Actions\Server\Chat\ResolveChatChannelContext;
-use App\Actions\Server\Chat\ResolveChatThreadContext;
-use App\Actions\Server\Chat\SendPeerThreadMessage;
-use App\Ai\Support\ChatAgentExecutor;
-use App\Models\Server\Message;
-use App\Models\Server\Thread;
-use App\Models\Server\ThreadActor;
-use App\Models\Server\User;
 use App\A2ui\A2uiCatalogRegistry;
 use App\A2ui\A2uiPayloadContract;
+use App\Actions\Server\Chat\ResolveChatChannelContext;
+use App\Actions\Server\Chat\ResolveChatThreadContext;
+use App\Models\Server\AgentTask;
+use App\Models\Server\Message;
+use App\Models\Server\Thread;
+use App\Models\Server\User;
+use App\Support\Orchestrate\AgentTaskService;
 use App\Support\Orchestrate\ConversationOrchestrator;
+use App\Support\Orchestrate\MessageTaskService;
+use App\Support\Orchestrate\PromptDispatchService;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
@@ -28,11 +29,12 @@ class A2aMethodRouter
         protected ConversationOrchestrator $orchestrator,
         protected ResolveChatChannelContext $resolveChatChannelContext,
         protected ResolveChatThreadContext $resolveChatThreadContext,
-        protected SendPeerThreadMessage $sendPeerThreadMessage,
-        protected ChatAgentExecutor $chatAgentExecutor,
         protected TaskPushNotificationDispatcher $taskPushNotificationDispatcher,
         protected A2uiPayloadContract $a2uiPayloadContract,
         protected A2uiCatalogRegistry $a2uiCatalogRegistry,
+        protected PromptDispatchService $promptDispatchService,
+        protected AgentTaskService $agentTaskService,
+        protected MessageTaskService $messageTaskService,
     ) {}
 
     /**
@@ -119,35 +121,51 @@ class A2aMethodRouter
         );
         $thread = $decision->thread;
 
-        $activePresenters = $this->resolveActivePresenters($thread);
         $taskId = $this->resolveTaskId($params);
 
-        if ($activePresenters->isEmpty()) {
-            $message = ($this->sendPeerThreadMessage)(
-                channel: $channel,
-                thread: $thread,
-                actor: $user,
-                text: $content,
-                attachments: collect(),
-                source: 'peer_message',
-                dispatchObservers: true,
-            );
+        $meta = [
+            'a2a_task_id' => $taskId,
+            'a2a_source' => 'jsonrpc',
+            'a2a_owner' => $this->resolveAuthenticatedOwner(),
+        ];
+        if (is_array($a2uiClientCapabilities)) {
+            $meta['a2ui_client_capabilities'] = $a2uiClientCapabilities;
+        }
+        if ($a2uiClientDataModel !== null) {
+            $meta['a2ui_client_data_model'] = $a2uiClientDataModel;
+        }
 
-            $meta = is_array($message->meta) ? $message->meta : [];
-            $meta['a2a_task_id'] = $taskId;
-            $meta['a2a_source'] = 'jsonrpc';
-            $meta['a2a_owner'] = $this->resolveAuthenticatedOwner();
-            if (is_array($a2uiClientCapabilities)) {
-                $meta['a2ui_client_capabilities'] = $a2uiClientCapabilities;
-            }
-            if ($a2uiClientDataModel !== null) {
-                $meta['a2ui_client_data_model'] = $a2uiClientDataModel;
-            }
-            $message->forceFill([
+        $dispatch = $this->promptDispatchService->dispatch(
+            channel: $channel,
+            thread: $thread,
+            actor: $user,
+            text: $content,
+            options: [
+                'agent_source' => 'agent_prompt',
+                'direct_source' => 'peer_message',
+                'dispatch_observers_when_direct' => true,
+                'dispatch_observers_when_agent' => false,
+                'meta' => $meta,
                 'actions' => $a2uiActions !== [] ? $a2uiActions : null,
                 'errors' => $a2uiErrors !== [] ? $a2uiErrors : null,
-                'meta' => $meta,
-            ])->save();
+                'broadcast_channel_id' => "threads.{$thread->uuid}",
+            ],
+        );
+        $message = $dispatch['message'];
+        $task = $this->agentTaskService->createLocalTask(
+            promptMessage: $message,
+            user: $user,
+            payload: [
+                'local' => [
+                    'protocol' => 'a2a',
+                    'owner' => $this->resolveAuthenticatedOwner(),
+                    'public_id' => $taskId,
+                ],
+            ],
+            stateOverride: $dispatch['direct'] === true ? 'completed' : null,
+        );
+
+        if ($dispatch['direct'] === true) {
             $this->taskPushNotificationDispatcher->dispatchTaskUpdate($message, 'completed');
 
             return [
@@ -158,49 +176,13 @@ class A2aMethodRouter
                         'thread_id' => $thread->uuid,
                         'channel_id' => $channel->uuid,
                         'prompt_message_ulid' => $message->ulid,
+                        'agent_task_uuid' => $task->uuid,
                     ],
                 ),
             ];
         }
 
-        $message = ($this->sendPeerThreadMessage)(
-            channel: $channel,
-            thread: $thread,
-            actor: $user,
-            text: $content,
-            attachments: collect(),
-            source: 'agent_prompt',
-            dispatchObservers: false,
-        );
-
-        $meta = is_array($message->meta) ? $message->meta : [];
-        $meta['a2a_task_id'] = $taskId;
-        $meta['a2a_source'] = 'jsonrpc';
-        $meta['a2a_owner'] = $this->resolveAuthenticatedOwner();
-        if (is_array($a2uiClientCapabilities)) {
-            $meta['a2ui_client_capabilities'] = $a2uiClientCapabilities;
-        }
-        if ($a2uiClientDataModel !== null) {
-            $meta['a2ui_client_data_model'] = $a2uiClientDataModel;
-        }
-        $message->forceFill([
-            'actions' => $a2uiActions !== [] ? $a2uiActions : null,
-            'errors' => $a2uiErrors !== [] ? $a2uiErrors : null,
-            'meta' => $meta,
-        ])->save();
         $this->taskPushNotificationDispatcher->dispatchTaskUpdate($message, 'submitted');
-
-        $broadcastChannelId = "threads.{$thread->uuid}";
-
-        $activePresenters->each(function (ThreadActor $presenter) use ($thread, $message, $user, $broadcastChannelId): void {
-            $this->chatAgentExecutor->queue(
-                thread: $thread,
-                userMessage: $message,
-                user: $user,
-                threadActor: $presenter,
-                broadcastChannelId: $broadcastChannelId,
-            );
-        });
 
         return [
             'result' => $this->taskPayload(
@@ -210,7 +192,8 @@ class A2aMethodRouter
                     'thread_id' => $thread->uuid,
                     'channel_id' => $channel->uuid,
                     'prompt_message_ulid' => $message->ulid,
-                    'pending_presenters' => $activePresenters->count(),
+                    'agent_task_uuid' => $task->uuid,
+                    'pending_presenters' => $dispatch['presenters']->count(),
                 ],
             ),
         ];
@@ -223,51 +206,38 @@ class A2aMethodRouter
     protected function tasksGet(array $params): array
     {
         $taskId = $this->resolveTaskId($params);
-        $promptMessage = $this->resolvePromptMessage($taskId);
+        $task = $this->agentTaskService->resolveOwnedA2aTask($taskId, $this->resolveAuthenticatedOwner());
 
-        if (! $promptMessage) {
+        if (! $task instanceof AgentTask) {
             return $this->invalidParams(['task_id' => ['Task was not found.']]);
         }
 
-        $thread = $this->resolveMessageThread($promptMessage);
-        $invocations = is_array(data_get($promptMessage->meta, 'invocations')) ? data_get($promptMessage->meta, 'invocations') : [];
-        $assistantReplies = $this->assistantRepliesForPrompt($thread, $promptMessage);
-        $promptPayload = $this->messagePayload($promptMessage);
+        $task = $this->agentTaskService->syncLocalTask($task);
+        $promptMessage = $task->message;
+        if (! $promptMessage instanceof Message) {
+            return $this->invalidParams(['task_id' => ['Task was not found.']]);
+        }
 
-        $state = $this->resolveTaskState($invocations, $assistantReplies);
+        $snapshot = $this->messageTaskService->snapshot($promptMessage);
+        $thread = $snapshot['thread'];
+        $invocations = $snapshot['invocations'];
+        $assistantReplies = $snapshot['assistant_replies'];
+        $promptPayload = $this->messagePayload($promptMessage);
         $artifacts = $assistantReplies
             ->map(fn (Message $message): array => $this->toTaskArtifactPayload($message, $promptMessage))
             ->values()
             ->all();
 
-        $invocationStates = collect($invocations)
-            ->map(function (mixed $entry, string $actorKey): ?array {
-                if (! is_array($entry)) {
-                    return null;
-                }
-
-                return [
-                    'actor_key' => $actorKey,
-                    'status' => $entry['status'] ?? null,
-                    'invocation_id' => $entry['invocation_id'] ?? null,
-                    'conversation_id' => $entry['conversation_id'] ?? null,
-                    'error_message' => $entry['error_message'] ?? null,
-                    'recorded_at' => $entry['recorded_at'] ?? null,
-                ];
-            })
-            ->filter(fn (mixed $entry): bool => is_array($entry))
-            ->values()
-            ->all();
-
         return [
             'result' => $this->taskPayload(
-                taskId: $taskId,
-                state: $state,
+                taskId: $this->agentTaskService->publicId($task),
+                state: $task->status,
                 context: [
                     'thread_id' => $thread?->uuid,
                     'prompt_message_ulid' => $promptMessage->ulid,
                     'prompt_message_id' => $promptMessage->id,
-                    'invocations' => $invocationStates,
+                    'agent_task_uuid' => $task->uuid,
+                    'invocations' => $this->messageTaskService->invocationPayload($invocations),
                     'payload' => $promptPayload,
                 ],
                 artifacts: $artifacts,
@@ -284,50 +254,23 @@ class A2aMethodRouter
         $limit = max(1, min(100, (int) ($params['maxItems'] ?? $params['limit'] ?? 20)));
         $userUuid = $this->trimmedString($params['user_uuid'] ?? null);
 
-        $query = Message::query()
-            ->whereIn('meta->source', ['agent_prompt', 'peer_message'])
-            ->whereNotNull('meta->a2a_task_id')
-            ->latest('id')
-            ->limit($limit);
-
-        $owner = $this->resolveAuthenticatedOwner();
-
-        if (is_array($owner)) {
-            $query
-                ->where('meta->a2a_owner.subject_type', $owner['subject_type'])
-                ->where('meta->a2a_owner.subject_id', $owner['subject_id']);
-        } else {
-            $query->whereRaw('1 = 0');
-        }
-
-        if ($userUuid !== null) {
-            $query->where('senderable_type', (new User)->getMorphClass())
-                ->whereHasMorph(
-                    'senderable',
-                    [User::class],
-                    fn ($builder) => $builder->where('uuid', $userUuid),
-                );
-        }
-
-        $tasks = $query->get()
-            ->map(function (Message $message): array {
-                $taskId = is_string(data_get($message->meta, 'a2a_task_id')) && trim((string) data_get($message->meta, 'a2a_task_id')) !== ''
-                    ? trim((string) data_get($message->meta, 'a2a_task_id'))
-                    : $message->ulid;
-                $thread = $this->resolveMessageThread($message);
-                $invocations = is_array(data_get($message->meta, 'invocations')) ? data_get($message->meta, 'invocations') : [];
-                $assistantReplies = $this->assistantRepliesForPrompt($thread, $message);
+        $tasks = $this->agentTaskService->listOwnedA2aTasks($this->resolveAuthenticatedOwner(), $userUuid, $limit)
+            ->map(function (AgentTask $task): array {
+                $task = $this->agentTaskService->syncLocalTask($task);
+                $promptMessage = $task->message;
+                $thread = $task->thread;
 
                 return [
-                    'id' => $taskId,
+                    'id' => $this->agentTaskService->publicId($task),
                     'kind' => 'task',
                     'status' => [
-                        'state' => $this->resolveTaskState($invocations, $assistantReplies),
+                        'state' => $task->status,
                         'timestamp' => now()->toIso8601String(),
                     ],
                     'context' => [
                         'thread_id' => $thread?->uuid,
-                        'prompt_message_ulid' => $message->ulid,
+                        'prompt_message_ulid' => $promptMessage?->ulid,
+                        'agent_task_uuid' => $task->uuid,
                     ],
                 ];
             })
@@ -349,41 +292,36 @@ class A2aMethodRouter
     protected function tasksCancel(array $params): array
     {
         $taskId = $this->resolveTaskId($params);
-        $promptMessage = $this->resolvePromptMessage($taskId);
+        $task = $this->agentTaskService->resolveOwnedA2aTask($taskId, $this->resolveAuthenticatedOwner());
 
-        if (! $promptMessage) {
+        if (! $task instanceof AgentTask) {
             return $this->invalidParams(['task_id' => ['Task was not found.']]);
         }
 
-        $meta = is_array($promptMessage->meta) ? $promptMessage->meta : [];
-        $invocations = is_array($meta['invocations'] ?? null) ? $meta['invocations'] : [];
-
-        foreach ($invocations as $actorKey => $entry) {
-            if (! is_array($entry)) {
-                continue;
-            }
-
-            $status = $entry['status'] ?? null;
-            if ($status === 'completed' || $status === 'failed') {
-                continue;
-            }
-
-            $entry['status'] = 'canceled';
-            $entry['canceled_at'] = now()->toIso8601String();
-            $invocations[$actorKey] = $entry;
+        $promptMessage = $task->message;
+        if (! $promptMessage instanceof Message) {
+            return $this->invalidParams(['task_id' => ['Task was not found.']]);
         }
 
-        $meta['invocations'] = $invocations;
-        $meta['a2a_canceled_at'] = now()->toIso8601String();
-        $promptMessage->forceFill(['meta' => $meta])->save();
+        $thread = $this->messageTaskService->resolveMessageThread($promptMessage);
+        $task = $this->agentTaskService->cancelLocalTask(
+            task: $task,
+            presenters: $thread instanceof Thread ? $this->promptDispatchService->resolveActivePresenters($thread) : collect(),
+            canceledMetaPath: 'a2a_canceled_at',
+        );
+        $promptMessage = $task->message;
+        if (! $promptMessage instanceof Message) {
+            return $this->invalidParams(['task_id' => ['Task was not found.']]);
+        }
         $this->taskPushNotificationDispatcher->dispatchTaskUpdate($promptMessage, 'canceled');
 
         return [
             'result' => $this->taskPayload(
-                taskId: $taskId,
-                state: 'canceled',
+                taskId: $this->agentTaskService->publicId($task),
+                state: $task->status,
                 context: [
                     'prompt_message_ulid' => $promptMessage->ulid,
+                    'agent_task_uuid' => $task->uuid,
                 ],
             ),
         ];
@@ -1344,11 +1282,7 @@ class A2aMethodRouter
 
     protected function resolveMessageThread(Message $message): ?Thread
     {
-        if ($message->messageable_type !== (new Thread)->getMorphClass()) {
-            return null;
-        }
-
-        return Thread::query()->find($message->messageable_id);
+        return $this->messageTaskService->resolveMessageThread($message);
     }
 
     /**
@@ -1356,19 +1290,7 @@ class A2aMethodRouter
      */
     protected function assistantRepliesForPrompt(?Thread $thread, Message $promptMessage): Collection
     {
-        if (! $thread) {
-            return collect();
-        }
-
-        return Message::query()
-            ->where('messageable_type', $thread->getMorphClass())
-            ->where('messageable_id', $thread->getKey())
-            ->whereNull('senderable_type')
-            ->whereNull('senderable_id')
-            ->where('meta->source', 'agent_response')
-            ->where('meta->in_reply_to_message_id', $promptMessage->id)
-            ->oldest('id')
-            ->get();
+        return $this->messageTaskService->assistantRepliesForPrompt($thread, $promptMessage);
     }
 
     /**
@@ -1377,48 +1299,7 @@ class A2aMethodRouter
      */
     protected function resolveTaskState(array $invocations, Collection $assistantReplies): string
     {
-        if ($invocations === []) {
-            return $assistantReplies->isNotEmpty() ? 'completed' : 'submitted';
-        }
-
-        $statuses = collect($invocations)
-            ->map(fn (mixed $entry): ?string => is_array($entry) ? $this->trimmedString($entry['status'] ?? null) : null)
-            ->filter()
-            ->values();
-
-        if ($statuses->isEmpty()) {
-            return $assistantReplies->isNotEmpty() ? 'completed' : 'submitted';
-        }
-
-        if ($statuses->every(fn (string $status): bool => $status === 'completed')) {
-            return 'completed';
-        }
-
-        if ($statuses->every(fn (string $status): bool => $status === 'canceled')) {
-            return 'canceled';
-        }
-
-        if ($statuses->contains(fn (string $status): bool => $status === 'failed') && ! $statuses->contains('pending')) {
-            return 'failed';
-        }
-
-        if ($statuses->contains(fn (string $status): bool => in_array($status, ['pending', 'canceled'], true))) {
-            return 'working';
-        }
-
-        return 'working';
-    }
-
-    /**
-     * @return Collection<int, ThreadActor>
-     */
-    protected function resolveActivePresenters(Thread $thread): Collection
-    {
-        return $thread->actors()
-            ->where('role', ThreadActor::RolePresenter)
-            ->where('status', ThreadActor::StatusActive)
-            ->orderBy('priority')
-            ->get();
+        return $this->messageTaskService->resolveTaskState($invocations, $assistantReplies);
     }
 
     protected function trimmedString(mixed $value): ?string
