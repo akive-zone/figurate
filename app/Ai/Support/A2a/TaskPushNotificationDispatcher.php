@@ -1,6 +1,6 @@
 <?php
 
-namespace App\A2a;
+namespace App\Ai\Support\A2a;
 
 use App\Models\Server\Message;
 use App\Models\Server\Thread;

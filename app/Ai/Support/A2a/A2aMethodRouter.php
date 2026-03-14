@@ -1,11 +1,11 @@
 <?php
 
-namespace App\A2a;
+namespace App\Ai\Support\A2a;
 
-use App\A2ui\A2uiCatalogRegistry;
-use App\A2ui\A2uiPayloadContract;
 use App\Actions\Server\Chat\ResolveChatChannelContext;
 use App\Actions\Server\Chat\ResolveChatThreadContext;
+use App\Ai\Support\A2ui\A2uiCatalogRegistry;
+use App\Ai\Support\A2ui\A2uiPayloadContract;
 use App\Models\Server\AgentTask;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;

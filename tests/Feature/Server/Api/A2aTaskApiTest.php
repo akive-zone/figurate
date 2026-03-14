@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Server\Api;
 
-use App\A2a\A2aMethodRouter;
+use App\Ai\Support\A2a\A2aMethodRouter;
 use App\Ai\Support\ChatAgentExecutor;
 use App\Models\Server\AgentTask;
 use App\Models\Server\Channel;

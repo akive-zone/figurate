@@ -1,6 +1,6 @@
 <?php
 
-namespace App\A2ui;
+namespace App\Ai\Support\A2ui;
 
 class A2uiCatalogRegistry
 {

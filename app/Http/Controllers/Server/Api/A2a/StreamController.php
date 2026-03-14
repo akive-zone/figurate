@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Server\Api\A2a;
 
+use App\Ai\Support\A2a\A2aMethodRouter;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\A2a\HandleA2aRpcRequest;
-use App\A2a\A2aMethodRouter;
 use Illuminate\Http\StreamedEvent;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;

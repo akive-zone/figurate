@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Server\Api\A2a;
 
+use App\Ai\Support\A2ui\A2uiCatalogRegistry;
 use App\Http\Controllers\Controller;
-use App\A2ui\A2uiCatalogRegistry;
 use Illuminate\Http\JsonResponse;
 
 class AgentCardController extends Controller
