@@ -1,5 +1,6 @@
 <?php
 
+use App\Ai\Gateways\Mcp\Servers\FigurateServer;
 use App\Http\Controllers\Native\Web\ChannelController as NativeChannelController;
 use App\Http\Controllers\Server\Api\A2a\AgentCardController;
 use App\Http\Controllers\Server\Web\ChannelController as ServerChannelController;
@@ -7,6 +8,7 @@ use App\Http\Controllers\Server\Web\PasskeyController as ServerPasskeyController
 use App\Http\Controllers\Server\Web\SocialiteController;
 use App\Http\Middleware\EnsureDeviceUser;
 use Illuminate\Support\Facades\Route;
+use Laravel\Mcp\Facades\Mcp;
 
 if (\app_is_native_runtime()) {
     Route::get('/', function () {
@@ -27,6 +29,9 @@ if (\app_is_native_runtime()) {
     });
 } else {
     Route::get('/.well-known/agent-card', AgentCardController::class)->name('a2a.agent-card');
+
+    Mcp::web('/mcp/figurate', FigurateServer::class)
+        ->middleware([EnsureDeviceUser::class, 'auth:sanctum']);
 
     Route::prefix('auth')
         ->name('auth.')
