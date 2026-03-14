@@ -4,6 +4,7 @@ namespace App\Models\Server;
 
 use App\Models\Concerns\HasPublicUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -48,6 +49,11 @@ class BaseUser extends Authenticatable
     public function contextServers(): MorphMany
     {
         return $this->morphMany(ContextServer::class, 'contextable');
+    }
+
+    public function inboxes(): HasMany
+    {
+        return $this->hasMany(Inbox::class);
     }
 
     /**

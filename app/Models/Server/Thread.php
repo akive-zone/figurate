@@ -63,14 +63,24 @@ class Thread extends Model
         return $this->hasMany(ThreadActor::class);
     }
 
-    public function actorSessions(): HasMany
-    {
-        return $this->hasMany(ThreadActorSession::class);
-    }
-
     public function events(): HasMany
     {
         return $this->hasMany(ThreadEvent::class);
+    }
+
+    public function outboxes(): HasMany
+    {
+        return $this->hasMany(Outbox::class);
+    }
+
+    public function inboxes(): MorphMany
+    {
+        return $this->morphMany(Inbox::class, 'inboxable');
+    }
+
+    public function contextInboxes(): HasMany
+    {
+        return $this->hasMany(Inbox::class);
     }
 
     public function relations(): HasMany

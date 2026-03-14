@@ -73,6 +73,17 @@ return [
         ],
     ],
 
+    'chat_protocols' => [
+        'activitypub' => [
+            'signing_secret' => env('CHAT_ACTIVITYPUB_WEBHOOK_SECRET', env('CHAT_INBOUND_WEBHOOK_SECRET', env('WEBHOOK_CLIENT_SECRET'))),
+            'signature_header_name' => env('CHAT_ACTIVITYPUB_WEBHOOK_SIGNATURE_HEADER', 'Signature'),
+        ],
+        'nostr' => [
+            'signing_secret' => env('CHAT_NOSTR_WEBHOOK_SECRET', env('CHAT_INBOUND_WEBHOOK_SECRET', env('WEBHOOK_CLIENT_SECRET'))),
+            'signature_header_name' => env('CHAT_NOSTR_WEBHOOK_SIGNATURE_HEADER', 'Signature'),
+        ],
+    ],
+
     /*
      * The integer amount of days after which models should be deleted.
      *

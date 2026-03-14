@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class ThreadEvent extends Model
 {
@@ -83,5 +84,10 @@ class ThreadEvent extends Model
     public function tasks(): BelongsToMany
     {
         return $this->agentTasks();
+    }
+
+    public function inboxes(): MorphMany
+    {
+        return $this->morphMany(Inbox::class, 'inboxable');
     }
 }

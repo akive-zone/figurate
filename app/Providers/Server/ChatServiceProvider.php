@@ -2,9 +2,16 @@
 
 namespace App\Providers\Server;
 
+use App\Actions\Server\Chat\ActivityPubOutboundMessageSender;
+use App\Actions\Server\Chat\ChatProtocolRegistry;
+use App\Actions\Server\Chat\NostrOutboundMessageSender;
+use App\Actions\Server\Chat\Protocols\ActivityPubChatProtocol;
+use App\Actions\Server\Chat\Protocols\NostrChatProtocol;
 use App\Events\Server\Chat\ThreadMessageStored;
 use App\Listeners\Server\Ai\RecordObserverAgentPrompted;
 use App\Listeners\Server\Ai\RecordObserverAgentPrompting;
+use App\Listeners\Server\Chat\EnqueueOutboxForThreadMessage;
+use App\Listeners\Server\Chat\ProjectInboxForThreadMessage;
 use App\Listeners\Server\Chat\QueueThreadObserversForPeerMessage;
 use App\Models\Server\Channel;
 use App\Models\Server\Message;
@@ -20,13 +27,44 @@ use Laravel\Ai\Events\PromptingAgent;
 
 class ChatServiceProvider extends ServiceProvider
 {
-    public function boot(): void
+    public function register(): void
+    {
+        $this->app->scoped(ChatProtocolRegistry::class);
+        $this->app->singleton(ActivityPubOutboundMessageSender::class);
+        $this->app->singleton(NostrOutboundMessageSender::class);
+        $this->app->singleton(ActivityPubChatProtocol::class);
+        $this->app->singleton(NostrChatProtocol::class);
+        $this->app->tag([
+            ActivityPubChatProtocol::class,
+            NostrChatProtocol::class,
+        ], ChatProtocolRegistry::DriverTag);
+    }
+
+    public function boot(ChatProtocolRegistry $chatProtocolRegistry): void
     {
         Gate::policy(Channel::class, ChannelPolicy::class);
         Gate::policy(Message::class, MessagePolicy::class);
         Gate::policy(Thread::class, ThreadPolicy::class);
 
+        $existingWebhookConfigs = collect(config('webhook-client.configs', []))
+            ->filter(fn (mixed $config): bool => is_array($config) && is_string($config['name'] ?? null))
+            ->keyBy(fn (array $config): string => $config['name']);
+
+        $protocolWebhookConfigs = collect($chatProtocolRegistry->webhookConfigs())
+            ->keyBy(fn (array $config): string => $config['name']);
+
+        config([
+            'webhook-client.configs' => $existingWebhookConfigs
+                ->merge($protocolWebhookConfigs)
+                ->values()
+                ->all(),
+        ]);
+
+        $chatProtocolRegistry->registerRoutes();
+
         Event::listen(ThreadMessageStored::class, QueueThreadObserversForPeerMessage::class);
+        Event::listen(ThreadMessageStored::class, EnqueueOutboxForThreadMessage::class);
+        Event::listen(ThreadMessageStored::class, ProjectInboxForThreadMessage::class);
         Event::listen(PromptingAgent::class, RecordObserverAgentPrompting::class);
         Event::listen(AgentPrompted::class, RecordObserverAgentPrompted::class);
     }
