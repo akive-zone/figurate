@@ -8,6 +8,8 @@
         "php": "^8.2",
         "api-platform/laravel": "^4.2",
         "filament/filament": "^4.0",
+        "figurate/multi-site": "dev-main",
+        "figurate/multi-space": "dev-main",
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/ai": "^0.2",
         "laravel/framework": "^12.0",
@@ -129,6 +131,22 @@
             "merge-scripts": false
         }
     },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "mod/multi-site",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
+            "url": "mod/multi-space",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
     "config": {
         "optimize-autoloader": true,
         "preferred-install": "dist",

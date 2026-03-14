@@ -10,6 +10,8 @@
         </testsuite>
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
+            <directory>mod/multi-site/tests</directory>
+            <directory>mod/multi-space/tests</directory>
         </testsuite>
     </testsuites>
     <source>

@@ -1,0 +1,20 @@
+{
+    "name": "figurate/multi-space",
+    "type": "library",
+    "description": "Multi-space tenancy module for Figurate built on spatie/laravel-multitenancy inside the active multi-site.",
+    "require": {
+        "spatie/laravel-multitenancy": "^4.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Figurate\\MultiSpace\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Figurate\\MultiSpace\\MultiSpaceServiceProvider"
+            ]
+        }
+    }
+}

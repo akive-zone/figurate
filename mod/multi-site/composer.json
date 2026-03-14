@@ -1,0 +1,20 @@
+{
+    "name": "figurate/multi-site",
+    "type": "library",
+    "description": "Multi-site tenancy module for Figurate built on stancl/tenancy.",
+    "require": {
+        "stancl/tenancy": "^3.9"
+    },
+    "autoload": {
+        "psr-4": {
+            "Figurate\\MultiSite\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Figurate\\MultiSite\\MultiSiteServiceProvider"
+            ]
+        }
+    }
+}
