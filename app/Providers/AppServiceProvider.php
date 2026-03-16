@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Passport\Passport;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -37,6 +38,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Passport::tokensCan([
+            'chat' => 'Use chat-oriented API capabilities.',
+            'studio' => 'Use the studio API.',
+            'mcp:use' => 'Use the Figurate MCP transport.',
+            'acp:use' => 'Use the ACP transport.',
+            'a2a:message.send' => 'Send A2A messages.',
+            'a2a:task.read' => 'Read A2A task state.',
+            'a2a:task.cancel' => 'Cancel A2A tasks.',
+            'a2a:push.config.manage' => 'Manage A2A push notification configuration.',
+        ]);
 
         if ($this->isNativeRuntime()) {
             $this->loadMigrationsFrom(database_path('migrations/native'));

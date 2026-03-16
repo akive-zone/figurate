@@ -23,7 +23,7 @@ class ApiTokenController extends Controller
 
         $deviceUser = $this->resolveDeviceUser($request);
 
-        $user = SanctumUser::create([
+        $user = SanctumUser::query()->create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
@@ -78,7 +78,17 @@ class ApiTokenController extends Controller
     {
         $user = request()->user();
 
-        $user?->currentAccessToken()?->delete();
+        if ($user && method_exists($user, 'currentAccessToken')) {
+            $user->currentAccessToken()?->delete();
+        }
+
+        if ($user && method_exists($user, 'token')) {
+            $token = $user->token();
+
+            if ($token && method_exists($token, 'revoke')) {
+                $token->revoke();
+            }
+        }
 
         return response()->json(status: 204);
     }

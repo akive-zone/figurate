@@ -10,8 +10,11 @@ use App\Models\Server\Message;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
+use App\TokenAbility;
 use Database\Factories\ChannelFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Passport\Passport;
+use Laravel\Sanctum\Sanctum;
 use Mockery\MockInterface;
 use Tests\TestCase;
 
@@ -21,10 +24,10 @@ class AcpSessionApiTest extends TestCase
 
     public function test_it_creates_lists_and_loads_acp_sessions(): void
     {
-        $user = $this->makeUser();
+        $user = $this->makeUser('agent');
         $channel = $this->accessibleChannel($user);
 
-        $this->actingAs($user, 'sanctum');
+        Sanctum::actingAs($user, [TokenAbility::AcpUse->value]);
 
         $response = $this->postJson('/api/acp/sessions', [
             'channel_uuid' => $channel->uuid,
@@ -86,10 +89,10 @@ class AcpSessionApiTest extends TestCase
             $mock->shouldReceive('queue')->once();
         });
 
-        $user = $this->makeUser();
+        $user = $this->makeUser('agent');
         $channel = $this->accessibleChannel($user);
 
-        $this->actingAs($user, 'sanctum');
+        Sanctum::actingAs($user, [TokenAbility::AcpUse->value]);
 
         $sessionResponse = $this->postJson('/api/acp/sessions', [
             'channel_uuid' => $channel->uuid,
@@ -133,6 +136,22 @@ class AcpSessionApiTest extends TestCase
             ->assertJsonPath('data.state', 'canceled');
     }
 
+    public function test_an_agent_user_can_access_acp_with_passport_authentication(): void
+    {
+        $user = $this->makeUser('agent');
+        $channel = $this->accessibleChannel($user);
+
+        Passport::actingAs($user, [TokenAbility::AcpUse->value], 'passport');
+
+        $this->postJson('/api/acp/sessions', [
+            'channel_uuid' => $channel->uuid,
+            'title' => 'Passport ACP Session',
+            'purpose' => Thread::PurposeExecution,
+        ])->assertCreated()
+            ->assertJsonPath('data.title', 'Passport ACP Session')
+            ->assertJsonPath('data.channel.id', $channel->uuid);
+    }
+
     protected function accessibleChannel(User $user): Channel
     {
         $channel = ChannelFactory::new()->create();
@@ -148,13 +167,13 @@ class AcpSessionApiTest extends TestCase
         return $channel;
     }
 
-    protected function makeUser(): User
+    protected function makeUser(string $type = 'person'): User
     {
         return User::query()->create([
             'name' => 'ACP Tester',
             'email' => fake()->unique()->safeEmail(),
             'password' => 'password',
-            'type' => 'person',
+            'type' => $type,
             'provider' => null,
             'provider_id' => null,
             'status' => 'active',

@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Server\User;
+use App\Models\Server\SanctumUser;
 use App\TokenAbility;
 use Closure;
 use Illuminate\Http\Request;
@@ -35,7 +35,7 @@ class EnsureDeviceUser
             Cookie::queue(cookie()->forever('device_id', $deviceId));
         }
 
-        $user = User::firstOrCreate(
+        $user = SanctumUser::query()->firstOrCreate(
             ['device_identifier' => $deviceId],
             [
                 'name' => 'Device User',

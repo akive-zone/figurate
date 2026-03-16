@@ -14,7 +14,7 @@ class ThreadPolicy
      */
     public function viewAny(User $user): bool
     {
-        return in_array($user->type, ['system', 'person', 'device'], true);
+        return in_array($user->type, ['system', 'person', 'device', 'agent'], true);
     }
 
     /**
@@ -44,7 +44,7 @@ class ThreadPolicy
      */
     public function create(User $user): bool
     {
-        return in_array($user->type, ['system', 'person', 'device'], true);
+        return in_array($user->type, ['system', 'person', 'device', 'agent'], true);
     }
 
     /**

@@ -47,7 +47,7 @@ class EnsureA2aRpcAbility
                 continue;
             }
 
-            if (! $user->tokenCan($requiredAbility)) {
+            if (! is_object($user) || ! method_exists($user, 'tokenCan') || ! $user->tokenCan($requiredAbility)) {
                 return response()->json([
                     'jsonrpc' => '2.0',
                     'id' => (is_string($call['id'] ?? null) || is_int($call['id'] ?? null)) ? $call['id'] : null,

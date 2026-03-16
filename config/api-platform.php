@@ -63,7 +63,7 @@ return [
         'pagination_items_per_page' => 30,
         'pagination_maximum_items_per_page' => 30,
         'route_prefix' => '/api',
-        'middleware' => [\App\Http\Middleware\EnsureDeviceUser::class, 'auth:sanctum'],
+        'middleware' => [\App\Http\Middleware\EnsureDeviceUser::class, 'auth:sanctum,passport'],
     ],
 
     'pagination' => [

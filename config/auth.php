@@ -38,11 +38,12 @@ return [
     'guards' => [
         'web' => [
             'driver' => 'session',
-            'provider' => 'users',
+            'provider' => 'cookie_users',
         ],
+
         'passport' => [
             'driver' => 'passport',
-            'provider' => 'passport_users',
+            'provider' => 'oauth_users',
         ],
     ],
 
@@ -64,20 +65,20 @@ return [
     */
 
     'providers' => [
-        'users' => [
+        'cookie_users' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', App\Models\Server\User::class),
+            'model' => App\Models\Server\User::class,
         ],
 
-        'passport_users' => [
+        'oauth_users' => [
             'driver' => 'eloquent',
             'model' => App\Models\Server\PassportUser::class,
         ],
 
-        // 'users' => [
-        //     'driver' => 'database',
-        //     'table' => 'users',
-        // ],
+        'users' => [
+            'driver' => 'database',
+            'table' => 'users',
+        ],
     ],
 
     /*

@@ -2,6 +2,7 @@
 
 namespace App\Actions\Server\Auth;
 
+use App\Models\Server\SanctumUser;
 use App\Models\Server\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -41,7 +42,7 @@ class MergeDeviceUserIntoDeviceUser
                 'device_identifier' => null,
             ])->save();
 
-            $sourceDeviceUser->tokens()->delete();
+            SanctumUser::query()->find($sourceDeviceUser->id)?->tokens()->delete();
         });
     }
 

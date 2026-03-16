@@ -32,7 +32,7 @@ class FigurateMcpServerTest extends TestCase
 
     public function test_it_lists_only_accessible_channels(): void
     {
-        $user = $this->makeUser();
+        $user = $this->makeUser('agent');
         $visibleChannel = $this->accessibleChannel($user);
         ChannelFactory::new()->create();
 
@@ -263,13 +263,13 @@ class FigurateMcpServerTest extends TestCase
         return $channel;
     }
 
-    protected function makeUser(): User
+    protected function makeUser(string $type = 'person'): User
     {
         return User::query()->create([
             'name' => 'MCP Tester',
             'email' => fake()->unique()->safeEmail(),
             'password' => 'password',
-            'type' => 'person',
+            'type' => $type,
             'provider' => null,
             'provider_id' => null,
             'status' => 'active',

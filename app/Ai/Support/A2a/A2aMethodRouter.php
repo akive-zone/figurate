@@ -1219,7 +1219,11 @@ class A2aMethodRouter
      */
     protected function resolveAuthenticatedOwner(): ?array
     {
-        $principal = auth('sanctum')->user();
+        $request = request();
+        $principal = $request->user()
+            ?? auth()->user()
+            ?? auth('sanctum')->user()
+            ?? auth('passport')->user();
 
         if (! $principal instanceof Authenticatable) {
             return null;
@@ -1234,7 +1238,9 @@ class A2aMethodRouter
             return null;
         }
 
-        $token = method_exists($principal, 'currentAccessToken') ? $principal->currentAccessToken() : null;
+        $token = method_exists($principal, 'currentAccessToken')
+            ? $principal->currentAccessToken()
+            : null;
 
         return [
             'subject_type' => $subjectType,

@@ -7,6 +7,8 @@ use App\Http\Controllers\Server\Web\ChannelController as ServerChannelController
 use App\Http\Controllers\Server\Web\PasskeyController as ServerPasskeyController;
 use App\Http\Controllers\Server\Web\SocialiteController;
 use App\Http\Middleware\EnsureDeviceUser;
+use App\Http\Middleware\EnsureTokenAbility;
+use App\Http\Middleware\EnsureTransportUser;
 use Illuminate\Support\Facades\Route;
 use Laravel\Mcp\Facades\Mcp;
 
@@ -31,7 +33,7 @@ if (\app_is_native_runtime()) {
     Route::get('/.well-known/agent-card', AgentCardController::class)->name('a2a.agent-card');
 
     Mcp::web('/mcp/figurate', FigurateServer::class)
-        ->middleware([EnsureDeviceUser::class, 'auth:sanctum']);
+        ->middleware(['auth:sanctum,passport', EnsureTransportUser::class, EnsureTokenAbility::class.':mcp:use']);
 
     Route::prefix('auth')
         ->name('auth.')

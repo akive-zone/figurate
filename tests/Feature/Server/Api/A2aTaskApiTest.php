@@ -8,6 +8,7 @@ use App\Models\Server\AgentTask;
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelActorState;
 use App\Models\Server\User;
+use App\TokenAbility;
 use Database\Factories\ChannelFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -24,13 +25,13 @@ class A2aTaskApiTest extends TestCase
             $mock->shouldReceive('queue')->once();
         });
 
-        $user = $this->makeUser();
+        $user = $this->makeUser('agent');
         $channel = $this->accessibleChannel($user);
 
         Sanctum::actingAs($user, [
-            'a2a:message.send',
-            'a2a:task.read',
-            'a2a:task.cancel',
+            TokenAbility::A2aMessageSend->value,
+            TokenAbility::A2aTaskRead->value,
+            TokenAbility::A2aTaskCancel->value,
         ]);
 
         $router = app(A2aMethodRouter::class);
@@ -91,13 +92,13 @@ class A2aTaskApiTest extends TestCase
         return $channel;
     }
 
-    protected function makeUser(): User
+    protected function makeUser(string $type = 'person'): User
     {
         return User::query()->create([
             'name' => 'A2A Tester',
             'email' => fake()->unique()->safeEmail(),
             'password' => 'password',
-            'type' => 'person',
+            'type' => $type,
             'provider' => null,
             'provider_id' => null,
             'status' => 'active',
