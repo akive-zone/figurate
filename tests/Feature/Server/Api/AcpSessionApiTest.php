@@ -167,7 +167,7 @@ class AcpSessionApiTest extends TestCase
         return $channel;
     }
 
-    protected function makeUser(string $type = 'person'): User
+    protected function makeUser(string $type = User::TypeSubject): User
     {
         return User::query()->create([
             'name' => 'ACP Tester',

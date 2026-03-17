@@ -12,7 +12,7 @@ class ServiceCategoryPolicy
      */
     public function viewAny(User $user): bool
     {
-        return in_array($user->type, ['system', 'person', 'device'], true);
+        return $user->isSystem() || $user->isGadget() || $user->canActAsHuman();
     }
 
     /**
@@ -20,7 +20,7 @@ class ServiceCategoryPolicy
      */
     public function view(User $user, ServiceCategory $serviceCategory): bool
     {
-        return in_array($user->type, ['system', 'person', 'device'], true);
+        return $user->isSystem() || $user->isGadget() || $user->canActAsHuman();
     }
 
     /**

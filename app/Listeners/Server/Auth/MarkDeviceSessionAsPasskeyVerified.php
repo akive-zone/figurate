@@ -11,7 +11,7 @@ class MarkDeviceSessionAsPasskeyVerified
     {
         $authenticatable = $event->passkey->authenticatable;
 
-        if (! $authenticatable instanceof User || $authenticatable->type !== 'device') {
+        if (! $authenticatable instanceof User || ! $authenticatable->isGadget()) {
             return;
         }
 
@@ -28,6 +28,6 @@ class MarkDeviceSessionAsPasskeyVerified
                 'passkey_id' => $event->passkey->id,
                 'user_id' => $authenticatable->id,
             ])
-            ->log('Device user authenticated with passkey and session was marked as verified.');
+            ->log('Gadget user authenticated with passkey and session was marked as verified.');
     }
 }

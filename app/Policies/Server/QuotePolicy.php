@@ -12,7 +12,7 @@ class QuotePolicy
      */
     public function viewAny(User $user): bool
     {
-        return in_array($user->type, ['system', 'person', 'device'], true);
+        return $user->isSystem() || $user->isGadget() || $user->canActAsHuman();
     }
 
     /**
@@ -36,7 +36,7 @@ class QuotePolicy
      */
     public function create(User $user): bool
     {
-        return $user->type === 'person';
+        return $user->canActAsHuman();
     }
 
     /**

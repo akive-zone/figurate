@@ -2,13 +2,12 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Server\SanctumUser;
+use App\Actions\Server\Auth\ResolveOrCreateGadgetUser;
 use App\TokenAbility;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cookie;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -17,7 +16,7 @@ class EnsureDeviceUser
     /**
      * Handle an incoming request.
      */
-    public function handle(Request $request, Closure $next): Response
+    public function handle(Request $request, Closure $next, ResolveOrCreateGadgetUser $resolveOrCreateGadgetUser): Response
     {
         if (Auth::check() || $request->bearerToken()) {
             return $next($request);
@@ -35,16 +34,7 @@ class EnsureDeviceUser
             Cookie::queue(cookie()->forever('device_id', $deviceId));
         }
 
-        $user = SanctumUser::query()->firstOrCreate(
-            ['device_identifier' => $deviceId],
-            [
-                'name' => 'Device User',
-                'email' => "device-{$deviceId}@example.invalid",
-                'password' => Hash::make(Str::random(48)),
-                'type' => 'device',
-                'status' => 'active',
-            ]
-        );
+        $user = $resolveOrCreateGadgetUser($request);
 
         $request->attributes->set('initial_device_user_id', $user->id);
 

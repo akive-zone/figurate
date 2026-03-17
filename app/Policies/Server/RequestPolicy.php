@@ -12,7 +12,7 @@ class RequestPolicy
      */
     public function viewAny(User $user): bool
     {
-        return in_array($user->type, ['system', 'person', 'device'], true);
+        return $user->isSystem() || $user->isGadget() || $user->canActAsHuman();
     }
 
     /**
@@ -38,7 +38,7 @@ class RequestPolicy
      */
     public function create(User $user): bool
     {
-        return in_array($user->type, ['person', 'device'], true);
+        return $user->isGadget() || $user->canActAsHuman();
     }
 
     /**

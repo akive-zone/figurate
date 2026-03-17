@@ -12,7 +12,7 @@ class DisputePolicy
      */
     public function viewAny(User $user): bool
     {
-        return in_array($user->type, ['system', 'person'], true);
+        return $user->isSystem() || $user->canActAsHuman();
     }
 
     /**
@@ -40,7 +40,7 @@ class DisputePolicy
      */
     public function create(User $user): bool
     {
-        return $user->type === 'person';
+        return $user->canActAsHuman();
     }
 
     /**

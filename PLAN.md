@@ -1,6 +1,6 @@
 # Delivery Plan Status
 
-Last updated: 2026-03-14
+Last updated: 2026-03-17
 
 This file is now a live status check of existing plan entries, based on the current codebase.
 
@@ -134,6 +134,60 @@ Implement backend A2UI compatibility for inbound/outbound agent interactions, va
 
 ---
 
+## Plan Entry: AI MCP Gateway
+
+Date opened: 2026-03-15  
+Current status: Partially Completed
+
+### Goal
+Establish a usable MCP gateway for Figurate, covering both the first-party Figurate MCP server and outbound MCP tool invocation from chat/runtime context.
+
+### Completed
+
+1. First-party Figurate MCP server is implemented and exposed at `/mcp/figurate`.
+2. MCP web access is protected behind `EnsureDeviceUser` and `auth:sanctum`.
+3. The Figurate server publishes a concrete capability surface for channels/threads/posts/actors/context, including:
+   - read/list tools,
+   - `create_thread`,
+   - `create_post`,
+   - `assign_thread_actor`,
+   - `transfer_thread_session`,
+   - guide/resource payloads,
+   - planning/summarization prompts.
+4. Server-side MCP payload shaping and authorization are implemented through shared gateway support (`FigurateMcpPayloads`) with policy checks against accessible channels/threads.
+5. Chat runtime MCP tooling is implemented behind `services.mcp.enabled`, including discovery (`ListAvailableMcpToolsTool`) and invocation (`InvokeMcpTool`).
+6. Outbound MCP server resolution supports both config-defined and persisted context servers, with overrides at user/channel/thread scope via `context_servers`.
+7. Outbound MCP invocation supports both remote endpoint transport and local handler transport, including allowlisted tools, timeout bounds, optional headers, and normalized response envelopes.
+8. MCP invocation outcomes are recorded to `thread_events` with MCP-specific event typing for execution traceability.
+9. Context-server CRUD and registration flows exist so MCP endpoints/handlers can be attached to user, channel, and thread context.
+10. Feature coverage exists for the first-party Figurate MCP server capability surface.
+
+### Partially Completed
+
+1. Core gateway behavior is implemented, but outbound MCP hardening is still incomplete:
+   - tool allowlisting exists,
+   - endpoint/handler presence checks exist,
+   - broader trust policy and environment-aware restrictions are still open.
+2. First-party server coverage exists, but outbound resolver/client/policy coverage is still thin compared with the implemented surface.
+3. The Figurate MCP server is operational for chat-context inspection and safe workflow actions, but broader product workflow coverage is intentionally narrow and excludes fulfillment-state mutation.
+
+### Open Work
+
+1. Add focused unit/feature coverage for outbound MCP resolution, invocation policy, remote failure normalization, and `ContextServerController` edge cases.
+2. Define and enforce outbound MCP trust rules for remote endpoints, credential/header policy, and environment-aware allowlisting.
+3. Decide whether remote MCP integration should remain config/allowlist driven or gain capability discovery/schema-sync behavior.
+4. Define clearer operator-facing observability for MCP endpoint failures, denial reasons, latency, and retry/no-retry behavior.
+5. Decide whether the first-party Figurate MCP server should expand beyond chat/workflow support into additional domain mutations, or remain intentionally constrained.
+
+### Exit Criteria Check
+
+1. First-party Figurate MCP server is usable for supported chat/workflow operations: Met.
+2. Chat runtime can discover and invoke scoped MCP tools through a unified gateway: Met.
+3. MCP trust policy is fully enforced for outbound integrations: Not met.
+4. Gateway test coverage is broad enough for inbound and outbound confidence: Not met.
+
+---
+
 ## Plan Entry: AI Interop Security and Trust (Backend)
 
 Date opened: 2026-03-08  
@@ -203,6 +257,111 @@ Evolve task ownership boundaries from principal-only scoping to tenancy-ready bo
 2. Migration approach is defined and sequenced.
 3. Runtime authorization semantics are clearly versioned for clients.
 4. Existing principal-bound behavior remains stable during transition.
+
+---
+
+## Plan Entry: Account, User, and Gadget Identity Architecture
+
+Date opened: 2026-03-16  
+Current status: Open
+
+### Goal
+Separate durable human ownership from acting runtime principals so Figurate can preserve same-gadget continuity without destructive user merges, while still allowing cross-gadget continuation through a shared account.
+
+### Decision Summary
+
+1. `users` remains the acting-principal table, not the durable human-identity table.
+2. User types should be actor-oriented (`robot`, `gadget`, `subject`, `system`, etc.), replacing the ambiguous `device` terminology with `gadget`.
+3. `accounts` becomes the durable human ownership layer.
+4. `account_users` should link accounts to acting users instead of embedding `account_id` directly on `users`.
+5. `user_agents` should track the concrete hardpoint and request metadata for the gadget/client/app-install/browser making requests on behalf of a given `user`.
+6. A gadget user that authenticates should remain a `gadget` user and be attached to an `account`, not promoted in place to `subject`.
+7. `subject` should remain reserved until there is a concrete runtime use case that is distinct from both gadget-origin actors and durable account ownership.
+8. Cross-gadget continuity should be derived from account-linked actors, while actor provenance should remain attached to the specific acting `user`.
+
+### Reasoning
+
+1. The current merge-heavy model treats login as a destructive identity transition, which is fragile because pre-auth gadget activity and post-auth account continuity are different concerns.
+2. Keeping `users` as principals fits the product better because the table already represents non-human actors such as model and system users; overloading it as the durable account layer makes the semantics inconsistent.
+3. Promoting the same gadget user in place gives excellent same-gadget continuity, but it breaks down when the same human later continues from another gadget and also overloads `subject` before its semantics are clear.
+4. Introducing `accounts` plus `account_users` preserves the best part of the current model:
+   - same-gadget continuity can keep the same `user_id`,
+   - cross-gadget continuity can be granted through shared account ownership.
+5. Treating the device as the hardpoint and the user-facing/runtime actor as the softpoint gives `user_agents` a concrete job: device/install/browser provenance belongs there instead of on the durable account layer.
+6. Keeping authenticated gadget users as gadgets avoids destructive type churn and preserves the ability to introduce `subject` later for a genuinely different runtime actor.
+7. This architecture also makes future org/workspace/tenancy evolution cleaner because durable ownership and acting principals are no longer the same axis.
+
+### Canonical Scenario
+
+1. A person opens the app anonymously on gadget A.
+2. Figurate creates `user(type=gadget)` for that gadget and associates request provenance through `user_agents`.
+3. Anonymous work such as threads, tasks, sessions, and conversations is created under that gadget user.
+4. The person then authenticates with an account.
+5. Instead of creating a separate durable `subject` user and destructively merging all prior work into it, Figurate should:
+   - resolve or create the `account`,
+   - attach the current gadget user to that account through `account_users`,
+   - keep previously created work attached to its original `user_id`,
+   - derive account continuity later by following the acting user back through `account_users`.
+6. The current gadget keeps using the same `user_id` and remains type `gadget`, so same-gadget continuity is preserved.
+7. Later, gadget B can create a second `gadget` user and attach it to the same account.
+8. Cross-gadget continuation then works by resolving which account-linked actors can see or continue a resource, while actor provenance still records which gadget user actually performed each action.
+
+### Target Model
+
+1. `users`
+   - acting principals only,
+   - includes `gadget`, `robot`, `subject`, `system`, and future runtime actor types,
+   - authenticated gadget actors remain `gadget` unless and until a distinct `subject` runtime need is defined.
+2. `accounts`
+   - durable human ownership and login identity.
+3. `account_users`
+   - account-to-user link table,
+   - should support relationship metadata such as `gadget`, `operator`, `owner`, `is_primary`, `linked_at`, and `unlinked_at`.
+4. `user_agents`
+   - request/gadget/client provenance for a user,
+   - should track the hardpoint identity and related device metadata such as device identifier, platform, app version, user agent, and last seen time.
+
+### Ownership Rules
+
+1. `user_id` answers "which actor performed this action?"
+2. Durable resources should stay actor-scoped by `user_id` or existing actor relations unless there is a stronger domain reason to persist a separate ownership key.
+3. Same-gadget continuity should prefer the current gadget user when resuming live/local state.
+4. Cross-gadget continuation should be resolved by the domain using `account_users` and actor membership rather than storing `account_id` on channels, threads, tasks, or sessions.
+5. `subject` should not be required for account login flows; account attachment should be sufficient for authenticated gadget continuity.
+
+### Actor-Scoped Rule
+
+1. `channels`, `threads`, `agent_tasks`, `agent_conversations`, and `thread_actor_sessions` should remain actor-scoped.
+2. If later domain logic needs account-aware continuation, it should derive that through actor membership and account linkage rather than a persisted `account_id` on those rows.
+3. Lower-level child records such as messages and thread events should remain actor-scoped as well.
+
+### Planned Refactor Direction
+
+1. Rename `device` terminology to `gadget` across auth/runtime flows.
+2. Add `accounts`.
+3. Add `account_users`.
+4. Add `user_agents` as the hardpoint/provenance layer and move gadget lookup toward that table.
+5. Keep durable, resumable resources actor-scoped and derive account context through `account_users` when needed.
+6. Replace merge-on-login behavior with account attachment while keeping authenticated gadget users as gadgets.
+7. Reserve `subject` until its runtime semantics are concrete enough to justify actual promotion or dedicated flows.
+8. Move passkey/social/durable human-auth bindings toward `accounts` rather than treating a `person` or `subject` user row as the durable identity.
+9. Keep token/runtime actor resolution user-scoped so auditability and transport checks continue to operate on the acting principal.
+
+### Current Risks to Address
+
+1. Existing merge actions are optimized for user-to-user migration and will not remain the right abstraction once account linking replaces destructive merges.
+2. Several current auth flows still assume a `device -> person` promotion path; those assumptions will need to move to `gadget -> account attachment`, with `subject` remaining unused until explicitly needed.
+3. `user_agents` naming may still be confused with AI-agent concepts unless code/docs stay explicit about it representing client/gadget provenance.
+4. Domain services will need clear rules for deriving account continuity from actor membership instead of relying on a direct `account_id` shortcut.
+
+### Exit Criteria
+
+1. Identity model is explicitly split between acting users and durable accounts.
+2. Same-gadget login no longer requires destructive user merges.
+3. Cross-gadget continuation works through account-linked actor resolution instead of persisted account ownership on runtime resources.
+4. Request provenance remains attributable to the exact acting gadget/model/system user.
+5. Terminology and runtime rules are updated consistently from `device/person` semantics to `gadget/account` semantics where appropriate.
+6. Hardpoint/device provenance is tracked through `user_agents` instead of relying on `users` as the primary hardpoint record.
 
 ---
 

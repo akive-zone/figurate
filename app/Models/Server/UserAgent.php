@@ -2,31 +2,29 @@
 
 namespace App\Models\Server;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class AgentConversation extends Model
+class UserAgent extends Model
 {
-    protected $table = 'agent_conversations';
-
-    /**
-     * @var string
-     */
-    protected $keyType = 'string';
-
-    /**
-     * @var bool
-     */
-    public $incrementing = false;
+    /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<self>> */
+    use HasFactory;
 
     /**
      * @var list<string>
      */
     protected $fillable = [
-        'id',
         'user_id',
-        'title',
+        'kind',
+        'device_identifier',
+        'user_agent',
+        'ip_address',
+        'app_version',
+        'platform',
+        'data',
+        'metadata',
+        'last_seen_at',
     ];
 
     /**
@@ -36,16 +34,14 @@ class AgentConversation extends Model
     {
         return [
             'user_id' => 'integer',
+            'data' => 'array',
+            'metadata' => 'array',
+            'last_seen_at' => 'datetime',
         ];
     }
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function messages(): HasMany
-    {
-        return $this->hasMany(AgentConversationMessage::class, 'conversation_id', 'id');
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 
@@ -22,7 +23,7 @@ class UserFactory extends Factory
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => Hash::make('password'),
-            'type' => 'person',
+            'type' => User::TypeSubject,
             'provider' => null,
             'provider_id' => null,
             'status' => 'active',

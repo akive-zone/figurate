@@ -2,17 +2,22 @@
 
 namespace App\Http\Controllers\Server\Web;
 
+use App\Actions\Server\Auth\AttachGadgetUserToAccount;
+use App\Actions\Server\Auth\ResolveOrCreateGadgetUser;
 use App\Http\Controllers\Controller;
-use App\Models\Server\User;
+use App\Models\Server\Account;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
 use Laravel\Socialite\Facades\Socialite;
 
 class SocialiteController extends Controller
 {
+    public function __construct(
+        protected AttachGadgetUserToAccount $attachGadgetUserToAccount,
+        protected ResolveOrCreateGadgetUser $resolveOrCreateGadgetUser,
+    ) {}
+
     /**
      * @var list<string>
      */
@@ -30,16 +35,18 @@ class SocialiteController extends Controller
         $this->ensureProviderIsAllowed($provider);
 
         $socialUser = Socialite::driver($provider)->user();
-        $user = $this->resolveUser($provider, $socialUser);
+        $account = $this->resolveAccount($provider, $socialUser);
+        $gadgetUser = ($this->resolveOrCreateGadgetUser)(request());
 
-        Auth::login($user);
+        ($this->attachGadgetUserToAccount)($gadgetUser, $account);
+        Auth::login($gadgetUser);
 
         return redirect()->route('chat.index');
     }
 
-    private function resolveUser(string $provider, SocialiteUser $socialUser): User
+    private function resolveAccount(string $provider, SocialiteUser $socialUser): Account
     {
-        $existing = User::query()
+        $existing = Account::query()
             ->where('provider', $provider)
             ->where('provider_id', $socialUser->getId())
             ->first();
@@ -48,27 +55,30 @@ class SocialiteController extends Controller
             return $existing;
         }
 
-        $current = Auth::user();
+        $email = $socialUser->getEmail();
 
-        if ($current) {
-            $current->forceFill([
-                'name' => $socialUser->getName() ?? $current->name,
-                'email' => $socialUser->getEmail() ?? $current->email,
-                'provider' => $provider,
-                'provider_id' => $socialUser->getId(),
-                'type' => 'person',
-            ])->save();
+        if (is_string($email) && trim($email) !== '') {
+            $account = Account::query()->where('email', trim($email))->first();
 
-            return $current;
+            if ($account) {
+                $account->forceFill([
+                    'name' => $socialUser->getName() ?? $account->name,
+                    'email' => trim($email),
+                    'provider' => $provider,
+                    'provider_id' => $socialUser->getId(),
+                    'status' => 'active',
+                ])->save();
+
+                return $account;
+            }
         }
 
-        return User::create([
-            'name' => $socialUser->getName() ?? 'Person User',
-            'email' => $socialUser->getEmail() ?? "person-{$provider}-{$socialUser->getId()}@example.invalid",
-            'password' => Hash::make(Str::random(48)),
+        return Account::query()->create([
+            'name' => $socialUser->getName() ?? 'Account User',
+            'email' => is_string($email) && trim($email) !== '' ? trim($email) : null,
+            'password' => null,
             'provider' => $provider,
             'provider_id' => $socialUser->getId(),
-            'type' => 'person',
             'status' => 'active',
         ]);
     }

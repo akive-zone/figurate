@@ -12,7 +12,7 @@ class OrderPolicy
      */
     public function viewAny(User $user): bool
     {
-        return in_array($user->type, ['system', 'person'], true);
+        return $user->isSystem() || $user->canActAsHuman();
     }
 
     /**
@@ -36,7 +36,7 @@ class OrderPolicy
      */
     public function create(User $user): bool
     {
-        return in_array($user->type, ['system', 'person'], true);
+        return $user->isSystem() || $user->canActAsHuman();
     }
 
     /**

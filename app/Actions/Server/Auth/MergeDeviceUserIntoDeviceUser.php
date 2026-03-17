@@ -19,7 +19,7 @@ class MergeDeviceUserIntoDeviceUser
             return;
         }
 
-        if ($sourceDeviceUser->type !== 'device' || $targetDeviceUser->type !== 'device') {
+        if (! $sourceDeviceUser->isGadget() || ! $targetDeviceUser->isGadget()) {
             return;
         }
 
@@ -30,6 +30,7 @@ class MergeDeviceUserIntoDeviceUser
             $this->migrateAgentConversations($sourceDeviceUser, $targetDeviceUser);
             $this->migrateAgentConversationMessages($sourceDeviceUser, $targetDeviceUser);
             $this->migratePasskeys($sourceDeviceUser, $targetDeviceUser);
+            $this->migrateUserAgents($sourceDeviceUser, $targetDeviceUser);
 
             if ($targetDeviceUser->device_identifier === null && $sourceDeviceUser->device_identifier !== null) {
                 $targetDeviceUser->forceFill([
@@ -249,6 +250,64 @@ class MergeDeviceUserIntoDeviceUser
             }
 
             DB::table('passkeys')
+                ->where('id', $row->id)
+                ->delete();
+        }
+    }
+
+    protected function migrateUserAgents(User $sourceDeviceUser, User $targetDeviceUser): void
+    {
+        if (! Schema::hasTable('user_agents')) {
+            return;
+        }
+
+        $rows = DB::table('user_agents')
+            ->where('user_id', $sourceDeviceUser->id)
+            ->get();
+
+        foreach ($rows as $row) {
+            $deviceIdentifier = is_string($row->device_identifier ?? null)
+                ? trim((string) $row->device_identifier)
+                : '';
+
+            $existing = $deviceIdentifier === ''
+                ? null
+                : DB::table('user_agents')
+                    ->where('user_id', $targetDeviceUser->id)
+                    ->where('device_identifier', $deviceIdentifier)
+                    ->first();
+
+            if (! $existing) {
+                DB::table('user_agents')
+                    ->where('id', $row->id)
+                    ->update([
+                        'user_id' => $targetDeviceUser->id,
+                        'updated_at' => now(),
+                    ]);
+
+                continue;
+            }
+
+            $sourceLastSeen = $row->last_seen_at ? strtotime((string) $row->last_seen_at) : null;
+            $targetLastSeen = $existing->last_seen_at ? strtotime((string) $existing->last_seen_at) : null;
+
+            if ($sourceLastSeen !== null && ($targetLastSeen === null || $sourceLastSeen > $targetLastSeen)) {
+                DB::table('user_agents')
+                    ->where('id', $existing->id)
+                    ->update([
+                        'kind' => $row->kind,
+                        'user_agent' => $row->user_agent,
+                        'ip_address' => $row->ip_address,
+                        'app_version' => $row->app_version,
+                        'platform' => $row->platform,
+                        'data' => $row->data,
+                        'metadata' => $row->metadata,
+                        'last_seen_at' => $row->last_seen_at,
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            DB::table('user_agents')
                 ->where('id', $row->id)
                 ->delete();
         }

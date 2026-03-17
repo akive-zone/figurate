@@ -44,9 +44,13 @@ class HandleInertiaRequests extends Middleware
         $user = $request->user();
         $passkeySession = $request->session()->get('auth.device_passkey');
         $isVerifiedDevicePasskeySession = $user
-            && $user->type === 'device'
+            && method_exists($user, 'isGadget')
+            && $user->isGadget()
             && is_array($passkeySession)
             && ((int) ($passkeySession['user_id'] ?? 0) === (int) $user->id);
+        $account = $user && method_exists($user, 'primaryAccount')
+            ? $user->primaryAccount()
+            : null;
 
         return [
             ...parent::share($request),
@@ -78,7 +82,16 @@ class HandleInertiaRequests extends Middleware
                     'id' => $user->id,
                     'name' => $user->name,
                     'type' => $user->type,
-                    'device_identifier' => $user->device_identifier,
+                    'device_identifier' => method_exists($user, 'currentDeviceIdentifier')
+                        ? $user->currentDeviceIdentifier()
+                        : $user->device_identifier,
+                ] : null,
+                'account' => $account ? [
+                    'id' => $account->id,
+                    'uuid' => $account->uuid,
+                    'name' => $account->name,
+                    'email' => $account->email,
+                    'status' => $account->status,
                 ] : null,
                 'passkeys' => $user && method_exists($user, 'passkeys')
                     ? $user->passkeys()

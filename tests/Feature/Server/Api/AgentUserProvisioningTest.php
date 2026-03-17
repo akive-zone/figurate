@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Server\Api;
 
+use App\Models\Server\Account;
 use App\Models\Server\User;
 use App\TokenAbility;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,9 +14,9 @@ class AgentUserProvisioningTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_a_person_user_can_provision_an_agent_user_with_default_protocol_abilities(): void
+    public function test_a_subject_user_can_provision_an_agent_user_with_default_protocol_abilities(): void
     {
-        $person = $this->makeUser('person');
+        $person = $this->makeUser(User::TypeSubject);
 
         Sanctum::actingAs($person, [TokenAbility::Studio->value]);
 
@@ -40,9 +41,9 @@ class AgentUserProvisioningTest extends TestCase
         $this->assertSame(TokenAbility::defaultAgentAbilities(), $token->abilities);
     }
 
-    public function test_a_device_user_cannot_provision_an_agent_user(): void
+    public function test_a_gadget_user_cannot_provision_an_agent_user_without_account_access(): void
     {
-        $device = $this->makeUser('device');
+        $device = $this->makeUser(User::TypeGadget);
 
         Sanctum::actingAs($device, [TokenAbility::Chat->value]);
 
@@ -51,11 +52,35 @@ class AgentUserProvisioningTest extends TestCase
         ])->assertForbidden();
     }
 
-    protected function makeUser(string $type): User
+    public function test_an_account_linked_gadget_user_can_provision_an_agent_user(): void
+    {
+        $gadget = $this->makeUser(User::TypeGadget, 'gadget-owner@example.com');
+        $account = Account::query()->create([
+            'name' => 'Gadget Owner',
+            'email' => 'gadget-owner@example.com',
+            'password' => 'password',
+            'status' => 'active',
+        ]);
+
+        $gadget->accounts()->attach($account->id, [
+            'relationship' => 'gadget',
+            'is_primary' => true,
+            'linked_at' => now(),
+        ]);
+
+        Sanctum::actingAs($gadget, [TokenAbility::Studio->value]);
+
+        $this->postJson('/api/auth/agents', [
+            'name' => 'Linked Gadget Agent',
+        ])->assertCreated()
+            ->assertJsonPath('data.user.type', 'agent');
+    }
+
+    protected function makeUser(string $type, ?string $email = null): User
     {
         return User::query()->create([
             'name' => ucfirst($type).' User',
-            'email' => fake()->unique()->safeEmail(),
+            'email' => $email ?? fake()->unique()->safeEmail(),
             'password' => 'password',
             'type' => $type,
             'provider' => null,

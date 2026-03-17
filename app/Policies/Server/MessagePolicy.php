@@ -21,7 +21,7 @@ class MessagePolicy
      */
     public function viewAny(User $user): bool
     {
-        return in_array($user->type, ['system', 'person', 'device', 'agent'], true);
+        return $user->isSystem() || $user->isRobot() || $user->isGadget() || $user->canActAsHuman();
     }
 
     /**
@@ -79,7 +79,7 @@ class MessagePolicy
      */
     public function create(User $user): bool
     {
-        return in_array($user->type, ['system', 'person', 'device', 'agent'], true);
+        return $this->viewAny($user);
     }
 
     /**
