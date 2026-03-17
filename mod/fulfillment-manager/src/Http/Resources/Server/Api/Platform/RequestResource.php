@@ -48,7 +48,6 @@ use Figurate\FulfillmentManager\Models\Request as RequestModel;
     ],
 )]
 #[QueryParameter(key: 'status', filter: EqualsFilter::class, property: 'status')]
-#[QueryParameter(key: 'flow_type', filter: EqualsFilter::class, property: 'flow_type')]
 #[QueryParameter(key: 'title', filter: PartialSearchFilter::class, property: 'title')]
 #[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
 final class RequestResource {}

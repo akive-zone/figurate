@@ -24,8 +24,8 @@ If any precondition fails: stop and return an error or clarification request.
    - Tool: `CreatePostFromConversationTool`
    - Parameters:
      - `intent=subject`
-     - `title` and/or `description`
-     - optional `flow_type`, `status`
+     - `subject.title` and/or `subject.description`
+     - optional `status`
 
 2. Create order post from existing request context
    - Class: `WRITE_SUPPORTED`

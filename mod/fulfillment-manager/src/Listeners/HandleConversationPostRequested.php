@@ -50,24 +50,22 @@ class HandleConversationPostRequested
             ];
         }
 
-        if ($event->title === null && $event->description === null) {
+        if ($event->subjectTitle() === null && $event->subjectDescription() === null) {
             return [
                 'ok' => false,
                 'error' => 'Either title or description is required.',
             ];
         }
 
-        $flowType = $event->flowType ?? 'ubid';
         $status = $event->status ?? 'open';
 
-        $subjectPost = DB::transaction(function () use ($event, $flowType, $status) {
+        $subjectPost = DB::transaction(function () use ($event, $status) {
             $subjectPost = $this->fulfillmentContext->createFulfillmentSubject([
                 'type' => 'request.created',
                 'status' => $status,
                 'payload' => [
-                    'flow_type' => $flowType,
-                    'title' => $event->title,
-                    'description' => $event->description,
+                    'title' => $event->subjectTitle(),
+                    'description' => $event->subjectDescription(),
                 ],
                 'meta' => [
                     'source' => 'tool.create_post_from_conversation',
@@ -121,7 +119,6 @@ class HandleConversationPostRequested
             'post_ulid' => $subjectPost->ulid,
             'post_type' => $subjectPost->type,
             'status' => $subjectPost->status,
-            'flow_type' => $this->fulfillmentContext->flowType($subjectPost),
             'thread_id' => $event->thread->id,
             'thread_uuid' => $event->thread->uuid,
         ];

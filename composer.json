@@ -132,29 +132,6 @@
             "merge-scripts": false
         }
     },
-    "repositories": [
-        {
-            "type": "path",
-            "url": "mod/fulfillment-manager",
-            "options": {
-                "symlink": true
-            }
-        },
-        {
-            "type": "path",
-            "url": "mod/multi-site",
-            "options": {
-                "symlink": true
-            }
-        },
-        {
-            "type": "path",
-            "url": "mod/multi-space",
-            "options": {
-                "symlink": true
-            }
-        }
-    ],
     "config": {
         "optimize-autoloader": true,
         "preferred-install": "dist",

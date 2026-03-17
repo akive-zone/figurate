@@ -184,11 +184,6 @@ class Request extends Post
         })->exists();
     }
 
-    public function getFlowTypeAttribute(): ?string
-    {
-        return data_get($this->payload, 'flow_type');
-    }
-
     public function getTitleAttribute(): ?string
     {
         return data_get($this->payload, 'title');
@@ -197,11 +192,6 @@ class Request extends Post
     public function getDescriptionAttribute(): ?string
     {
         return data_get($this->payload, 'description');
-    }
-
-    public function setFlowTypeAttribute(?string $value): void
-    {
-        $this->putPayloadValue('flow_type', $value);
     }
 
     public function setTitleAttribute(?string $value): void

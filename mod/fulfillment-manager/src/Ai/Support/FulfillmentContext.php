@@ -262,11 +262,6 @@ class FulfillmentContext
         return data_get($requestPost->payload, 'description');
     }
 
-    public function flowType(Post $requestPost): ?string
-    {
-        return data_get($requestPost->payload, 'flow_type');
-    }
-
     /**
      * @return class-string<Post>
      */

@@ -26,9 +26,10 @@ class CreatePostFromConversationToolTest extends TestCase
 
         $response = json_decode($tool->handle(new ToolRequest([
             'intent' => 'subject',
-            'title' => 'Need a carpenter',
-            'description' => 'Need help fixing a door frame.',
-            'flow_type' => 'ubid',
+            'subject' => [
+                'title' => 'Need a carpenter',
+                'description' => 'Need help fixing a door frame.',
+            ],
         ])), true, flags: JSON_THROW_ON_ERROR);
 
         $thread->refresh();
@@ -51,8 +52,10 @@ class CreatePostFromConversationToolTest extends TestCase
 
         $tool->handle(new ToolRequest([
             'intent' => 'subject',
-            'title' => 'Need a carpenter',
-            'description' => 'Need help fixing a door frame.',
+            'subject' => [
+                'title' => 'Need a carpenter',
+                'description' => 'Need help fixing a door frame.',
+            ],
         ]));
 
         $response = json_decode($tool->handle(new ToolRequest([

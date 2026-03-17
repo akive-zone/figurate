@@ -44,23 +44,23 @@ This agent will be what can for the quote from the worker and then we can ask fo
 
 - AssessmentAgent 
 
-#### Fulfillment Flows (Design Exploration)
+#### Fulfillment Flow Patterns (Design Exploration)
 
-The following are product flow candidates to evaluate and refine:
+The following are request-routing patterns to evaluate and refine:
 
-- `ubuy` candidate:
+- Directed request pattern:
 - Asker targets a specific profile/tasker.
 - Request starts with an intake thread using `RequestAgent`.
 - Quote/booking/fulfillment likely stays bound to that selected profile unless reassigned.
 
-- `upwork` candidate:
+- Open marketplace pattern:
 - Asker creates an open request.
 - Multiple profiles can express interest and submit quotes/bids.
 - Asker selects one quote to book, then flow can switch into fulfillment with `OrderAgent`.
 
-- `uber` candidate:
+- Assisted assignment pattern:
 - Asker creates a request without selecting a worker.
-- System may auto-assign the best matching profile using availability + matching rules.
+- System may suggest or assign the best matching profile using availability + matching rules.
 - After assignment, flow can proceed to quote or direct booking based on service configuration.
 
 Thread usage (working design hypothesis):
@@ -86,13 +86,13 @@ then there's the worker/tasker user ... which can only act on a particular threa
 
 Now this agnostic platform has several usecase, one is request fullfilment
 
-Earlier i describe this usecase into 3 types
+Earlier i described this usecase into 3 routing patterns
 
-- ubuy ... An approach a asker user opens a channel with a specific profile/profiles in mind to carry out a request
+- directed request ... An approach where an asker user opens a channel with a specific profile or profiles in mind to carry out a request
 
-- uber ... An approach a user opens a channel and then chats with the Request agent to go the 
+- assisted assignment ... An approach where a user opens a channel and chats with the Request agent to shape the request before the system suggests or assigns the next best worker path
 
-- ubid ... An approach a user opens a channel and then chats to create a request and then broadcasts it for multiple profiles to bid for the task ... and at the end they select the profile which they want for the request
+- open marketplace ... An approach where a user opens a channel, creates a request, and then opens it up for multiple profiles to bid or quote before selecting one
 
 The key thing is a how the channel stands in as the entrypoint ... like the topic and then we have several posts on the topic and then the relative threads handling the discussion either discussion with the robots (ai) or humans (behind the profiles)
 
@@ -150,5 +150,4 @@ From an explorer's perspective, Figurate is a dynamic project workspace organize
 
 ### 5. The "Thread" Navigator
 - **Branching Work:** Users can create new **Threads** for specific sub-problems (e.g., "Finding a part" vs "Main repair") while maintaining the shared context of the overall Channel.
-
 

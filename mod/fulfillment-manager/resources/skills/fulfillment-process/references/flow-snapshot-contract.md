@@ -25,7 +25,7 @@ Build a deterministic flow snapshot from persisted state.
 
 1. `stage`
 2. `channel`: `id`, `uuid`, `status` or `null`
-3. `request`: `id`, `ulid`, `type`, `status`, `flow_type`, `title`, `description` or `null`
+3. `request`: `id`, `ulid`, `type`, `status`, `title`, `description` or `null`
 4. `thread`: `id`, `uuid`, `purpose`, `phase`, `status`
 5. `order`: `id`, `status` or `null`
 6. `recommended_next_actions`: stage-aligned action list

@@ -13,6 +13,7 @@ class ConversationPostRequested
     use Dispatchable, SerializesModels;
 
     /**
+     * @param  array{title?: string, description?: string}|null  $subject
      * @param  array<string, mixed>|null  $response
      */
     public function __construct(
@@ -22,7 +23,7 @@ class ConversationPostRequested
         public string $intent,
         public ?string $title = null,
         public ?string $description = null,
-        public ?string $flowType = null,
+        public ?array $subject = null,
         public ?string $status = null,
         public ?array $response = null,
     ) {}
@@ -40,6 +41,16 @@ class ConversationPostRequested
     public function handled(): bool
     {
         return is_array($this->response);
+    }
+
+    public function subjectTitle(): ?string
+    {
+        return is_string($this->subject['title'] ?? null) ? $this->subject['title'] : null;
+    }
+
+    public function subjectDescription(): ?string
+    {
+        return is_string($this->subject['description'] ?? null) ? $this->subject['description'] : null;
     }
 
     /**

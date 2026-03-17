@@ -50,7 +50,7 @@ class CreatePostFromConversationTool implements Tool
             intent: $intent,
             title: $this->normalizeNullableString($request['title'] ?? null),
             description: $this->normalizeNullableString($request['description'] ?? null),
-            flowType: $this->normalizeNullableString($request['flow_type'] ?? null),
+            subject: $this->normalizeSubject($request['subject'] ?? null),
             status: $this->normalizeNullableString($request['status'] ?? null),
         );
 
@@ -72,7 +72,10 @@ class CreatePostFromConversationTool implements Tool
             'intent' => $schema->string(),
             'title' => $schema->string(),
             'description' => $schema->string(),
-            'flow_type' => $schema->string(),
+            'subject' => $schema->object([
+                'title' => $schema->string(),
+                'description' => $schema->string(),
+            ]),
             'status' => $schema->string(),
         ];
     }
@@ -94,5 +97,22 @@ class CreatePostFromConversationTool implements Tool
         $value = trim($value);
 
         return $value === '' ? null : $value;
+    }
+
+    /**
+     * @return array{title?: string, description?: string}|null
+     */
+    protected function normalizeSubject(mixed $value): ?array
+    {
+        if (! is_array($value)) {
+            return null;
+        }
+
+        $subject = array_filter([
+            'title' => $this->normalizeNullableString($value['title'] ?? null),
+            'description' => $this->normalizeNullableString($value['description'] ?? null),
+        ], fn (mixed $value): bool => $value !== null);
+
+        return $subject !== [] ? $subject : null;
     }
 }

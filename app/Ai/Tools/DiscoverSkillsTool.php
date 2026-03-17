@@ -12,7 +12,7 @@ class DiscoverSkillsTool implements Tool
 {
     public function description(): Stringable|string
     {
-        return 'Discover local agent skills under resources/skills and retrieve concise guidance snippets.';
+        return 'Discover agent skills and retrieve concise guidance snippets.';
     }
 
     public function handle(ToolRequest $request): Stringable|string
@@ -21,54 +21,47 @@ class DiscoverSkillsTool implements Tool
         $limit = max(1, min(25, (int) ($request['limit'] ?? 10)));
         $includeContent = (bool) ($request['include_content'] ?? false);
 
-        $skillsRoot = resource_path('skills');
-        if (! File::isDirectory($skillsRoot)) {
-            return json_encode([
-                'ok' => true,
-                'count' => 0,
-                'skills' => [],
-            ], JSON_UNESCAPED_SLASHES);
-        }
-
         $entries = [];
-        foreach (File::directories($skillsRoot) as $dir) {
-            $skillFile = $dir.'/SKILL.md';
-            if (! File::exists($skillFile)) {
-                continue;
+        foreach ($this->skillRoots() as $skillsRoot) {
+            foreach (File::directories($skillsRoot) as $dir) {
+                $skillFile = $dir.'/SKILL.md';
+                if (! File::exists($skillFile)) {
+                    continue;
+                }
+
+                $raw = (string) File::get($skillFile);
+                $frontmatter = $this->parseFrontmatter($raw);
+                $slug = basename($dir);
+                $name = (string) ($frontmatter['name'] ?? $slug);
+                $description = (string) ($frontmatter['description'] ?? '');
+                $references = $this->referenceFiles($dir.'/references');
+
+                $searchText = mb_strtolower(implode(' ', [
+                    $slug,
+                    $name,
+                    $description,
+                    $raw,
+                    implode(' ', $references),
+                ]));
+
+                if ($query !== '' && ! str_contains($searchText, $query)) {
+                    continue;
+                }
+
+                $entry = [
+                    'slug' => $slug,
+                    'name' => $name,
+                    'description' => $description,
+                    'skill_path' => str_replace(base_path().'/', '', $skillFile),
+                    'references' => $references,
+                ];
+
+                if ($includeContent) {
+                    $entry['content_excerpt'] = mb_substr(trim($raw), 0, 1500);
+                }
+
+                $entries[] = $entry;
             }
-
-            $raw = (string) File::get($skillFile);
-            $frontmatter = $this->parseFrontmatter($raw);
-            $slug = basename($dir);
-            $name = (string) ($frontmatter['name'] ?? $slug);
-            $description = (string) ($frontmatter['description'] ?? '');
-            $references = $this->referenceFiles($dir.'/references');
-
-            $searchText = mb_strtolower(implode(' ', [
-                $slug,
-                $name,
-                $description,
-                $raw,
-                implode(' ', $references),
-            ]));
-
-            if ($query !== '' && ! str_contains($searchText, $query)) {
-                continue;
-            }
-
-            $entry = [
-                'slug' => $slug,
-                'name' => $name,
-                'description' => $description,
-                'skill_path' => str_replace(base_path().'/', '', $skillFile),
-                'references' => $references,
-            ];
-
-            if ($includeContent) {
-                $entry['content_excerpt'] = mb_substr(trim($raw), 0, 1500);
-            }
-
-            $entries[] = $entry;
         }
 
         $entries = array_slice($entries, 0, $limit);
@@ -129,5 +122,21 @@ class DiscoverSkillsTool implements Tool
         sort($files);
 
         return array_values($files);
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function skillRoots(): array
+    {
+        $roots = [
+            resource_path('skills'),
+            ...File::glob(base_path('mod/*/resources/skills')),
+        ];
+
+        return array_values(array_filter(
+            array_unique($roots),
+            static fn (string $path): bool => File::isDirectory($path),
+        ));
     }
 }
