@@ -18,6 +18,8 @@ class ChannelRelation extends Model
         'channel_id',
         'relationable_type',
         'relationable_id',
+        'type',
+        'purpose',
     ];
 
     public function channel(): BelongsTo

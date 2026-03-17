@@ -2,13 +2,12 @@
 
 namespace App\Ai\Tools;
 
-use App\Ai\Support\FulfillmentContext;
+use App\Events\Server\Ai\ConversationPostRequested;
 use App\Models\Server\Channel;
-use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request as ToolRequest;
 use Stringable;
@@ -19,7 +18,6 @@ class CreatePostFromConversationTool implements Tool
         protected Thread $thread,
         protected Channel $channel,
         protected User $actor,
-        protected FulfillmentContext $fulfillmentContext = new FulfillmentContext,
     ) {}
 
     /**
@@ -27,7 +25,7 @@ class CreatePostFromConversationTool implements Tool
      */
     public function description(): Stringable|string
     {
-        return 'Create a fulfillment post from the current conversation. Use post_kind=request for intake and post_kind=order when moving into execution.';
+        return 'Create a post from the current conversation. Use intent=subject to establish the primary conversation subject and intent=execution when moving into active work.';
     }
 
     /**
@@ -39,183 +37,30 @@ class CreatePostFromConversationTool implements Tool
             return $this->encodeError('Only channel members can create posts from conversation.');
         }
 
-        $postKind = trim((string) ($request['post_kind'] ?? 'request'));
-        if (! in_array($postKind, ['request', 'order'], true)) {
-            return $this->encodeError('post_kind must be either request or order.');
+        $intent = trim((string) ($request['intent'] ?? 'subject'));
+
+        if (! in_array($intent, ['subject', 'execution'], true)) {
+            return $this->encodeError('intent must be either subject or execution.');
         }
 
-        return $postKind === 'order'
-            ? $this->createOrderPost($request)
-            : $this->createRequestPost($request);
-    }
+        $event = new ConversationPostRequested(
+            thread: $this->thread,
+            channel: $this->channel,
+            actor: $this->actor,
+            intent: $intent,
+            title: $this->normalizeNullableString($request['title'] ?? null),
+            description: $this->normalizeNullableString($request['description'] ?? null),
+            flowType: $this->normalizeNullableString($request['flow_type'] ?? null),
+            status: $this->normalizeNullableString($request['status'] ?? null),
+        );
 
-    protected function createRequestPost(ToolRequest $request): string
-    {
-        $existingRequest = $this->channel->primaryRequestPost();
-        if ($existingRequest) {
-            return json_encode([
-                'ok' => true,
-                'created' => false,
-                'post_kind' => 'request',
-                'request_id' => $existingRequest->id,
-                'request_ulid' => $existingRequest->ulid,
-                'status' => $existingRequest->status,
-                'message' => 'Request already exists for this channel.',
-            ], JSON_UNESCAPED_SLASHES);
+        Event::dispatch($event);
+
+        if (! $event->handled()) {
+            return $this->encodeError('No domain handler is available for conversation post creation.');
         }
 
-        $title = trim((string) ($request['title'] ?? ''));
-        $description = trim((string) ($request['description'] ?? ''));
-
-        if ($title === '' && $description === '') {
-            return $this->encodeError('Either title or description is required.');
-        }
-
-        $flowType = trim((string) ($request['flow_type'] ?? 'ubid'));
-        if ($flowType === '') {
-            $flowType = 'ubid';
-        }
-
-        $status = trim((string) ($request['status'] ?? 'open'));
-        if ($status === '') {
-            $status = 'open';
-        }
-
-        $requestPost = DB::transaction(function () use ($title, $description, $flowType, $status) {
-            $requestPost = $this->fulfillmentContext->createFulfillmentSubject([
-                'type' => 'request.created',
-                'status' => $status,
-                'payload' => [
-                    'flow_type' => $flowType,
-                    'title' => $title !== '' ? $title : null,
-                    'description' => $description !== '' ? $description : null,
-                ],
-                'meta' => [
-                    'source' => 'tool.create_post_from_conversation',
-                    'post_kind' => 'request',
-                    'channel_uuid' => $this->channel->uuid,
-                    'thread_uuid' => $this->thread->uuid,
-                ],
-                'occurred_at' => now(),
-            ]);
-
-            $this->channel->relations()->create([
-                'relationable_type' => $requestPost->getMorphClass(),
-                'relationable_id' => $requestPost->getKey(),
-                'type' => 'request',
-                'purpose' => 'primary',
-            ]);
-
-            $requestPost->attachRelation($this->channel, 'channel');
-            $this->fulfillmentContext->attachAsker($requestPost, $this->actor);
-
-            $this->thread->forceFill([
-                'threadable_type' => $requestPost->getMorphClass(),
-                'threadable_id' => $requestPost->getKey(),
-                'phase' => 'request_open',
-                'status' => 'open',
-            ])->save();
-
-            $this->thread->messages()->create([
-                'senderable_type' => null,
-                'senderable_id' => null,
-                'type' => 'system',
-                'tag' => 'request_created',
-                'body' => "Request #{$requestPost->id} has been created for this conversation.",
-                'attachments' => null,
-                'meta' => [
-                    'source' => 'tool',
-                    'tool' => self::class,
-                    'request_id' => $requestPost->id,
-                    'request_ulid' => $requestPost->ulid,
-                ],
-            ]);
-
-            return $requestPost;
-        });
-
-        return json_encode([
-            'ok' => true,
-            'created' => true,
-            'post_kind' => 'request',
-            'request_id' => $requestPost->id,
-            'request_ulid' => $requestPost->ulid,
-            'status' => $requestPost->status,
-            'flow_type' => $this->fulfillmentContext->flowType($requestPost),
-            'thread_id' => $this->thread->id,
-            'thread_uuid' => $this->thread->uuid,
-        ], JSON_UNESCAPED_SLASHES);
-    }
-
-    protected function createOrderPost(ToolRequest $request): string
-    {
-        $subjectPost = $this->fulfillmentContext->resolveSubjectFromThread($this->thread);
-        if (! $subjectPost instanceof Post) {
-            return $this->encodeError('No request context exists yet. Create a request post first.');
-        }
-
-        $title = trim((string) ($request['title'] ?? ''));
-        $description = trim((string) ($request['description'] ?? ''));
-        $status = trim((string) ($request['status'] ?? 'open'));
-
-        if ($status === '') {
-            $status = 'open';
-        }
-
-        $orderPost = DB::transaction(function () use ($title, $description, $status, $subjectPost) {
-            $orderPost = Post::query()->create([
-                'type' => 'order.created',
-                'status' => $status,
-                'payload' => [
-                    'title' => $title !== '' ? $title : null,
-                    'description' => $description !== '' ? $description : null,
-                ],
-                'meta' => [
-                    'source' => 'tool.create_post_from_conversation',
-                    'post_kind' => 'order',
-                    'channel_uuid' => $this->channel->uuid,
-                    'thread_uuid' => $this->thread->uuid,
-                ],
-                'occurred_at' => now(),
-            ]);
-
-            $orderPost->attachRelation($this->channel, 'channel');
-            $orderPost->attachRelation($this->thread, 'primary');
-            $orderPost->attachRelation($subjectPost, 'request');
-
-            $this->thread->forceFill([
-                'phase' => 'order_active',
-                'status' => 'open',
-            ])->save();
-
-            $this->thread->messages()->create([
-                'senderable_type' => null,
-                'senderable_id' => null,
-                'type' => 'system',
-                'tag' => 'order_post_created',
-                'body' => "Order post #{$orderPost->id} has been created for this conversation.",
-                'attachments' => null,
-                'meta' => [
-                    'source' => 'tool',
-                    'tool' => self::class,
-                    'order_post_id' => $orderPost->id,
-                ],
-            ]);
-
-            return $orderPost;
-        });
-
-        return json_encode([
-            'ok' => true,
-            'created' => true,
-            'post_kind' => 'order',
-            'post_id' => $orderPost->id,
-            'post_ulid' => $orderPost->ulid,
-            'type' => $orderPost->type,
-            'status' => $orderPost->status,
-            'thread_id' => $this->thread->id,
-            'thread_uuid' => $this->thread->uuid,
-        ], JSON_UNESCAPED_SLASHES);
+        return json_encode($event->response, JSON_UNESCAPED_SLASHES);
     }
 
     /**
@@ -224,7 +69,7 @@ class CreatePostFromConversationTool implements Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'post_kind' => $schema->string(),
+            'intent' => $schema->string(),
             'title' => $schema->string(),
             'description' => $schema->string(),
             'flow_type' => $schema->string(),
@@ -238,5 +83,16 @@ class CreatePostFromConversationTool implements Tool
             'ok' => false,
             'error' => $message,
         ], JSON_UNESCAPED_SLASHES);
+    }
+
+    protected function normalizeNullableString(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        return $value === '' ? null : $value;
     }
 }

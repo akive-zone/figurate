@@ -23,7 +23,7 @@ If any precondition fails: stop and return an error or clarification request.
    - Class: `WRITE_SUPPORTED`
    - Tool: `CreatePostFromConversationTool`
    - Parameters:
-     - `post_kind=request`
+     - `intent=subject`
      - `title` and/or `description`
      - optional `flow_type`, `status`
 
@@ -31,7 +31,7 @@ If any precondition fails: stop and return an error or clarification request.
    - Class: `WRITE_SUPPORTED`
    - Tool: `CreatePostFromConversationTool`
    - Parameters:
-     - `post_kind=order`
+     - `intent=execution`
      - optional `title`, `description`, `status`
 
 ## Skill-Owned Read/Support Cases

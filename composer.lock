@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "bca920cd4671f5dcea10535b12a56b4a",
+    "content-hash": "9695b5284b0922ec287399be9b59db1f",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -2558,6 +2558,34 @@
                 "source": "https://github.com/facade/ignition-contracts/tree/1.0.2"
             },
             "time": "2020-10-16T08:27:54+00:00"
+        },
+        {
+            "name": "figurate/fulfillment-manager",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "mod/fulfillment-manager",
+                "reference": "f32ac8e58f253868e4c3cd70ee394005e11c2838"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Figurate\\FulfillmentManager\\FulfillmentManagerServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Figurate\\FulfillmentManager\\": "src/",
+                    "Figurate\\FulfillmentManager\\Database\\Factories\\": "database/factories/"
+                }
+            },
+            "description": "Fulfillment domain module for Figurate.",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
         },
         {
             "name": "figurate/multi-site",
@@ -18271,6 +18299,7 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
+        "figurate/fulfillment-manager": 20,
         "figurate/multi-site": 20,
         "figurate/multi-space": 20,
         "wikimedia/composer-merge-plugin": 20

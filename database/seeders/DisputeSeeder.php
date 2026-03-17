@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\Server\Fulfillment\Dispute;
+use Figurate\FulfillmentManager\Models\Dispute;
 use Illuminate\Database\Seeder;
 
 class DisputeSeeder extends Seeder

@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\Server\Fulfillment\Process;
+use Figurate\FulfillmentManager\Models\Process;
 use Illuminate\Database\Seeder;
 
 class ProcessSeeder extends Seeder

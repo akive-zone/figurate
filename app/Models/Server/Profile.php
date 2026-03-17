@@ -3,11 +3,11 @@
 namespace App\Models\Server;
 
 use App\Models\Concerns\HasPublicUuid;
-use App\Models\Server\Fulfillment\Order;
-use App\Models\Server\Fulfillment\Process;
-use App\Models\Server\Fulfillment\Quote;
-use App\Models\Server\Fulfillment\Request;
-use App\Models\Server\Fulfillment\ServiceCategory;
+use Figurate\FulfillmentManager\Models\Order;
+use Figurate\FulfillmentManager\Models\Process;
+use Figurate\FulfillmentManager\Models\Quote;
+use Figurate\FulfillmentManager\Models\Request;
+use Figurate\FulfillmentManager\Models\ServiceCategory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;

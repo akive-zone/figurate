@@ -40,6 +40,6 @@ Use this reference when the conversation reaches provider matching and profile h
 
 ## Transition Rules
 
-1. If user confirms execution start, move to order creation path (`post_kind=order`).
+1. If user confirms execution start, move to execution creation path (`intent=execution`).
 2. If user wants alternatives, refine criteria and produce a new shortlist.
 3. If no viable candidates, return escalation path (manual sourcing/admin assist).

@@ -53,7 +53,7 @@ class Post extends Model
 
     public function relations(): HasMany
     {
-        return $this->hasMany(PostRelation::class);
+        return $this->hasMany(PostRelation::class, 'post_id');
     }
 
     public function postable(): MorphTo

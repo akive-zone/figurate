@@ -2,13 +2,13 @@
 
 namespace App\Ai\Middleware\Workflows;
 
-use App\Ai\Support\FulfillmentContext;
 use App\Ai\Support\ThreadContextResolver;
 use App\Models\Server\Channel;
 use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Closure;
+use Figurate\FulfillmentManager\Ai\Support\FulfillmentContext;
 use Laravel\Ai\Prompts\AgentPrompt;
 
 class ResolveAudienceContext

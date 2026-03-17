@@ -3,10 +3,10 @@
 namespace App\Policies\Server;
 
 use App\Models\Server\Channel;
-use App\Models\Server\Fulfillment\Request;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
+use Figurate\FulfillmentManager\Models\Request;
 
 class MessagePolicy
 {

@@ -27,6 +27,7 @@ class Message extends Model implements HasMedia
         'senderable_type',
         'senderable_id',
         'type',
+        'tag',
         'text',
         'actions',
         'errors',

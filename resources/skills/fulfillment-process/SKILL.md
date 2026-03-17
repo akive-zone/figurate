@@ -17,8 +17,8 @@ Use this skill when handling fulfillment-related user turns.
 ## Current Runtime Capability
 
 1. Supported write actions:
-   - Create request post via `CreatePostFromConversationTool` with `post_kind=request`
-   - Create order post via `CreatePostFromConversationTool` with `post_kind=order`
+   - Create subject post via `CreatePostFromConversationTool` with `intent=subject`
+   - Create execution post via `CreatePostFromConversationTool` with `intent=execution`
 2. Skill-owned read/support actions:
    - Flow snapshot derivation (`references/flow-snapshot-contract.md`)
    - Profile matching flow (`references/profile-flow.md`)

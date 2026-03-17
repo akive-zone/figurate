@@ -8,6 +8,7 @@
         "php": "^8.2",
         "api-platform/laravel": "^4.2",
         "filament/filament": "^4.0",
+        "figurate/fulfillment-manager": "dev-main",
         "figurate/multi-site": "dev-main",
         "figurate/multi-space": "dev-main",
         "inertiajs/inertia-laravel": "^2.0",
@@ -132,6 +133,13 @@
         }
     },
     "repositories": [
+        {
+            "type": "path",
+            "url": "mod/fulfillment-manager",
+            "options": {
+                "symlink": true
+            }
+        },
         {
             "type": "path",
             "url": "mod/multi-site",
