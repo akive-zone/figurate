@@ -12,7 +12,7 @@ class DiscoverSkillsTool implements Tool
 {
     public function description(): Stringable|string
     {
-        return 'Discover agent skills and retrieve concise guidance snippets.';
+        return 'Discover agent skills from and retrieve concise guidance snippets.';
     }
 
     public function handle(ToolRequest $request): Stringable|string
@@ -130,8 +130,11 @@ class DiscoverSkillsTool implements Tool
     protected function skillRoots(): array
     {
         $roots = [
+            resource_path('figurate/skills'),
             resource_path('skills'),
-            ...File::glob(base_path('mod/*/resources/skills')),
+            ...File::glob(base_path('vendor/*/*/resources/figurate/skills')),
+            ...File::glob(base_path('node_modules/*/resources/figurate/skills')),
+            ...File::glob(base_path('node_modules/@*/*/resources/figurate/skills')),
         ];
 
         return array_values(array_filter(
