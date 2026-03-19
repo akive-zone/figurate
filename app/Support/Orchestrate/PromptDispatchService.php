@@ -2,9 +2,9 @@
 
 namespace App\Support\Orchestrate;
 
-use App\Actions\Server\Chat\DispatchThreadMessage;
-use App\Actions\Server\Chat\ThreadMessageEntry;
 use App\Ai\Support\ChatAgentExecutor;
+use App\Features\Actions\Chat\DispatchThreadMessage;
+use App\Features\Actions\Chat\ThreadMessageEntry;
 use App\Models\Server\Channel;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;

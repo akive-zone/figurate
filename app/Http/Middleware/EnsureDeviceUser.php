@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Actions\Server\Auth\ResolveOrCreateGadgetUser;
+use App\Features\Actions\Auth\ResolveOrCreateGadgetUser;
 use App\TokenAbility;
 use Closure;
 use Illuminate\Http\Request;

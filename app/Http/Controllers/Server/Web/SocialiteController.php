@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Server\Web;
 
-use App\Actions\Server\Auth\ResolveOrCreateGadgetUser;
 use App\Contracts\Accounts\AccountContextFactory;
 use App\Events\Accounts\AttachGadgetUserToUsersPrimaryAccountRequested;
 use App\Events\Accounts\EnsurePrimaryAccountForUserRequested;
+use App\Features\Actions\Auth\ResolveOrCreateGadgetUser;
 use App\Http\Controllers\Controller;
 use App\Models\Server\SanctumUser;
 use App\Models\Server\User;

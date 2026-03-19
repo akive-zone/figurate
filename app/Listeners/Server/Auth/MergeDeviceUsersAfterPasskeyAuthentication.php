@@ -2,10 +2,10 @@
 
 namespace App\Listeners\Server\Auth;
 
-use App\Actions\Server\Auth\MergeDeviceUserIntoDeviceUser;
-use App\Actions\Server\Auth\MergeDeviceUserIntoPerson;
 use App\Contracts\Accounts\AccountContextFactory;
 use App\Events\Accounts\AttachGadgetUserToUsersPrimaryAccountRequested;
+use App\Features\Actions\Auth\MergeDeviceUserIntoDeviceUser;
+use App\Features\Actions\Auth\MergeDeviceUserIntoPerson;
 use App\Models\Server\User;
 use Spatie\LaravelPasskeys\Events\PasskeyUsedToAuthenticateEvent;
 

@@ -2,10 +2,10 @@
 
 namespace App\Ai\Support\A2a;
 
-use App\Actions\Server\Chat\ResolveChatChannelContext;
-use App\Actions\Server\Chat\ResolveChatThreadContext;
 use App\Ai\Support\A2ui\A2uiCatalogRegistry;
 use App\Ai\Support\A2ui\A2uiPayloadContract;
+use App\Features\Actions\Chat\ResolveChatChannelContext;
+use App\Features\Actions\Chat\ResolveChatThreadContext;
 use App\Models\Server\AgentTask;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;

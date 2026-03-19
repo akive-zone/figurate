@@ -2,12 +2,12 @@
 
 namespace App\Providers\Server;
 
-use App\Actions\Server\Chat\ActivityPubOutboundMessageSender;
-use App\Actions\Server\Chat\ChatProtocolRegistry;
-use App\Actions\Server\Chat\NostrOutboundMessageSender;
-use App\Actions\Server\Chat\Protocols\ActivityPubChatProtocol;
-use App\Actions\Server\Chat\Protocols\NostrChatProtocol;
 use App\Events\Server\Chat\ThreadMessageStored;
+use App\Features\Actions\Chat\ActivityPubOutboundMessageSender;
+use App\Features\Actions\Chat\ChatProtocolRegistry;
+use App\Features\Actions\Chat\NostrOutboundMessageSender;
+use App\Features\Actions\Chat\Protocols\ActivityPubChatProtocol;
+use App\Features\Actions\Chat\Protocols\NostrChatProtocol;
 use App\Listeners\Server\Ai\RecordObserverAgentPrompted;
 use App\Listeners\Server\Ai\RecordObserverAgentPrompting;
 use App\Listeners\Server\Chat\EnqueueOutboxForThreadMessage;

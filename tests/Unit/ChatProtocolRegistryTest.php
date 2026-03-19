@@ -2,12 +2,12 @@
 
 namespace Tests\Unit;
 
-use App\Actions\Server\Chat\ChatProtocolRegistry;
-use App\Actions\Server\Chat\ChatProtocolWebhook;
-use App\Actions\Server\Chat\Contracts\ChatProtocolDriver;
-use App\Actions\Server\Chat\Contracts\InboundMessageReceiver;
-use App\Actions\Server\Chat\Contracts\OutboundMessageSender;
-use App\Actions\Server\Chat\InboundMessageEnvelope;
+use App\Features\Actions\Chat\ChatProtocolRegistry;
+use App\Features\Actions\Chat\ChatProtocolWebhook;
+use App\Features\Actions\Chat\Contracts\ChatProtocolDriver;
+use App\Features\Actions\Chat\Contracts\InboundMessageReceiver;
+use App\Features\Actions\Chat\Contracts\OutboundMessageSender;
+use App\Features\Actions\Chat\InboundMessageEnvelope;
 use App\Models\Server\Message;
 use App\Models\Server\Outbox;
 use Illuminate\Container\Container;

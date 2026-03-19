@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Server\Api;
 
-use App\Actions\Server\Chat\ProjectAgentTurns;
-use App\Actions\Server\Chat\ResolveChatChannelContext;
-use App\Actions\Server\Chat\ResolveChatThreadContext;
-use App\Actions\Server\Chat\SendPeerThreadMessage;
 use App\Ai\Support\A2ui\A2uiCatalogRegistry;
 use App\Ai\Support\A2ui\A2uiPayloadContract;
 use App\Ai\Support\ChatAgentExecutor;
+use App\Features\Actions\Chat\ProjectAgentTurns;
+use App\Features\Actions\Chat\ResolveChatChannelContext;
+use App\Features\Actions\Chat\ResolveChatThreadContext;
+use App\Features\Actions\Chat\SendPeerThreadMessage;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Chat\StoreChatRequest;
 use App\Models\Server\Channel;

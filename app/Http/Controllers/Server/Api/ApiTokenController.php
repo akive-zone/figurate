@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Server\Api;
 
-use App\Actions\Server\Auth\ResolveOrCreateGadgetUser;
 use App\Events\Accounts\AttachGadgetUserToUsersPrimaryAccountRequested;
 use App\Events\Accounts\EnsurePrimaryAccountForUserRequested;
+use App\Features\Actions\Auth\ResolveOrCreateGadgetUser;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Auth\StudioLoginRequest;
 use App\Http\Requests\Server\Auth\StudioRegisterRequest;

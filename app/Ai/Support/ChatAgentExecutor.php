@@ -2,12 +2,12 @@
 
 namespace App\Ai\Support;
 
-use App\Actions\Server\Chat\DispatchThreadMessage;
-use App\Actions\Server\Chat\ThreadMessageEntry;
 use App\Ai\Agents\PresenterAgent;
 use App\Ai\Storage\ConversationId;
 use App\Ai\Storage\ConversationPersistenceResolver;
 use App\Ai\Support\A2a\TaskPushNotificationDispatcher;
+use App\Features\Actions\Chat\DispatchThreadMessage;
+use App\Features\Actions\Chat\ThreadMessageEntry;
 use App\Models\Server\AgentConversationMessage;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;

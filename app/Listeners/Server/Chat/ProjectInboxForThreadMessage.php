@@ -2,9 +2,9 @@
 
 namespace App\Listeners\Server\Chat;
 
-use App\Actions\Server\Chat\ProjectThreadMessageToInbox;
-use App\Actions\Server\Chat\ResolveThreadMessageInboxRecipients;
 use App\Events\Server\Chat\ThreadMessageStored;
+use App\Features\Actions\Chat\ProjectThreadMessageToInbox;
+use App\Features\Actions\Chat\ResolveThreadMessageInboxRecipients;
 
 class ProjectInboxForThreadMessage
 {
