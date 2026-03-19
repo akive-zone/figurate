@@ -2,9 +2,9 @@
 
 namespace App\Models\Server;
 
+use App\Contracts\Accounts\AccountContextFactory;
 use App\Models\Concerns\HasPublicUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -67,23 +67,6 @@ class User extends Authenticatable implements HasPasskeys
     public function inboxes(): HasMany
     {
         return $this->hasMany(Inbox::class, 'user_id');
-    }
-
-    public function accountUsers(): HasMany
-    {
-        return $this->hasMany(AccountUser::class, 'user_id');
-    }
-
-    public function accounts(): BelongsToMany
-    {
-        return $this->belongsToMany(Account::class, 'account_users', 'user_id', 'account_id')
-            ->withPivot(['relationship', 'is_primary', 'linked_at', 'unlinked_at'])
-            ->withTimestamps();
-    }
-
-    public function activeAccounts(): BelongsToMany
-    {
-        return $this->accounts()->wherePivotNull('unlinked_at');
     }
 
     public function userAgents(): HasMany
@@ -173,28 +156,17 @@ class User extends Authenticatable implements HasPasskeys
         return $this->type === self::TypeSystem;
     }
 
-    public function hasAccount(): bool
-    {
-        if ($this->relationLoaded('accounts')) {
-            return $this->accounts->contains(function (Account $account): bool {
-                return $account->pivot === null || $account->pivot->unlinked_at === null;
-            });
-        }
-
-        return $this->activeAccounts()->exists();
-    }
-
-    public function primaryAccount(): ?Account
-    {
-        return $this->activeAccounts()
-            ->orderByPivotDesc('is_primary')
-            ->orderByPivotDesc('linked_at')
-            ->first();
-    }
-
     public function canActAsHuman(): bool
     {
-        return $this->isSubject() || $this->hasAccount();
+        if ($this->isSubject()) {
+            return true;
+        }
+
+        if (! app()->bound(AccountContextFactory::class)) {
+            return false;
+        }
+
+        return app(AccountContextFactory::class)->forUser($this)->canActAsHuman();
     }
 
     public function canUseInteractiveTransport(): bool

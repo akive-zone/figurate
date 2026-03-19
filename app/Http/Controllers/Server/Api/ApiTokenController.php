@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Server\Api;
 
-use App\Actions\Server\Auth\AttachGadgetUserToAccount;
 use App\Actions\Server\Auth\ResolveOrCreateGadgetUser;
+use App\Events\Accounts\AttachGadgetUserToUsersPrimaryAccountRequested;
+use App\Events\Accounts\EnsurePrimaryAccountForUserRequested;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Auth\StudioLoginRequest;
 use App\Http\Requests\Server\Auth\StudioRegisterRequest;
-use App\Models\Server\Account;
+use App\Models\Server\SanctumUser;
+use App\Models\Server\User;
 use App\TokenAbility;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
@@ -15,7 +17,6 @@ use Illuminate\Support\Facades\Hash;
 class ApiTokenController extends Controller
 {
     public function __construct(
-        protected AttachGadgetUserToAccount $attachGadgetUserToAccount,
         protected ResolveOrCreateGadgetUser $resolveOrCreateGadgetUser,
     ) {}
 
@@ -23,24 +24,22 @@ class ApiTokenController extends Controller
     {
         $data = $request->validated();
         $gadgetUser = ($this->resolveOrCreateGadgetUser)($request);
-
-        $account = Account::query()->create([
+        $subjectUser = SanctumUser::query()->create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
+            'type' => User::TypeSubject,
             'status' => 'active',
         ]);
+        $this->synchronizeAccountContext($subjectUser, $gadgetUser);
 
-        ($this->attachGadgetUserToAccount)($gadgetUser, $account);
-
-        $token = $gadgetUser->createToken('studio-api', [TokenAbility::Studio->value]);
+        $token = $subjectUser->createToken('studio-api', [TokenAbility::Studio->value]);
 
         return response()->json([
             'token' => $token->plainTextToken,
             'token_type' => 'Bearer',
             'device_id' => $gadgetUser->currentDeviceIdentifier(),
-            'user' => $gadgetUser,
-            'account' => $account,
+            'user' => $subjectUser,
         ]);
     }
 
@@ -49,32 +48,31 @@ class ApiTokenController extends Controller
         $data = $request->validated();
         $gadgetUser = ($this->resolveOrCreateGadgetUser)($request);
 
-        $account = Account::query()
+        $subjectUser = SanctumUser::query()
             ->where('email', $data['email'])
             ->first();
 
-        if (! $account || ! Hash::check($data['password'], (string) $account->password)) {
+        if (! $subjectUser || ! $subjectUser->isSubject() || ! Hash::check($data['password'], (string) $subjectUser->password)) {
             return response()->json([
                 'message' => 'Invalid credentials.',
             ], 422);
         }
 
-        if ($account->status !== 'active') {
+        if ($subjectUser->status !== 'active') {
             return response()->json([
                 'message' => 'This account is not permitted for Studio access.',
             ], 403);
         }
 
-        ($this->attachGadgetUserToAccount)($gadgetUser, $account);
+        $this->synchronizeAccountContext($subjectUser, $gadgetUser);
 
-        $token = $gadgetUser->createToken('studio-api', [TokenAbility::Studio->value]);
+        $token = $subjectUser->createToken('studio-api', [TokenAbility::Studio->value]);
 
         return response()->json([
             'token' => $token->plainTextToken,
             'token_type' => 'Bearer',
             'device_id' => $gadgetUser->currentDeviceIdentifier(),
-            'user' => $gadgetUser,
-            'account' => $account,
+            'user' => $subjectUser,
         ]);
     }
 
@@ -95,5 +93,11 @@ class ApiTokenController extends Controller
         }
 
         return response()->json(status: 204);
+    }
+
+    protected function synchronizeAccountContext(User $subjectUser, ?User $gadgetUser): void
+    {
+        EnsurePrimaryAccountForUserRequested::dispatch($subjectUser);
+        AttachGadgetUserToUsersPrimaryAccountRequested::dispatch($subjectUser, $gadgetUser);
     }
 }

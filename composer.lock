@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9695b5284b0922ec287399be9b59db1f",
+    "content-hash": "cb5cc06a22124f8594fa27691e265a6d",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -2558,94 +2558,6 @@
                 "source": "https://github.com/facade/ignition-contracts/tree/1.0.2"
             },
             "time": "2020-10-16T08:27:54+00:00"
-        },
-        {
-            "name": "figurate/fulfillment-manager",
-            "version": "dev-main",
-            "dist": {
-                "type": "path",
-                "url": "mod/fulfillment-manager",
-                "reference": "f32ac8e58f253868e4c3cd70ee394005e11c2838"
-            },
-            "type": "library",
-            "extra": {
-                "laravel": {
-                    "providers": [
-                        "Figurate\\FulfillmentManager\\FulfillmentManagerServiceProvider"
-                    ]
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Figurate\\FulfillmentManager\\": "src/",
-                    "Figurate\\FulfillmentManager\\Database\\Factories\\": "database/factories/"
-                }
-            },
-            "description": "Fulfillment domain module for Figurate.",
-            "transport-options": {
-                "symlink": true,
-                "relative": true
-            }
-        },
-        {
-            "name": "figurate/multi-site",
-            "version": "dev-main",
-            "dist": {
-                "type": "path",
-                "url": "mod/multi-site",
-                "reference": "19ed85734cbbaa8e2729330d17ecda305fa44d16"
-            },
-            "require": {
-                "stancl/tenancy": "^3.9"
-            },
-            "type": "library",
-            "extra": {
-                "laravel": {
-                    "providers": [
-                        "Figurate\\MultiSite\\MultiSiteServiceProvider"
-                    ]
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Figurate\\MultiSite\\": "src/"
-                }
-            },
-            "description": "Multi-site tenancy module for Figurate built on stancl/tenancy.",
-            "transport-options": {
-                "symlink": true,
-                "relative": true
-            }
-        },
-        {
-            "name": "figurate/multi-space",
-            "version": "dev-main",
-            "dist": {
-                "type": "path",
-                "url": "mod/multi-space",
-                "reference": "09c0a728a69c69c25f65eaac7986e48bf0a73bdf"
-            },
-            "require": {
-                "spatie/laravel-multitenancy": "^4.1"
-            },
-            "type": "library",
-            "extra": {
-                "laravel": {
-                    "providers": [
-                        "Figurate\\MultiSpace\\MultiSpaceServiceProvider"
-                    ]
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Figurate\\MultiSpace\\": "src/"
-                }
-            },
-            "description": "Multi-space tenancy module for Figurate built on spatie/laravel-multitenancy inside the active multi-site.",
-            "transport-options": {
-                "symlink": true,
-                "relative": true
-            }
         },
         {
             "name": "filament/actions",
@@ -15472,16 +15384,16 @@
         },
         {
             "name": "web-auth/webauthn-lib",
-            "version": "5.2.3",
+            "version": "5.2.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/web-auth/webauthn-lib.git",
-                "reference": "8782f575032fedc36e2eb27c39c736054e2b6867"
+                "reference": "c346c9812d4d4a641f5ff26cd5fa4d0bf2035eeb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/web-auth/webauthn-lib/zipball/8782f575032fedc36e2eb27c39c736054e2b6867",
-                "reference": "8782f575032fedc36e2eb27c39c736054e2b6867",
+                "url": "https://api.github.com/repos/web-auth/webauthn-lib/zipball/c346c9812d4d4a641f5ff26cd5fa4d0bf2035eeb",
+                "reference": "c346c9812d4d4a641f5ff26cd5fa4d0bf2035eeb",
                 "shasum": ""
             },
             "require": {
@@ -15542,7 +15454,7 @@
                 "webauthn"
             ],
             "support": {
-                "source": "https://github.com/web-auth/webauthn-lib/tree/5.2.3"
+                "source": "https://github.com/web-auth/webauthn-lib/tree/5.2.4"
             },
             "funding": [
                 {
@@ -15554,7 +15466,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2025-12-20T10:54:02+00:00"
+            "time": "2026-03-08T17:01:15+00:00"
         },
         {
             "name": "webmozart/assert",
@@ -18299,9 +18211,6 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "figurate/fulfillment-manager": 20,
-        "figurate/multi-site": 20,
-        "figurate/multi-space": 20,
         "wikimedia/composer-merge-plugin": 20
     },
     "prefer-stable": true,

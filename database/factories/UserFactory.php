@@ -7,10 +7,15 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
+ * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Server\User>
  */
 class UserFactory extends Factory
 {
+    /**
+     * @var class-string<\App\Models\Server\User>
+     */
+    protected $model = User::class;
+
     /**
      * Define the model's default state.
      *

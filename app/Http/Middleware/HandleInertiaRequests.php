@@ -2,12 +2,16 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Server\User;
+use Figurate\AccountManager\Support\AccountContextFactory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
+    public function __construct(protected AccountContextFactory $accountContextFactory) {}
+
     /**
      * The root template that's loaded on the first page visit.
      *
@@ -19,7 +23,7 @@ class HandleInertiaRequests extends Middleware
 
     public function rootView(Request $request): string
     {
-        return \app_is_native_runtime() ? 'app-native' : $this->rootView;
+        return \app_is_native_runtime() ? 'mobile-native::app' : $this->rootView;
     }
 
     /**
@@ -48,8 +52,8 @@ class HandleInertiaRequests extends Middleware
             && $user->isGadget()
             && is_array($passkeySession)
             && ((int) ($passkeySession['user_id'] ?? 0) === (int) $user->id);
-        $account = $user && method_exists($user, 'primaryAccount')
-            ? $user->primaryAccount()
+        $account = $user instanceof User
+            ? $this->accountContextFactory->forUser($user)->primaryAccount()
             : null;
 
         return [
@@ -90,7 +94,6 @@ class HandleInertiaRequests extends Middleware
                     'id' => $account->id,
                     'uuid' => $account->uuid,
                     'name' => $account->name,
-                    'email' => $account->email,
                     'status' => $account->status,
                 ] : null,
                 'passkeys' => $user && method_exists($user, 'passkeys')

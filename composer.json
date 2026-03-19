@@ -8,9 +8,6 @@
         "php": "^8.2",
         "api-platform/laravel": "^4.2",
         "filament/filament": "^4.0",
-        "figurate/fulfillment-manager": "dev-main",
-        "figurate/multi-site": "dev-main",
-        "figurate/multi-space": "dev-main",
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/ai": "^0.2",
         "laravel/framework": "^12.0",
@@ -23,15 +20,6 @@
         "laravel/tinker": "^2.10.1",
         "laravel/wayfinder": "*",
         "livewire/flux": "*",
-        "nativephp/mobile": "^3.0",
-        "nativephp/mobile-browser": "^1.0",
-        "nativephp/mobile-camera": "^1.0",
-        "nativephp/mobile-device": "^1.0",
-        "nativephp/mobile-dialog": "^1.0",
-        "nativephp/mobile-file": "^1.0",
-        "nativephp/mobile-microphone": "^1.0",
-        "nativephp/mobile-network": "^1.0",
-        "nativephp/mobile-share": "^1.0",
         "phpdocumentor/type-resolver": "^1.7",
         "predis/predis": "^3.4",
         "pusher/pusher-php-server": "^7.2",
@@ -118,20 +106,50 @@
         "merge-plugin": {
             "include": [
                 "composer.local.json",
-                "ext/*/composer.json",
-                "mod/*/composer.json"
+                "mod/*/composer.json",
+                "ext/*/composer.json"
             ],
             "require": [],
             "recurse": true,
             "replace": false,
             "ignore-duplicates": false,
             "merge-dev": true,
-            "merge-extra": false,
-            "merge-extra-deep": false,
+            "merge-extra": true,
+            "merge-extra-deep": true,
             "merge-replace": true,
-            "merge-scripts": false
+            "merge-scripts": true
         }
     },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "mod/account-manager",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
+            "url": "mod/fulfillment-manager",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
+            "url": "mod/multi-site",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
+            "url": "mod/multi-space",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
     "config": {
         "optimize-autoloader": true,
         "preferred-install": "dist",

@@ -2,16 +2,17 @@
 
 namespace App\Listeners\Server\Auth;
 
-use App\Actions\Server\Auth\AttachGadgetUserToAccount;
 use App\Actions\Server\Auth\MergeDeviceUserIntoDeviceUser;
 use App\Actions\Server\Auth\MergeDeviceUserIntoPerson;
+use App\Contracts\Accounts\AccountContextFactory;
+use App\Events\Accounts\AttachGadgetUserToUsersPrimaryAccountRequested;
 use App\Models\Server\User;
 use Spatie\LaravelPasskeys\Events\PasskeyUsedToAuthenticateEvent;
 
 class MergeDeviceUsersAfterPasskeyAuthentication
 {
     public function __construct(
-        protected AttachGadgetUserToAccount $attachGadgetUserToAccount,
+        protected AccountContextFactory $accountContextFactory,
         protected MergeDeviceUserIntoDeviceUser $mergeDeviceUserIntoDeviceUser,
         protected MergeDeviceUserIntoPerson $mergeDeviceUserIntoPerson,
     ) {}
@@ -33,11 +34,13 @@ class MergeDeviceUsersAfterPasskeyAuthentication
             return;
         }
 
-        if ($targetAuthenticatedUser->isGadget() && $targetAuthenticatedUser->hasAccount()) {
-            $account = $targetAuthenticatedUser->primaryAccount();
+        $accountContext = $this->accountContextFactory->forUser($targetAuthenticatedUser);
+
+        if ($targetAuthenticatedUser->isGadget() && $accountContext->hasAccount()) {
+            $account = $accountContext->primaryAccount();
 
             if ($account !== null) {
-                ($this->attachGadgetUserToAccount)($sourceDeviceUser, $account);
+                AttachGadgetUserToUsersPrimaryAccountRequested::dispatch($targetAuthenticatedUser, $sourceDeviceUser);
 
                 activity('auth')
                     ->causedBy($sourceDeviceUser)

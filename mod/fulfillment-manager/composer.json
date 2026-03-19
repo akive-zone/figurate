@@ -5,7 +5,8 @@
     "autoload": {
         "psr-4": {
             "Figurate\\FulfillmentManager\\": "src/",
-            "Figurate\\FulfillmentManager\\Database\\Factories\\": "database/factories/"
+            "Figurate\\FulfillmentManager\\Database\\Factories\\": "database/factories/",
+            "Figurate\\FulfillmentManager\\Database\\Seeders\\": "database/seeders/"
         }
     },
     "extra": {

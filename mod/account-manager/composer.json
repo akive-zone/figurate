@@ -1,6 +1,17 @@
 {
     "name": "figurate/account-manager",
     "description": "Manage user accounts for Akive Figurate",
-    "require": {
-    }
+    "autoload": {
+        "psr-4": {
+            "Figurate\\AccountManager\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Figurate\\AccountManager\\AccountManagerServiceProvider"
+            ]
+        }
+    },
+    "require": {}
 }

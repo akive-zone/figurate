@@ -1,3 +1,8 @@
+- Application (app)
+- Configuration (config)
+- Extension (ext)
+- Modification (mod)
+
 So we're buildin a cross platform that supports Native and Web 
 
 Using tools like

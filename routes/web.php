@@ -1,7 +1,6 @@
 <?php
 
 use App\Ai\Gateways\Mcp\Servers\FigurateServer;
-use App\Http\Controllers\Native\Web\ChannelController as NativeChannelController;
 use App\Http\Controllers\Server\Api\A2a\AgentCardController;
 use App\Http\Controllers\Server\Web\ChannelController as ServerChannelController;
 use App\Http\Controllers\Server\Web\PasskeyController as ServerPasskeyController;
@@ -12,24 +11,7 @@ use App\Http\Middleware\EnsureTransportUser;
 use Illuminate\Support\Facades\Route;
 use Laravel\Mcp\Facades\Mcp;
 
-if (\app_is_native_runtime()) {
-    Route::get('/', function () {
-        return view('native.launcher');
-    })->name('launcher');
-
-    Route::prefix('chat')
-        ->name('chat.')
-        ->group(function () {
-            Route::get('/', [NativeChannelController::class, 'index'])->name('index');
-            Route::get('/create', [NativeChannelController::class, 'create'])->name('create');
-            Route::get('/c/{channel}', [NativeChannelController::class, 'show'])->name('show');
-            Route::get('/c/{channel}/t/{thread}', [NativeChannelController::class, 'showThread'])->name('thread');
-        });
-
-    Route::fallback(function () {
-        return redirect()->to('/chat');
-    });
-} else {
+if (! \app_is_native_runtime()) {
     Route::get('/.well-known/agent-card', AgentCardController::class)->name('a2a.agent-card');
 
     Mcp::web('/mcp/figurate', FigurateServer::class)
