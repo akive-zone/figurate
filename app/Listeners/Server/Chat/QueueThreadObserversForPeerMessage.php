@@ -19,7 +19,7 @@ class QueueThreadObserversForPeerMessage
         }
 
         $meta = is_array($message->meta) ? $message->meta : [];
-        if (($meta['source'] ?? null) !== 'peer_message') {
+        if (! is_string($message->senderable_type) || $message->senderable_type === '') {
             return;
         }
 

@@ -2,28 +2,19 @@
 
 namespace App\Providers\Server;
 
-use App\Events\Server\Chat\ThreadMessageStored;
 use App\Features\Actions\Chat\ActivityPubOutboundMessageSender;
 use App\Features\Actions\Chat\ChatProtocolRegistry;
 use App\Features\Actions\Chat\NostrOutboundMessageSender;
 use App\Features\Actions\Chat\Protocols\ActivityPubChatProtocol;
 use App\Features\Actions\Chat\Protocols\NostrChatProtocol;
-use App\Listeners\Server\Ai\RecordObserverAgentPrompted;
-use App\Listeners\Server\Ai\RecordObserverAgentPrompting;
-use App\Listeners\Server\Chat\EnqueueOutboxForThreadMessage;
-use App\Listeners\Server\Chat\ProjectInboxForThreadMessage;
-use App\Listeners\Server\Chat\QueueThreadObserversForPeerMessage;
 use App\Models\Server\Channel;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
 use App\Policies\Server\ChannelPolicy;
 use App\Policies\Server\MessagePolicy;
 use App\Policies\Server\ThreadPolicy;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
-use Laravel\Ai\Events\AgentPrompted;
-use Laravel\Ai\Events\PromptingAgent;
 
 class ChatServiceProvider extends ServiceProvider
 {
@@ -61,11 +52,5 @@ class ChatServiceProvider extends ServiceProvider
         ]);
 
         $chatProtocolRegistry->registerRoutes();
-
-        Event::listen(ThreadMessageStored::class, QueueThreadObserversForPeerMessage::class);
-        Event::listen(ThreadMessageStored::class, EnqueueOutboxForThreadMessage::class);
-        Event::listen(ThreadMessageStored::class, ProjectInboxForThreadMessage::class);
-        Event::listen(PromptingAgent::class, RecordObserverAgentPrompting::class);
-        Event::listen(AgentPrompted::class, RecordObserverAgentPrompted::class);
     }
 }

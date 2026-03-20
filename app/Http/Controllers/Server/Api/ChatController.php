@@ -4,11 +4,8 @@ namespace App\Http\Controllers\Server\Api;
 
 use App\Ai\Support\A2ui\A2uiCatalogRegistry;
 use App\Ai\Support\A2ui\A2uiPayloadContract;
-use App\Ai\Support\ChatAgentExecutor;
+use App\Features\Actions\Chat\HandleChatMessage;
 use App\Features\Actions\Chat\ProjectAgentTurns;
-use App\Features\Actions\Chat\ResolveChatChannelContext;
-use App\Features\Actions\Chat\ResolveChatThreadContext;
-use App\Features\Actions\Chat\SendPeerThreadMessage;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Chat\StoreChatRequest;
 use App\Models\Server\Channel;
@@ -17,13 +14,10 @@ use App\Models\Server\Message;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
-use App\Support\Orchestrate\ConversationOrchestrator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 
 class ChatController extends Controller
@@ -136,195 +130,11 @@ class ChatController extends Controller
 
     public function store(
         StoreChatRequest $request,
-        ConversationOrchestrator $orchestrator,
-        ResolveChatChannelContext $resolveChatChannelContext,
-        ResolveChatThreadContext $resolveChatThreadContext,
-        SendPeerThreadMessage $sendPeerThreadMessage,
-        ChatAgentExecutor $chatAgentExecutor,
+        HandleChatMessage $handleChatMessage,
     ): JsonResponse {
-        $channelUuid = $request->validated('channel');
-        $threadUuid = $request->validated('thread');
-        $contentPayload = $request->validated('content');
-        $extraPayload = $request->validated('extra');
-        $extraPayload = is_array($extraPayload) ? $extraPayload : [];
-        $a2uiActions = collect($contentPayload['actions'] ?? [])
-            ->map(fn (mixed $action): ?array => is_array($action) ? $this->normalizeA2uiAction($action) : null)
-            ->filter(fn (mixed $action): bool => is_array($action))
-            ->values()
-            ->all();
-        $a2uiErrors = collect($contentPayload['errors'] ?? [])
-            ->map(fn (mixed $error): ?array => is_array($error) ? $this->normalizeA2uiError($error) : null)
-            ->filter(fn (mixed $error): bool => is_array($error))
-            ->values()
-            ->all();
-        $a2uiClientDataModel = $this->trimmedString(data_get($extraPayload, 'a2ui.config.a2uiClientDataModel'));
-        $a2uiClientCapabilities = $this->a2uiPayloadContract->normalizeClientCapabilities(
-            is_array(data_get($extraPayload, 'a2ui.config.a2uiClientCapabilities'))
-                ? data_get($extraPayload, 'a2ui.config.a2uiClientCapabilities')
-                : null
-        );
-        $thread = null;
+        $result = $handleChatMessage($request);
 
-        if (is_string($threadUuid) && $threadUuid !== '') {
-            [$channel, $thread] = $resolveChatThreadContext($threadUuid, $channelUuid);
-        } else {
-            $channel = $resolveChatChannelContext($channelUuid, $request->user());
-        }
-
-        Gate::authorize('view', $channel);
-        Gate::authorize('create', Message::class);
-
-        $normalizedRequestContent = $this->normalizedContentForStoreRequest($request, $a2uiActions, $a2uiErrors);
-
-        $decision = $orchestrator->resolve(
-            channel: $channel,
-            actor: $request->user(),
-            thread: $thread,
-            message: $normalizedRequestContent,
-        );
-        $thread = $decision->thread;
-
-        $activePresenters = $this->resolveActivePresenters($thread);
-
-        if ($activePresenters->isNotEmpty()) {
-            $broadcastChannelId = $this->broadcastChannelIdForThread($thread);
-            $content = $normalizedRequestContent;
-
-            if ($content === null) {
-                abort(422, 'A text message is required for agent prompts.');
-            }
-            $actor = $request->user();
-            $idempotencyKey = $this->idempotencyKey($request);
-            $existingUserMessage = $this->findExistingUserMessage($thread, $actor, $idempotencyKey);
-
-            if ($existingUserMessage) {
-                if ($existingUserMessage->text !== $content) {
-                    $existingUserMessage->forceFill([
-                        'text' => $content,
-                    ])->save();
-                }
-
-                $existingAssistantMessages = $this->findAssistantRepliesForMessage($thread, $existingUserMessage, $activePresenters);
-                $firstAssistantMessage = $existingAssistantMessages->first();
-                $expectedPresenterReplyCount = $this->expectedPresenterReplyCount($activePresenters);
-                $pendingReplies = $existingAssistantMessages->count() < $expectedPresenterReplyCount;
-
-                return response()->json([
-                    'message' => 'Message already submitted.',
-                    'thread' => $thread->uuid,
-                    'channel' => $channel->uuid,
-                    'broadcast_channel' => $broadcastChannelId,
-                    'text' => $firstAssistantMessage?->text,
-                    'message_id' => $existingUserMessage->id,
-                    'assistant_message_id' => $firstAssistantMessage?->id,
-                    'assistant_messages' => $existingAssistantMessages
-                        ->map(fn (Message $message): array => [
-                            'id' => $message->id,
-                            'actor_key' => data_get($message->meta, 'actor_key'),
-                            'text' => $message->text,
-                            'created_at' => optional($message->created_at)?->toIso8601String(),
-                        ])
-                        ->values()
-                        ->all(),
-                    'duplicate' => true,
-                    'pending' => $pendingReplies,
-                    'pending_presenters' => max($expectedPresenterReplyCount - $existingAssistantMessages->count(), 0),
-                ]);
-            }
-
-            $userMessage = $sendPeerThreadMessage(
-                channel: $channel,
-                thread: $thread,
-                actor: $actor,
-                text: $content,
-                attachments: collect(),
-                source: 'agent_prompt',
-                dispatchObservers: false,
-            );
-            $this->applyA2uiMetadata($userMessage, $a2uiActions, $a2uiErrors, $a2uiClientDataModel, $a2uiClientCapabilities);
-            $activePresenters->each(function (ThreadActor $presenter) use (
-                $chatAgentExecutor,
-                $thread,
-                $userMessage,
-                $actor,
-                $broadcastChannelId
-            ): void {
-                $chatAgentExecutor->queue(
-                    thread: $thread,
-                    userMessage: $userMessage,
-                    user: $actor,
-                    threadActor: $presenter,
-                    broadcastChannelId: $broadcastChannelId,
-                );
-            });
-            $this->cacheIdempotentMessage($thread, $actor, $idempotencyKey, $userMessage);
-
-            return response()->json([
-                'message' => 'Agent response queued.',
-                'thread' => $thread->uuid,
-                'channel' => $channel->uuid,
-                'broadcast_channel' => $broadcastChannelId,
-                'message_id' => $userMessage->id,
-                'assistant_message_id' => null,
-                'pending_presenters' => $this->expectedPresenterReplyCount($activePresenters),
-                'pending' => true,
-                'message_action_accepted' => $a2uiActions !== [],
-                'message_error_accepted' => $a2uiErrors !== [],
-            ], 202);
-        }
-
-        $actor = $request->user();
-        $normalizedBody = $normalizedRequestContent;
-        $attachmentFiles = collect($this->resolveAttachmentFiles($request))
-            ->filter(fn (mixed $file): bool => $file instanceof UploadedFile)
-            ->map(fn (UploadedFile $file): array => [
-                'path' => (string) $file->getRealPath(),
-                'original_name' => $file->getClientOriginalName(),
-            ])
-            ->filter(fn (array $attachment): bool => $attachment['path'] !== '' && $attachment['original_name'] !== '')
-            ->values();
-
-        $idempotencyKey = $this->idempotencyKey($request);
-        $existingUserMessage = $this->findExistingUserMessage($thread, $actor, $idempotencyKey);
-
-        if ($existingUserMessage) {
-            if ($normalizedBody !== null && $existingUserMessage->text !== $normalizedBody) {
-                $existingUserMessage->forceFill([
-                    'text' => $normalizedBody,
-                ])->save();
-            }
-
-            return response()->json([
-                'message' => 'Message already submitted.',
-                'channel' => $channel->uuid,
-                'thread' => $thread->uuid,
-                'message_id' => $existingUserMessage->id,
-                'observer_status' => 'already_submitted',
-                'duplicate' => true,
-            ]);
-        }
-
-        $message = $sendPeerThreadMessage(
-            channel: $channel,
-            thread: $thread,
-            actor: $actor,
-            text: $normalizedBody,
-            attachments: $attachmentFiles,
-            source: 'peer_message',
-            dispatchObservers: true,
-        );
-        $this->applyA2uiMetadata($message, $a2uiActions, $a2uiErrors, $a2uiClientDataModel, $a2uiClientCapabilities);
-        $this->cacheIdempotentMessage($thread, $actor, $idempotencyKey, $message);
-
-        return response()->json([
-            'message' => 'Message sent.',
-            'channel' => $channel->uuid,
-            'thread' => $thread->uuid,
-            'message_id' => $message->id,
-            'observer_status' => 'queued',
-            'message_action_accepted' => $a2uiActions !== [],
-            'message_error_accepted' => $a2uiErrors !== [],
-        ]);
+        return response()->json($result['body'], $result['status']);
     }
 
     /**

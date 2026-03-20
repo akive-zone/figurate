@@ -9,6 +9,7 @@ use App\Models\Server\Message;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadEvent;
+use App\Support\Orchestrate\ResolveObserverDispatchPolicy;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -23,7 +24,7 @@ class ProcessThreadObservers implements ShouldQueue
         $this->afterCommit();
     }
 
-    public function handle(ObserverRegistry $registry): void
+    public function handle(ObserverRegistry $registry, ResolveObserverDispatchPolicy $resolveObserverDispatchPolicy): void
     {
         $thread = Thread::query()
             ->with(['actors' => fn ($query) => $query
@@ -38,12 +39,9 @@ class ProcessThreadObservers implements ShouldQueue
             return;
         }
 
-        $hasPresenter = $thread->actors()
-            ->where('role', ThreadActor::RolePresenter)
-            ->where('status', ThreadActor::StatusActive)
-            ->exists();
+        $observerPolicy = $resolveObserverDispatchPolicy->forThread($thread);
 
-        if ($hasPresenter) {
+        if (! $observerPolicy['should_dispatch']) {
             return;
         }
 
