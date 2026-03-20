@@ -64,7 +64,7 @@ return [
             'name' => 'a2a_push',
             'signing_secret' => env('A2A_PUSH_INBOUND_SECRET', env('WEBHOOK_CLIENT_SECRET')),
             'signature_header_name' => 'Signature',
-            'signature_validator' => \Spatie\WebhookClient\SignatureValidator\DefaultSignatureValidator::class,
+            'signature_validator' => \App\Support\Webhooks\A2aPushSignatureValidator::class,
             'webhook_profile' => \Spatie\WebhookClient\WebhookProfile\ProcessEverythingWebhookProfile::class,
             'webhook_response' => \Spatie\WebhookClient\WebhookResponse\DefaultRespondsTo::class,
             'webhook_model' => \Spatie\WebhookClient\Models\WebhookCall::class,

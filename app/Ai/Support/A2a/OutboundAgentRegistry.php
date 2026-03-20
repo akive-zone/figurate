@@ -2,8 +2,14 @@
 
 namespace App\Ai\Support\A2a;
 
+use App\Support\Security\UrlTrustPolicy;
+
 class OutboundAgentRegistry
 {
+    public function __construct(
+        protected UrlTrustPolicy $urlTrustPolicy = new UrlTrustPolicy,
+    ) {}
+
     public function enabled(): bool
     {
         return (bool) config('a2a.outbound.enabled', false);
@@ -80,6 +86,38 @@ class OutboundAgentRegistry
 
         return collect($this->agents())
             ->first(fn (array $agent): bool => (string) ($agent['id'] ?? '') === $normalizedId);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function trustedAgents(): array
+    {
+        return collect($this->agents())
+            ->filter(fn (array $agent): bool => ($this->trustDecision($agent)['allowed'] ?? false) === true)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $agent
+     * @return array{allowed: bool, reason?: string}
+     */
+    public function trustDecision(array $agent): array
+    {
+        $endpoint = $this->stringOrNull($agent['endpoint'] ?? null);
+
+        if ($endpoint === null) {
+            return [
+                'allowed' => false,
+                'reason' => 'Remote A2A agent endpoint URL is missing.',
+            ];
+        }
+
+        return $this->urlTrustPolicy->authorize(
+            $endpoint,
+            is_array(config('a2a.outbound.trust')) ? config('a2a.outbound.trust') : [],
+        );
     }
 
     /**

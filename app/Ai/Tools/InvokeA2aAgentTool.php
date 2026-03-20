@@ -60,6 +60,20 @@ class InvokeA2aAgentTool implements Tool
             return $this->error('Unknown remote A2A agent.');
         }
 
+        $trustDecision = $this->registry->trustDecision($agent);
+
+        if (! ($trustDecision['allowed'] ?? false)) {
+            $reason = (string) ($trustDecision['reason'] ?? 'Remote A2A agent endpoint URL is not allowed by policy.');
+            $this->recordEvent($agentId, $method, false, $reason, 'a2a_endpoint_denied');
+
+            return $this->ok([
+                'allowed' => false,
+                'agent' => $agentId,
+                'method' => $method,
+                'error' => $reason,
+            ]);
+        }
+
         if (! $this->registry->isMethodAllowed($agent, $method)) {
             return $this->ok([
                 'allowed' => false,
@@ -86,7 +100,7 @@ class InvokeA2aAgentTool implements Tool
                 is_string($rpcId) && trim($rpcId) !== '' ? trim($rpcId) : null,
             );
         } catch (Throwable $exception) {
-            $this->recordEvent($agentId, $method, false, $exception->getMessage());
+            $this->recordEvent($agentId, $method, false, $exception->getMessage(), 'a2a_outbound_exception');
 
             return $this->ok([
                 'allowed' => true,
@@ -109,6 +123,7 @@ class InvokeA2aAgentTool implements Tool
             method: $method,
             successful: $successful,
             errorMessage: is_array($rpcError) ? (string) ($rpcError['message'] ?? '') : null,
+            errorCode: $successful ? null : 'a2a_remote_error',
         );
 
         return $this->ok([
@@ -151,8 +166,13 @@ class InvokeA2aAgentTool implements Tool
         return $headers;
     }
 
-    protected function recordEvent(string $agentId, string $method, bool $successful, ?string $errorMessage = null): void
-    {
+    protected function recordEvent(
+        string $agentId,
+        string $method,
+        bool $successful,
+        ?string $errorMessage = null,
+        ?string $errorCode = null,
+    ): void {
         $this->thread->events()->create([
             'thread_actor_id' => $this->threadActor?->id,
             'message_id' => null,
@@ -168,6 +188,7 @@ class InvokeA2aAgentTool implements Tool
                 'method' => $method,
                 'actor_id' => $this->actor->id,
                 'actor_uuid' => $this->actor->uuid,
+                'error_code' => $errorCode,
                 'error_message' => $errorMessage !== null ? mb_substr(trim($errorMessage), 0, 500) : null,
             ],
         ]);

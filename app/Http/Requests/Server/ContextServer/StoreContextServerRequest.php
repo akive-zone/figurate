@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Server\ContextServer;
 
+use App\Support\Security\UrlTrustPolicy;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StoreContextServerRequest extends FormRequest
 {
@@ -42,6 +44,37 @@ class StoreContextServerRequest extends FormRequest
             'credentials.header_value' => ['nullable', 'string', 'required_if:auth_type,header'],
             'credentials.headers' => ['nullable', 'array'],
             'credentials.headers.*' => ['string'],
+        ];
+    }
+
+    /**
+     * @return array<int, \Closure(\Illuminate\Validation\Validator): void>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                $transport = strtolower((string) $this->input('transport', 'remote'));
+
+                if ($transport !== 'remote') {
+                    return;
+                }
+
+                $endpointUrl = $this->input('endpoint_url');
+
+                if (! is_string($endpointUrl) || trim($endpointUrl) === '') {
+                    return;
+                }
+
+                $trust = app(UrlTrustPolicy::class)->authorize(
+                    $endpointUrl,
+                    is_array(config('services.mcp.trust')) ? config('services.mcp.trust') : [],
+                );
+
+                if (! ($trust['allowed'] ?? false)) {
+                    $validator->errors()->add('endpoint_url', (string) ($trust['reason'] ?? 'Remote endpoint URL is not allowed by policy.'));
+                }
+            },
         ];
     }
 }

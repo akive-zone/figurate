@@ -33,7 +33,8 @@ class ListAvailableA2aAgentsTool implements Tool
         }
 
         $includeHeaders = (bool) ($request['include_headers'] ?? false);
-        $agents = collect($this->registry->agents())
+        $allAgents = $this->registry->agents();
+        $agents = collect($this->registry->trustedAgents())
             ->map(function (array $agent) use ($includeHeaders): array {
                 $payload = [
                     'id' => $agent['id'],
@@ -56,6 +57,7 @@ class ListAvailableA2aAgentsTool implements Tool
         return $this->ok([
             'enabled' => true,
             'count' => count($agents),
+            'filtered_out_count' => max(count($allAgents) - count($agents), 0),
             'agents' => $agents,
         ]);
     }

@@ -4,11 +4,13 @@ namespace App\Ai\Support\Mcp;
 
 use App\Models\Server\Thread;
 use App\Models\Server\User;
+use App\Support\Security\UrlTrustPolicy;
 
 class McpInvocationPolicy
 {
     public function __construct(
         protected McpServerResolver $serverResolver = new McpServerResolver,
+        protected UrlTrustPolicy $urlTrustPolicy = new UrlTrustPolicy,
     ) {}
 
     /**
@@ -36,6 +38,19 @@ class McpInvocationPolicy
                 return [
                     'allowed' => false,
                     'reason' => 'MCP endpoint URL is not configured for this remote server.',
+                    'context' => $context,
+                ];
+            }
+
+            $trust = $this->urlTrustPolicy->authorize(
+                $endpointUrl,
+                is_array(config('services.mcp.trust')) ? config('services.mcp.trust') : [],
+            );
+
+            if (! ($trust['allowed'] ?? false)) {
+                return [
+                    'allowed' => false,
+                    'reason' => (string) ($trust['reason'] ?? 'MCP endpoint URL is not allowed by policy.'),
                     'context' => $context,
                 ];
             }

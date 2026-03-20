@@ -55,6 +55,8 @@ class InvokeMcpTool implements Tool
                 tool: $tool,
                 successful: false,
                 state: ThreadEvent::StateFailed,
+                context: is_array($authorization['context'] ?? null) ? $authorization['context'] : [],
+                errorCode: 'mcp_policy_denied',
                 errorMessage: (string) ($authorization['reason'] ?? 'Tool invocation denied.'),
             );
 
@@ -84,6 +86,8 @@ class InvokeMcpTool implements Tool
                 tool: $tool,
                 successful: false,
                 state: ThreadEvent::StateFailed,
+                context: $context,
+                errorCode: 'mcp_exception',
                 errorMessage: $exception->getMessage(),
             );
 
@@ -104,6 +108,8 @@ class InvokeMcpTool implements Tool
             tool: $tool,
             successful: (bool) ($result['ok'] ?? false),
             state: (bool) ($result['ok'] ?? false) ? ThreadEvent::StateCompleted : ThreadEvent::StateFailed,
+            context: $context,
+            errorCode: is_string($result['error_code'] ?? null) ? $result['error_code'] : null,
             errorMessage: is_string($result['error_message'] ?? null) ? (string) $result['error_message'] : null,
         );
 
@@ -132,8 +138,13 @@ class InvokeMcpTool implements Tool
         string $tool,
         bool $successful,
         string $state,
+        array $context = [],
+        ?string $errorCode = null,
         ?string $errorMessage = null,
     ): void {
+        $endpointUrl = is_string($context['endpoint_url'] ?? null) ? (string) $context['endpoint_url'] : null;
+        $endpointHost = is_string(parse_url((string) $endpointUrl, PHP_URL_HOST)) ? parse_url((string) $endpointUrl, PHP_URL_HOST) : null;
+
         $this->thread->events()->create([
             'thread_actor_id' => $this->threadActor?->id,
             'message_id' => null,
@@ -149,6 +160,13 @@ class InvokeMcpTool implements Tool
                 'tool' => $tool,
                 'actor_id' => $this->actor->id,
                 'actor_uuid' => $this->actor->uuid,
+                'transport' => $context['transport'] ?? null,
+                'context_source' => $context['context_source'] ?? null,
+                'context_server_id' => $context['context_server_id'] ?? null,
+                'endpoint_host' => $endpointHost,
+                'default_timeout_ms' => $context['default_timeout_ms'] ?? null,
+                'max_timeout_ms' => $context['max_timeout_ms'] ?? null,
+                'error_code' => $errorCode,
                 'error_message' => $errorMessage !== null ? mb_substr(trim($errorMessage), 0, 500) : null,
             ],
         ]);

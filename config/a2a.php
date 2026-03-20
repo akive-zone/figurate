@@ -53,6 +53,9 @@ return [
         ],
         'push_notifications' => [
             'notification_method' => env('A2A_PUSH_NOTIFICATION_METHOD', 'SendTaskStreamingNotification'),
+            'timestamp_header_name' => env('A2A_PUSH_TIMESTAMP_HEADER', env('WEBHOOK_SERVER_TIMESTAMP_HEADER', 'Timestamp')),
+            'max_skew_seconds' => (int) env('A2A_PUSH_MAX_SKEW_SECONDS', 300),
+            'replay_ttl_seconds' => (int) env('A2A_PUSH_REPLAY_TTL_SECONDS', 600),
             'default_headers' => [],
             'default_state_filter' => [],
         ],
@@ -60,12 +63,28 @@ return [
     'outbound' => [
         'enabled' => (bool) env('A2A_OUTBOUND_ENABLED', true),
         'default_timeout_seconds' => (int) env('A2A_OUTBOUND_TIMEOUT_SECONDS', 15),
+        'trust' => [
+            'allow_http' => env('A2A_OUTBOUND_ALLOW_HTTP'),
+            'allow_private_network' => env('A2A_OUTBOUND_ALLOW_PRIVATE_NETWORK'),
+            'allowed_hosts' => array_values(array_filter(array_map(
+                static fn (string $host): string => trim($host),
+                explode(',', (string) env('A2A_OUTBOUND_ALLOWED_HOSTS', ''))
+            ))),
+        ],
         'push_notifications' => [
             'enabled' => (bool) env('A2A_OUTBOUND_PUSH_NOTIFICATIONS_ENABLED', true),
             'register_on_delegate' => (bool) env('A2A_OUTBOUND_PUSH_REGISTER_ON_DELEGATE', true),
             'callback_url' => env('A2A_OUTBOUND_PUSH_CALLBACK_URL'),
             'token' => env('A2A_OUTBOUND_PUSH_TOKEN'),
             'state_filter' => ['completed', 'failed', 'canceled'],
+            'trust' => [
+                'allow_http' => env('A2A_OUTBOUND_PUSH_ALLOW_HTTP'),
+                'allow_private_network' => env('A2A_OUTBOUND_PUSH_ALLOW_PRIVATE_NETWORK'),
+                'allowed_hosts' => array_values(array_filter(array_map(
+                    static fn (string $host): string => trim($host),
+                    explode(',', (string) env('A2A_OUTBOUND_PUSH_ALLOWED_HOSTS', ''))
+                ))),
+            ],
         ],
         'agents' => [
             // 'planner' => [

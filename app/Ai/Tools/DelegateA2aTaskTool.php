@@ -9,6 +9,7 @@ use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadEvent;
 use App\Models\Server\User;
+use App\Support\Security\UrlTrustPolicy;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Http;
 use Laravel\Ai\Contracts\Tool;
@@ -26,6 +27,7 @@ class DelegateA2aTaskTool implements Tool
         protected User $actor,
         protected ?ThreadActor $threadActor = null,
         protected OutboundAgentRegistry $registry = new OutboundAgentRegistry,
+        protected UrlTrustPolicy $urlTrustPolicy = new UrlTrustPolicy,
     ) {}
 
     public function description(): Stringable|string
@@ -58,6 +60,20 @@ class DelegateA2aTaskTool implements Tool
 
         if (! is_array($agent)) {
             return $this->error('Unknown remote A2A agent.');
+        }
+
+        $trustDecision = $this->registry->trustDecision($agent);
+
+        if (! ($trustDecision['allowed'] ?? false)) {
+            $reason = (string) ($trustDecision['reason'] ?? 'Remote A2A agent endpoint URL is not allowed by policy.');
+            $this->recordEvent($agentId, 'delegate.untrusted_endpoint', 'medium', $reason);
+
+            return $this->ok([
+                'ok' => false,
+                'stage' => 'config',
+                'agent' => $agentId,
+                'error' => $reason,
+            ]);
         }
 
         $sendPayload = [
@@ -396,6 +412,20 @@ class DelegateA2aTaskTool implements Tool
                 'ok' => false,
                 'skipped' => true,
                 'reason' => 'missing_callback_url',
+            ];
+        }
+
+        $callbackTrust = $this->urlTrustPolicy->authorize(
+            $callbackUrl,
+            is_array(config('a2a.outbound.push_notifications.trust')) ? config('a2a.outbound.push_notifications.trust') : [],
+        );
+
+        if (! ($callbackTrust['allowed'] ?? false)) {
+            return [
+                'ok' => false,
+                'skipped' => true,
+                'reason' => 'untrusted_callback_url',
+                'error' => (string) ($callbackTrust['reason'] ?? 'Callback URL is not allowed by policy.'),
             ];
         }
 
