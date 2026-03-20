@@ -8,13 +8,16 @@ use App\Ai\Tools\ContextBudgetTool;
 use App\Ai\Tools\ConversationAuditTool;
 use App\Ai\Tools\CreatePostFromConversationTool;
 use App\Ai\Tools\DelegateA2aTaskTool;
+use App\Ai\Tools\DelegateAcpTaskTool;
 use App\Ai\Tools\DiscoverSkillsTool;
 use App\Ai\Tools\DualWriteDiffTool;
 use App\Ai\Tools\GetSubAgentInvocationContextTool;
 use App\Ai\Tools\InvokeA2aAgentTool;
+use App\Ai\Tools\InvokeAcpAgentTool;
 use App\Ai\Tools\InvokeMcpTool;
 use App\Ai\Tools\InvokeSubAgentTool;
 use App\Ai\Tools\ListAvailableA2aAgentsTool;
+use App\Ai\Tools\ListAvailableAcpAgentsTool;
 use App\Ai\Tools\ListAvailableMcpToolsTool;
 use App\Ai\Tools\ListAvailableSubAgentsTool;
 use App\Ai\Tools\ModePolicyTool;
@@ -72,6 +75,7 @@ class ChatToolResolver
             new ListAvailableSubAgentsTool,
             new InvokeSubAgentTool($thread, $user, $threadActor),
             ...$this->mcpTools($thread, $user, $threadActor),
+            ...$this->acpTools($thread, $user, $threadActor),
             ...$this->a2aTools($thread, $user, $threadActor),
             new DualWriteDiffTool($thread, $user),
             new ReplayTool($thread, $user),
@@ -110,6 +114,22 @@ class ChatToolResolver
         return [
             new ListAvailableMcpToolsTool($thread, $user),
             new InvokeMcpTool($thread, $user, $threadActor),
+        ];
+    }
+
+    /**
+     * @return list<Tool>
+     */
+    protected function acpTools(Thread $thread, User $user, ?ThreadActor $threadActor = null): array
+    {
+        if (! ((bool) config('acp.outbound.enabled', false))) {
+            return [];
+        }
+
+        return [
+            new ListAvailableAcpAgentsTool,
+            new InvokeAcpAgentTool($thread, $user, $threadActor),
+            new DelegateAcpTaskTool($thread, $user, $threadActor),
         ];
     }
 

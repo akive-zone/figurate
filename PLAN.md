@@ -439,7 +439,7 @@ Deliver an authenticated ACP session/task API and bridge runtime so external ACP
 5. ACP task access and cancellation are enforced through owned `AgentTask` resolution rather than prompt-message lookup alone.
 6. Reusable orchestration services are implemented for prompt dispatching, local task sync, and message-task state/artifact projection (`PromptDispatchService`, `AgentTaskService`, `MessageTaskService`).
 7. Existing A2A task routing now reuses the shared orchestration/task services, reducing duplicate task-state logic across ACP and A2A flows.
-8. A Go ACP bridge runtime exists in `mod/fig-acp` with JSON-RPC methods for initialize/authenticate/session new/list/load/prompt/cancel.
+8. A Go ACP bridge runtime exists in `mod/fig-acp-inbound` with JSON-RPC methods for initialize/authenticate/session new/list/load/prompt/cancel.
 9. The Go bridge can authenticate against the backend, create/load/list sessions, submit prompts, poll ACP task state to completion, and issue downstream task cancellation.
 10. Feature coverage exists for ACP session create/list/load and prompt/cancel behavior, including persisted `AgentTask` assertions, with related A2A transport tests updated for the shared task-artifact behavior.
 
@@ -459,7 +459,7 @@ Deliver an authenticated ACP session/task API and bridge runtime so external ACP
 3. Add observability for ACP prompt submission, bridge polling failures, downstream cancellation failures, and task-state transitions.
 4. Decide whether ACP should remain poll-based or gain a backend push/stream path for lower-latency task updates.
 5. Lock the ACP external API contract for accepted aliases and response payloads before wider client adoption.
-6. Add Go-side tests and CI/build hygiene for `mod/fig-acp`, including a clean story for local cache/output handling.
+6. Add Go-side tests and CI/build hygiene for `mod/fig-acp-inbound`, including a clean story for local cache/output handling.
 
 ### Exit Criteria Check
 

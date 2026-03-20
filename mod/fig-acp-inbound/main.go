@@ -8,12 +8,12 @@ import (
 	"syscall"
 	"time"
 
-	"figurate/mod/fig-acp/internal/acp"
-	"figurate/mod/fig-acp/internal/figurate"
+	"figurate/mod/fig-acp-inbound/internal/acp"
+	"figurate/mod/fig-acp-inbound/internal/figurate"
 )
 
 func main() {
-	logger := log.New(os.Stderr, "fig-acp: ", log.LstdFlags|log.Lmsgprefix)
+	logger := log.New(os.Stderr, "fig-acp-inbound: ", log.LstdFlags|log.Lmsgprefix)
 
 	config := figurate.Config{
 		BaseURL:          os.Getenv("FIG_ACP_BASE_URL"),

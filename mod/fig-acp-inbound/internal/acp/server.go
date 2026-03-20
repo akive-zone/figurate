@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"figurate/mod/fig-acp/internal/figurate"
+	"figurate/mod/fig-acp-inbound/internal/figurate"
 )
 
 const (
@@ -161,7 +161,7 @@ func (s *Server) initialize(id any) responseMessage {
 		Result: map[string]any{
 			"protocolVersion": "0.1",
 			"serverInfo": map[string]any{
-				"name":    "fig-acp",
+				"name":    "fig-acp-inbound",
 				"version": "0.1.0",
 			},
 			"capabilities": map[string]any{

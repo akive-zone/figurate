@@ -1,0 +1,550 @@
+<?php
+
+namespace App\Ai\Tools;
+
+use App\Ai\Support\Acp\OutboundAcpClient;
+use App\Ai\Support\Acp\OutboundAgentRegistry;
+use App\Ai\Tools\Diagnostics\EncodesToolResponse;
+use App\Models\Server\AgentTask;
+use App\Models\Server\Channel;
+use App\Models\Server\Thread;
+use App\Models\Server\ThreadActor;
+use App\Models\Server\ThreadEvent;
+use App\Models\Server\User;
+use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Illuminate\Support\Str;
+use Laravel\Ai\Contracts\Tool;
+use Laravel\Ai\Tools\Request as ToolRequest;
+use Stringable;
+
+class DelegateAcpTaskTool implements Tool
+{
+    use EncodesToolResponse;
+
+    public function __construct(
+        protected Thread $thread,
+        protected User $actor,
+        protected ?ThreadActor $threadActor = null,
+        protected OutboundAgentRegistry $registry = new OutboundAgentRegistry,
+        protected OutboundAcpClient $client = new OutboundAcpClient,
+    ) {}
+
+    public function description(): Stringable|string
+    {
+        return 'Delegate work to an allowlisted outbound ACP agent by initializing, opening or reusing a session, and prompting it.';
+    }
+
+    public function handle(ToolRequest $request): Stringable|string
+    {
+        if (! $this->registry->enabled()) {
+            return $this->error('Outbound ACP calls are disabled.');
+        }
+
+        $agentId = trim((string) ($request['agent'] ?? ''));
+        $message = trim((string) ($request['message'] ?? ''));
+
+        if ($agentId === '' || $message === '') {
+            return $this->error('Both agent and message are required.');
+        }
+
+        $agent = $this->registry->find($agentId);
+
+        if (! is_array($agent)) {
+            return $this->error('Unknown remote ACP agent.');
+        }
+
+        $sessionConfig = is_array($agent['session'] ?? null) ? $agent['session'] : [];
+        $timeoutSeconds = isset($request['timeout_seconds'])
+            ? (int) $request['timeout_seconds']
+            : $this->registry->defaultTimeoutSeconds();
+        $loadAfterPrompt = isset($request['load_after_prompt'])
+            ? (bool) $request['load_after_prompt']
+            : (bool) ($sessionConfig['load_after_prompt'] ?? true);
+        $sessionId = $this->trimmedString($request['session_id'] ?? null);
+        $sessionCreateParams = $request['session_params'] ?? [];
+        $promptParams = $request['prompt_params'] ?? [];
+        $authenticateParams = $request['authenticate_params'] ?? [];
+
+        if (! is_array($sessionCreateParams) || ! is_array($promptParams) || ! is_array($authenticateParams)) {
+            return $this->error('session_params, prompt_params, and authenticate_params must be JSON objects.');
+        }
+
+        $bootstrap = [
+            'initialize' => null,
+            'authenticate' => null,
+        ];
+
+        if ($this->registry->isMethodAllowed($agent, 'initialize')) {
+            $bootstrap['initialize'] = $this->client->execute(
+                agent: $agent,
+                method: 'initialize',
+                params: $this->initializePayload($agent),
+                timeoutSeconds: max(3, min(180, $timeoutSeconds)),
+            );
+
+            if (($bootstrap['initialize']['ok'] ?? false) !== true) {
+                $this->recordEvent($agentId, 'bootstrap.initialize_failed', 'medium', $bootstrap['initialize']['error_message'] ?? 'initialize_failed');
+
+                return $this->ok([
+                    'ok' => false,
+                    'stage' => 'initialize',
+                    'agent' => $agentId,
+                    'error' => $bootstrap['initialize'],
+                ]);
+            }
+        }
+
+        $configuredAuthenticatePayload = is_array($agent['authenticate_payload'] ?? null) ? $agent['authenticate_payload'] : [];
+        $resolvedAuthenticatePayload = [
+            ...$configuredAuthenticatePayload,
+            ...$authenticateParams,
+        ];
+
+        if ($resolvedAuthenticatePayload !== [] && $this->registry->isMethodAllowed($agent, 'authenticate')) {
+            $bootstrap['authenticate'] = $this->client->execute(
+                agent: $agent,
+                method: 'authenticate',
+                params: $resolvedAuthenticatePayload,
+                timeoutSeconds: max(3, min(180, $timeoutSeconds)),
+            );
+
+            if (($bootstrap['authenticate']['ok'] ?? false) !== true) {
+                $this->recordEvent($agentId, 'bootstrap.authenticate_failed', 'medium', $bootstrap['authenticate']['error_message'] ?? 'authenticate_failed');
+
+                return $this->ok([
+                    'ok' => false,
+                    'stage' => 'authenticate',
+                    'agent' => $agentId,
+                    'error' => $bootstrap['authenticate'],
+                    'initialize' => $bootstrap['initialize'],
+                ]);
+            }
+        }
+
+        if ($sessionId === null && (($sessionConfig['reuse'] ?? 'thread') === 'thread')) {
+            $sessionId = $this->existingRemoteSessionId($agentId);
+        }
+
+        $createdSession = null;
+        if ($sessionId === null) {
+            $createMethod = (string) ($sessionConfig['create_method'] ?? 'session/new');
+
+            if (! $this->registry->isMethodAllowed($agent, $createMethod)) {
+                return $this->ok([
+                    'ok' => false,
+                    'stage' => 'session',
+                    'agent' => $agentId,
+                    'error' => [
+                        'error_code' => 'acp_method_not_allowed',
+                        'error_message' => 'Session creation is not allowlisted for this agent.',
+                        'method' => $createMethod,
+                    ],
+                    'initialize' => $bootstrap['initialize'],
+                    'authenticate' => $bootstrap['authenticate'],
+                ]);
+            }
+
+            $createdSession = $this->client->execute(
+                agent: $agent,
+                method: $createMethod,
+                params: $this->sessionCreatePayload($agent, $sessionCreateParams),
+                timeoutSeconds: max(3, min(180, $timeoutSeconds)),
+            );
+
+            if (($createdSession['ok'] ?? false) !== true) {
+                $this->recordEvent($agentId, 'session.create_failed', 'medium', $createdSession['error_message'] ?? 'session_create_failed');
+
+                return $this->ok([
+                    'ok' => false,
+                    'stage' => 'session',
+                    'agent' => $agentId,
+                    'error' => $createdSession,
+                    'initialize' => $bootstrap['initialize'],
+                    'authenticate' => $bootstrap['authenticate'],
+                ]);
+            }
+
+            $sessionId = $this->responseSessionId($createdSession['result'] ?? null);
+        }
+
+        if ($sessionId === null) {
+            return $this->ok([
+                'ok' => false,
+                'stage' => 'session',
+                'agent' => $agentId,
+                'error' => 'Remote ACP agent did not return a session id.',
+                'initialize' => $bootstrap['initialize'],
+                'authenticate' => $bootstrap['authenticate'],
+                'session' => $createdSession,
+            ]);
+        }
+
+        $promptMethod = (string) ($sessionConfig['prompt_method'] ?? 'session/prompt');
+
+        if (! $this->registry->isMethodAllowed($agent, $promptMethod)) {
+            return $this->ok([
+                'ok' => false,
+                'stage' => 'prompt',
+                'agent' => $agentId,
+                'session_id' => $sessionId,
+                'error' => [
+                    'error_code' => 'acp_method_not_allowed',
+                    'error_message' => 'Prompting is not allowlisted for this agent.',
+                    'method' => $promptMethod,
+                ],
+            ]);
+        }
+
+        $promptResponse = $this->client->execute(
+            agent: $agent,
+            method: $promptMethod,
+            params: $this->promptPayload($sessionConfig, $sessionId, $message, $promptParams),
+            timeoutSeconds: max(3, min(180, $timeoutSeconds)),
+        );
+
+        if (($promptResponse['ok'] ?? false) !== true) {
+            $this->recordEvent($agentId, 'delegate.prompt_failed', 'medium', $promptResponse['error_message'] ?? 'prompt_failed');
+
+            return $this->ok([
+                'ok' => false,
+                'stage' => 'prompt',
+                'agent' => $agentId,
+                'session_id' => $sessionId,
+                'error' => $promptResponse,
+                'initialize' => $bootstrap['initialize'],
+                'authenticate' => $bootstrap['authenticate'],
+                'session' => $createdSession,
+            ]);
+        }
+
+        $sessionSnapshot = null;
+        $loadMethod = (string) ($sessionConfig['load_method'] ?? 'session/load');
+        if ($loadAfterPrompt && $this->registry->isMethodAllowed($agent, $loadMethod)) {
+            $sessionSnapshot = $this->client->execute(
+                agent: $agent,
+                method: $loadMethod,
+                params: $this->sessionLoadPayload($sessionConfig, $sessionId),
+                timeoutSeconds: max(3, min(180, $timeoutSeconds)),
+            );
+        }
+
+        $state = $this->responseState($promptResponse['result'] ?? null)
+            ?? $this->responseState($sessionSnapshot['result'] ?? null)
+            ?? 'submitted';
+        $remoteTaskId = $this->responseTaskId($promptResponse['result'] ?? null)
+            ?? $this->responseTaskId($sessionSnapshot['result'] ?? null)
+            ?? (string) Str::ulid();
+
+        $link = $this->upsertRemoteTaskLink(
+            agentId: $agentId,
+            sessionId: $sessionId,
+            taskId: $remoteTaskId,
+            state: $state,
+            payload: [
+                'initialize' => $bootstrap['initialize'],
+                'authenticate' => $bootstrap['authenticate'],
+                'session' => $createdSession,
+                'prompt' => $promptResponse,
+                'session_snapshot' => $sessionSnapshot,
+            ],
+        );
+
+        $this->recordEvent(
+            agentId: $agentId,
+            event: $state === 'completed' ? 'completed' : 'submitted',
+            severity: $state === 'completed' ? 'low' : 'medium',
+            errorMessage: null,
+            agentTask: $link,
+        );
+
+        return $this->ok([
+            'completed' => $state === 'completed',
+            'stage' => ($link?->status ?? $state) === 'completed' ? 'terminal' : 'prompt',
+            'agent' => $agentId,
+            'session_id' => data_get($link?->remote, 'session_id', $sessionId),
+            'task_id' => data_get($link?->remote, 'task_id', $remoteTaskId),
+            'state' => $link?->status ?? $state,
+            'agent_task_uuid' => $link?->uuid,
+            'initialize' => $bootstrap['initialize'],
+            'authenticate' => $bootstrap['authenticate'],
+            'session' => $createdSession,
+            'prompt_response' => $promptResponse,
+            'session_snapshot' => $sessionSnapshot,
+        ]);
+    }
+
+    public function schema(JsonSchema $schema): array
+    {
+        return [
+            'agent' => $schema->string()->required(),
+            'message' => $schema->string()->required(),
+            'session_id' => $schema->string(),
+            'timeout_seconds' => $schema->integer(),
+            'load_after_prompt' => $schema->boolean(),
+            'session_params' => $schema->object(),
+            'prompt_params' => $schema->object(),
+            'authenticate_params' => $schema->object(),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $agent
+     * @return array<string, mixed>
+     */
+    protected function initializePayload(array $agent): array
+    {
+        $client = $this->registry->client();
+
+        return [
+            'client' => array_filter([
+                'id' => $client['id'],
+                'name' => $client['name'],
+                'version' => $client['version'],
+            ], fn (mixed $value): bool => is_string($value) && trim($value) !== ''),
+            'capabilities' => $client['capabilities'],
+            ...(is_array($agent['initialize_payload'] ?? null) ? $agent['initialize_payload'] : []),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $agent
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    protected function sessionCreatePayload(array $agent, array $overrides): array
+    {
+        $channel = $this->thread->threadable;
+        $payload = [
+            ...(is_array(data_get($agent, 'session.create_params')) ? data_get($agent, 'session.create_params') : []),
+            ...$overrides,
+        ];
+
+        $payload['title'] ??= $this->thread->title;
+        $payload['purpose'] ??= $this->thread->purpose;
+        $payload['metadata'] = [
+            ...(is_array($payload['metadata'] ?? null) ? $payload['metadata'] : []),
+            'figurate' => [
+                'thread_uuid' => $this->thread->uuid,
+                'thread_id' => $this->thread->id,
+                'channel_uuid' => $channel instanceof Channel ? $channel->uuid : null,
+                'channel_id' => $channel instanceof Channel ? $channel->id : null,
+                'actor_uuid' => $this->actor->uuid,
+                'actor_id' => $this->actor->id,
+            ],
+        ];
+
+        return $payload;
+    }
+
+    /**
+     * @param  array<string, mixed>  $sessionConfig
+     * @return array<string, mixed>
+     */
+    protected function sessionLoadPayload(array $sessionConfig, string $sessionId): array
+    {
+        $payload = is_array($sessionConfig['load_params'] ?? null) ? $sessionConfig['load_params'] : [];
+        $payload[(string) ($sessionConfig['id_argument'] ?? 'session_id')] ??= $sessionId;
+
+        return $payload;
+    }
+
+    /**
+     * @param  array<string, mixed>  $sessionConfig
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    protected function promptPayload(array $sessionConfig, string $sessionId, string $message, array $overrides): array
+    {
+        $payload = [
+            ...(is_array($sessionConfig['prompt_params'] ?? null) ? $sessionConfig['prompt_params'] : []),
+            ...$overrides,
+        ];
+
+        $payload[(string) ($sessionConfig['id_argument'] ?? 'session_id')] ??= $sessionId;
+        $payload[(string) ($sessionConfig['prompt_argument'] ?? 'prompt')] ??= match ((string) ($sessionConfig['prompt_mode'] ?? 'string')) {
+            'content_blocks' => [
+                [
+                    'type' => 'text',
+                    'text' => $message,
+                ],
+            ],
+            default => $message,
+        };
+
+        return $payload;
+    }
+
+    protected function responseSessionId(mixed $result): ?string
+    {
+        foreach ([
+            'session.id',
+            'sessionId',
+            'session_id',
+            'id',
+        ] as $path) {
+            $value = $this->trimmedString(data_get($result, $path));
+
+            if ($value !== null) {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    protected function responseTaskId(mixed $result): ?string
+    {
+        foreach ([
+            'task.id',
+            'task_id',
+            'id',
+        ] as $path) {
+            $value = $this->trimmedString(data_get($result, $path));
+
+            if ($value !== null) {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    protected function responseState(mixed $result): ?string
+    {
+        foreach ([
+            'task.status.state',
+            'task.state',
+            'status.state',
+            'state',
+        ] as $path) {
+            $value = $this->trimmedString(data_get($result, $path));
+
+            if ($value !== null) {
+                return strtolower($value);
+            }
+        }
+
+        return null;
+    }
+
+    protected function existingRemoteSessionId(string $agentId): ?string
+    {
+        $task = AgentTask::query()
+            ->where('thread_id', $this->thread->id)
+            ->where('user_id', $this->actor->id)
+            ->latest('id')
+            ->get()
+            ->first(function (AgentTask $task) use ($agentId): bool {
+                return data_get($task->remote, 'protocol') === 'acp'
+                    && data_get($task->remote, 'agent_id') === $agentId
+                    && is_string(data_get($task->remote, 'session_id'))
+                    && trim((string) data_get($task->remote, 'session_id')) !== '';
+            });
+
+        return $this->trimmedString(data_get($task?->remote, 'session_id'));
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    protected function upsertRemoteTaskLink(
+        string $agentId,
+        string $sessionId,
+        string $taskId,
+        string $state,
+        array $payload,
+    ): ?AgentTask {
+        if ($agentId === '' || $sessionId === '' || $taskId === '') {
+            return null;
+        }
+
+        $link = AgentTask::query()
+            ->where('thread_id', $this->thread->id)
+            ->where('user_id', $this->actor->id)
+            ->latest('id')
+            ->get()
+            ->first(function (AgentTask $task) use ($agentId, $sessionId, $taskId): bool {
+                return data_get($task->remote, 'protocol') === 'acp'
+                    && data_get($task->remote, 'agent_id') === $agentId
+                    && (
+                        data_get($task->remote, 'task_id') === $taskId
+                        || data_get($task->remote, 'session_id') === $sessionId
+                    );
+            });
+
+        $updates = [
+            'thread_id' => $this->thread->id,
+            'message_id' => null,
+            'user_id' => $this->actor->id,
+            'remote' => [
+                'protocol' => 'acp',
+                'agent_id' => $agentId,
+                'session_id' => $sessionId,
+                'task_id' => $taskId,
+            ],
+            'status' => $state,
+            'last_payload' => $payload,
+            'completed_at' => $state === 'completed' ? now() : null,
+            'failed_at' => $state === 'failed' ? now() : null,
+            'canceled_at' => $state === 'canceled' ? now() : null,
+        ];
+
+        if (! $link instanceof AgentTask) {
+            return AgentTask::query()->create($updates);
+        }
+
+        $link->forceFill($updates)->save();
+
+        return $link->fresh();
+    }
+
+    protected function recordEvent(
+        string $agentId,
+        string $event,
+        string $severity,
+        ?string $errorMessage,
+        ?AgentTask $agentTask = null,
+    ): void {
+        $threadEvent = $this->thread->events()->create([
+            'thread_actor_id' => $this->threadActor?->id,
+            'message_id' => null,
+            'event_key' => 'acp_delegate_tool',
+            'layer' => ThreadEvent::LayerExecution,
+            'kind' => ThreadEvent::KindAcp,
+            'operation' => "delegate.{$event}",
+            'state' => $this->stateForEvent($event),
+            'event_type' => "acp.{$event}",
+            'severity' => $severity,
+            'payload' => [
+                'agent' => $agentId,
+                'actor_id' => $this->actor->id,
+                'actor_uuid' => $this->actor->uuid,
+                'error_message' => $errorMessage !== null ? mb_substr(trim($errorMessage), 0, 500) : null,
+            ],
+        ]);
+
+        if ($agentTask instanceof AgentTask) {
+            $agentTask->threadEvents()->syncWithoutDetaching([$threadEvent->id]);
+        }
+    }
+
+    protected function stateForEvent(string $event): string
+    {
+        return match (true) {
+            str_contains($event, 'failed') => ThreadEvent::StateFailed,
+            str_contains($event, 'completed') => ThreadEvent::StateCompleted,
+            default => ThreadEvent::StateRequested,
+        };
+    }
+
+    protected function trimmedString(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return $trimmed === '' ? null : $trimmed;
+    }
+}

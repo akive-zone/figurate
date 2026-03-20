@@ -16,6 +16,8 @@ class ThreadEvent extends Model
 
     public const LayerExecution = 'execution';
 
+    public const KindAcp = 'acp';
+
     public const KindA2a = 'a2a';
 
     public const KindMcp = 'mcp';

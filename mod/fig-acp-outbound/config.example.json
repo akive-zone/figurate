@@ -1,0 +1,14 @@
+{
+  "listen": "127.0.0.1:4319",
+  "auth_token": "",
+  "agents": {
+    "opencode": {
+      "label": "OpenCode ACP",
+      "command": ["opencode", "acp"],
+      "cwd": "../..",
+      "env": {},
+      "framing": "newline",
+      "startup_timeout_seconds": 10
+    }
+  }
+}

@@ -12,7 +12,7 @@ prepare:
 	mkdir -p "$(GOCACHE)" "$(GOMODCACHE)" "$(GOTMPDIR)" "$(CURDIR)/bin"
 
 build: prepare
-	go build -o "$(CURDIR)/bin/fig-acp" .
+	go build -o "$(CURDIR)/bin/fig-acp-inbound" .
 
 run: prepare
 	go run .
