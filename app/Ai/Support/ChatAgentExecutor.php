@@ -256,7 +256,7 @@ class ChatAgentExecutor
             return;
         }
 
-        $assistantMessage = ($this->dispatchThreadMessage)(ThreadMessageEntry::agentMessage(
+        $assistantMessage = $this->dispatchThreadMessage->execute(ThreadMessageEntry::agentMessage(
             thread: $thread,
             text: $assistantText !== '' ? $assistantText : 'Interactive step ready.',
             meta: [

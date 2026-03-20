@@ -2,7 +2,6 @@
 
 namespace App\Features\Actions\Chat;
 
-use App\Ai\Support\A2ui\A2uiPayloadContract;
 use App\Ai\Support\ChatAgentExecutor;
 use App\Http\Requests\Server\Chat\StoreChatRequest;
 use App\Models\Server\Message;
@@ -19,10 +18,10 @@ use Illuminate\Support\Facades\Gate;
 class HandleChatMessage
 {
     public function __construct(
-        protected A2uiPayloadContract $a2uiPayloadContract,
         protected ConversationOrchestrator $orchestrator,
         protected ResolveChatChannelContext $resolveChatChannelContext,
         protected ResolveChatThreadContext $resolveChatThreadContext,
+        protected NormalizeInboundChatPayload $normalizeInboundChatPayload,
         protected SendPeerThreadMessage $sendPeerThreadMessage,
         protected ChatAgentExecutor $chatAgentExecutor,
         protected ResolveObserverDispatchPolicy $resolveObserverDispatchPolicy,
@@ -31,41 +30,33 @@ class HandleChatMessage
     /**
      * @return array{status: int, body: array<string, mixed>}
      */
-    public function __invoke(StoreChatRequest $request): array
+    public function execute(StoreChatRequest $request): array
     {
         $channelUuid = $request->validated('channel');
         $threadUuid = $request->validated('thread');
         $contentPayload = $request->validated('content');
         $extraPayload = $request->validated('extra');
         $extraPayload = is_array($extraPayload) ? $extraPayload : [];
-        $a2uiActions = collect($contentPayload['actions'] ?? [])
-            ->map(fn (mixed $action): ?array => is_array($action) ? $this->a2uiPayloadContract->normalizeAction($action) : null)
-            ->filter(fn (mixed $action): bool => is_array($action))
-            ->values()
-            ->all();
-        $a2uiErrors = collect($contentPayload['errors'] ?? [])
-            ->map(fn (mixed $error): ?array => is_array($error) ? $this->a2uiPayloadContract->normalizeError($error) : null)
-            ->filter(fn (mixed $error): bool => is_array($error))
-            ->values()
-            ->all();
-        $a2uiClientDataModel = $this->trimmedString(data_get($extraPayload, 'a2ui.config.a2uiClientDataModel'));
-        $a2uiClientCapabilities = $this->a2uiPayloadContract->normalizeClientCapabilities(
-            is_array(data_get($extraPayload, 'a2ui.config.a2uiClientCapabilities'))
-                ? data_get($extraPayload, 'a2ui.config.a2uiClientCapabilities')
-                : null
+        $normalizedPayload = $this->normalizeInboundChatPayload->execute(
+            is_array($contentPayload) ? $contentPayload : [],
+            $extraPayload,
         );
+        $a2uiActions = $normalizedPayload['actions'];
+        $a2uiErrors = $normalizedPayload['errors'];
+        $a2uiClientDataModel = $normalizedPayload['client_data_model'];
+        $a2uiClientCapabilities = $normalizedPayload['client_capabilities'];
         $thread = null;
 
         if (is_string($threadUuid) && $threadUuid !== '') {
-            [$channel, $thread] = ($this->resolveChatThreadContext)($threadUuid, $channelUuid);
+            [$channel, $thread] = $this->resolveChatThreadContext->execute($threadUuid, $channelUuid);
         } else {
-            $channel = ($this->resolveChatChannelContext)($channelUuid, $request->user());
+            $channel = $this->resolveChatChannelContext->execute($channelUuid, $request->user());
         }
 
         Gate::authorize('view', $channel);
         Gate::authorize('create', Message::class);
 
-        $normalizedRequestContent = $this->normalizedContentForStoreRequest($request, $a2uiActions, $a2uiErrors);
+        $normalizedRequestContent = $normalizedPayload['text'];
 
         $decision = $this->orchestrator->resolve(
             channel: $channel,
@@ -138,7 +129,7 @@ class HandleChatMessage
             ];
         }
 
-        $userMessage = ($this->sendPeerThreadMessage)(
+        $userMessage = $this->sendPeerThreadMessage->execute(
             channel: $channel,
             thread: $thread,
             actor: $actor,
@@ -187,69 +178,6 @@ class HandleChatMessage
                 'message_error_accepted' => $a2uiErrors !== [],
             ],
         ];
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $a2uiActions
-     * @param  array<int, array<string, mixed>>  $a2uiErrors
-     */
-    protected function normalizedContentForStoreRequest(StoreChatRequest $request, array $a2uiActions, array $a2uiErrors): ?string
-    {
-        $text = data_get($request->validated('content'), 'text');
-        $normalizedText = is_string($text) ? trim($text) : null;
-        $normalizedText = $normalizedText === '' ? null : $normalizedText;
-
-        if ($normalizedText !== null) {
-            return $normalizedText;
-        }
-
-        return $this->composeA2uiFallbackBody($a2uiActions, $a2uiErrors);
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $a2uiActions
-     * @param  array<int, array<string, mixed>>  $a2uiErrors
-     */
-    protected function composeA2uiFallbackBody(array $a2uiActions, array $a2uiErrors): ?string
-    {
-        if ($a2uiActions !== []) {
-            $firstAction = collect($a2uiActions)->first(fn (mixed $action): bool => is_array($action));
-
-            if (! is_array($firstAction)) {
-                return 'A2UI actions submitted.';
-            }
-
-            $actionName = $this->trimmedString($firstAction['name'] ?? null);
-
-            if ($actionName === null) {
-                return 'A2UI actions submitted.';
-            }
-
-            return "A2UI actions submitted: {$actionName}";
-        }
-
-        if ($a2uiErrors !== []) {
-            $firstError = collect($a2uiErrors)->first(fn (mixed $error): bool => is_array($error));
-
-            if (! is_array($firstError)) {
-                return 'A2UI client errors reported.';
-            }
-
-            $errorMessage = $this->trimmedString($firstError['message'] ?? null);
-            $errorCode = $this->trimmedString($firstError['code'] ?? null);
-
-            if ($errorMessage !== null) {
-                return "A2UI client error: {$errorMessage}";
-            }
-
-            if ($errorCode !== null) {
-                return "A2UI client error code: {$errorCode}";
-            }
-
-            return 'A2UI client errors reported.';
-        }
-
-        return null;
     }
 
     /**
@@ -409,17 +337,6 @@ class HandleChatMessage
             $actor->getKey(),
             sha1($idempotencyKey),
         );
-    }
-
-    protected function trimmedString(mixed $value): ?string
-    {
-        if (! is_string($value)) {
-            return null;
-        }
-
-        $trimmed = trim($value);
-
-        return $trimmed === '' ? null : $trimmed;
     }
 
     /**

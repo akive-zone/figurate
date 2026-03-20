@@ -15,13 +15,13 @@ class DispatchThreadMessage
         protected MessageAttachmentStoreIngestor $messageAttachmentStoreIngestor,
     ) {}
 
-    public function __invoke(ThreadMessageEntry $entry): Message
+    public function execute(ThreadMessageEntry $entry): Message
     {
         if ($entry->authorizeActor && ! $this->canActorWrite($entry->channel, $entry->thread, $entry->actor)) {
             abort(403);
         }
 
-        $message = ($this->storeThreadMessage)(
+        $message = $this->storeThreadMessage->execute(
             thread: $entry->thread,
             sender: $entry->actor,
             text: $entry->text,

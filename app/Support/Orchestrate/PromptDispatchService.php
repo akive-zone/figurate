@@ -66,7 +66,7 @@ class PromptDispatchService
             ? $options['broadcast_channel_id']
             : "threads.{$thread->uuid}";
 
-        $message = ($this->dispatchThreadMessage)(ThreadMessageEntry::peerMessage(
+        $message = $this->dispatchThreadMessage->execute(ThreadMessageEntry::peerMessage(
             channel: $channel,
             thread: $thread,
             actor: $actor,

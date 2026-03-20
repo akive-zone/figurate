@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 
 class ResolveOrCreateGadgetUser
 {
-    public function __invoke(Request $request): User
+    public function execute(Request $request): User
     {
         $requestUser = $request->user('sanctum') ?? $request->user();
 

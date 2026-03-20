@@ -23,7 +23,7 @@ class ApiTokenController extends Controller
     public function register(StudioRegisterRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $gadgetUser = ($this->resolveOrCreateGadgetUser)($request);
+        $gadgetUser = $this->resolveOrCreateGadgetUser->execute($request);
         $subjectUser = SanctumUser::query()->create([
             'name' => $data['name'],
             'email' => $data['email'],
@@ -46,7 +46,7 @@ class ApiTokenController extends Controller
     public function login(StudioLoginRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $gadgetUser = ($this->resolveOrCreateGadgetUser)($request);
+        $gadgetUser = $this->resolveOrCreateGadgetUser->execute($request);
 
         $subjectUser = SanctumUser::query()
             ->where('email', $data['email'])

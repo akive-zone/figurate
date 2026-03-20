@@ -59,7 +59,7 @@ class MergeDeviceUsersAfterPasskeyAuthentication
         }
 
         if ($targetAuthenticatedUser->isGadget()) {
-            ($this->mergeDeviceUserIntoDeviceUser)($sourceDeviceUser, $targetAuthenticatedUser);
+            $this->mergeDeviceUserIntoDeviceUser->execute($sourceDeviceUser, $targetAuthenticatedUser);
 
             activity('auth')
                 ->causedBy($sourceDeviceUser)
@@ -76,7 +76,7 @@ class MergeDeviceUsersAfterPasskeyAuthentication
         }
 
         if ($targetAuthenticatedUser->isSubject()) {
-            ($this->mergeDeviceUserIntoPerson)($sourceDeviceUser, $targetAuthenticatedUser);
+            $this->mergeDeviceUserIntoPerson->execute($sourceDeviceUser, $targetAuthenticatedUser);
 
             activity('auth')
                 ->causedBy($sourceDeviceUser)

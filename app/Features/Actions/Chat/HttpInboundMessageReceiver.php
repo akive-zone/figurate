@@ -11,6 +11,6 @@ class HttpInboundMessageReceiver implements InboundMessageReceiver
 
     public function receive(InboundMessageEnvelope $envelope): Message
     {
-        return ($this->ingestInboundMessage)($envelope);
+        return $this->ingestInboundMessage->execute($envelope);
     }
 }

@@ -2,17 +2,15 @@
 
 namespace App\Http\Controllers\Server\Api;
 
-use App\Ai\Support\A2ui\A2uiCatalogRegistry;
-use App\Ai\Support\A2ui\A2uiPayloadContract;
 use App\Features\Actions\Chat\HandleChatMessage;
 use App\Features\Actions\Chat\ProjectAgentTurns;
+use App\Features\Actions\Chat\ProjectMessageExtra;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Chat\StoreChatRequest;
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelActorState;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
-use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -22,18 +20,18 @@ use Illuminate\Support\Facades\Gate;
 
 class ChatController extends Controller
 {
-    public function __construct(
-        protected A2uiPayloadContract $a2uiPayloadContract,
-        protected A2uiCatalogRegistry $a2uiCatalogRegistry,
-    ) {}
+    public function __construct(protected ProjectMessageExtra $projectMessageExtra) {}
 
     public function index(Request $request): JsonResponse
     {
         return response()->json($this->cursorPageForRequest($request));
     }
 
-    public function show(Request $request, string $chat, ProjectAgentTurns $projectAgentTurns): JsonResponse
-    {
+    public function show(
+        Request $request,
+        string $chat,
+        ProjectAgentTurns $projectAgentTurns,
+    ): JsonResponse {
         /** @var User $actor */
         $actor = $request->user();
         [$threadRecord, $channelRecord] = $this->resolveThreadForChat($chat, $actor);
@@ -66,14 +64,14 @@ class ChatController extends Controller
                     'source' => data_get($message->meta, 'source'),
                     'is_agent' => data_get($message->meta, 'source') === 'agent_response',
                     'content' => $this->messageContent($message),
-                    'extra' => $this->messageExtra($message),
+                    'extra' => $this->projectMessageExtra->execute($message),
                     'created_at' => optional($message->created_at)?->toIso8601String(),
                 ];
             })
             ->values()
             ->all();
 
-        $turns = ($projectAgentTurns)($threadRecord, $threadMessages, $actor);
+        $turns = $projectAgentTurns->execute($threadRecord, $threadMessages, $actor);
 
         return response()->json([
             'data' => $messages,
@@ -116,7 +114,7 @@ class ChatController extends Controller
         $threadMessages = $threadRecord->messages()
             ->orderBy('created_at')
             ->get();
-        $turns = collect(($projectAgentTurns)($threadRecord, $threadMessages, $actor))
+        $turns = collect($projectAgentTurns->execute($threadRecord, $threadMessages, $actor))
             ->filter(fn (array $turn): bool => (int) ($turn['prompt_message_id'] ?? 0) === (int) $message->id)
             ->values()
             ->all();
@@ -132,122 +130,9 @@ class ChatController extends Controller
         StoreChatRequest $request,
         HandleChatMessage $handleChatMessage,
     ): JsonResponse {
-        $result = $handleChatMessage($request);
+        $result = $handleChatMessage->execute($request);
 
         return response()->json($result['body'], $result['status']);
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $a2uiActions
-     * @param  array<int, array<string, mixed>>  $a2uiErrors
-     */
-    protected function normalizedContentForStoreRequest(StoreChatRequest $request, array $a2uiActions, array $a2uiErrors): ?string
-    {
-        $text = data_get($request->validated('content'), 'text');
-        $normalizedText = is_string($text) ? trim($text) : null;
-        $normalizedText = $normalizedText === '' ? null : $normalizedText;
-
-        if ($normalizedText !== null) {
-            return $normalizedText;
-        }
-
-        return $this->composeA2uiFallbackBody($a2uiActions, $a2uiErrors);
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $a2uiActions
-     * @param  array<int, array<string, mixed>>  $a2uiErrors
-     */
-    protected function composeA2uiFallbackBody(array $a2uiActions, array $a2uiErrors): ?string
-    {
-        if ($a2uiActions !== []) {
-            $firstAction = collect($a2uiActions)->first(fn (mixed $action): bool => is_array($action));
-
-            if (! is_array($firstAction)) {
-                return 'A2UI actions submitted.';
-            }
-
-            $actionName = $this->trimmedString($firstAction['name'] ?? null);
-
-            if ($actionName === null) {
-                return 'A2UI actions submitted.';
-            }
-
-            return "A2UI actions submitted: {$actionName}";
-        }
-
-        if ($a2uiErrors !== []) {
-            $firstError = collect($a2uiErrors)->first(fn (mixed $error): bool => is_array($error));
-
-            if (! is_array($firstError)) {
-                return 'A2UI client errors reported.';
-            }
-
-            $errorMessage = $this->trimmedString($firstError['message'] ?? null);
-            $errorCode = $this->trimmedString($firstError['code'] ?? null);
-
-            if ($errorMessage !== null) {
-                return "A2UI client error: {$errorMessage}";
-            }
-
-            if ($errorCode !== null) {
-                return "A2UI client error code: {$errorCode}";
-            }
-
-            return 'A2UI client errors reported.';
-        }
-
-        return null;
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $a2uiActions
-     * @param  array<int, array<string, mixed>>  $a2uiErrors
-     * @param  array<string, mixed>|null  $a2uiClientCapabilities
-     */
-    protected function applyA2uiMetadata(
-        Message $message,
-        array $a2uiActions,
-        array $a2uiErrors,
-        ?string $a2uiClientDataModel,
-        ?array $a2uiClientCapabilities,
-    ): void {
-        if ($a2uiActions === [] && $a2uiErrors === [] && $a2uiClientDataModel === null && $a2uiClientCapabilities === null) {
-            return;
-        }
-
-        $meta = is_array($message->meta) ? $message->meta : [];
-
-        if ($a2uiClientDataModel !== null) {
-            $meta['a2ui_client_data_model'] = $a2uiClientDataModel;
-        }
-        if (is_array($a2uiClientCapabilities)) {
-            $meta['a2ui_client_capabilities'] = $a2uiClientCapabilities;
-        }
-        $meta['a2ui_actions_received_at'] = now()->toIso8601String();
-
-        $message->forceFill([
-            'actions' => $a2uiActions !== [] ? $a2uiActions : $message->actions,
-            'errors' => $a2uiErrors !== [] ? $a2uiErrors : $message->errors,
-            'meta' => $meta,
-        ])->save();
-    }
-
-    /**
-     * @return Collection<int, ThreadActor>
-     */
-    protected function resolveActivePresenters(Thread $thread): Collection
-    {
-        return $thread->actors()
-            ->where('role', ThreadActor::RolePresenter)
-            ->where('status', ThreadActor::StatusActive)
-            ->orderBy('priority')
-            ->get();
-    }
-
-    protected function broadcastChannelIdForThread(Thread $thread): string
-    {
-        return "threads.{$thread->uuid}";
     }
 
     /**
@@ -325,7 +210,7 @@ class ChatController extends Controller
             $latestMessage = [
                 'id' => $latestMessageModel->id,
                 'content' => $this->messageContent($latestMessageModel),
-                'extra' => $this->messageExtra($latestMessageModel),
+                'extra' => $this->projectMessageExtra->execute($latestMessageModel),
                 'created_at' => optional($latestMessageModel->created_at)?->toIso8601String(),
                 'sender_name' => null,
             ];
@@ -429,144 +314,6 @@ class ChatController extends Controller
         return null;
     }
 
-    protected function idempotencyKey(StoreChatRequest $request): ?string
-    {
-        $rawValue = $request->header('X-Idempotency-Key');
-
-        if (! is_string($rawValue)) {
-            return null;
-        }
-
-        $key = trim($rawValue);
-
-        if ($key === '') {
-            return null;
-        }
-
-        return mb_substr($key, 0, 120);
-    }
-
-    protected function findExistingUserMessage(Thread $thread, User $actor, ?string $idempotencyKey): ?Message
-    {
-        if (! $idempotencyKey) {
-            return null;
-        }
-
-        $messageId = Cache::get($this->cacheKeyForIdempotency($thread, $actor, $idempotencyKey));
-
-        if (is_string($messageId) && ctype_digit($messageId)) {
-            $messageId = (int) $messageId;
-        }
-
-        if (! is_int($messageId) || $messageId <= 0) {
-            return null;
-        }
-
-        return Message::query()
-            ->whereKey($messageId)
-            ->where('messageable_type', $thread->getMorphClass())
-            ->where('messageable_id', $thread->getKey())
-            ->where('senderable_type', $actor->getMorphClass())
-            ->where('senderable_id', $actor->getKey())
-            ->first();
-    }
-
-    /**
-     * @param  Collection<int, ThreadActor>  $activePresenters
-     * @return Collection<int, Message>
-     */
-    protected function findAssistantRepliesForMessage(
-        Thread $thread,
-        Message $userMessage,
-        Collection $activePresenters
-    ): Collection {
-        $presenterActorKeys = $activePresenters
-            ->map(fn (ThreadActor $presenter): ?string => $presenter->actorName())
-            ->filter(fn (mixed $actorKey): bool => is_string($actorKey) && $actorKey !== '')
-            ->values()
-            ->all();
-
-        if ($presenterActorKeys === []) {
-            return collect();
-        }
-
-        return Message::query()
-            ->where('messageable_type', $thread->getMorphClass())
-            ->where('messageable_id', $thread->getKey())
-            ->whereNull('senderable_type')
-            ->whereNull('senderable_id')
-            ->where('meta->source', 'agent_response')
-            ->whereIn('meta->actor_key', $presenterActorKeys)
-            ->where('id', '>', $userMessage->id)
-            ->oldest('id')
-            ->get();
-    }
-
-    /**
-     * @param  Collection<int, ThreadActor>  $activePresenters
-     */
-    protected function expectedPresenterReplyCount(Collection $activePresenters): int
-    {
-        return $activePresenters
-            ->map(fn (ThreadActor $presenter): ?string => $presenter->actorName())
-            ->filter(fn (mixed $actorKey): bool => is_string($actorKey) && $actorKey !== '')
-            ->unique()
-            ->count();
-    }
-
-    protected function cacheIdempotentMessage(Thread $thread, User $actor, ?string $idempotencyKey, Message $message): void
-    {
-        if (! $idempotencyKey) {
-            return;
-        }
-
-        Cache::put(
-            $this->cacheKeyForIdempotency($thread, $actor, $idempotencyKey),
-            $message->getKey(),
-            now()->addHours(24),
-        );
-    }
-
-    protected function cacheKeyForIdempotency(Thread $thread, User $actor, string $idempotencyKey): string
-    {
-        return sprintf(
-            'chat:idempotency:%d:%s:%d:%s',
-            $thread->getKey(),
-            $actor->getMorphClass(),
-            $actor->getKey(),
-            sha1($idempotencyKey),
-        );
-    }
-
-    protected function trimmedString(mixed $value): ?string
-    {
-        if (! is_string($value)) {
-            return null;
-        }
-
-        $trimmed = trim($value);
-
-        return $trimmed === '' ? null : $trimmed;
-    }
-
-    /**
-     * @param  array<string, mixed>  $action
-     * @return array<string, mixed>|null
-     */
-    protected function normalizeA2uiAction(array $action): ?array
-    {
-        return $this->a2uiPayloadContract->normalizeAction($action);
-    }
-
-    /**
-     * @param  array<string, mixed>  $error
-     * @return array<string, mixed>|null
-     */
-    protected function normalizeA2uiError(array $error): ?array
-    {
-        return $this->a2uiPayloadContract->normalizeError($error);
-    }
-
     /**
      * @return array<string, mixed>
      */
@@ -578,56 +325,6 @@ class ChatController extends Controller
             'actions' => is_array($message->actions) ? $message->actions : [],
             'errors' => is_array($message->errors) ? $message->errors : [],
         ];
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    protected function messageExtra(Message $message): ?array
-    {
-        $surface = data_get($message->meta, 'a2ui');
-        $surface = is_array($surface) ? $surface : null;
-        $dataModel = $this->trimmedString(data_get($message->meta, 'a2ui_client_data_model'));
-        $capabilities = $this->a2uiPayloadContract->normalizeClientCapabilities(
-            is_array(data_get($message->meta, 'a2ui_client_capabilities'))
-                ? data_get($message->meta, 'a2ui_client_capabilities')
-                : null
-        );
-
-        if ($surface === null && $dataModel === null && $capabilities === null) {
-            return null;
-        }
-
-        if (is_array($surface)) {
-            $surface = $this->a2uiCatalogRegistry->decoratePayload($surface, $capabilities);
-        }
-
-        return [
-            'a2ui' => [
-                'surface' => $surface,
-                'config' => [
-                    'a2uiClientDataModel' => $dataModel,
-                    'a2uiClientCapabilities' => $capabilities,
-                ],
-            ],
-        ];
-    }
-
-    /**
-     * @return array<int, mixed>
-     */
-    protected function resolveAttachmentFiles(StoreChatRequest $request): array
-    {
-        $attachments = [];
-        $contentAttachments = $request->file('content.attachments', []);
-
-        if (is_array($contentAttachments)) {
-            $attachments = [...$attachments, ...$contentAttachments];
-        } elseif ($contentAttachments instanceof UploadedFile) {
-            $attachments[] = $contentAttachments;
-        }
-
-        return $attachments;
     }
 
     /**

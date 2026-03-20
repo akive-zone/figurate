@@ -108,9 +108,9 @@ class A2aMethodRouter
         $threadId = null;
 
         if ($threadUuid) {
-            [$channel, $threadId] = ($this->resolveChatThreadContext)($threadUuid, $channelUuid);
+            [$channel, $threadId] = $this->resolveChatThreadContext->execute($threadUuid, $channelUuid);
         } else {
-            $channel = ($this->resolveChatChannelContext)($channelUuid, $user);
+            $channel = $this->resolveChatChannelContext->execute($channelUuid, $user);
         }
 
         $decision = $this->orchestrator->resolve(

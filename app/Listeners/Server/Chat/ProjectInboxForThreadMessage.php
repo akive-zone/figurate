@@ -15,14 +15,14 @@ class ProjectInboxForThreadMessage
 
     public function handle(ThreadMessageStored $event): void
     {
-        $recipients = ($this->resolveThreadMessageInboxRecipients)($event->message);
+        $recipients = $this->resolveThreadMessageInboxRecipients->execute($event->message);
 
         if ($recipients->isEmpty()) {
             return;
         }
 
         $recipients->each(function ($recipient) use ($event): void {
-            ($this->projectThreadMessageToInbox)($recipient, $event->message);
+            $this->projectThreadMessageToInbox->execute($recipient, $event->message);
         });
     }
 }

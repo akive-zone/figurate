@@ -8,7 +8,7 @@ use App\Models\Server\User;
 
 class ProjectThreadMessageToInbox extends ProjectInbox
 {
-    public function __invoke(User $user, Message $message): ?Inbox
+    public function execute(User $user, Message $message): ?Inbox
     {
         return $this->project(
             $user,

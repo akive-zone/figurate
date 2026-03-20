@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Schema;
 
 class MergeDeviceUserIntoDeviceUser
 {
-    public function __invoke(?User $sourceDeviceUser, User $targetDeviceUser): void
+    public function execute(?User $sourceDeviceUser, User $targetDeviceUser): void
     {
         if (! $sourceDeviceUser) {
             return;

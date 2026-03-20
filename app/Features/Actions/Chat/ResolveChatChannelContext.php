@@ -11,12 +11,12 @@ class ResolveChatChannelContext
         public BootstrapChatChannelContext $bootstrapChatChannelContext,
     ) {}
 
-    public function __invoke(mixed $channelUuid, User $actor): Channel
+    public function execute(mixed $channelUuid, User $actor): Channel
     {
         if (is_string($channelUuid) && $channelUuid !== '') {
             return Channel::query()->where('uuid', $channelUuid)->firstOrFail();
         }
 
-        return ($this->bootstrapChatChannelContext)($actor);
+        return $this->bootstrapChatChannelContext->execute($actor);
     }
 }

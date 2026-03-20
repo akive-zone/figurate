@@ -194,7 +194,7 @@ class ProcessInboundA2aPushWebhookJob extends ProcessWebhookJob
         /** @var DispatchThreadMessage $dispatchThreadMessage */
         $dispatchThreadMessage = app(DispatchThreadMessage::class);
 
-        return $dispatchThreadMessage(ThreadMessageEntry::agentMessage(
+        return $dispatchThreadMessage->execute(ThreadMessageEntry::agentMessage(
             thread: $thread,
             text: $body,
             meta: [

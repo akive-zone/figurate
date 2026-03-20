@@ -15,7 +15,7 @@ class IngestInboundMessage
     /**
      * @param  array<string, mixed>  $payload
      */
-    public function __invoke(InboundMessageEnvelope $envelope): Message
+    public function execute(InboundMessageEnvelope $envelope): Message
     {
         $thread = $envelope->thread;
         $payload = $envelope->payload;
@@ -39,7 +39,7 @@ class IngestInboundMessage
             }
         }
 
-        $message = ($this->dispatchThreadMessage)(ThreadMessageEntry::agentMessage(
+        $message = $this->dispatchThreadMessage->execute(ThreadMessageEntry::agentMessage(
             thread: $thread,
             text: $envelope->text,
             meta: [

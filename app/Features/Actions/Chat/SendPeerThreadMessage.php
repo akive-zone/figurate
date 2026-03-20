@@ -17,7 +17,7 @@ class SendPeerThreadMessage
     /**
      * @param  Collection<int, array{path: string, original_name: string}>  $attachments
      */
-    public function __invoke(
+    public function execute(
         Channel $channel,
         Thread $thread,
         User $actor,
@@ -26,7 +26,7 @@ class SendPeerThreadMessage
         string $source = 'peer_message',
         bool $dispatchObservers = true,
     ): Message {
-        return ($this->dispatchThreadMessage)(ThreadMessageEntry::peerMessage(
+        return $this->dispatchThreadMessage->execute(ThreadMessageEntry::peerMessage(
             channel: $channel,
             thread: $thread,
             actor: $actor,

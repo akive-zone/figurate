@@ -12,7 +12,7 @@ class StoreThreadMessage
     /**
      * @param  array<string, mixed>  $meta
      */
-    public function __invoke(
+    public function execute(
         Thread $thread,
         ?User $sender,
         ?string $text,

@@ -40,7 +40,7 @@ class SocialiteController extends Controller
 
         $socialUser = Socialite::driver($provider)->user();
         $subjectUser = $this->resolveSubjectUser($provider, $socialUser);
-        $gadgetUser = ($this->resolveOrCreateGadgetUser)(request());
+        $gadgetUser = $this->resolveOrCreateGadgetUser->execute(request());
         $this->synchronizeAccountContext($subjectUser, $gadgetUser);
 
         Auth::login($subjectUser);

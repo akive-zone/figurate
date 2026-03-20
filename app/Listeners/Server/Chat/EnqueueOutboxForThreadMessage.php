@@ -11,6 +11,6 @@ class EnqueueOutboxForThreadMessage
 
     public function handle(ThreadMessageStored $event): void
     {
-        ($this->enqueueThreadMessageOutbox)($event->message);
+        $this->enqueueThreadMessageOutbox->execute($event->message);
     }
 }

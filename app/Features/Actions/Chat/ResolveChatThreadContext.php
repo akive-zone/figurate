@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ResolveChatThreadContext
 {
-    public function __invoke(string $threadUuid, mixed $channelUuid = null): array
+    public function execute(string $threadUuid, mixed $channelUuid = null): array
     {
         $thread = Thread::query()
             ->where('uuid', $threadUuid)

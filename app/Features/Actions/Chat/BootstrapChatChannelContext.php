@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Gate;
 
 class BootstrapChatChannelContext
 {
-    public function __invoke(User $actor): Channel
+    public function execute(User $actor): Channel
     {
         Gate::authorize('create', Channel::class);
 

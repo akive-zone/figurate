@@ -43,7 +43,7 @@ class ProjectThreadMessageToInboxTest extends TestCase
             }
         };
 
-        $projected = $action($recipient, $message);
+        $projected = $action->execute($recipient, $message);
 
         $this->assertInstanceOf(Inbox::class, $projected);
         $this->assertSame($recipient->getKey(), $projected->user_id);
@@ -83,7 +83,7 @@ class ProjectThreadMessageToInboxTest extends TestCase
             }
         };
 
-        $projected = $action($recipient, $message);
+        $projected = $action->execute($recipient, $message);
 
         $this->assertInstanceOf(Inbox::class, $projected);
         $this->assertSame($thread->getKey(), $projected->thread_id);

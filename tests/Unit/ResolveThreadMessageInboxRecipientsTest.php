@@ -24,7 +24,7 @@ class ResolveThreadMessageInboxRecipientsTest extends TestCase
         ]);
         $message = $this->makeMessage($thread, $sender, 'peer_message');
 
-        $recipients = (new ResolveThreadMessageInboxRecipients)($message);
+        $recipients = (new ResolveThreadMessageInboxRecipients)->execute($message);
 
         $this->assertCount(1, $recipients);
         $this->assertSame($recipient->getKey(), $recipients->first()?->getKey());
@@ -40,7 +40,7 @@ class ResolveThreadMessageInboxRecipientsTest extends TestCase
         ]);
         $message = $this->makeMessage($thread, null, 'agent_response');
 
-        $recipients = (new ResolveThreadMessageInboxRecipients)($message);
+        $recipients = (new ResolveThreadMessageInboxRecipients)->execute($message);
 
         $this->assertCount(2, $recipients);
     }

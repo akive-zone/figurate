@@ -34,7 +34,7 @@ class EnsureDeviceUser
             Cookie::queue(cookie()->forever('device_id', $deviceId));
         }
 
-        $user = $resolveOrCreateGadgetUser($request);
+        $user = $resolveOrCreateGadgetUser->execute($request);
 
         $request->attributes->set('initial_device_user_id', $user->id);
 

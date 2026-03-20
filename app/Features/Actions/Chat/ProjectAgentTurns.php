@@ -10,11 +10,13 @@ use Illuminate\Support\Collection;
 
 class ProjectAgentTurns
 {
+    public function __construct(protected ProjectMessageExtra $projectMessageExtra) {}
+
     /**
      * @param  Collection<int, Message>  $threadMessages
      * @return array<int, array<string, mixed>>
      */
-    public function __invoke(Thread $thread, Collection $threadMessages, User $actor): array
+    public function execute(Thread $thread, Collection $threadMessages, User $actor): array
     {
         $promptMessages = $threadMessages
             ->filter(fn (Message $message): bool => data_get($message->meta, 'source') === 'agent_prompt')
@@ -157,9 +159,9 @@ class ProjectAgentTurns
             'prompt_text' => is_string($promptMessage->text) ? $promptMessage->text : '',
             'assistant_text' => is_string($assistantMessage?->text) ? $assistantMessage->text : null,
             'assistant_content' => $assistantMessage instanceof Message ? $this->messageContent($assistantMessage) : null,
-            'assistant_extra' => $assistantMessage instanceof Message ? $this->messageExtra($assistantMessage) : null,
+            'assistant_extra' => $assistantMessage instanceof Message ? $this->projectMessageExtra->execute($assistantMessage) : null,
             'prompt_content' => $this->messageContent($promptMessage),
-            'prompt_extra' => $this->messageExtra($promptMessage),
+            'prompt_extra' => $this->projectMessageExtra->execute($promptMessage),
             'tool_calls' => is_array($telemetry['tool_calls'] ?? null) ? $telemetry['tool_calls'] : [],
             'tool_results' => is_array($telemetry['tool_results'] ?? null) ? $telemetry['tool_results'] : [],
             'usage' => is_array($telemetry['usage'] ?? null) ? $telemetry['usage'] : [],
@@ -208,32 +210,6 @@ class ProjectAgentTurns
             'attachments' => is_array($message->attachments) ? $message->attachments : [],
             'actions' => is_array($message->actions) ? $message->actions : [],
             'errors' => is_array($message->errors) ? $message->errors : [],
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    protected function messageExtra(Message $message): ?array
-    {
-        $surface = data_get($message->meta, 'a2ui');
-        $surface = is_array($surface) ? $surface : null;
-        $dataModel = $this->trimmedString(data_get($message->meta, 'a2ui_client_data_model'));
-        $capabilities = data_get($message->meta, 'a2ui_client_capabilities');
-        $capabilities = is_array($capabilities) ? $capabilities : null;
-
-        if ($surface === null && $dataModel === null && $capabilities === null) {
-            return null;
-        }
-
-        return [
-            'a2ui' => [
-                'surface' => $surface,
-                'config' => [
-                    'a2uiClientDataModel' => $dataModel,
-                    'a2uiClientCapabilities' => $capabilities,
-                ],
-            ],
         ];
     }
 }

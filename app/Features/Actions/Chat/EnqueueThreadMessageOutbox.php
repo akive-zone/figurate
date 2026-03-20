@@ -15,7 +15,7 @@ class EnqueueThreadMessageOutbox
     /**
      * @return Collection<int, Outbox>
      */
-    public function __invoke(Message $message): Collection
+    public function execute(Message $message): Collection
     {
         $thread = $this->resolveThread($message);
         if (! $thread) {
