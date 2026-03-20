@@ -1,0 +1,20 @@
+{
+    "name": "figurate/desktop-native",
+    "type": "library",
+    "description": "Native desktop support module for Figurate",
+    "autoload": {
+        "psr-4": {
+            "Figurate\\DesktopNative\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Figurate\\DesktopNative\\DesktopNativeServiceProvider"
+            ]
+        }
+    },
+    "require": {
+        "nativephp/desktop": "^2.0"
+    }
+}

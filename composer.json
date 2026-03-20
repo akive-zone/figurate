@@ -105,9 +105,7 @@
         },
         "merge-plugin": {
             "include": [
-                "composer.local.json",
-                "mod/*/composer.json",
-                "ext/*/composer.json"
+                "composer.local.json"
             ],
             "require": [],
             "recurse": true,
@@ -120,41 +118,12 @@
             "merge-scripts": true
         }
     },
-    "repositories": [
-        {
-            "type": "path",
-            "url": "mod/account-manager",
-            "options": {
-                "symlink": true
-            }
-        },
-        {
-            "type": "path",
-            "url": "mod/fulfillment-manager",
-            "options": {
-                "symlink": true
-            }
-        },
-        {
-            "type": "path",
-            "url": "mod/multi-site",
-            "options": {
-                "symlink": true
-            }
-        },
-        {
-            "type": "path",
-            "url": "mod/multi-space",
-            "options": {
-                "symlink": true
-            }
-        }
-    ],
     "config": {
         "optimize-autoloader": true,
         "preferred-install": "dist",
         "sort-packages": true,
         "allow-plugins": {
+            "composer/installers": true,
             "pestphp/pest-plugin": true,
             "php-http/discovery": true,
             "wikimedia/composer-merge-plugin": true

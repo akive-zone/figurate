@@ -2,6 +2,7 @@
 
 namespace App\Foundation;
 
+use App\Support\ComposerLocalModules;
 use Illuminate\Foundation\PackageManifest;
 use Illuminate\Support\Collection;
 
@@ -50,10 +51,10 @@ class ModulePackageManifest extends PackageManifest
      */
     protected function modulePackages(): array
     {
-        return collect($this->mergePluginIncludePaths())
-            ->filter(fn (string $path): bool => $this->files->exists($path))
+        return collect(ComposerLocalModules::at($this->basePath)->resolvedMergePluginIncludes())
+            ->filter(fn (string $path): bool => $this->files->exists($this->basePath.'/'.$path))
             ->map(function (string $path): ?array {
-                $package = json_decode($this->files->get($path), true);
+                $package = json_decode($this->files->get($this->basePath.'/'.$path), true);
 
                 if (! is_array($package) || ! isset($package['name']) || ! is_string($package['name'])) {
                     return null;
@@ -62,39 +63,6 @@ class ModulePackageManifest extends PackageManifest
                 return $package;
             })
             ->filter()
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return list<string>
-     */
-    protected function mergePluginIncludePaths(): array
-    {
-        if (! $this->files->exists($composerJsonPath = $this->basePath.'/composer.json')) {
-            return [];
-        }
-
-        $composer = json_decode($this->files->get($composerJsonPath), true);
-
-        if (! is_array($composer)) {
-            return [];
-        }
-
-        $patterns = $composer['extra']['merge-plugin']['include'] ?? [];
-
-        if (! is_array($patterns)) {
-            return [];
-        }
-
-        return collect($patterns)
-            ->filter(fn (mixed $pattern): bool => is_string($pattern) && $pattern !== '')
-            ->flatMap(function (string $pattern): array {
-                $matches = glob($this->basePath.'/'.$pattern);
-
-                return is_array($matches) ? $matches : [];
-            })
-            ->unique()
             ->values()
             ->all();
     }
