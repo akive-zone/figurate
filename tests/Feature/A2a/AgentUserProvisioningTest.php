@@ -25,15 +25,17 @@ class AgentUserProvisioningTest extends TestCase
         ]);
 
         $response->assertCreated()
-            ->assertJsonPath('data.user.type', 'agent')
+            ->assertJsonPath('data.user.type', User::TypeRobot)
             ->assertJsonPath('data.user.name', 'Remote Planner')
             ->assertJsonPath('data.abilities', TokenAbility::defaultAgentAbilities());
 
         $agentId = (int) $response->json('data.user.id');
         $agent = User::query()->findOrFail($agentId);
 
-        $this->assertSame('agent', $agent->type);
-        $this->assertSame('internal', $agent->provider);
+        $this->assertSame(User::TypeRobot, $agent->type);
+        $this->assertDatabaseMissing('identities', [
+            'user_id' => $agent->id,
+        ]);
 
         $tokenId = explode('|', (string) $response->json('data.token'))[0] ?? null;
         $token = PersonalAccessToken::query()->findOrFail((int) $tokenId);
@@ -52,7 +54,7 @@ class AgentUserProvisioningTest extends TestCase
         ])->assertForbidden();
     }
 
-    public function test_an_account_linked_gadget_user_can_provision_an_agent_user(): void
+    public function test_an_account_linked_gadget_user_cannot_provision_an_agent_user(): void
     {
         $gadget = $this->makeUser(User::TypeGadget, 'gadget-owner@example.com');
         $account = Account::query()->create([
@@ -70,8 +72,7 @@ class AgentUserProvisioningTest extends TestCase
 
         $this->postJson('/api/auth/agents', [
             'name' => 'Linked Gadget Agent',
-        ])->assertCreated()
-            ->assertJsonPath('data.user.type', 'agent');
+        ])->assertForbidden();
     }
 
     protected function makeUser(string $type, ?string $email = null): User
@@ -81,8 +82,6 @@ class AgentUserProvisioningTest extends TestCase
             'email' => $email ?? fake()->unique()->safeEmail(),
             'password' => 'password',
             'type' => $type,
-            'provider' => null,
-            'provider_id' => null,
             'status' => 'active',
         ]);
     }

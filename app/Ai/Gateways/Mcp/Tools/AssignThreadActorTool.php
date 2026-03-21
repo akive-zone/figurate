@@ -3,6 +3,7 @@
 namespace App\Ai\Gateways\Mcp\Tools;
 
 use App\Ai\Gateways\Mcp\Support\FigurateMcpPayloads;
+use App\Contracts\Users\UserRepository;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -14,7 +15,7 @@ use Laravel\Mcp\Server\Tool;
 #[Description('Assign or update a thread actor for a thread.')]
 class AssignThreadActorTool extends Tool
 {
-    public function handle(Request $request, FigurateMcpPayloads $payloads): Response
+    public function handle(Request $request, FigurateMcpPayloads $payloads, UserRepository $userRepository): Response
     {
         $validated = $request->validate([
             'thread_id' => ['required', 'string'],
@@ -54,7 +55,8 @@ class AssignThreadActorTool extends Tool
             $userId = (int) ($validated['user_id'] ?? 0);
             abort_if($userId <= 0, 422, 'user_id is required when actor_type is user.');
 
-            $targetUser = User::query()->findOrFail($userId);
+            $targetUser = $userRepository->findById($userId);
+            abort_unless($targetUser instanceof User, 404);
 
             $threadActor = $thread->actors()->updateOrCreate(
                 [

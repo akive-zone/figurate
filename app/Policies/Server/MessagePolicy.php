@@ -21,7 +21,7 @@ class MessagePolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->isSystem() || $user->isRobot() || $user->isGadget() || $user->canActAsHuman();
+        return $user->isRobot() || $user->isGadget() || $user->canActAsHuman();
     }
 
     /**
@@ -29,10 +29,6 @@ class MessagePolicy
      */
     public function view(User $user, Message $message): bool
     {
-        if ($user->type === 'system') {
-            return true;
-        }
-
         if ($this->isSender($user, $message)) {
             return true;
         }
@@ -44,9 +40,7 @@ class MessagePolicy
                 return true;
             }
 
-            return $messageable->profiles()
-                ->where('profiles.user_id', $user->id)
-                ->exists();
+            return false;
         }
 
         if ($messageable instanceof Channel) {
@@ -87,7 +81,7 @@ class MessagePolicy
      */
     public function update(User $user, Message $message): bool
     {
-        return $user->type === 'system' || $this->isSender($user, $message);
+        return $this->isSender($user, $message);
     }
 
     /**
@@ -95,7 +89,7 @@ class MessagePolicy
      */
     public function delete(User $user, Message $message): bool
     {
-        return $user->type === 'system' || $this->isSender($user, $message);
+        return $this->isSender($user, $message);
     }
 
     /**
@@ -103,7 +97,7 @@ class MessagePolicy
      */
     public function restore(User $user, Message $message): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 
     /**
@@ -111,6 +105,6 @@ class MessagePolicy
      */
     public function forceDelete(User $user, Message $message): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 }

@@ -25,7 +25,7 @@ class A2aTaskApiTest extends TestCase
             $mock->shouldReceive('queue')->once();
         });
 
-        $user = $this->makeUser('agent');
+        $user = $this->makeUser(User::TypeRobot);
         $channel = $this->accessibleChannel($user);
 
         Sanctum::actingAs($user, [
@@ -99,8 +99,6 @@ class A2aTaskApiTest extends TestCase
             'email' => fake()->unique()->safeEmail(),
             'password' => 'password',
             'type' => $type,
-            'provider' => null,
-            'provider_id' => null,
             'status' => 'active',
         ]);
     }

@@ -2,6 +2,7 @@
 
 namespace App\Features\Actions\Chat;
 
+use App\Contracts\Users\UserRepository;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
@@ -10,6 +11,8 @@ use Illuminate\Support\Collection;
 
 class ResolveThreadMessageInboxRecipients
 {
+    public function __construct(protected ?UserRepository $userRepository = null) {}
+
     /**
      * @return Collection<int, User>
      */
@@ -79,10 +82,12 @@ class ResolveThreadMessageInboxRecipients
             return collect();
         }
 
-        return User::query()
-            ->whereIn('id', $recipientIds->all())
-            ->get()
-            ->values();
+        return $this->userRepository()->findManyByIds($recipientIds->all());
+    }
+
+    protected function userRepository(): UserRepository
+    {
+        return $this->userRepository ?? app(UserRepository::class);
     }
 
     protected function senderUserId(Message $message): ?int

@@ -2,11 +2,11 @@
 
 namespace App\Providers;
 
+use App\Contracts\Users\UserRepository;
 use App\Http\Middleware\EnsureDeviceUser;
 use App\Models\Server\Channel;
 use App\Models\Server\Message;
 use App\Models\Server\Post;
-use App\Models\Server\Profile;
 use App\Models\Server\Store;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
@@ -14,6 +14,7 @@ use App\Providers\Server\AuthServiceProvider;
 use App\Providers\Server\ChatServiceProvider;
 use App\Providers\Server\ControlPanelProvider;
 use App\Support\Runtime\AppRuntime;
+use App\Support\Users\EloquentUserRepository;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -30,6 +31,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(AppRuntime::class);
+        $this->app->bind(UserRepository::class, EloquentUserRepository::class);
 
         $providers = $this->isNativeRuntime()
             ? []
@@ -67,7 +69,6 @@ class AppServiceProvider extends ServiceProvider
                 'channel' => Channel::class,
                 'message' => Message::class,
                 'post' => Post::class,
-                'profile' => Profile::class,
                 'store' => Store::class,
                 'thread' => Thread::class,
                 'user' => User::class,

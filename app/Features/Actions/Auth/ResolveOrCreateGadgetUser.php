@@ -2,26 +2,35 @@
 
 namespace App\Features\Actions\Auth;
 
-use App\Models\Server\SanctumUser;
+use App\Contracts\Users\UserRepository;
 use App\Models\Server\User;
 use App\Models\Server\UserAgent;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class ResolveOrCreateGadgetUser
 {
-    public function execute(Request $request): User
-    {
-        $requestUser = $request->user('sanctum') ?? $request->user();
+    public function __construct(protected UserRepository $userRepository) {}
 
+    /**
+     * @param  array{
+     *     headers?: array<string, mixed>,
+     *     cookies?: array<string, mixed>,
+     *     user_agent?: mixed,
+     *     ip_address?: mixed,
+     *     expects_json?: bool,
+     *     path?: mixed
+     * }  $context
+     */
+    public function execute(array $context, ?User $requestUser = null): User
+    {
         if ($requestUser instanceof User && $requestUser->isGadget()) {
-            $this->recordUserAgent($requestUser, $request);
+            $this->recordUserAgent($requestUser, $context);
 
             return $requestUser;
         }
 
-        $deviceIdentifier = $this->resolveDeviceIdentifier($request);
+        $deviceIdentifier = $this->resolveDeviceIdentifier($context);
 
         $user = UserAgent::query()
             ->with('user')
@@ -31,41 +40,38 @@ class ResolveOrCreateGadgetUser
             ?->user;
 
         if (! $user instanceof User || ! $user->isGadget()) {
-            $user = SanctumUser::query()
-                ->where('device_identifier', $deviceIdentifier)
-                ->first();
-        }
-
-        if (! $user instanceof User || ! $user->isGadget()) {
-            $user = SanctumUser::query()->create([
+            $user = $this->userRepository->create([
                 'name' => 'Gadget User',
                 'email' => "gadget-{$deviceIdentifier}@example.invalid",
                 'password' => Hash::make(Str::random(48)),
                 'type' => User::TypeGadget,
                 'status' => 'active',
-                'device_identifier' => $deviceIdentifier,
             ]);
         }
 
         if ($user->isGadget() && $user->type !== User::TypeGadget) {
             $user->forceFill([
                 'type' => User::TypeGadget,
-            ])->save();
+            ]);
+            $this->userRepository->save($user);
         }
 
-        $this->recordUserAgent($user, $request, $deviceIdentifier);
+        $this->recordUserAgent($user, $context, $deviceIdentifier);
 
         return $user;
     }
 
-    protected function resolveDeviceIdentifier(Request $request): string
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    protected function resolveDeviceIdentifier(array $context): string
     {
-        $headerDeviceId = $request->header('X-Device-Id');
+        $headerDeviceId = $this->header($context, 'X-Device-Id');
         if (is_string($headerDeviceId) && trim($headerDeviceId) !== '') {
             return trim($headerDeviceId);
         }
 
-        $cookieDeviceId = $request->cookie('device_id');
+        $cookieDeviceId = $this->cookie($context, 'device_id');
         if (is_string($cookieDeviceId) && trim($cookieDeviceId) !== '') {
             return trim($cookieDeviceId);
         }
@@ -73,10 +79,12 @@ class ResolveOrCreateGadgetUser
         return (string) Str::uuid();
     }
 
-    protected function recordUserAgent(User $user, Request $request, ?string $deviceIdentifier = null): void
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    protected function recordUserAgent(User $user, array $context, ?string $deviceIdentifier = null): void
     {
-        $resolvedDeviceIdentifier = $deviceIdentifier
-            ?? (is_string($user->device_identifier) && $user->device_identifier !== '' ? $user->device_identifier : null);
+        $resolvedDeviceIdentifier = $deviceIdentifier ?? $user->currentDeviceIdentifier();
 
         if ($resolvedDeviceIdentifier === null) {
             return;
@@ -86,39 +94,64 @@ class ResolveOrCreateGadgetUser
             ['device_identifier' => $resolvedDeviceIdentifier],
             [
                 'user_id' => $user->id,
-                'kind' => $this->resolveKind($request),
+                'kind' => $this->resolveKind($context),
                 'device_identifier' => $resolvedDeviceIdentifier,
-                'user_agent' => $request->userAgent(),
-                'ip_address' => $request->ip(),
-                'app_version' => $request->header('X-App-Version'),
-                'platform' => $request->header('X-Platform'),
+                'user_agent' => is_string($context['user_agent'] ?? null) ? $context['user_agent'] : null,
+                'ip_address' => is_string($context['ip_address'] ?? null) ? $context['ip_address'] : null,
+                'app_version' => $this->header($context, 'X-App-Version'),
+                'platform' => $this->header($context, 'X-Platform'),
                 'data' => [
                     'device_identifier' => $resolvedDeviceIdentifier,
                 ],
                 'metadata' => [
-                    'native' => $request->header('X-NativePHP') !== null,
+                    'native' => $this->header($context, 'X-NativePHP') !== null,
                 ],
                 'last_seen_at' => now(),
             ],
         );
-
-        if ($user->device_identifier !== $resolvedDeviceIdentifier) {
-            $user->forceFill([
-                'device_identifier' => $resolvedDeviceIdentifier,
-            ])->save();
-        }
     }
 
-    protected function resolveKind(Request $request): string
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    protected function resolveKind(array $context): string
     {
-        if ($request->header('X-NativePHP') !== null) {
+        if ($this->header($context, 'X-NativePHP') !== null) {
             return 'native';
         }
 
-        if ($request->expectsJson() || $request->is('api/*')) {
+        if (($context['expects_json'] ?? false) === true || str_starts_with((string) ($context['path'] ?? ''), 'api/')) {
             return 'api';
         }
 
         return 'web';
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    protected function header(array $context, string $key): mixed
+    {
+        $headers = $context['headers'] ?? [];
+
+        if (! is_array($headers)) {
+            return null;
+        }
+
+        return $headers[$key] ?? $headers[strtolower($key)] ?? null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    protected function cookie(array $context, string $key): mixed
+    {
+        $cookies = $context['cookies'] ?? [];
+
+        if (! is_array($cookies)) {
+            return null;
+        }
+
+        return $cookies[$key] ?? null;
     }
 }

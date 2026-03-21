@@ -17,7 +17,7 @@ class EnsureTransportUser
             return $this->deny($request, 401, 'Authentication is required.');
         }
 
-        $resolvedAllowedTypes = $allowedTypes !== [] ? $allowedTypes : ['subject', 'agent', 'system'];
+        $resolvedAllowedTypes = $allowedTypes !== [] ? $allowedTypes : ['subject', 'robot'];
 
         if (! collect($resolvedAllowedTypes)->contains(fn (string $allowedType): bool => $this->matchesAllowedType($user, $allowedType))) {
             return $this->deny($request, 403, 'This user type is not allowed to use this transport.');
@@ -44,10 +44,9 @@ class EnsureTransportUser
     protected function matchesAllowedType(User $user, string $allowedType): bool
     {
         return match ($allowedType) {
-            'person', 'subject' => $user->canActAsHuman(),
+            'subject' => $user->canActAsHuman(),
             'device', 'gadget' => $user->isGadget(),
             'agent', 'robot' => $user->isRobot(),
-            'system' => $user->isSystem(),
             default => $user->type === $allowedType,
         };
     }

@@ -2,15 +2,18 @@
 
 namespace App\Http\Controllers\Server\Api;
 
+use App\Contracts\Users\UserRepository;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Auth\StoreAgentUserRequest;
-use App\Models\Server\SanctumUser;
+use App\Models\Server\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class AgentUserController extends Controller
 {
+    public function __construct(protected UserRepository $userRepository) {}
+
     public function store(StoreAgentUserRequest $request): JsonResponse
     {
         $validated = $request->validated();
@@ -28,21 +31,19 @@ class AgentUserController extends Controller
             ->values()
             ->all();
 
-        $agent = SanctumUser::query()->create([
+        $agent = $this->userRepository->create([
             'name' => $name,
             'email' => $email,
             'password' => Hash::make(Str::random(48)),
-            'type' => 'agent',
-            'provider' => 'internal',
-            'provider_id' => null,
+            'type' => User::TypeRobot,
             'status' => 'active',
         ]);
 
-        $token = $agent->createToken($tokenName, $abilities);
+        $token = $this->userRepository->issueToken($agent, $tokenName, $abilities);
 
         return response()->json([
             'data' => [
-                'token' => $token->plainTextToken,
+                'token' => $token,
                 'token_type' => 'Bearer',
                 'abilities' => $abilities,
                 'user' => [

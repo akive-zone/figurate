@@ -27,7 +27,7 @@ Route::prefix('auth')->group(function (): void {
     Route::post('logout', [ApiTokenController::class, 'logout'])
         ->middleware(['auth:sanctum,passport']);
     Route::post('agents', [AgentUserController::class, 'store'])
-        ->middleware(['auth:sanctum,passport', EnsureTransportUser::class.':person,system']);
+        ->middleware(['auth:sanctum,passport', EnsureTransportUser::class.':subject']);
 });
 
 Route::post('broadcasting/auth', [BroadcastController::class, 'authenticate'])

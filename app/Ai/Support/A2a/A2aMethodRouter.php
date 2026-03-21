@@ -4,16 +4,17 @@ namespace App\Ai\Support\A2a;
 
 use App\Ai\Support\A2ui\A2uiCatalogRegistry;
 use App\Ai\Support\A2ui\A2uiPayloadContract;
+use App\Contracts\Users\UserRepository;
+use App\Features\Actions\Chat\ResolveActiveThreadPresenters;
 use App\Features\Actions\Chat\ResolveChatChannelContext;
 use App\Features\Actions\Chat\ResolveChatThreadContext;
+use App\Features\Operations\Chat\DispatchPromptOperation;
+use App\Features\Operations\Chat\ResolveConversationThreadOperation;
 use App\Models\Server\AgentTask;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
-use App\Models\Server\User;
 use App\Support\Orchestrate\AgentTaskService;
-use App\Support\Orchestrate\ConversationOrchestrator;
 use App\Support\Orchestrate\MessageTaskService;
-use App\Support\Orchestrate\PromptDispatchService;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
@@ -26,15 +27,17 @@ class A2aMethodRouter
     protected const MAX_A2UI_ERRORS = 16;
 
     public function __construct(
-        protected ConversationOrchestrator $orchestrator,
+        protected ResolveConversationThreadOperation $resolveConversationThreadOperation,
         protected ResolveChatChannelContext $resolveChatChannelContext,
         protected ResolveChatThreadContext $resolveChatThreadContext,
         protected TaskPushNotificationDispatcher $taskPushNotificationDispatcher,
         protected A2uiPayloadContract $a2uiPayloadContract,
         protected A2uiCatalogRegistry $a2uiCatalogRegistry,
-        protected PromptDispatchService $promptDispatchService,
+        protected DispatchPromptOperation $dispatchPromptOperation,
+        protected ResolveActiveThreadPresenters $resolveActiveThreadPresenters,
         protected AgentTaskService $agentTaskService,
         protected MessageTaskService $messageTaskService,
+        protected UserRepository $userRepository,
     ) {}
 
     /**
@@ -80,9 +83,7 @@ class A2aMethodRouter
             return $this->invalidParams($validation->errors()->toArray());
         }
 
-        $user = User::query()
-            ->where('uuid', (string) $validation->validated()['user_uuid'])
-            ->first();
+        $user = $this->userRepository->findByUuid((string) $validation->validated()['user_uuid']);
 
         if (! $user) {
             return $this->invalidParams(['user_uuid' => ['The selected user was not found.']]);
@@ -113,7 +114,7 @@ class A2aMethodRouter
             $channel = $this->resolveChatChannelContext->execute($channelUuid, $user);
         }
 
-        $decision = $this->orchestrator->resolve(
+        $decision = $this->resolveConversationThreadOperation->run(
             channel: $channel,
             actor: $user,
             thread: $threadId,
@@ -135,7 +136,7 @@ class A2aMethodRouter
             $meta['a2ui_client_data_model'] = $a2uiClientDataModel;
         }
 
-        $dispatch = $this->promptDispatchService->dispatch(
+        $dispatch = $this->dispatchPromptOperation->run(
             channel: $channel,
             thread: $thread,
             actor: $user,
@@ -306,7 +307,7 @@ class A2aMethodRouter
         $thread = $this->messageTaskService->resolveMessageThread($promptMessage);
         $task = $this->agentTaskService->cancelLocalTask(
             task: $task,
-            presenters: $thread instanceof Thread ? $this->promptDispatchService->resolveActivePresenters($thread) : collect(),
+            presenters: $thread instanceof Thread ? $this->resolveActiveThreadPresenters->execute($thread) : collect(),
             canceledMetaPath: 'a2a_canceled_at',
         );
         $promptMessage = $task->message;

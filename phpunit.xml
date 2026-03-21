@@ -10,9 +10,8 @@
         </testsuite>
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
-            <directory>mod/fulfillment-manager/tests</directory>
-            <directory>mod/multi-site/tests</directory>
-            <directory>mod/multi-space/tests</directory>
+            <directory>mod/*/tests</directory>
+            <directory>ext/*/tests</directory>
         </testsuite>
     </testsuites>
     <source>

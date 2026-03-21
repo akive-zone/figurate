@@ -84,17 +84,6 @@ class ResolveAudienceContext
             return 'asker';
         }
 
-        if ($this->fulfillmentContext->isTargetProfileParticipant($requestPost, $actor)) {
-            return 'worker';
-        }
-
-        $order = $this->fulfillmentContext->currentOrder($requestPost);
-        $sellerProfile = $order?->sellerProfileRecord();
-
-        if ($sellerProfile && $sellerProfile->user_id === $actor->id) {
-            return 'worker';
-        }
-
         if ($this->fulfillmentContext->hasParticipant($requestPost, $actor)) {
             return 'member';
         }

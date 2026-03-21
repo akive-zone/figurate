@@ -176,8 +176,6 @@ class HandleChatMessageTest extends TestCase
             'email' => fake()->unique()->safeEmail(),
             'password' => 'password',
             'type' => User::TypeSubject,
-            'provider' => null,
-            'provider_id' => null,
             'status' => 'active',
         ]);
     }

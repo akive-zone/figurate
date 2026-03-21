@@ -2,9 +2,9 @@
 
 namespace Figurate\AccountManager\Support;
 
-use App\Contracts\Accounts\AccountContext as AccountContextContract;
-use App\Contracts\Accounts\AccountContextFactory as AccountContextFactoryContract;
 use App\Models\Server\User;
+use Figurate\AccountManager\Contracts\AccountContext as AccountContextContract;
+use Figurate\AccountManager\Contracts\AccountContextFactory as AccountContextFactoryContract;
 
 class AccountContextFactory implements AccountContextFactoryContract
 {

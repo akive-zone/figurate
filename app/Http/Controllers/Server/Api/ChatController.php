@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Server\Api;
 
-use App\Features\Actions\Chat\HandleChatMessage;
 use App\Features\Actions\Chat\ProjectAgentTurns;
 use App\Features\Actions\Chat\ProjectMessageExtra;
+use App\Features\Operations\Chat\SubmitChatMessageOperation;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Chat\StoreChatRequest;
 use App\Models\Server\Channel;
@@ -128,9 +128,22 @@ class ChatController extends Controller
 
     public function store(
         StoreChatRequest $request,
-        HandleChatMessage $handleChatMessage,
+        SubmitChatMessageOperation $submitChatMessageOperation,
     ): JsonResponse {
-        $result = $handleChatMessage->execute($request);
+        /** @var User $actor */
+        $actor = $request->user();
+        $validated = $request->validated();
+        $attachments = $request->file('content.attachments', []);
+
+        $result = $submitChatMessageOperation->run([
+            'actor' => $actor,
+            'channel' => $validated['channel'] ?? null,
+            'thread' => $validated['thread'] ?? null,
+            'content' => is_array($validated['content'] ?? null) ? $validated['content'] : [],
+            'extra' => is_array($validated['extra'] ?? null) ? $validated['extra'] : [],
+            'attachments' => is_array($attachments) ? $attachments : [$attachments],
+            'idempotency_key' => $request->header('X-Idempotency-Key'),
+        ]);
 
         return response()->json($result['body'], $result['status']);
     }
@@ -175,14 +188,12 @@ class ChatController extends Controller
 
         $channelsQuery = Channel::query()->latest('created_at');
 
-        if ($actor->type !== 'system') {
-            $channelsQuery->whereHas('actorStates', function ($stateQuery) use ($actor): void {
-                $stateQuery
-                    ->where('actorable_type', $actor->getMorphClass())
-                    ->where('actorable_id', $actor->id)
-                    ->where('status', ChannelActorState::StatusActive);
-            });
-        }
+        $channelsQuery->whereHas('actorStates', function ($stateQuery) use ($actor): void {
+            $stateQuery
+                ->where('actorable_type', $actor->getMorphClass())
+                ->where('actorable_id', $actor->id)
+                ->where('status', ChannelActorState::StatusActive);
+        });
 
         return $channelsQuery;
     }

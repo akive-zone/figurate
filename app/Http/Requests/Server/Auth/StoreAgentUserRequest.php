@@ -12,7 +12,7 @@ class StoreAgentUserRequest extends FormRequest
     {
         $user = $this->user();
 
-        return $user !== null && ($user->canActAsHuman() || $user->isSystem());
+        return $user !== null && $user->canActAsHuman();
     }
 
     public function rules(): array

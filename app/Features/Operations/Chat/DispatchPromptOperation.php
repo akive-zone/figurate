@@ -1,9 +1,12 @@
 <?php
 
-namespace App\Support\Orchestrate;
+namespace App\Features\Operations\Chat;
 
-use App\Ai\Support\ChatAgentExecutor;
 use App\Features\Actions\Chat\DispatchThreadMessage;
+use App\Features\Actions\Chat\EnsureThreadMembership;
+use App\Features\Actions\Chat\EnsureThreadPresenter;
+use App\Features\Actions\Chat\QueuePresenterReplies;
+use App\Features\Actions\Chat\ResolveActiveThreadPresenters;
 use App\Features\Actions\Chat\ThreadMessageEntry;
 use App\Models\Server\Channel;
 use App\Models\Server\Message;
@@ -12,11 +15,14 @@ use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
 use Illuminate\Support\Collection;
 
-class PromptDispatchService
+class DispatchPromptOperation
 {
     public function __construct(
         protected DispatchThreadMessage $dispatchThreadMessage,
-        protected ChatAgentExecutor $chatAgentExecutor,
+        protected EnsureThreadMembership $ensureThreadMembership,
+        protected EnsureThreadPresenter $ensureThreadPresenter,
+        protected ResolveActiveThreadPresenters $resolveActiveThreadPresenters,
+        protected QueuePresenterReplies $queuePresenterReplies,
     ) {}
 
     /**
@@ -40,18 +46,18 @@ class PromptDispatchService
      *     broadcast_channel_id: string
      * }
      */
-    public function dispatch(Channel $channel, Thread $thread, User $actor, string $text, array $options = []): array
+    public function run(Channel $channel, Thread $thread, User $actor, string $text, array $options = []): array
     {
         if (($options['ensure_membership'] ?? false) === true) {
-            $this->ensureThreadMembership($thread, $actor);
+            $this->ensureThreadMembership->execute($thread, $actor);
         }
 
-        $presenters = $this->resolveActivePresenters($thread);
+        $presenters = $this->resolveActiveThreadPresenters->execute($thread);
         if (($options['ensure_presenter'] ?? false) === true && $presenters->isEmpty()) {
             $presenterActorType = $options['presenter_actor_type'] ?? null;
             if (is_string($presenterActorType) && $presenterActorType !== '') {
-                $this->ensurePresenter($thread, $presenterActorType);
-                $presenters = $this->resolveActivePresenters($thread);
+                $this->ensureThreadPresenter->execute($thread, $presenterActorType);
+                $presenters = $this->resolveActiveThreadPresenters->execute($thread);
             }
         }
 
@@ -90,15 +96,7 @@ class PromptDispatchService
         }
 
         if (! $direct) {
-            $presenters->each(function (ThreadActor $presenter) use ($thread, $message, $actor, $broadcastChannelId): void {
-                $this->chatAgentExecutor->queue(
-                    thread: $thread,
-                    userMessage: $message,
-                    user: $actor,
-                    threadActor: $presenter,
-                    broadcastChannelId: $broadcastChannelId,
-                );
-            });
+            $this->queuePresenterReplies->execute($thread, $message, $actor, $presenters, $broadcastChannelId);
         }
 
         return [
@@ -107,49 +105,5 @@ class PromptDispatchService
             'direct' => $direct,
             'broadcast_channel_id' => $broadcastChannelId,
         ];
-    }
-
-    public function ensureThreadMembership(Thread $thread, User $actor): void
-    {
-        $thread->actors()->firstOrCreate(
-            [
-                'actorable_type' => $actor->getMorphClass(),
-                'actorable_id' => $actor->getKey(),
-                'role' => ThreadActor::RoleMember,
-            ],
-            [
-                'status' => ThreadActor::StatusActive,
-                'priority' => 99,
-                'config' => null,
-            ],
-        );
-    }
-
-    public function ensurePresenter(Thread $thread, string $presenterActorType): void
-    {
-        if ($this->resolveActivePresenters($thread)->isNotEmpty()) {
-            return;
-        }
-
-        $thread->actors()->create([
-            'actorable_type' => $presenterActorType,
-            'actorable_id' => null,
-            'role' => ThreadActor::RolePresenter,
-            'status' => ThreadActor::StatusActive,
-            'priority' => 1,
-            'config' => null,
-        ]);
-    }
-
-    /**
-     * @return Collection<int, ThreadActor>
-     */
-    public function resolveActivePresenters(Thread $thread): Collection
-    {
-        return $thread->actors()
-            ->where('role', ThreadActor::RolePresenter)
-            ->where('status', ThreadActor::StatusActive)
-            ->orderBy('priority')
-            ->get();
     }
 }

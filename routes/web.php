@@ -3,7 +3,6 @@
 use App\Ai\Gateways\Mcp\Servers\FigurateServer;
 use App\Http\Controllers\Server\Api\A2a\AgentCardController;
 use App\Http\Controllers\Server\Web\PasskeyController as ServerPasskeyController;
-use App\Http\Controllers\Server\Web\SocialiteController;
 use App\Http\Middleware\EnsureTokenAbility;
 use App\Http\Middleware\EnsureTransportUser;
 use Illuminate\Support\Facades\Route;
@@ -14,15 +13,6 @@ if (runtime() === 'server') {
 
     Mcp::web('/mcp/figurate', FigurateServer::class)
         ->middleware(['auth:sanctum,passport', EnsureTransportUser::class, EnsureTokenAbility::class.':mcp:use']);
-
-    Route::prefix('auth')
-        ->name('auth.')
-        ->group(function () {
-            Route::get('{provider}/redirect', [SocialiteController::class, 'redirect'])
-                ->name('redirect');
-            Route::get('{provider}/callback', [SocialiteController::class, 'callback'])
-                ->name('callback');
-        });
 
     Route::passkeys();
 

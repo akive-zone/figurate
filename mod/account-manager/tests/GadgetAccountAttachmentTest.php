@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature\Auth;
+namespace Figurate\AccountManager\Tests;
 
 use App\Models\Server\AgentConversation;
 use App\Models\Server\AgentTask;
@@ -80,8 +80,6 @@ class GadgetAccountAttachmentTest extends TestCase
             'email' => 'existing@example.com',
             'password' => 'password123',
             'type' => User::TypeSubject,
-            'provider' => null,
-            'provider_id' => null,
             'status' => 'active',
         ]);
         $account->users()->attach($subjectUser->id, [
@@ -180,15 +178,21 @@ class GadgetAccountAttachmentTest extends TestCase
 
     protected function makeUser(string $type, string $deviceIdentifier): User
     {
-        return User::query()->create([
+        $user = User::query()->create([
             'name' => 'Test User',
             'email' => fake()->unique()->safeEmail(),
             'password' => 'password',
             'type' => $type,
-            'provider' => null,
-            'provider_id' => null,
             'status' => 'active',
-            'device_identifier' => $deviceIdentifier,
         ]);
+
+        UserAgent::query()->create([
+            'user_id' => $user->id,
+            'kind' => 'api',
+            'device_identifier' => $deviceIdentifier,
+            'last_seen_at' => now(),
+        ]);
+
+        return $user;
     }
 }

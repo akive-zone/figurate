@@ -2,11 +2,13 @@
 
 namespace App\Models\Server;
 
-use App\Contracts\Accounts\AccountContextFactory;
 use App\Models\Concerns\HasPublicUuid;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\LaravelPasskeys\Models\Concerns\HasPasskeys;
@@ -14,7 +16,7 @@ use Spatie\LaravelPasskeys\Models\Concerns\InteractsWithPasskeys;
 
 class User extends Authenticatable implements HasPasskeys
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory, HasPublicUuid, InteractsWithPasskeys, Notifiable;
 
     public const TypeRobot = 'robot';
@@ -22,10 +24,6 @@ class User extends Authenticatable implements HasPasskeys
     public const TypeGadget = 'gadget';
 
     public const TypeSubject = 'subject';
-
-    public const TypePerson = 'person';
-
-    public const TypeSystem = 'system';
 
     protected $table = 'users';
 
@@ -40,10 +38,7 @@ class User extends Authenticatable implements HasPasskeys
         'email',
         'password',
         'type',
-        'provider',
-        'provider_id',
         'status',
-        'device_identifier',
     ];
 
     /**
@@ -74,6 +69,18 @@ class User extends Authenticatable implements HasPasskeys
         return $this->hasMany(UserAgent::class, 'user_id');
     }
 
+    public function identities(): MorphToMany
+    {
+        return $this->morphToMany(Identity::class, 'relatable', 'identity_relations')
+            ->withPivot(['relationship', 'payload', 'linked_at', 'unlinked_at'])
+            ->withTimestamps();
+    }
+
+    public function latestUserAgent(): HasOne
+    {
+        return $this->userAgents()->one()->latestOfMany('last_seen_at');
+    }
+
     public function currentDeviceIdentifier(): ?string
     {
         if ($this->relationLoaded('userAgents')) {
@@ -97,9 +104,7 @@ class User extends Authenticatable implements HasPasskeys
             return $deviceIdentifier;
         }
 
-        return is_string($this->device_identifier) && trim($this->device_identifier) !== ''
-            ? $this->device_identifier
-            : null;
+        return null;
     }
 
     public function withAccessToken($accessToken)
@@ -143,35 +148,17 @@ class User extends Authenticatable implements HasPasskeys
 
     public function isSubject(): bool
     {
-        return in_array($this->type, [self::TypeSubject, self::TypePerson], true);
-    }
-
-    public function isLegacyPerson(): bool
-    {
-        return $this->type === self::TypePerson;
-    }
-
-    public function isSystem(): bool
-    {
-        return $this->type === self::TypeSystem;
+        return $this->type === self::TypeSubject;
     }
 
     public function canActAsHuman(): bool
     {
-        if ($this->isSubject()) {
-            return true;
-        }
-
-        if (! app()->bound(AccountContextFactory::class)) {
-            return false;
-        }
-
-        return app(AccountContextFactory::class)->forUser($this)->canActAsHuman();
+        return $this->isSubject();
     }
 
     public function canUseInteractiveTransport(): bool
     {
-        return $this->isSystem() || $this->isRobot() || $this->canActAsHuman();
+        return $this->isRobot() || $this->canActAsHuman();
     }
 
     /**

@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Contracts\Accounts\AccountContextFactory;
 use App\Models\Server\User;
 use Closure;
 use Illuminate\Http\Request;
@@ -10,8 +9,6 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsurePanelUser
 {
-    public function __construct(protected AccountContextFactory $accountContextFactory) {}
-
     /**
      * Handle an incoming request.
      */
@@ -19,16 +16,16 @@ class EnsurePanelUser
     {
         $user = $request->user();
 
-        if ($user instanceof User && $user->isGadget() && ! $this->accountContextFactory->forUser($user)->hasAccount()) {
+        if ($user instanceof User && $user->isGadget()) {
             if ($request->expectsJson()) {
                 return response()->json([
-                    'message' => 'Anonymous gadget users do not have access to panel mode.',
+                    'message' => 'Gadget users do not have access to panel mode.',
                 ], 403);
             }
 
             return redirect()
                 ->route('chat.index')
-                ->with('error', 'Anonymous gadget users do not have access to panel mode.');
+                ->with('error', 'Gadget users do not have access to panel mode.');
         }
 
         return $next($request);

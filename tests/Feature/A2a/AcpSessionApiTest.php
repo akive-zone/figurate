@@ -24,7 +24,7 @@ class AcpSessionApiTest extends TestCase
 
     public function test_it_creates_lists_and_loads_acp_sessions(): void
     {
-        $user = $this->makeUser('agent');
+        $user = $this->makeUser(User::TypeRobot);
         $channel = $this->accessibleChannel($user);
 
         Sanctum::actingAs($user, [TokenAbility::AcpUse->value]);
@@ -89,7 +89,7 @@ class AcpSessionApiTest extends TestCase
             $mock->shouldReceive('queue')->once();
         });
 
-        $user = $this->makeUser('agent');
+        $user = $this->makeUser(User::TypeRobot);
         $channel = $this->accessibleChannel($user);
 
         Sanctum::actingAs($user, [TokenAbility::AcpUse->value]);
@@ -138,7 +138,7 @@ class AcpSessionApiTest extends TestCase
 
     public function test_an_agent_user_can_access_acp_with_passport_authentication(): void
     {
-        $user = $this->makeUser('agent');
+        $user = $this->makeUser(User::TypeRobot);
         $channel = $this->accessibleChannel($user);
 
         Passport::actingAs($user, [TokenAbility::AcpUse->value], 'passport');
@@ -174,8 +174,6 @@ class AcpSessionApiTest extends TestCase
             'email' => fake()->unique()->safeEmail(),
             'password' => 'password',
             'type' => $type,
-            'provider' => null,
-            'provider_id' => null,
             'status' => 'active',
         ]);
     }

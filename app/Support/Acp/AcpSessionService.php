@@ -2,6 +2,9 @@
 
 namespace App\Support\Acp;
 
+use App\Features\Actions\Chat\EnsureThreadMembership;
+use App\Features\Actions\Chat\ResolveActiveThreadPresenters;
+use App\Features\Operations\Chat\DispatchPromptOperation;
 use App\Models\Server\AgentTask;
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelActorState;
@@ -11,7 +14,6 @@ use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
 use App\Support\Orchestrate\AgentTaskService;
 use App\Support\Orchestrate\MessageTaskService;
-use App\Support\Orchestrate\PromptDispatchService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -19,7 +21,9 @@ use Illuminate\Support\Facades\Gate;
 class AcpSessionService
 {
     public function __construct(
-        protected PromptDispatchService $promptDispatchService,
+        protected DispatchPromptOperation $dispatchPromptOperation,
+        protected EnsureThreadMembership $ensureThreadMembership,
+        protected ResolveActiveThreadPresenters $resolveActiveThreadPresenters,
         protected AgentTaskService $agentTaskService,
         protected MessageTaskService $messageTaskService,
     ) {}
@@ -82,7 +86,7 @@ class AcpSessionService
                 'config' => null,
             ]);
 
-            $this->promptDispatchService->ensureThreadMembership($thread, $actor);
+            $this->ensureThreadMembership->execute($thread, $actor);
             $this->markActiveThread($channel, $actor, $thread);
 
             return $thread;
@@ -126,7 +130,7 @@ class AcpSessionService
 
         $this->markActiveThread($channel, $actor, $thread);
 
-        $dispatch = $this->promptDispatchService->dispatch(
+        $dispatch = $this->dispatchPromptOperation->run(
             channel: $channel,
             thread: $thread,
             actor: $actor,
@@ -211,7 +215,7 @@ class AcpSessionService
 
         $task = $this->agentTaskService->cancelLocalTask(
             task: $task,
-            presenters: $this->promptDispatchService->resolveActivePresenters($thread),
+            presenters: $this->resolveActiveThreadPresenters->execute($thread),
             canceledMetaPath: 'acp.canceled_at',
         );
 
@@ -224,14 +228,12 @@ class AcpSessionService
 
         $query = Channel::query()->latest('created_at');
 
-        if ($actor->type !== 'system') {
-            $query->whereHas('actorStates', function (Builder $builder) use ($actor): void {
-                $builder
-                    ->where('actorable_type', $actor->getMorphClass())
-                    ->where('actorable_id', $actor->getKey())
-                    ->where('status', ChannelActorState::StatusActive);
-            });
-        }
+        $query->whereHas('actorStates', function (Builder $builder) use ($actor): void {
+            $builder
+                ->where('actorable_type', $actor->getMorphClass())
+                ->where('actorable_id', $actor->getKey())
+                ->where('status', ChannelActorState::StatusActive);
+        });
 
         return $query;
     }

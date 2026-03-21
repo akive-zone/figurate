@@ -7,12 +7,12 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Server\User>
+ * @extends Factory<User>
  */
 class UserFactory extends Factory
 {
     /**
-     * @var class-string<\App\Models\Server\User>
+     * @var class-string<User>
      */
     protected $model = User::class;
 
@@ -29,8 +29,6 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => Hash::make('password'),
             'type' => User::TypeSubject,
-            'provider' => null,
-            'provider_id' => null,
             'status' => 'active',
         ];
     }

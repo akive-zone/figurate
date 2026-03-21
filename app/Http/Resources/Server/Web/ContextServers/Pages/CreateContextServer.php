@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Server\Web\ContextServers\Pages;
 
+use App\Contracts\Users\UserRepository;
 use App\Http\Resources\Server\Web\ContextServers\ContextServerResource;
 use App\Models\Server\Channel;
 use App\Models\Server\Thread;
@@ -86,7 +87,7 @@ class CreateContextServer extends CreateRecord
         }
 
         if ($contextType === (new User)->getMorphClass()) {
-            return User::query()->where('uuid', $rawContextId)->value('id');
+            return app(UserRepository::class)->findIdByUuid($rawContextId);
         }
 
         if ($contextType === (new Channel)->getMorphClass()) {

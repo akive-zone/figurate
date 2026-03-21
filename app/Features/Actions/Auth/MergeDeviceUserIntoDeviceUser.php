@@ -2,13 +2,15 @@
 
 namespace App\Features\Actions\Auth;
 
-use App\Models\Server\SanctumUser;
+use App\Contracts\Users\UserRepository;
 use App\Models\Server\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class MergeDeviceUserIntoDeviceUser
 {
+    public function __construct(protected UserRepository $userRepository) {}
+
     public function execute(?User $sourceDeviceUser, User $targetDeviceUser): void
     {
         if (! $sourceDeviceUser) {
@@ -32,18 +34,12 @@ class MergeDeviceUserIntoDeviceUser
             $this->migratePasskeys($sourceDeviceUser, $targetDeviceUser);
             $this->migrateUserAgents($sourceDeviceUser, $targetDeviceUser);
 
-            if ($targetDeviceUser->device_identifier === null && $sourceDeviceUser->device_identifier !== null) {
-                $targetDeviceUser->forceFill([
-                    'device_identifier' => $sourceDeviceUser->device_identifier,
-                ])->save();
-            }
-
             $sourceDeviceUser->forceFill([
                 'status' => 'merged',
-                'device_identifier' => null,
-            ])->save();
+            ]);
+            $this->userRepository->save($sourceDeviceUser);
 
-            SanctumUser::query()->find($sourceDeviceUser->id)?->tokens()->delete();
+            $this->userRepository->deleteAuthTokens($sourceDeviceUser);
         });
     }
 

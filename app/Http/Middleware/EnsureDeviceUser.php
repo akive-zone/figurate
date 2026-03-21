@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Features\Actions\Auth\ResolveOrCreateGadgetUser;
+use App\Models\Server\User;
 use App\TokenAbility;
 use Closure;
 use Illuminate\Http\Request;
@@ -13,10 +14,9 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureDeviceUser
 {
-    /**
-     * Handle an incoming request.
-     */
-    public function handle(Request $request, Closure $next, ResolveOrCreateGadgetUser $resolveOrCreateGadgetUser): Response
+    public function __construct(protected ResolveOrCreateGadgetUser $resolveOrCreateGadgetUser) {}
+
+    public function handle(Request $request, Closure $next): Response
     {
         if (Auth::check() || $request->bearerToken()) {
             return $next($request);
@@ -34,7 +34,12 @@ class EnsureDeviceUser
             Cookie::queue(cookie()->forever('device_id', $deviceId));
         }
 
-        $user = $resolveOrCreateGadgetUser->execute($request);
+        $requestUser = $request->user('sanctum');
+        if (! $requestUser instanceof User) {
+            $requestUser = $request->user();
+        }
+
+        $user = $this->resolveOrCreateGadgetUser->execute($this->gadgetUserContext($request), $requestUser instanceof User ? $requestUser : null);
 
         $request->attributes->set('initial_device_user_id', $user->id);
 
@@ -86,5 +91,33 @@ class EnsureDeviceUser
         }
 
         return empty($headerDeviceId) && empty($cookieDeviceId);
+    }
+
+    /**
+     * @return array{
+     *     headers: array<string, mixed>,
+     *     cookies: array<string, mixed>,
+     *     user_agent: ?string,
+     *     ip_address: ?string,
+     *     expects_json: bool,
+     *     path: string
+     * }
+     */
+    protected function gadgetUserContext(Request $request): array
+    {
+        return [
+            'headers' => [
+                'X-Device-Id' => $request->header('X-Device-Id'),
+                'X-App-Version' => $request->header('X-App-Version'),
+                'X-Platform' => $request->header('X-Platform'),
+            ],
+            'cookies' => [
+                'device_id' => $request->cookie('device_id'),
+            ],
+            'user_agent' => $request->userAgent(),
+            'ip_address' => $request->ip(),
+            'expects_json' => $request->expectsJson(),
+            'path' => $request->path(),
+        ];
     }
 }

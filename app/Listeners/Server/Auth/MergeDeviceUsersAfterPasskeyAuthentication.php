@@ -2,8 +2,7 @@
 
 namespace App\Listeners\Server\Auth;
 
-use App\Contracts\Accounts\AccountContextFactory;
-use App\Events\Accounts\AttachGadgetUserToUsersPrimaryAccountRequested;
+use App\Contracts\Users\UserRepository;
 use App\Features\Actions\Auth\MergeDeviceUserIntoDeviceUser;
 use App\Features\Actions\Auth\MergeDeviceUserIntoPerson;
 use App\Models\Server\User;
@@ -12,9 +11,9 @@ use Spatie\LaravelPasskeys\Events\PasskeyUsedToAuthenticateEvent;
 class MergeDeviceUsersAfterPasskeyAuthentication
 {
     public function __construct(
-        protected AccountContextFactory $accountContextFactory,
         protected MergeDeviceUserIntoDeviceUser $mergeDeviceUserIntoDeviceUser,
         protected MergeDeviceUserIntoPerson $mergeDeviceUserIntoPerson,
+        protected UserRepository $userRepository,
     ) {}
 
     public function handle(PasskeyUsedToAuthenticateEvent $event): void
@@ -29,33 +28,9 @@ class MergeDeviceUsersAfterPasskeyAuthentication
             return;
         }
 
-        $sourceDeviceUser = User::query()->find($sourceDeviceUserId);
+        $sourceDeviceUser = $this->userRepository->findById($sourceDeviceUserId);
         if (! $sourceDeviceUser instanceof User || ! $sourceDeviceUser->isGadget()) {
             return;
-        }
-
-        $accountContext = $this->accountContextFactory->forUser($targetAuthenticatedUser);
-
-        if ($targetAuthenticatedUser->isGadget() && $accountContext->hasAccount()) {
-            $account = $accountContext->primaryAccount();
-
-            if ($account !== null) {
-                AttachGadgetUserToUsersPrimaryAccountRequested::dispatch($targetAuthenticatedUser, $sourceDeviceUser);
-
-                activity('auth')
-                    ->causedBy($sourceDeviceUser)
-                    ->performedOn($targetAuthenticatedUser)
-                    ->event('auth.gadget_user_attached_to_account_after_passkey_login')
-                    ->withProperties([
-                        'source_user_id' => $sourceDeviceUser->id,
-                        'target_user_id' => $targetAuthenticatedUser->id,
-                        'account_id' => $account->id,
-                        'passkey_id' => $event->passkey->id,
-                    ])
-                    ->log('Attached source gadget user to authenticated account after passkey authentication.');
-
-                return;
-            }
         }
 
         if ($targetAuthenticatedUser->isGadget()) {

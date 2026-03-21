@@ -2,10 +2,10 @@
 
 namespace Figurate\AccountManager;
 
-use App\Contracts\Accounts\AccountContextFactory as AccountContextFactoryContract;
 use App\Events\Accounts\AttachGadgetUserToUsersPrimaryAccountRequested;
 use App\Events\Accounts\EnsurePrimaryAccountForUserRequested;
 use App\Models\Server\User;
+use Figurate\AccountManager\Contracts\AccountContextFactory as AccountContextFactoryContract;
 use Figurate\AccountManager\Listeners\AttachGadgetUserToUsersPrimaryAccountListener;
 use Figurate\AccountManager\Listeners\EnsurePrimaryAccountForUserListener;
 use Figurate\AccountManager\Models\Account;

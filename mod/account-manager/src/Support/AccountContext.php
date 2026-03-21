@@ -2,8 +2,8 @@
 
 namespace Figurate\AccountManager\Support;
 
-use App\Contracts\Accounts\AccountContext as AccountContextContract;
 use App\Models\Server\User;
+use Figurate\AccountManager\Contracts\AccountContext as AccountContextContract;
 use Figurate\AccountManager\Models\Account;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -68,6 +68,6 @@ class AccountContext implements AccountContextContract
 
     public function canActAsHuman(): bool
     {
-        return $this->user->isSubject() || $this->hasAccount();
+        return $this->user->isSubject();
     }
 }

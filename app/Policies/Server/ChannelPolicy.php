@@ -12,7 +12,7 @@ class ChannelPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->isSystem() || $user->isRobot() || $user->isGadget() || $user->canActAsHuman();
+        return $user->isRobot() || $user->isGadget() || $user->canActAsHuman();
     }
 
     /**
@@ -20,10 +20,6 @@ class ChannelPolicy
      */
     public function view(User $user, Channel $channel): bool
     {
-        if ($user->type === 'system') {
-            return true;
-        }
-
         $serviceRequest = $channel->requests()->first();
 
         if (! $serviceRequest) {
@@ -46,10 +42,6 @@ class ChannelPolicy
      */
     public function update(User $user, Channel $channel): bool
     {
-        if ($user->type === 'system') {
-            return true;
-        }
-
         $serviceRequest = $channel->requests()->first();
 
         if (! $serviceRequest) {
@@ -64,10 +56,6 @@ class ChannelPolicy
      */
     public function delete(User $user, Channel $channel): bool
     {
-        if ($user->type === 'system') {
-            return true;
-        }
-
         $serviceRequest = $channel->requests()->first();
 
         if (! $serviceRequest) {
@@ -82,7 +70,7 @@ class ChannelPolicy
      */
     public function restore(User $user, Channel $channel): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 
     /**
@@ -90,6 +78,6 @@ class ChannelPolicy
      */
     public function forceDelete(User $user, Channel $channel): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 }

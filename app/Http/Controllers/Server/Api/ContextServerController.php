@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Server\Api;
 
 use App\Ai\Support\Mcp\ContextServerRegistry;
+use App\Contracts\Users\UserRepository;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\ContextServer\StoreContextServerRequest;
 use App\Http\Requests\Server\ContextServer\UpdateContextServerRequest;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Gate;
 
 class ContextServerController extends Controller
 {
+    public function __construct(protected UserRepository $userRepository) {}
+
     public function index(Request $request): JsonResponse
     {
         /** @var User $actor */
@@ -182,8 +185,9 @@ class ContextServerController extends Controller
                 return ['user', $actor];
             }
 
-            $target = User::query()->where('uuid', $contextId)->firstOrFail();
-            abort_unless($actor->type === 'system' || $target->id === $actor->id, 403, 'Not authorized for this user context.');
+            $target = $this->userRepository->findByUuid($contextId);
+            abort_unless($target instanceof User, 404);
+            abort_unless($target->id === $actor->id, 403, 'Not authorized for this user context.');
 
             return ['user', $target];
         }
@@ -218,7 +222,7 @@ class ContextServerController extends Controller
         }
 
         if ($context instanceof User) {
-            return $actor->type === 'system' || $context->id === $actor->id;
+            return $context->id === $actor->id;
         }
 
         if ($context instanceof Channel) {

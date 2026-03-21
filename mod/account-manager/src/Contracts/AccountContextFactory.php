@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Contracts\Accounts;
+namespace Figurate\AccountManager\Contracts;
 
 use App\Models\Server\User;
 

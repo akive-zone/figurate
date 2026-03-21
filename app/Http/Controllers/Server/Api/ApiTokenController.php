@@ -2,29 +2,34 @@
 
 namespace App\Http\Controllers\Server\Api;
 
+use App\Contracts\Users\UserRepository;
 use App\Events\Accounts\AttachGadgetUserToUsersPrimaryAccountRequested;
 use App\Events\Accounts\EnsurePrimaryAccountForUserRequested;
 use App\Features\Actions\Auth\ResolveOrCreateGadgetUser;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Auth\StudioLoginRequest;
 use App\Http\Requests\Server\Auth\StudioRegisterRequest;
-use App\Models\Server\SanctumUser;
 use App\Models\Server\User;
 use App\TokenAbility;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class ApiTokenController extends Controller
 {
     public function __construct(
         protected ResolveOrCreateGadgetUser $resolveOrCreateGadgetUser,
+        protected UserRepository $userRepository,
     ) {}
 
     public function register(StudioRegisterRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $gadgetUser = $this->resolveOrCreateGadgetUser->execute($request);
-        $subjectUser = SanctumUser::query()->create([
+        $gadgetUser = $this->resolveOrCreateGadgetUser->execute(
+            $this->gadgetUserContext($request),
+            $request->user('sanctum') instanceof User ? $request->user('sanctum') : ($request->user() instanceof User ? $request->user() : null),
+        );
+        $subjectUser = $this->userRepository->create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
@@ -33,10 +38,10 @@ class ApiTokenController extends Controller
         ]);
         $this->synchronizeAccountContext($subjectUser, $gadgetUser);
 
-        $token = $subjectUser->createToken('studio-api', [TokenAbility::Studio->value]);
+        $token = $this->userRepository->issueToken($subjectUser, 'studio-api', [TokenAbility::Studio->value]);
 
         return response()->json([
-            'token' => $token->plainTextToken,
+            'token' => $token,
             'token_type' => 'Bearer',
             'device_id' => $gadgetUser->currentDeviceIdentifier(),
             'user' => $subjectUser,
@@ -46,11 +51,12 @@ class ApiTokenController extends Controller
     public function login(StudioLoginRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $gadgetUser = $this->resolveOrCreateGadgetUser->execute($request);
+        $gadgetUser = $this->resolveOrCreateGadgetUser->execute(
+            $this->gadgetUserContext($request),
+            $request->user('sanctum') instanceof User ? $request->user('sanctum') : ($request->user() instanceof User ? $request->user() : null),
+        );
 
-        $subjectUser = SanctumUser::query()
-            ->where('email', $data['email'])
-            ->first();
+        $subjectUser = $this->userRepository->findByEmail($data['email']);
 
         if (! $subjectUser || ! $subjectUser->isSubject() || ! Hash::check($data['password'], (string) $subjectUser->password)) {
             return response()->json([
@@ -66,10 +72,10 @@ class ApiTokenController extends Controller
 
         $this->synchronizeAccountContext($subjectUser, $gadgetUser);
 
-        $token = $subjectUser->createToken('studio-api', [TokenAbility::Studio->value]);
+        $token = $this->userRepository->issueToken($subjectUser, 'studio-api', [TokenAbility::Studio->value]);
 
         return response()->json([
-            'token' => $token->plainTextToken,
+            'token' => $token,
             'token_type' => 'Bearer',
             'device_id' => $gadgetUser->currentDeviceIdentifier(),
             'user' => $subjectUser,
@@ -99,5 +105,34 @@ class ApiTokenController extends Controller
     {
         EnsurePrimaryAccountForUserRequested::dispatch($subjectUser);
         AttachGadgetUserToUsersPrimaryAccountRequested::dispatch($subjectUser, $gadgetUser);
+    }
+
+    /**
+     * @return array{
+     *     headers: array<string, mixed>,
+     *     cookies: array<string, mixed>,
+     *     user_agent: ?string,
+     *     ip_address: ?string,
+     *     expects_json: bool,
+     *     path: string
+     * }
+     */
+    protected function gadgetUserContext(Request $request): array
+    {
+        return [
+            'headers' => [
+                'X-Device-Id' => $request->header('X-Device-Id'),
+                'X-App-Version' => $request->header('X-App-Version'),
+                'X-Platform' => $request->header('X-Platform'),
+                'X-NativePHP' => $request->header('X-NativePHP'),
+            ],
+            'cookies' => [
+                'device_id' => $request->cookie('device_id'),
+            ],
+            'user_agent' => $request->userAgent(),
+            'ip_address' => $request->ip(),
+            'expects_json' => $request->expectsJson(),
+            'path' => $request->path(),
+        ];
     }
 }

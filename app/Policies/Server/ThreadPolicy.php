@@ -14,7 +14,7 @@ class ThreadPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->isSystem() || $user->isRobot() || $user->isGadget() || $user->canActAsHuman();
+        return $user->isRobot() || $user->isGadget() || $user->canActAsHuman();
     }
 
     /**
@@ -22,10 +22,6 @@ class ThreadPolicy
      */
     public function view(User $user, Thread $thread): bool
     {
-        if ($user->type === 'system') {
-            return true;
-        }
-
         $threadable = $thread->threadable;
 
         if (! $threadable instanceof ServiceRequest) {
@@ -52,10 +48,6 @@ class ThreadPolicy
      */
     public function update(User $user, Thread $thread): bool
     {
-        if ($user->type === 'system') {
-            return true;
-        }
-
         $threadable = $thread->threadable;
 
         if (! $threadable instanceof ServiceRequest) {
@@ -82,7 +74,7 @@ class ThreadPolicy
      */
     public function restore(User $user, Thread $thread): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 
     /**
@@ -90,6 +82,6 @@ class ThreadPolicy
      */
     public function forceDelete(User $user, Thread $thread): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 }

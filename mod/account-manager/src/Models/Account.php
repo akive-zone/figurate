@@ -3,14 +3,17 @@
 namespace Figurate\AccountManager\Models;
 
 use App\Models\Concerns\HasPublicUuid;
+use App\Models\Server\Identity;
 use App\Models\Server\User;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 
 class Account extends Model
 {
-    /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<self>> */
+    /** @use HasFactory<Factory<self>> */
     use HasFactory, HasPublicUuid;
 
     /**
@@ -32,5 +35,12 @@ class Account extends Model
     public function activeUsers(): BelongsToMany
     {
         return $this->users()->wherePivotNull('unlinked_at');
+    }
+
+    public function identities(): MorphToMany
+    {
+        return $this->morphToMany(Identity::class, 'relatable', 'identity_relations')
+            ->withPivot(['relationship', 'payload', 'linked_at', 'unlinked_at'])
+            ->withTimestamps();
     }
 }
