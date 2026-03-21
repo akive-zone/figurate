@@ -10,14 +10,12 @@
         "filament/filament": "^4.0",
         "laravel/ai": "^0.2",
         "laravel/framework": "^12.0",
-        "laravel/horizon": "^5.44",
         "laravel/mcp": "^0.5.9",
         "laravel/passport": "^13.4",
         "laravel/reverb": "^1.7",
         "laravel/sanctum": "^4.3",
         "laravel/socialite": "^5.24",
         "laravel/tinker": "^2.10.1",
-        "laravel/wayfinder": "*",
         "livewire/flux": "*",
         "phpdocumentor/type-resolver": "^1.7",
         "predis/predis": "^3.4",
@@ -99,9 +97,10 @@
     "extra": {
         "merge-plugin": {
             "include": [
+            ],
+            "require": [
                 "composer.local.json"
             ],
-            "require": [],
             "recurse": true,
             "replace": false,
             "ignore-duplicates": false,
