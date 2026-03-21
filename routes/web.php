@@ -2,7 +2,6 @@
 
 use App\Ai\Gateways\Mcp\Servers\FigurateServer;
 use App\Http\Controllers\Server\Api\A2a\AgentCardController;
-use App\Http\Controllers\Server\Web\PasskeyController as ServerPasskeyController;
 use App\Http\Middleware\EnsureTokenAbility;
 use App\Http\Middleware\EnsureTransportUser;
 use Illuminate\Support\Facades\Route;
@@ -11,17 +10,10 @@ use Laravel\Mcp\Facades\Mcp;
 if (runtime() === 'server') {
     Route::get('/.well-known/agent-card', AgentCardController::class)->name('a2a.agent-card');
 
+    Mcp::oauthRoutes();
+
     Mcp::web('/mcp/figurate', FigurateServer::class)
         ->middleware(['auth:sanctum,passport', EnsureTransportUser::class, EnsureTokenAbility::class.':mcp:use']);
 
     Route::passkeys();
-
-    Route::middleware('auth')
-        ->prefix('passkeys/manage')
-        ->name('passkeys.manage.')
-        ->group(function () {
-            Route::get('/generate-options', [ServerPasskeyController::class, 'generateOptions'])->name('generate-options');
-            Route::post('/', [ServerPasskeyController::class, 'store'])->name('store');
-            Route::delete('/{passkey}', [ServerPasskeyController::class, 'destroy'])->name('destroy');
-        });
 }

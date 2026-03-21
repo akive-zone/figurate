@@ -5,6 +5,7 @@ use App\Http\Controllers\Server\Api\Acp\SessionController as AcpSessionControlle
 use App\Http\Controllers\Server\Api\Acp\TaskController as AcpTaskController;
 use App\Http\Controllers\Server\Api\AgentUserController;
 use App\Http\Controllers\Server\Api\ApiTokenController;
+use App\Http\Controllers\Server\Api\Auth\PasskeyController;
 use App\Http\Controllers\Server\Api\ChatController;
 use App\Http\Controllers\Server\Api\ChatPostController;
 use App\Http\Controllers\Server\Api\ChatThreadController;
@@ -28,6 +29,16 @@ Route::prefix('auth')->group(function (): void {
         ->middleware(['auth:sanctum,passport']);
     Route::post('agents', [AgentUserController::class, 'store'])
         ->middleware(['auth:sanctum,passport', EnsureTransportUser::class.':subject']);
+
+    Route::middleware(['auth:sanctum,passport'])
+        ->prefix('passkeys')
+        ->name('api.passkeys.')
+        ->group(function (): void {
+            Route::get('/', [PasskeyController::class, 'index'])->name('index');
+            Route::post('/options/register', [PasskeyController::class, 'generateRegisterOptions'])->name('register-options');
+            Route::post('/', [PasskeyController::class, 'store'])->name('store');
+            Route::delete('/{passkey}', [PasskeyController::class, 'destroy'])->name('destroy');
+        });
 });
 
 Route::post('broadcasting/auth', [BroadcastController::class, 'authenticate'])

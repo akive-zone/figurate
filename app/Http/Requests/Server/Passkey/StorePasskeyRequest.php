@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Server\Passkey;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StorePasskeyRequest extends FormRequest
@@ -12,14 +13,26 @@ class StorePasskeyRequest extends FormRequest
     }
 
     /**
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
             'name' => ['nullable', 'string', 'max:255'],
             'passkey' => ['required', 'json'],
-            'options' => ['required', 'json'],
+            'ceremony_id' => ['required', 'string', 'max:255'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'passkey.required' => 'A passkey response is required.',
+            'passkey.json' => 'The passkey response must be valid JSON.',
+            'ceremony_id.required' => 'A passkey ceremony is required.',
         ];
     }
 }

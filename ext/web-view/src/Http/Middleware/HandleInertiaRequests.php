@@ -105,14 +105,17 @@ class HandleInertiaRequests extends Middleware
                     'passkeys_login' => Route::has('passkeys.login')
                         ? route('passkeys.login', [], false)
                         : null,
-                    'passkeys_manage_generate_options' => Route::has('passkeys.manage.generate-options')
-                        ? route('passkeys.manage.generate-options', [], false)
+                    'passkeys_manage_index' => Route::has('api.passkeys.index')
+                        ? route('api.passkeys.index', [], false)
                         : null,
-                    'passkeys_manage_store' => Route::has('passkeys.manage.store')
-                        ? route('passkeys.manage.store', [], false)
+                    'passkeys_manage_generate_options' => Route::has('api.passkeys.register-options')
+                        ? route('api.passkeys.register-options', [], false)
                         : null,
-                    'passkeys_manage_destroy_template' => Route::has('passkeys.manage.destroy')
-                        ? route('passkeys.manage.destroy', ['passkey' => '__PASSKEY__'], false)
+                    'passkeys_manage_store' => Route::has('api.passkeys.store')
+                        ? route('api.passkeys.store', [], false)
+                        : null,
+                    'passkeys_manage_destroy_template' => Route::has('api.passkeys.destroy')
+                        ? route('api.passkeys.destroy', ['passkey' => '__PASSKEY__'], false)
                         : null,
                 ],
                 'passkey_session' => [

@@ -3,6 +3,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import { router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { useChatSidebar } from '../composables/useChatSidebar';
+import { chatAuthHeaders } from '../api/chat';
 
 const props = defineProps({
     channels: {
@@ -113,16 +114,17 @@ const passkeyLoginError = ref('');
 const passkeyManageGenerateOptionsUrl = computed(() => {
     const value = (authRoutes.value.passkeys_manage_generate_options ?? '').toString().trim();
 
-    return value !== '' ? value : '/passkeys/manage/generate-options';
+    return value !== '' ? value : '/api/auth/passkeys/options/register';
 });
 const passkeyManageStoreUrl = computed(() => {
     const value = (authRoutes.value.passkeys_manage_store ?? '').toString().trim();
 
-    return value !== '' ? value : '/passkeys/manage';
+    return value !== '' ? value : '/api/auth/passkeys';
 });
 const passkeyCreateError = ref('');
 const isCreatingPasskey = ref(false);
 const newPasskeyName = ref('');
+const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
 const userInitials = computed(() => {
     const rawName = (authUser.value?.name ?? '').toString().trim();
     const name = showDeviceLoginPrompt.value ? 'Guest' : rawName;
@@ -227,38 +229,59 @@ const createPasskey = async () => {
         isCreatingPasskey.value = true;
 
         const optionsResponse = await fetch(passkeyManageGenerateOptionsUrl.value, {
-            method: 'GET',
+            method: 'POST',
             credentials: 'same-origin',
             headers: {
                 Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+                ...chatAuthHeaders(),
             },
+            body: JSON.stringify({}),
         });
 
         if (!optionsResponse.ok) {
             throw new Error(`Unable to start passkey setup (${optionsResponse.status}).`);
         }
 
-        const options = await optionsResponse.json();
+        const optionsPayload = await optionsResponse.json();
+        const ceremonyId = (optionsPayload?.data?.ceremony_id ?? '').toString().trim();
+        const options = optionsPayload?.data?.options ?? null;
+
+        if (!ceremonyId || !options) {
+            throw new Error('Unable to start passkey setup.');
+        }
+
         const registrationResponse = await window.startRegistration({ optionsJSON: options });
         const fallbackName = `Passkey ${new Date().toLocaleDateString()}`;
-
-        router.post(
-            passkeyManageStoreUrl.value,
-            {
+        const storeResponse = await fetch(passkeyManageStoreUrl.value, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+                ...chatAuthHeaders(),
+            },
+            body: JSON.stringify({
                 name: (newPasskeyName.value ?? '').toString().trim() || fallbackName,
-                options: JSON.stringify(options),
+                ceremony_id: ceremonyId,
                 passkey: JSON.stringify(registrationResponse),
-            },
-            {
-                preserveScroll: true,
-                onError: (errors) => {
-                    passkeyCreateError.value = errors?.passkey ?? errors?.name ?? 'Unable to create passkey.';
-                },
-                onSuccess: () => {
-                    newPasskeyName.value = '';
-                },
-            },
-        );
+            }),
+        });
+
+        if (!storeResponse.ok) {
+            const payload = await storeResponse.json().catch(() => ({}));
+            const message = payload?.errors?.passkey?.[0]
+                ?? payload?.errors?.name?.[0]
+                ?? payload?.errors?.ceremony_id?.[0]
+                ?? payload?.message
+                ?? 'Unable to create passkey.';
+            throw new Error(message);
+        }
+
+        newPasskeyName.value = '';
+        window.location.reload();
     } catch (error) {
         passkeyCreateError.value = error?.message ?? 'Unable to create passkey.';
     } finally {
