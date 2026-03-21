@@ -10,6 +10,10 @@ use App\Models\Server\Profile;
 use App\Models\Server\Store;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
+use App\Providers\Server\AuthServiceProvider;
+use App\Providers\Server\ChatServiceProvider;
+use App\Providers\Server\ControlPanelProvider;
+use App\Support\Runtime\AppRuntime;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -25,6 +29,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->singleton(AppRuntime::class);
+
         $providers = $this->isNativeRuntime()
             ? []
             : $this->serverProviders();
@@ -97,7 +103,7 @@ class AppServiceProvider extends ServiceProvider
 
     protected function isNativeRuntime(): bool
     {
-        return \app_is_native_runtime();
+        return app(AppRuntime::class)->isNative();
     }
 
     /**
@@ -106,12 +112,9 @@ class AppServiceProvider extends ServiceProvider
     protected function serverProviders(): array
     {
         return [
-            \ApiPlatform\Laravel\ApiPlatformProvider::class,
-            \ApiPlatform\Laravel\ApiPlatformDeferredProvider::class,
-            \ApiPlatform\Laravel\Eloquent\ApiPlatformEventProvider::class,
-            \App\Providers\Server\AuthServiceProvider::class,
-            \App\Providers\Server\ChatServiceProvider::class,
-            \App\Providers\Server\ControlPanelProvider::class,
+            AuthServiceProvider::class,
+            ChatServiceProvider::class,
+            ControlPanelProvider::class,
         ];
     }
 }

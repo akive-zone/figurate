@@ -8,7 +8,7 @@ import { computed, reactive, ref, watch } from 'vue';
 import { chatDataService } from '../../services/chatDataService';
 import { inertiaNavigationService } from '../../services/inertiaNavigationService';
 import { useThreadEcho } from '../../composables/useThreadEcho';
-import { buildA2uiActionRequest } from '../../a2ui';
+import { buildA2uiActionRequest } from '@web-view/a2ui';
 
 const props = defineProps({
     channels: {

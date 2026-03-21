@@ -8,13 +8,18 @@ export default defineConfig({
     plugins: [
         vue(),
         laravel({
-            input: ['resources/css/app.css', 'resources/js/app.js'],
+            input: ['resources/css/app.css', 'ext/web-view/resources/js/app.js', 'ext/web-view/resources/js/passkeys.js'],
             refresh: true,
             hotFile: nativephpHotFile(),
         }),
         tailwindcss(),
         nativephpMobile(),
     ],
+    resolve: {
+        alias: {
+            '@web-view': '/ext/web-view/resources/js',
+        },
+    },
     server: {
         watch: {
             ignored: ['**/storage/framework/views/**'],

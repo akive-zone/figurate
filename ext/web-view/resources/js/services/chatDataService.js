@@ -6,7 +6,7 @@ import {
     fetchChatMessageTurns,
     fetchChatThreadMessages,
     sendChatChatMessage,
-} from '../api';
+} from '@web-view/api';
 
 export const chatDataService = {
     async listChats(runtime, query = {}) {
@@ -37,4 +37,3 @@ export const chatDataService = {
         return createChatThread(chatId, payload, runtime);
     },
 };
-

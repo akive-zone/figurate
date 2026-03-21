@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { A2uiSurfaceRenderer } from '../../a2ui';
+import { A2uiSurfaceRenderer } from '@web-view/a2ui';
 
 const props = defineProps({
     modelValue: {

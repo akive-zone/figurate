@@ -1,4 +1,3 @@
-import '../css/app.css';
 import './echo';
 import './passkeys';
 import { createInertiaApp } from '@inertiajs/vue3';
@@ -24,11 +23,14 @@ const persistDeviceIdentity = (pageProps = {}) => {
 };
 
 createInertiaApp({
-    resolve: (name) =>
-        resolvePageComponent(
+    resolve: (name) => {
+        const webViewPages = import.meta.glob('./Pages/**/*.vue');
+
+        return resolvePageComponent(
             `./Pages/${name}.vue`,
-            import.meta.glob('./Pages/**/*.vue'),
-        ),
+            webViewPages,
+        );
+    },
     setup({ el, App, props, plugin }) {
         persistDeviceIdentity(props?.initialPage?.props ?? {});
 

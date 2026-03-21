@@ -3,7 +3,7 @@
 use Figurate\MobileNative\Http\Controllers\Web\ChannelController;
 use Illuminate\Support\Facades\Route;
 
-if (! \app_is_native_runtime()) {
+if (runtime() !== 'mobile') {
     return;
 }
 

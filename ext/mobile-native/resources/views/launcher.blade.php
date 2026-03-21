@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Figurate Launcher</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @webViewAssets
 </head>
 <body class="min-h-screen bg-slate-950 text-white">
     <div class="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center gap-6 p-8">

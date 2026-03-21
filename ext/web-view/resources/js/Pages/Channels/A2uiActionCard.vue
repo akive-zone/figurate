@@ -1,5 +1,5 @@
 <script setup>
-import { A2uiSurfaceRenderer } from '../../a2ui';
+import { A2uiSurfaceRenderer } from '@web-view/a2ui';
 
 defineProps({
     payload: {

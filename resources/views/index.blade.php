@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Chat</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @webViewAssets
 </head>
 <body class="min-h-screen bg-white text-slate-900">
     <div class="mx-auto flex min-h-screen max-w-3xl flex-col gap-4 p-8">

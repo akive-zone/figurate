@@ -1,0 +1,20 @@
+{
+    "name": "figurate/web-view",
+    "type": "library",
+    "description": "Browser web interface module for Figurate",
+    "autoload": {
+        "psr-4": {
+            "Figurate\\WebView\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Figurate\\WebView\\WebViewServiceProvider"
+            ]
+        }
+    },
+    "require": {
+        "inertiajs/inertia-laravel": "^2.0"
+    }
+}

@@ -37,7 +37,7 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
-.root--browser {
+.root--server {
     background:
         radial-gradient(circle at 10% 10%, rgba(15, 118, 110, 0.08), transparent 40%),
         radial-gradient(circle at 90% 10%, rgba(249, 115, 22, 0.07), transparent 45%),

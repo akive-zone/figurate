@@ -11,5 +11,5 @@
         </div>
     </div>
 
-    @vite('resources/js/passkeys.js')
+    @webViewPasskeysAssets
 </x-filament-panels::page>

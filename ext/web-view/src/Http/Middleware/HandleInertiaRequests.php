@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Http\Middleware;
+namespace Figurate\WebView\Http\Middleware;
 
 use App\Models\Server\User;
+use App\Support\Runtime\AppRuntime;
 use Figurate\AccountManager\Support\AccountContextFactory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -10,37 +11,24 @@ use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
-    public function __construct(protected AccountContextFactory $accountContextFactory) {}
+    public function __construct(
+        protected AccountContextFactory $accountContextFactory,
+        protected AppRuntime $runtime,
+    ) {}
 
-    /**
-     * The root template that's loaded on the first page visit.
-     *
-     * @see https://inertiajs.com/server-side-setup#root-template
-     *
-     * @var string
-     */
-    protected $rootView = 'app';
+    protected $rootView = 'web-view::app';
 
     public function rootView(Request $request): string
     {
-        return \app_is_native_runtime() ? 'mobile-native::app' : $this->rootView;
+        return $this->runtime->rootView($this->rootView);
     }
 
-    /**
-     * Determines the current asset version.
-     *
-     * @see https://inertiajs.com/asset-versioning
-     */
     public function version(Request $request): ?string
     {
         return parent::version($request);
     }
 
     /**
-     * Define the props that are shared by default.
-     *
-     * @see https://inertiajs.com/shared-data
-     *
      * @return array<string, mixed>
      */
     public function share(Request $request): array
@@ -59,22 +47,23 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'runtime' => [
-                'is_native' => \app_is_native_runtime(),
-                'base_path' => \app_is_native_runtime() ? '/chat' : '',
-                'index_path' => \app_is_native_runtime() ? '/chat' : '/',
+                'host' => $this->runtime->host(),
+                'is_native' => $this->runtime->isNative(),
+                'base_path' => $this->runtime->isNative() ? '/chat' : '',
+                'index_path' => $this->runtime->isNative() ? '/chat' : '/',
                 'routes' => [
                     'index' => route('chat.index', [], false),
-                    'chats' => \app_is_native_runtime() ? route('chat.index', [], false) : route('api.chats.index', [], false),
-                    'chats_show_template' => \app_is_native_runtime()
+                    'chats' => $this->runtime->isNative() ? route('chat.index', [], false) : route('api.chats.index', [], false),
+                    'chats_show_template' => $this->runtime->isNative()
                         ? route('chat.index', [], false)
                         : route('api.chats.show', ['chat' => '__CHAT__'], false),
-                    'chats_message_turns_template' => \app_is_native_runtime() || ! Route::has('api.chats.message-turns')
+                    'chats_message_turns_template' => $this->runtime->isNative() || ! Route::has('api.chats.message-turns')
                         ? route('chat.index', [], false)
                         : route('api.chats.message-turns', ['chat' => '__CHAT__', 'message' => '__MESSAGE__'], false),
-                    'chats_threads_template' => \app_is_native_runtime()
+                    'chats_threads_template' => $this->runtime->isNative()
                         ? route('chat.index', [], false)
                         : route('api.chats.threads', ['chat' => '__CHAT__'], false),
-                    'chats_store' => \app_is_native_runtime() ? route('chat.index', [], false) : route('api.chats.store', [], false),
+                    'chats_store' => $this->runtime->isNative() ? route('chat.index', [], false) : route('api.chats.store', [], false),
                     'chat_posts_template' => route('api.chats.posts', ['chat' => '__CHAT__'], false),
                     'create' => route('chat.create', [], false),
                     'show_template' => route('chat.show', ['channel' => '__CHANNEL__'], false),

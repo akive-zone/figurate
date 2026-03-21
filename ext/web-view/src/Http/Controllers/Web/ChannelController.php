@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Server\Web;
+namespace Figurate\WebView\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Server\Channel;

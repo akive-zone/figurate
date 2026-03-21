@@ -2,16 +2,14 @@
 
 use App\Ai\Gateways\Mcp\Servers\FigurateServer;
 use App\Http\Controllers\Server\Api\A2a\AgentCardController;
-use App\Http\Controllers\Server\Web\ChannelController as ServerChannelController;
 use App\Http\Controllers\Server\Web\PasskeyController as ServerPasskeyController;
 use App\Http\Controllers\Server\Web\SocialiteController;
-use App\Http\Middleware\EnsureDeviceUser;
 use App\Http\Middleware\EnsureTokenAbility;
 use App\Http\Middleware\EnsureTransportUser;
 use Illuminate\Support\Facades\Route;
 use Laravel\Mcp\Facades\Mcp;
 
-if (! \app_is_native_runtime()) {
+if (runtime() === 'server') {
     Route::get('/.well-known/agent-card', AgentCardController::class)->name('a2a.agent-card');
 
     Mcp::web('/mcp/figurate', FigurateServer::class)
@@ -35,14 +33,5 @@ if (! \app_is_native_runtime()) {
             Route::get('/generate-options', [ServerPasskeyController::class, 'generateOptions'])->name('generate-options');
             Route::post('/', [ServerPasskeyController::class, 'store'])->name('store');
             Route::delete('/{passkey}', [ServerPasskeyController::class, 'destroy'])->name('destroy');
-        });
-
-    Route::middleware(EnsureDeviceUser::class)
-        ->name('chat.')
-        ->group(function () {
-            Route::get('/', [ServerChannelController::class, 'index'])->name('index');
-            Route::get('/create', [ServerChannelController::class, 'index'])->name('create');
-            Route::get('/c/{channel}', [ServerChannelController::class, 'show'])->name('show');
-            Route::get('/c/{channel}/t/{thread}', [ServerChannelController::class, 'showThread'])->name('thread');
         });
 }

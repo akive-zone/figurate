@@ -52,9 +52,9 @@ class ModulePackageManifest extends PackageManifest
     protected function modulePackages(): array
     {
         return collect(ComposerLocalModules::at($this->basePath)->resolvedMergePluginIncludes())
-            ->filter(fn (string $path): bool => $this->files->exists($this->basePath.'/'.$path))
+            ->filter(fn (string $path): bool => $this->files->exists($path))
             ->map(function (string $path): ?array {
-                $package = json_decode($this->files->get($this->basePath.'/'.$path), true);
+                $package = json_decode($this->files->get($path), true);
 
                 if (! is_array($package) || ! isset($package['name']) || ! is_string($package['name'])) {
                     return null;
