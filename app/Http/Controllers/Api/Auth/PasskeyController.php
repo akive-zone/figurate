@@ -198,9 +198,9 @@ class PasskeyController extends Controller
             return;
         }
 
-        $deviceId = $request->header(ResolveWidgetUser::LegacyDeviceHeader) ?? (string) Str::uuid();
+        $deviceIdentifier = $request->header(ResolveWidgetUser::DeviceIdentifierHeader) ?? (string) Str::uuid();
 
-        Cookie::queue(cookie()->forever(ResolveWidgetUser::DeviceCookie, $deviceId));
+        Cookie::queue(cookie()->forever(ResolveWidgetUser::DeviceCookie, $deviceIdentifier));
     }
 
     protected function attachWidgetUserHeaders(JsonResponse $response, User $user): void
