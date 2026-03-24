@@ -3,7 +3,7 @@
 namespace Tests\Feature\Chat;
 
 use App\Ai\Support\ChatAgentExecutor;
-use App\Http\Middleware\EnsureDeviceUser;
+use App\Http\Middleware\EnsureGadgetUser;
 use App\Jobs\ProcessThreadObservers;
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelActorState;
@@ -38,7 +38,7 @@ class HandleConversationMessageTest extends TestCase
 
         Sanctum::actingAs($user, [TokenAbility::Chat->value]);
 
-        $this->withoutMiddleware(EnsureDeviceUser::class)
+        $this->withoutMiddleware(EnsureGadgetUser::class)
             ->postJson('/api/conversations', [
                 'channel' => $channel->uuid,
                 'thread' => $thread->uuid,
@@ -74,7 +74,7 @@ class HandleConversationMessageTest extends TestCase
 
         Sanctum::actingAs($user, [TokenAbility::Chat->value]);
 
-        $this->withoutMiddleware(EnsureDeviceUser::class)
+        $this->withoutMiddleware(EnsureGadgetUser::class)
             ->postJson('/api/conversations', [
                 'channel' => $channel->uuid,
                 'thread' => $thread->uuid,
@@ -111,7 +111,7 @@ class HandleConversationMessageTest extends TestCase
 
         Sanctum::actingAs($user, [TokenAbility::Chat->value]);
 
-        $this->withoutMiddleware(EnsureDeviceUser::class)
+        $this->withoutMiddleware(EnsureGadgetUser::class)
             ->postJson('/api/conversations', [
                 'channel' => $channel->uuid,
                 'thread' => $thread->uuid,
@@ -160,7 +160,7 @@ class HandleConversationMessageTest extends TestCase
 
         Sanctum::actingAs($user, [TokenAbility::Chat->value]);
 
-        $this->withoutMiddleware(EnsureDeviceUser::class)
+        $this->withoutMiddleware(EnsureGadgetUser::class)
             ->getJson(sprintf('/api/conversations/%s/messages/%d/turns', $channel->uuid, $promptMessage->id))
             ->assertOk()
             ->assertJsonPath('thread', $thread->uuid)

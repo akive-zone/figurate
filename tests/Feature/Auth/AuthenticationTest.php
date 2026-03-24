@@ -11,9 +11,24 @@ class AuthenticationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_register_does_not_create_a_gadget_user_for_a_new_device_identifier(): void
+    public function test_register_can_link_an_existing_gadget_user_without_creating_a_new_one(): void
     {
-        $response = $this->withHeader('X-Device-Id', 'gadget-register-1')
+        $gadgetUser = User::query()->create([
+            'name' => 'Existing Gadget',
+            'email' => 'gadget-register-1@example.invalid',
+            'password' => 'password123',
+            'type' => User::TypeGadget,
+            'status' => 'active',
+        ]);
+
+        UserAgent::query()->create([
+            'user_id' => $gadgetUser->id,
+            'kind' => 'api',
+            'device_identifier' => 'machine-register-1',
+            'last_seen_at' => now()->subMinute(),
+        ]);
+
+        $response = $this->withHeader('X-Gadget-User-ID', (string) $gadgetUser->uuid)
             ->postJson('/api/auth/register', [
                 'name' => 'Studio Owner',
                 'email' => 'owner@example.com',
@@ -22,14 +37,16 @@ class AuthenticationTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('user.type', User::TypeSubject)
-            ->assertJsonPath('device_id', 'gadget-register-1');
+            ->assertJsonPath('gadget_user_id', $gadgetUser->uuid);
 
-        $this->assertDatabaseMissing('user_agents', [
-            'device_identifier' => 'gadget-register-1',
+        $this->assertDatabaseHas('user_agents', [
+            'user_id' => $gadgetUser->id,
+            'device_identifier' => 'machine-register-1',
         ]);
 
+        $this->assertSame(1, User::query()->where('type', User::TypeGadget)->count());
         $this->assertDatabaseMissing('users', [
-            'email' => 'gadget-gadget-register-1@example.invalid',
+            'email' => 'gadget-owner@example.com',
         ]);
     }
 
@@ -57,7 +74,7 @@ class AuthenticationTest extends TestCase
             'last_seen_at' => now()->subMinute(),
         ]);
 
-        $response = $this->withHeader('X-Device-Id', 'gadget-login-1')
+        $response = $this->withHeader('X-Gadget-User-ID', (string) $gadgetUser->uuid)
             ->postJson('/api/auth/login', [
                 'email' => 'owner@example.com',
                 'password' => 'password123',
@@ -65,7 +82,7 @@ class AuthenticationTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('user.id', $subjectUser->id)
-            ->assertJsonPath('device_id', 'gadget-login-1');
+            ->assertJsonPath('gadget_user_id', $gadgetUser->uuid);
 
         $this->assertSame(1, UserAgent::query()->where('device_identifier', 'gadget-login-1')->count());
         $this->assertSame(

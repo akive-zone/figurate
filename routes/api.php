@@ -15,7 +15,7 @@ use App\Http\Controllers\Api\ConversationThreadController;
 use App\Http\Controllers\Api\Mcp\ServerController as McpServerController;
 use App\Http\Middleware\EnsureA2aEnabled;
 use App\Http\Middleware\EnsureA2aRpcAbility;
-use App\Http\Middleware\EnsureDeviceUser;
+use App\Http\Middleware\EnsureGadgetUser;
 use App\Http\Middleware\EnsureTokenAbility;
 use App\Http\Middleware\EnsureTransportUser;
 use App\Http\Middleware\NormalizeA2aRpcMethodNames;
@@ -27,7 +27,8 @@ use Illuminate\Broadcasting\BroadcastController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function (): void {
-    Route::post('register', RegisterController::class);
+    Route::post('register', RegisterController::class)
+        ->middleware([ResolveCurrentGadgetUser::class]);
     Route::post('login', LoginController::class)
         ->middleware([ResolveCurrentGadgetUser::class]);
     Route::post('logout', LogoutController::class)
@@ -50,7 +51,7 @@ Route::post('broadcasting/auth', [BroadcastController::class, 'authenticate'])
 Route::post('agents', [AgentUserController::class, 'store'])
     ->middleware(['auth:sanctum,passport', EnsureTransportUser::class.':subject']);
 
-Route::prefix('conversations')->middleware([EnsureDeviceUser::class, 'auth:sanctum,passport'])->group(function (): void {
+Route::prefix('conversations')->middleware([EnsureGadgetUser::class, 'auth:sanctum,passport'])->group(function (): void {
     Route::post('/', [ConversationController::class, 'store'])->name('api.conversations.store');
     Route::get('/', [ConversationController::class, 'index'])->name('api.conversations.index');
     Route::get('/{conversation}', [ConversationController::class, 'show'])->name('api.conversations.show');
@@ -60,7 +61,7 @@ Route::prefix('conversations')->middleware([EnsureDeviceUser::class, 'auth:sanct
     Route::get('/{conversation}/posts', [ConversationPostController::class, 'index'])->name('api.conversations.posts.index');
 });
 
-Route::prefix('mcp')->middleware([EnsureDeviceUser::class, 'auth:sanctum,passport'])->group(function (): void {
+Route::prefix('mcp')->middleware([EnsureGadgetUser::class, 'auth:sanctum,passport'])->group(function (): void {
     Route::get('/servers', [McpServerController::class, 'index'])->name('api.context-servers.index');
     Route::post('/servers', [McpServerController::class, 'store'])->name('api.context-servers.store');
     Route::patch('/servers/{server}', [McpServerController::class, 'update'])->name('api.context-servers.update');

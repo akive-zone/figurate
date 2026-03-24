@@ -5,7 +5,7 @@ namespace App\Listeners\Server\Auth;
 use App\Models\Server\User;
 use Spatie\LaravelPasskeys\Events\PasskeyUsedToAuthenticateEvent;
 
-class MarkDeviceSessionAsPasskeyVerified
+class MarkGadgetSessionAsPasskeyVerified
 {
     public function handle(PasskeyUsedToAuthenticateEvent $event): void
     {
@@ -15,7 +15,7 @@ class MarkDeviceSessionAsPasskeyVerified
             return;
         }
 
-        $event->request->session()->put('auth.device_passkey', [
+        $event->request->session()->put('auth.gadget_passkey', [
             'user_id' => $authenticatable->id,
             'passkey_id' => $event->passkey->id,
             'authenticated_at' => now()->toIso8601String(),
@@ -23,7 +23,7 @@ class MarkDeviceSessionAsPasskeyVerified
 
         activity('auth')
             ->performedOn($authenticatable)
-            ->event('auth.device_passkey_verified')
+            ->event('auth.gadget_passkey_verified')
             ->withProperties([
                 'passkey_id' => $event->passkey->id,
                 'user_id' => $authenticatable->id,

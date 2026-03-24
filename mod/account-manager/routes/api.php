@@ -5,6 +5,5 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('api/accounts')->group(function (): void {
     Route::get('/current', [CurrentAccountController::class, 'show'])
-        ->middleware(['auth:sanctum,passport'])
         ->name('api.accounts.current');
 });

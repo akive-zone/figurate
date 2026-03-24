@@ -55,13 +55,14 @@ class ResolveCurrentGadgetUser
     {
         return [
             'headers' => [
-                'X-Device-Id' => $request->header('X-Device-Id'),
+                ResolveGadgetUser::GadgetUserHeader => $request->header(ResolveGadgetUser::GadgetUserHeader),
+                ResolveGadgetUser::LegacyDeviceHeader => $request->header(ResolveGadgetUser::LegacyDeviceHeader),
                 'X-App-Version' => $request->header('X-App-Version'),
                 'X-Platform' => $request->header('X-Platform'),
                 'X-NativePHP' => $request->header('X-NativePHP'),
             ],
             'cookies' => [
-                'device_id' => $request->cookie('device_id'),
+                ResolveGadgetUser::DeviceCookie => $request->cookie(ResolveGadgetUser::DeviceCookie),
             ],
             'user_agent' => $request->userAgent(),
             'ip_address' => $request->ip(),

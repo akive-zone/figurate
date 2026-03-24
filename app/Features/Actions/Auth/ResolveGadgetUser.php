@@ -8,6 +8,12 @@ use App\Models\Server\UserAgent;
 
 class ResolveGadgetUser
 {
+    public const GadgetUserHeader = 'X-Gadget-User-ID';
+
+    public const LegacyDeviceHeader = 'X-Device-Id';
+
+    public const DeviceCookie = 'device_id';
+
     public function __construct(protected UserRepository $userRepository) {}
 
     /**
@@ -26,6 +32,18 @@ class ResolveGadgetUser
             $this->remember($requestUser, $context);
 
             return $requestUser;
+        }
+
+        $gadgetUserIdentifier = $this->resolveGadgetUserIdentifier($context);
+
+        if (is_string($gadgetUserIdentifier) && trim($gadgetUserIdentifier) !== '') {
+            $gadgetUser = $this->resolveByGadgetUserIdentifier(trim($gadgetUserIdentifier));
+
+            if ($gadgetUser instanceof User) {
+                $this->remember($gadgetUser, $context);
+
+                return $gadgetUser;
+            }
         }
 
         $deviceIdentifier = $this->resolveDeviceIdentifier($context);
@@ -60,14 +78,28 @@ class ResolveGadgetUser
     /**
      * @param  array<string, mixed>  $context
      */
+    public function resolveGadgetUserIdentifier(array $context): ?string
+    {
+        $gadgetUserId = $this->header($context, self::GadgetUserHeader);
+
+        if (is_string($gadgetUserId) && trim($gadgetUserId) !== '') {
+            return trim($gadgetUserId);
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
     public function resolveDeviceIdentifier(array $context): ?string
     {
-        $headerDeviceId = $this->header($context, 'X-Device-Id');
+        $headerDeviceId = $this->header($context, self::LegacyDeviceHeader);
         if (is_string($headerDeviceId) && trim($headerDeviceId) !== '') {
             return trim($headerDeviceId);
         }
 
-        $cookieDeviceId = $this->cookie($context, 'device_id');
+        $cookieDeviceId = $this->cookie($context, self::DeviceCookie);
         if (is_string($cookieDeviceId) && trim($cookieDeviceId) !== '') {
             return trim($cookieDeviceId);
         }
@@ -101,6 +133,7 @@ class ResolveGadgetUser
                 ],
                 'metadata' => [
                     'native' => $this->header($context, 'X-NativePHP') !== null,
+                    'gadget_user_uuid' => $user->uuid,
                 ],
                 'last_seen_at' => now(),
             ],
@@ -149,5 +182,18 @@ class ResolveGadgetUser
         }
 
         return $cookies[$key] ?? null;
+    }
+
+    protected function resolveByGadgetUserIdentifier(string $gadgetUserIdentifier): ?User
+    {
+        $gadgetUser = $this->userRepository->findByUuid($gadgetUserIdentifier);
+
+        if (! $gadgetUser instanceof User && ctype_digit($gadgetUserIdentifier)) {
+            $gadgetUser = $this->userRepository->findById((int) $gadgetUserIdentifier);
+        }
+
+        return $gadgetUser instanceof User && $gadgetUser->isGadget()
+            ? $gadgetUser
+            : null;
     }
 }

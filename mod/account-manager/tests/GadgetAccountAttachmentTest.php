@@ -21,17 +21,16 @@ class GadgetAccountAttachmentTest extends TestCase
 
     public function test_register_ensures_primary_account_via_registered_event_without_creating_a_gadget_user(): void
     {
-        $response = $this->withHeader('X-Device-Id', 'gadget-register-event-1')
-            ->postJson('/api/auth/register', [
-                'name' => 'Studio Owner',
-                'email' => 'owner-event@example.com',
-                'password' => 'password123',
-            ]);
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Studio Owner',
+            'email' => 'owner-event@example.com',
+            'password' => 'password123',
+        ]);
 
         $response->assertOk()
             ->assertJsonPath('user.type', User::TypeSubject)
             ->assertJsonPath('user.email', 'owner-event@example.com')
-            ->assertJsonPath('device_id', 'gadget-register-event-1');
+            ->assertJsonPath('gadget_user_id', null);
 
         $account = Account::query()->where('name', 'Studio Owner')->firstOrFail();
         $subjectUser = User::query()->where('email', 'owner-event@example.com')->firstOrFail();
@@ -49,25 +48,55 @@ class GadgetAccountAttachmentTest extends TestCase
             'relationship' => 'gadget',
             'unlinked_at' => null,
         ]);
-
-        $this->assertDatabaseMissing('user_agents', [
-            'device_identifier' => 'gadget-register-event-1',
-        ]);
     }
 
-    public function test_register_creates_an_account_without_creating_a_new_gadget_user(): void
+    public function test_register_links_an_existing_gadget_user_to_the_new_subject_account(): void
     {
-        $response = $this->withHeader('X-Device-Id', 'gadget-register-1')
+        $gadgetUser = $this->makeUser(User::TypeGadget, 'machine-register-event-1');
+
+        $response = $this->withHeader('X-Gadget-User-ID', (string) $gadgetUser->uuid)
             ->postJson('/api/auth/register', [
                 'name' => 'Studio Owner',
-                'email' => 'owner@example.com',
+                'email' => 'owner-link@example.com',
                 'password' => 'password123',
             ]);
 
         $response->assertOk()
             ->assertJsonPath('user.type', User::TypeSubject)
+            ->assertJsonPath('user.email', 'owner-link@example.com')
+            ->assertJsonPath('gadget_user_id', $gadgetUser->uuid);
+
+        $account = Account::query()->where('name', 'Studio Owner')->firstOrFail();
+        $subjectUser = User::query()->where('email', 'owner-link@example.com')->firstOrFail();
+
+        $this->assertDatabaseHas('account_users', [
+            'account_id' => $account->id,
+            'user_id' => $subjectUser->id,
+            'relationship' => 'owner',
+            'is_primary' => true,
+            'unlinked_at' => null,
+        ]);
+
+        $this->assertDatabaseHas('account_users', [
+            'account_id' => $account->id,
+            'user_id' => $gadgetUser->id,
+            'relationship' => 'gadget',
+            'unlinked_at' => null,
+        ]);
+    }
+
+    public function test_register_creates_an_account_without_creating_a_new_gadget_user(): void
+    {
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Studio Owner',
+            'email' => 'owner@example.com',
+            'password' => 'password123',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('user.type', User::TypeSubject)
             ->assertJsonPath('user.email', 'owner@example.com')
-            ->assertJsonPath('device_id', 'gadget-register-1');
+            ->assertJsonPath('gadget_user_id', null);
 
         $token = (string) $response->json('token');
         $this->withToken($token)
@@ -94,9 +123,7 @@ class GadgetAccountAttachmentTest extends TestCase
             'unlinked_at' => null,
         ]);
 
-        $this->assertDatabaseMissing('user_agents', [
-            'device_identifier' => 'gadget-register-1',
-        ]);
+        $this->assertDatabaseCount('user_agents', 0);
     }
 
     public function test_login_attaches_existing_gadget_via_login_event(): void
@@ -120,7 +147,7 @@ class GadgetAccountAttachmentTest extends TestCase
 
         $gadgetUser = $this->makeUser(User::TypeGadget, 'gadget-login-event-1');
 
-        $response = $this->withHeader('X-Device-Id', 'gadget-login-event-1')
+        $response = $this->withHeader('X-Gadget-User-ID', (string) $gadgetUser->uuid)
             ->postJson('/api/auth/login', [
                 'email' => 'existing-event@example.com',
                 'password' => 'password123',
@@ -128,7 +155,7 @@ class GadgetAccountAttachmentTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('user.id', $subjectUser->id)
-            ->assertJsonPath('device_id', 'gadget-login-event-1');
+            ->assertJsonPath('gadget_user_id', $gadgetUser->uuid);
 
         $this->assertDatabaseHas('account_users', [
             'account_id' => $account->id,
@@ -206,7 +233,7 @@ class GadgetAccountAttachmentTest extends TestCase
             'status' => 'submitted',
         ]);
 
-        $response = $this->withHeader('X-Device-Id', 'gadget-login-1')
+        $response = $this->withHeader('X-Gadget-User-ID', (string) $gadgetUser->uuid)
             ->postJson('/api/auth/login', [
                 'email' => 'existing@example.com',
                 'password' => 'password123',

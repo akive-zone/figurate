@@ -39,6 +39,7 @@ class AccountManagerServiceProvider extends ServiceProvider
         });
 
         Event::listen(Registered::class, EnsurePrimaryAccountForUserListener::class);
+        Event::listen(Registered::class, AttachGadgetUserToUsersPrimaryAccountListener::class);
         Event::listen(Login::class, EnsurePrimaryAccountForUserListener::class);
         Event::listen(Login::class, AttachGadgetUserToUsersPrimaryAccountListener::class);
     }

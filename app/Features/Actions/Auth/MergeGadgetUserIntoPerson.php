@@ -7,51 +7,51 @@ use App\Models\Server\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-class MergeDeviceUserIntoPerson
+class MergeGadgetUserIntoPerson
 {
     public function __construct(protected UserRepository $userRepository) {}
 
-    public function execute(?User $deviceUser, User $personUser): void
+    public function execute(?User $gadgetUser, User $subjectUser): void
     {
-        if (! $deviceUser) {
+        if (! $gadgetUser) {
             return;
         }
 
-        if ($deviceUser->is($personUser)) {
+        if ($gadgetUser->is($subjectUser)) {
             return;
         }
 
-        if (! $deviceUser->isGadget() || ! $personUser->isSubject()) {
+        if (! $gadgetUser->isGadget() || ! $subjectUser->isSubject()) {
             return;
         }
 
-        DB::transaction(function () use ($deviceUser, $personUser): void {
-            $this->migrateRequestActors($deviceUser, $personUser);
-            $this->migrateChannelActorStates($deviceUser, $personUser);
-            $this->migratePasskeys($deviceUser, $personUser);
-            $this->migrateUserAgents($deviceUser, $personUser);
+        DB::transaction(function () use ($gadgetUser, $subjectUser): void {
+            $this->migrateRequestActors($gadgetUser, $subjectUser);
+            $this->migrateChannelActorStates($gadgetUser, $subjectUser);
+            $this->migratePasskeys($gadgetUser, $subjectUser);
+            $this->migrateUserAgents($gadgetUser, $subjectUser);
 
-            $deviceUser->forceFill([
+            $gadgetUser->forceFill([
                 'status' => 'merged',
             ]);
-            $this->userRepository->save($deviceUser);
+            $this->userRepository->save($gadgetUser);
 
-            $this->userRepository->deleteAuthTokens($deviceUser);
+            $this->userRepository->deleteAuthTokens($gadgetUser);
         });
     }
 
-    protected function migrateRequestActors(User $deviceUser, User $personUser): void
+    protected function migrateRequestActors(User $gadgetUser, User $subjectUser): void
     {
         $rows = DB::table('request_actors')
-            ->where('actor_type', $deviceUser->getMorphClass())
-            ->where('actor_id', $deviceUser->id)
+            ->where('actor_type', $gadgetUser->getMorphClass())
+            ->where('actor_id', $gadgetUser->id)
             ->get();
 
         foreach ($rows as $row) {
             $alreadyExists = DB::table('request_actors')
                 ->where('request_id', $row->request_id)
-                ->where('actor_type', $personUser->getMorphClass())
-                ->where('actor_id', $personUser->id)
+                ->where('actor_type', $subjectUser->getMorphClass())
+                ->where('actor_id', $subjectUser->id)
                 ->where('action', $row->action)
                 ->exists();
 
@@ -66,29 +66,29 @@ class MergeDeviceUserIntoPerson
             DB::table('request_actors')
                 ->where('id', $row->id)
                 ->update([
-                    'actor_type' => $personUser->getMorphClass(),
-                    'actor_id' => $personUser->id,
+                    'actor_type' => $subjectUser->getMorphClass(),
+                    'actor_id' => $subjectUser->id,
                     'updated_at' => now(),
                 ]);
         }
     }
 
-    protected function migrateChannelActorStates(User $deviceUser, User $personUser): void
+    protected function migrateChannelActorStates(User $gadgetUser, User $subjectUser): void
     {
         if (! Schema::hasTable('actor_states')) {
             return;
         }
 
         $rows = DB::table('actor_states')
-            ->where('actorable_type', $deviceUser->getMorphClass())
-            ->where('actorable_id', $deviceUser->id)
+            ->where('actorable_type', $gadgetUser->getMorphClass())
+            ->where('actorable_id', $gadgetUser->id)
             ->get();
 
         foreach ($rows as $row) {
             $alreadyExists = DB::table('actor_states')
                 ->where('channel_id', $row->channel_id)
-                ->where('actorable_type', $personUser->getMorphClass())
-                ->where('actorable_id', $personUser->id)
+                ->where('actorable_type', $subjectUser->getMorphClass())
+                ->where('actorable_id', $subjectUser->id)
                 ->exists();
 
             if ($alreadyExists) {
@@ -102,21 +102,21 @@ class MergeDeviceUserIntoPerson
             DB::table('actor_states')
                 ->where('id', $row->id)
                 ->update([
-                    'actorable_type' => $personUser->getMorphClass(),
-                    'actorable_id' => $personUser->id,
+                    'actorable_type' => $subjectUser->getMorphClass(),
+                    'actorable_id' => $subjectUser->id,
                     'updated_at' => now(),
                 ]);
         }
     }
 
-    protected function migratePasskeys(User $deviceUser, User $personUser): void
+    protected function migratePasskeys(User $gadgetUser, User $subjectUser): void
     {
         if (! Schema::hasTable('passkeys')) {
             return;
         }
 
         $rows = DB::table('passkeys')
-            ->where('authenticatable_id', $deviceUser->id)
+            ->where('authenticatable_id', $gadgetUser->id)
             ->get();
 
         foreach ($rows as $row) {
@@ -126,7 +126,7 @@ class MergeDeviceUserIntoPerson
                 DB::table('passkeys')
                     ->where('id', $row->id)
                     ->update([
-                        'authenticatable_id' => $personUser->id,
+                        'authenticatable_id' => $subjectUser->id,
                         'updated_at' => now(),
                     ]);
 
@@ -134,7 +134,7 @@ class MergeDeviceUserIntoPerson
             }
 
             $existing = DB::table('passkeys')
-                ->where('authenticatable_id', $personUser->id)
+                ->where('authenticatable_id', $subjectUser->id)
                 ->where('credential_id', $credentialId)
                 ->first();
 
@@ -142,7 +142,7 @@ class MergeDeviceUserIntoPerson
                 DB::table('passkeys')
                     ->where('id', $row->id)
                     ->update([
-                        'authenticatable_id' => $personUser->id,
+                        'authenticatable_id' => $subjectUser->id,
                         'updated_at' => now(),
                     ]);
 
@@ -167,14 +167,14 @@ class MergeDeviceUserIntoPerson
         }
     }
 
-    protected function migrateUserAgents(User $deviceUser, User $personUser): void
+    protected function migrateUserAgents(User $gadgetUser, User $subjectUser): void
     {
         if (! Schema::hasTable('user_agents')) {
             return;
         }
 
         $rows = DB::table('user_agents')
-            ->where('user_id', $deviceUser->id)
+            ->where('user_id', $gadgetUser->id)
             ->get();
 
         foreach ($rows as $row) {
@@ -185,7 +185,7 @@ class MergeDeviceUserIntoPerson
             $existing = $deviceIdentifier === ''
                 ? null
                 : DB::table('user_agents')
-                    ->where('user_id', $personUser->id)
+                    ->where('user_id', $subjectUser->id)
                     ->where('device_identifier', $deviceIdentifier)
                     ->first();
 
@@ -193,7 +193,7 @@ class MergeDeviceUserIntoPerson
                 DB::table('user_agents')
                     ->where('id', $row->id)
                     ->update([
-                        'user_id' => $personUser->id,
+                        'user_id' => $subjectUser->id,
                         'updated_at' => now(),
                     ]);
 

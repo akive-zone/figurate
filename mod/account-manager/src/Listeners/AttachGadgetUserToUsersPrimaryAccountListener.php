@@ -6,13 +6,14 @@ use App\Http\Middleware\ResolveCurrentGadgetUser;
 use App\Models\Server\User;
 use Figurate\AccountManager\Actions\AttachGadgetUserToUsersPrimaryAccount;
 use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 
 class AttachGadgetUserToUsersPrimaryAccountListener
 {
     public function __construct(protected AttachGadgetUserToUsersPrimaryAccount $attachGadgetUserToUsersPrimaryAccount) {}
 
-    public function handle(Login $event): void
+    public function handle(Login|Registered $event): void
     {
         if (! $event->user instanceof User || ! $event->user->isSubject()) {
             return;

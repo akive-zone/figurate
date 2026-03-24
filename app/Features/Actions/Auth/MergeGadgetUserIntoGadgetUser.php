@@ -7,58 +7,58 @@ use App\Models\Server\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-class MergeDeviceUserIntoDeviceUser
+class MergeGadgetUserIntoGadgetUser
 {
     public function __construct(protected UserRepository $userRepository) {}
 
-    public function execute(?User $sourceDeviceUser, User $targetDeviceUser): void
+    public function execute(?User $sourceGadgetUser, User $targetGadgetUser): void
     {
-        if (! $sourceDeviceUser) {
+        if (! $sourceGadgetUser) {
             return;
         }
 
-        if ($sourceDeviceUser->is($targetDeviceUser)) {
+        if ($sourceGadgetUser->is($targetGadgetUser)) {
             return;
         }
 
-        if (! $sourceDeviceUser->isGadget() || ! $targetDeviceUser->isGadget()) {
+        if (! $sourceGadgetUser->isGadget() || ! $targetGadgetUser->isGadget()) {
             return;
         }
 
-        DB::transaction(function () use ($sourceDeviceUser, $targetDeviceUser): void {
-            $this->migrateRequestActors($sourceDeviceUser, $targetDeviceUser);
-            $this->migrateChannelActorStates($sourceDeviceUser, $targetDeviceUser);
-            $this->migrateThreadActorSessions($sourceDeviceUser, $targetDeviceUser);
-            $this->migrateAgentConversations($sourceDeviceUser, $targetDeviceUser);
-            $this->migrateAgentConversationMessages($sourceDeviceUser, $targetDeviceUser);
-            $this->migratePasskeys($sourceDeviceUser, $targetDeviceUser);
-            $this->migrateUserAgents($sourceDeviceUser, $targetDeviceUser);
+        DB::transaction(function () use ($sourceGadgetUser, $targetGadgetUser): void {
+            $this->migrateRequestActors($sourceGadgetUser, $targetGadgetUser);
+            $this->migrateChannelActorStates($sourceGadgetUser, $targetGadgetUser);
+            $this->migrateThreadActorSessions($sourceGadgetUser, $targetGadgetUser);
+            $this->migrateAgentConversations($sourceGadgetUser, $targetGadgetUser);
+            $this->migrateAgentConversationMessages($sourceGadgetUser, $targetGadgetUser);
+            $this->migratePasskeys($sourceGadgetUser, $targetGadgetUser);
+            $this->migrateUserAgents($sourceGadgetUser, $targetGadgetUser);
 
-            $sourceDeviceUser->forceFill([
+            $sourceGadgetUser->forceFill([
                 'status' => 'merged',
             ]);
-            $this->userRepository->save($sourceDeviceUser);
+            $this->userRepository->save($sourceGadgetUser);
 
-            $this->userRepository->deleteAuthTokens($sourceDeviceUser);
+            $this->userRepository->deleteAuthTokens($sourceGadgetUser);
         });
     }
 
-    protected function migrateRequestActors(User $sourceDeviceUser, User $targetDeviceUser): void
+    protected function migrateRequestActors(User $sourceGadgetUser, User $targetGadgetUser): void
     {
         if (! Schema::hasTable('request_actors')) {
             return;
         }
 
         $rows = DB::table('request_actors')
-            ->where('actor_type', $sourceDeviceUser->getMorphClass())
-            ->where('actor_id', $sourceDeviceUser->id)
+            ->where('actor_type', $sourceGadgetUser->getMorphClass())
+            ->where('actor_id', $sourceGadgetUser->id)
             ->get();
 
         foreach ($rows as $row) {
             $alreadyExists = DB::table('request_actors')
                 ->where('request_id', $row->request_id)
-                ->where('actor_type', $targetDeviceUser->getMorphClass())
-                ->where('actor_id', $targetDeviceUser->id)
+                ->where('actor_type', $targetGadgetUser->getMorphClass())
+                ->where('actor_id', $targetGadgetUser->id)
                 ->where('action', $row->action)
                 ->exists();
 
@@ -73,29 +73,29 @@ class MergeDeviceUserIntoDeviceUser
             DB::table('request_actors')
                 ->where('id', $row->id)
                 ->update([
-                    'actor_type' => $targetDeviceUser->getMorphClass(),
-                    'actor_id' => $targetDeviceUser->id,
+                    'actor_type' => $targetGadgetUser->getMorphClass(),
+                    'actor_id' => $targetGadgetUser->id,
                     'updated_at' => now(),
                 ]);
         }
     }
 
-    protected function migrateChannelActorStates(User $sourceDeviceUser, User $targetDeviceUser): void
+    protected function migrateChannelActorStates(User $sourceGadgetUser, User $targetGadgetUser): void
     {
         if (! Schema::hasTable('actor_states')) {
             return;
         }
 
         $rows = DB::table('actor_states')
-            ->where('actorable_type', $sourceDeviceUser->getMorphClass())
-            ->where('actorable_id', $sourceDeviceUser->id)
+            ->where('actorable_type', $sourceGadgetUser->getMorphClass())
+            ->where('actorable_id', $sourceGadgetUser->id)
             ->get();
 
         foreach ($rows as $row) {
             $alreadyExists = DB::table('actor_states')
                 ->where('channel_id', $row->channel_id)
-                ->where('actorable_type', $targetDeviceUser->getMorphClass())
-                ->where('actorable_id', $targetDeviceUser->id)
+                ->where('actorable_type', $targetGadgetUser->getMorphClass())
+                ->where('actorable_id', $targetGadgetUser->id)
                 ->exists();
 
             if ($alreadyExists) {
@@ -109,27 +109,27 @@ class MergeDeviceUserIntoDeviceUser
             DB::table('actor_states')
                 ->where('id', $row->id)
                 ->update([
-                    'actorable_type' => $targetDeviceUser->getMorphClass(),
-                    'actorable_id' => $targetDeviceUser->id,
+                    'actorable_type' => $targetGadgetUser->getMorphClass(),
+                    'actorable_id' => $targetGadgetUser->id,
                     'updated_at' => now(),
                 ]);
         }
     }
 
-    protected function migrateThreadActorSessions(User $sourceDeviceUser, User $targetDeviceUser): void
+    protected function migrateThreadActorSessions(User $sourceGadgetUser, User $targetGadgetUser): void
     {
         if (! Schema::hasTable('thread_actor_sessions')) {
             return;
         }
 
         $rows = DB::table('thread_actor_sessions')
-            ->where('user_id', $sourceDeviceUser->id)
+            ->where('user_id', $sourceGadgetUser->id)
             ->get();
 
         foreach ($rows as $row) {
             $existing = DB::table('thread_actor_sessions')
                 ->where('thread_actor_id', $row->thread_actor_id)
-                ->where('user_id', $targetDeviceUser->id)
+                ->where('user_id', $targetGadgetUser->id)
                 ->where('provider', $row->provider)
                 ->where('model', $row->model)
                 ->first();
@@ -138,7 +138,7 @@ class MergeDeviceUserIntoDeviceUser
                 DB::table('thread_actor_sessions')
                     ->where('id', $row->id)
                     ->update([
-                        'user_id' => $targetDeviceUser->id,
+                        'user_id' => $targetGadgetUser->id,
                         'updated_at' => now(),
                     ]);
 
@@ -165,42 +165,42 @@ class MergeDeviceUserIntoDeviceUser
         }
     }
 
-    protected function migrateAgentConversations(User $sourceDeviceUser, User $targetDeviceUser): void
+    protected function migrateAgentConversations(User $sourceGadgetUser, User $targetGadgetUser): void
     {
         if (! Schema::hasTable('agent_conversations')) {
             return;
         }
 
         DB::table('agent_conversations')
-            ->where('user_id', $sourceDeviceUser->id)
+            ->where('user_id', $sourceGadgetUser->id)
             ->update([
-                'user_id' => $targetDeviceUser->id,
+                'user_id' => $targetGadgetUser->id,
                 'updated_at' => now(),
             ]);
     }
 
-    protected function migrateAgentConversationMessages(User $sourceDeviceUser, User $targetDeviceUser): void
+    protected function migrateAgentConversationMessages(User $sourceGadgetUser, User $targetGadgetUser): void
     {
         if (! Schema::hasTable('agent_conversation_messages')) {
             return;
         }
 
         DB::table('agent_conversation_messages')
-            ->where('user_id', $sourceDeviceUser->id)
+            ->where('user_id', $sourceGadgetUser->id)
             ->update([
-                'user_id' => $targetDeviceUser->id,
+                'user_id' => $targetGadgetUser->id,
                 'updated_at' => now(),
             ]);
     }
 
-    protected function migratePasskeys(User $sourceDeviceUser, User $targetDeviceUser): void
+    protected function migratePasskeys(User $sourceGadgetUser, User $targetGadgetUser): void
     {
         if (! Schema::hasTable('passkeys')) {
             return;
         }
 
         $rows = DB::table('passkeys')
-            ->where('authenticatable_id', $sourceDeviceUser->id)
+            ->where('authenticatable_id', $sourceGadgetUser->id)
             ->get();
 
         foreach ($rows as $row) {
@@ -210,7 +210,7 @@ class MergeDeviceUserIntoDeviceUser
                 DB::table('passkeys')
                     ->where('id', $row->id)
                     ->update([
-                        'authenticatable_id' => $targetDeviceUser->id,
+                        'authenticatable_id' => $targetGadgetUser->id,
                         'updated_at' => now(),
                     ]);
 
@@ -218,7 +218,7 @@ class MergeDeviceUserIntoDeviceUser
             }
 
             $existing = DB::table('passkeys')
-                ->where('authenticatable_id', $targetDeviceUser->id)
+                ->where('authenticatable_id', $targetGadgetUser->id)
                 ->where('credential_id', $credentialId)
                 ->first();
 
@@ -226,7 +226,7 @@ class MergeDeviceUserIntoDeviceUser
                 DB::table('passkeys')
                     ->where('id', $row->id)
                     ->update([
-                        'authenticatable_id' => $targetDeviceUser->id,
+                        'authenticatable_id' => $targetGadgetUser->id,
                         'updated_at' => now(),
                     ]);
 
@@ -251,14 +251,14 @@ class MergeDeviceUserIntoDeviceUser
         }
     }
 
-    protected function migrateUserAgents(User $sourceDeviceUser, User $targetDeviceUser): void
+    protected function migrateUserAgents(User $sourceGadgetUser, User $targetGadgetUser): void
     {
         if (! Schema::hasTable('user_agents')) {
             return;
         }
 
         $rows = DB::table('user_agents')
-            ->where('user_id', $sourceDeviceUser->id)
+            ->where('user_id', $sourceGadgetUser->id)
             ->get();
 
         foreach ($rows as $row) {
@@ -269,7 +269,7 @@ class MergeDeviceUserIntoDeviceUser
             $existing = $deviceIdentifier === ''
                 ? null
                 : DB::table('user_agents')
-                    ->where('user_id', $targetDeviceUser->id)
+                    ->where('user_id', $targetGadgetUser->id)
                     ->where('device_identifier', $deviceIdentifier)
                     ->first();
 
@@ -277,7 +277,7 @@ class MergeDeviceUserIntoDeviceUser
                 DB::table('user_agents')
                     ->where('id', $row->id)
                     ->update([
-                        'user_id' => $targetDeviceUser->id,
+                        'user_id' => $targetGadgetUser->id,
                         'updated_at' => now(),
                     ]);
 

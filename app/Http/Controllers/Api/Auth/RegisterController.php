@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Contracts\Users\UserRepository;
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\ResolveCurrentGadgetUser;
 use App\Http\Requests\Server\Auth\RegisterRequest;
 use App\Models\Server\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class RegisterController extends Controller
@@ -34,13 +34,8 @@ class RegisterController extends Controller
         return response()->json([
             'token' => $token,
             'token_type' => 'Bearer',
-            'device_id' => $this->requestDeviceIdentifier($request),
+            'gadget_user_id' => ResolveCurrentGadgetUser::resolvedUser($request)?->uuid,
             'user' => $user,
         ]);
-    }
-
-    protected function requestDeviceIdentifier(Request $request): ?string
-    {
-        return $request->header('X-Device-Id') ?? $request->cookie('device_id');
     }
 }

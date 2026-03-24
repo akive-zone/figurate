@@ -3,16 +3,16 @@
 namespace App\Listeners\Server\Auth;
 
 use App\Contracts\Users\UserRepository;
-use App\Features\Actions\Auth\MergeDeviceUserIntoDeviceUser;
-use App\Features\Actions\Auth\MergeDeviceUserIntoPerson;
+use App\Features\Actions\Auth\MergeGadgetUserIntoGadgetUser;
+use App\Features\Actions\Auth\MergeGadgetUserIntoPerson;
 use App\Models\Server\User;
 use Spatie\LaravelPasskeys\Events\PasskeyUsedToAuthenticateEvent;
 
-class MergeDeviceUsersAfterPasskeyAuthentication
+class MergeGadgetUsersAfterPasskeyAuthentication
 {
     public function __construct(
-        protected MergeDeviceUserIntoDeviceUser $mergeDeviceUserIntoDeviceUser,
-        protected MergeDeviceUserIntoPerson $mergeDeviceUserIntoPerson,
+        protected MergeGadgetUserIntoGadgetUser $mergeGadgetUserIntoGadgetUser,
+        protected MergeGadgetUserIntoPerson $mergeGadgetUserIntoPerson,
         protected UserRepository $userRepository,
     ) {}
 
@@ -23,25 +23,25 @@ class MergeDeviceUsersAfterPasskeyAuthentication
             return;
         }
 
-        $sourceDeviceUserId = (int) $event->request->attributes->get('initial_device_user_id', 0);
-        if ($sourceDeviceUserId <= 0 || $sourceDeviceUserId === $targetAuthenticatedUser->id) {
+        $sourceGadgetUserId = (int) $event->request->attributes->get('initial_gadget_user_id', 0);
+        if ($sourceGadgetUserId <= 0 || $sourceGadgetUserId === $targetAuthenticatedUser->id) {
             return;
         }
 
-        $sourceDeviceUser = $this->userRepository->findById($sourceDeviceUserId);
-        if (! $sourceDeviceUser instanceof User || ! $sourceDeviceUser->isGadget()) {
+        $sourceGadgetUser = $this->userRepository->findById($sourceGadgetUserId);
+        if (! $sourceGadgetUser instanceof User || ! $sourceGadgetUser->isGadget()) {
             return;
         }
 
         if ($targetAuthenticatedUser->isGadget()) {
-            $this->mergeDeviceUserIntoDeviceUser->execute($sourceDeviceUser, $targetAuthenticatedUser);
+            $this->mergeGadgetUserIntoGadgetUser->execute($sourceGadgetUser, $targetAuthenticatedUser);
 
             activity('auth')
-                ->causedBy($sourceDeviceUser)
+                ->causedBy($sourceGadgetUser)
                 ->performedOn($targetAuthenticatedUser)
-                ->event('auth.device_user_merged_after_passkey_login')
+                ->event('auth.gadget_user_merged_after_passkey_login')
                 ->withProperties([
-                    'source_user_id' => $sourceDeviceUser->id,
+                    'source_user_id' => $sourceGadgetUser->id,
                     'target_user_id' => $targetAuthenticatedUser->id,
                     'passkey_id' => $event->passkey->id,
                 ])
@@ -51,14 +51,14 @@ class MergeDeviceUsersAfterPasskeyAuthentication
         }
 
         if ($targetAuthenticatedUser->isSubject()) {
-            $this->mergeDeviceUserIntoPerson->execute($sourceDeviceUser, $targetAuthenticatedUser);
+            $this->mergeGadgetUserIntoPerson->execute($sourceGadgetUser, $targetAuthenticatedUser);
 
             activity('auth')
-                ->causedBy($sourceDeviceUser)
+                ->causedBy($sourceGadgetUser)
                 ->performedOn($targetAuthenticatedUser)
-                ->event('auth.device_user_merged_into_subject_after_passkey_login')
+                ->event('auth.gadget_user_merged_into_subject_after_passkey_login')
                 ->withProperties([
-                    'source_user_id' => $sourceDeviceUser->id,
+                    'source_user_id' => $sourceGadgetUser->id,
                     'target_user_id' => $targetAuthenticatedUser->id,
                     'passkey_id' => $event->passkey->id,
                 ])

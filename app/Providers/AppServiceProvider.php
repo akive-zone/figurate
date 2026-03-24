@@ -3,7 +3,7 @@
 namespace App\Providers;
 
 use App\Contracts\Users\UserRepository;
-use App\Http\Middleware\EnsureDeviceUser;
+use App\Http\Middleware\EnsureGadgetUser;
 use App\Models\Server\Channel;
 use App\Models\Server\Message;
 use App\Models\Server\Post;
@@ -80,26 +80,26 @@ class AppServiceProvider extends ServiceProvider
 
             $router = $this->app->make(Router::class);
 
-            $router->pushMiddlewareToGroup('web', EnsureDeviceUser::class);
-            $this->prioritizeDeviceMiddlewareBeforeAuth($router);
+            $router->pushMiddlewareToGroup('web', EnsureGadgetUser::class);
+            $this->prioritizeGadgetMiddlewareBeforeAuth($router);
         }
     }
 
-    protected function prioritizeDeviceMiddlewareBeforeAuth(Router $router): void
+    protected function prioritizeGadgetMiddlewareBeforeAuth(Router $router): void
     {
-        if (in_array(EnsureDeviceUser::class, $router->middlewarePriority, true)) {
+        if (in_array(EnsureGadgetUser::class, $router->middlewarePriority, true)) {
             return;
         }
 
         $authIndex = array_search(AuthenticatesRequests::class, $router->middlewarePriority, true);
 
         if ($authIndex === false) {
-            array_unshift($router->middlewarePriority, EnsureDeviceUser::class);
+            array_unshift($router->middlewarePriority, EnsureGadgetUser::class);
 
             return;
         }
 
-        array_splice($router->middlewarePriority, $authIndex, 0, [EnsureDeviceUser::class]);
+        array_splice($router->middlewarePriority, $authIndex, 0, [EnsureGadgetUser::class]);
     }
 
     protected function isNativeRuntime(): bool
