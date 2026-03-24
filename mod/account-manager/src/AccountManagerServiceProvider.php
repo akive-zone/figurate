@@ -2,8 +2,6 @@
 
 namespace Figurate\AccountManager;
 
-use App\Events\Accounts\AttachGadgetUserToUsersPrimaryAccountRequested;
-use App\Events\Accounts\EnsurePrimaryAccountForUserRequested;
 use App\Models\Server\User;
 use Figurate\AccountManager\Contracts\AccountContextFactory as AccountContextFactoryContract;
 use Figurate\AccountManager\Listeners\AttachGadgetUserToUsersPrimaryAccountListener;
@@ -11,6 +9,8 @@ use Figurate\AccountManager\Listeners\EnsurePrimaryAccountForUserListener;
 use Figurate\AccountManager\Models\Account;
 use Figurate\AccountManager\Models\AccountUser;
 use Figurate\AccountManager\Support\AccountContextFactory;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Event;
@@ -38,14 +38,8 @@ class AccountManagerServiceProvider extends ServiceProvider
                 ->withTimestamps();
         });
 
-        Event::listen(
-            EnsurePrimaryAccountForUserRequested::class,
-            EnsurePrimaryAccountForUserListener::class,
-        );
-
-        Event::listen(
-            AttachGadgetUserToUsersPrimaryAccountRequested::class,
-            AttachGadgetUserToUsersPrimaryAccountListener::class,
-        );
+        Event::listen(Registered::class, EnsurePrimaryAccountForUserListener::class);
+        Event::listen(Login::class, EnsurePrimaryAccountForUserListener::class);
+        Event::listen(Login::class, AttachGadgetUserToUsersPrimaryAccountListener::class);
     }
 }

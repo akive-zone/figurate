@@ -12,6 +12,7 @@
 declare(strict_types=1);
 
 use ApiPlatform\Metadata\UrlGeneratorInterface;
+use App\Http\Middleware\EnsureDeviceUser;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Symfony\Component\Serializer\NameConverter\SnakeCaseToCamelCaseNameConverter;
@@ -63,7 +64,7 @@ return [
         'pagination_items_per_page' => 30,
         'pagination_maximum_items_per_page' => 30,
         'route_prefix' => '/api',
-        'middleware' => [\App\Http\Middleware\EnsureDeviceUser::class, 'auth:sanctum,passport'],
+        'middleware' => [EnsureDeviceUser::class, 'auth:sanctum,passport'],
     ],
 
     'pagination' => [

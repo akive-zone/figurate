@@ -23,6 +23,12 @@ class CurrentAccountController extends Controller
             ], 401);
         }
 
+        if (! $user->canActAsHuman()) {
+            return response()->json([
+                'message' => 'A subject account is required.',
+            ], 403);
+        }
+
         $account = $this->accountContextFactory->forUser($user)->primaryAccount();
 
         if ($account === null) {

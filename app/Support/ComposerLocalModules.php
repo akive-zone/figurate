@@ -160,42 +160,15 @@ class ComposerLocalModules
             return [];
         }
 
-        $patterns = data_get($composer, 'extra.merge-plugin.include', []);
-
-        if (! is_array($patterns)) {
-            return [];
-        }
-
-        return collect($patterns)
+        return collect([
+            data_get($composer, 'extra.merge-plugin.include', []),
+            data_get($composer, 'extra.merge-plugin.require', []),
+        ])
+            ->filter(fn (mixed $patterns): bool => is_array($patterns))
+            ->flatten()
             ->filter(fn (mixed $pattern): bool => is_string($pattern) && $pattern !== '')
             ->flatMap(function (string $pattern) use ($realPath, $visited): array {
-                $matches = glob(dirname($realPath).'/'.$pattern);
-
-                if (! is_array($matches)) {
-                    return [];
-                }
-
-                return collect($matches)
-                    ->flatMap(function (string $match) use ($visited): array {
-                        $resolvedMatch = $this->normalizeIncludeMatch($match);
-
-                        if ($resolvedMatch === null) {
-                            return [];
-                        }
-
-                        $json = $this->readJson($resolvedMatch);
-
-                        if (! is_array($json)) {
-                            return [];
-                        }
-
-                        if (isset($json['name']) && is_string($json['name'])) {
-                            return [$resolvedMatch];
-                        }
-
-                        return $this->resolveIncludesForFile($resolvedMatch, $visited);
-                    })
-                    ->all();
+                return $this->resolvePatternMatches($pattern, $realPath, $visited);
             })
             ->unique()
             ->sort()
@@ -226,5 +199,40 @@ class ComposerLocalModules
         }
 
         return is_file($match) ? $match : null;
+    }
+
+    /**
+     * @param  list<string>  $visited
+     * @return list<string>
+     */
+    protected function resolvePatternMatches(string $pattern, string $realPath, array $visited): array
+    {
+        $matches = glob(dirname($realPath).'/'.$pattern);
+
+        if (! is_array($matches)) {
+            return [];
+        }
+
+        return collect($matches)
+            ->flatMap(function (string $match) use ($visited): array {
+                $resolvedMatch = $this->normalizeIncludeMatch($match);
+
+                if ($resolvedMatch === null) {
+                    return [];
+                }
+
+                $json = $this->readJson($resolvedMatch);
+
+                if (! is_array($json)) {
+                    return [];
+                }
+
+                if (isset($json['name']) && is_string($json['name'])) {
+                    return [$resolvedMatch];
+                }
+
+                return $this->resolveIncludesForFile($resolvedMatch, $visited);
+            })
+            ->all();
     }
 }

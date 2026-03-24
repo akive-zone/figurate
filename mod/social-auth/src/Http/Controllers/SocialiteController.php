@@ -3,26 +3,20 @@
 namespace Figurate\SocialAuth\Http\Controllers;
 
 use App\Contracts\Users\UserRepository;
-use App\Events\Accounts\AttachGadgetUserToUsersPrimaryAccountRequested;
-use App\Events\Accounts\EnsurePrimaryAccountForUserRequested;
-use App\Features\Actions\Auth\ResolveOrCreateGadgetUser;
 use App\Http\Controllers\Controller;
 use App\Models\Server\User;
 use Figurate\AccountManager\Contracts\AccountContextFactory;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
 use Laravel\Socialite\Facades\Socialite;
-use RuntimeException;
 
 class SocialiteController extends Controller
 {
     public function __construct(
         protected AccountContextFactory $accountContextFactory,
-        protected ResolveOrCreateGadgetUser $resolveOrCreateGadgetUser,
         protected UserRepository $userRepository,
     ) {}
 
@@ -38,27 +32,15 @@ class SocialiteController extends Controller
         return Socialite::driver($provider)->redirect();
     }
 
-    public function callback(Request $request, string $provider): RedirectResponse
+    public function callback(string $provider): RedirectResponse
     {
         $this->ensureProviderIsAllowed($provider);
 
         $socialUser = Socialite::driver($provider)->user();
         $subjectUser = $this->resolveSubjectUser($provider, $socialUser);
-        $requestUser = $request->user('sanctum');
-
-        if (! $requestUser instanceof User) {
-            $requestUser = $request->user();
-        }
-
-        $gadgetUser = $this->resolveOrCreateGadgetUser->execute(
-            $this->gadgetUserContext($request),
-            $requestUser instanceof User ? $requestUser : null,
-        );
-
-        $this->synchronizeAccountContext($subjectUser, $gadgetUser);
-        $this->attachSubjectIdentity($subjectUser, $provider, $socialUser);
 
         Auth::login($subjectUser);
+        $this->attachSubjectIdentity($subjectUser, $provider, $socialUser);
 
         return redirect()->route('chat.index');
     }
@@ -94,16 +76,6 @@ class SocialiteController extends Controller
             'type' => User::TypeSubject,
             'status' => 'active',
         ]);
-    }
-
-    private function synchronizeAccountContext(User $subjectUser, ?User $gadgetUser): void
-    {
-        EnsurePrimaryAccountForUserRequested::dispatch($subjectUser);
-        AttachGadgetUserToUsersPrimaryAccountRequested::dispatch($subjectUser, $gadgetUser);
-
-        if ($this->accountContextFactory->forUser($subjectUser)->primaryAccount() === null) {
-            throw new RuntimeException('A primary account could not be synchronized for the authenticated user.');
-        }
     }
 
     private function attachSubjectIdentity(User $subjectUser, string $provider, SocialiteUser $socialUser): void
@@ -152,34 +124,5 @@ class SocialiteController extends Controller
         if (! in_array($provider, $this->allowedProviders, true)) {
             abort(404);
         }
-    }
-
-    /**
-     * @return array{
-     *     headers: array<string, mixed>,
-     *     cookies: array<string, mixed>,
-     *     user_agent: ?string,
-     *     ip_address: ?string,
-     *     expects_json: bool,
-     *     path: string
-     * }
-     */
-    private function gadgetUserContext(Request $request): array
-    {
-        return [
-            'headers' => [
-                'X-Device-Id' => $request->header('X-Device-Id'),
-                'X-App-Version' => $request->header('X-App-Version'),
-                'X-Platform' => $request->header('X-Platform'),
-                'X-NativePHP' => $request->header('X-NativePHP'),
-            ],
-            'cookies' => [
-                'device_id' => $request->cookie('device_id'),
-            ],
-            'user_agent' => $request->userAgent(),
-            'ip_address' => $request->ip(),
-            'expects_json' => $request->expectsJson(),
-            'path' => $request->path(),
-        ];
     }
 }

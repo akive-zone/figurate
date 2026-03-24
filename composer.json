@@ -2,7 +2,7 @@
     "$schema": "https://getcomposer.org/schema.json",
     "name": "akive/figurate",
     "type": "project",
-    "description": "The application for the Akive workers.",
+    "description": "The figurate system for conversations.",
     "keywords": [],
     "require": {
         "php": "^8.2",

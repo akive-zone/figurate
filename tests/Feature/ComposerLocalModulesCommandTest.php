@@ -80,4 +80,38 @@ JSON
             }
         }
     }
+
+    public function test_resolved_merge_plugin_includes_follow_required_composer_local_file(): void
+    {
+        $originalComposerLocal = file_exists(base_path('composer.local.json'))
+            ? file_get_contents(base_path('composer.local.json'))
+            : null;
+
+        try {
+            file_put_contents(base_path('composer.local.json'), <<<'JSON'
+{
+    "extra": {
+        "merge-plugin": {
+            "include": [
+                "mod/account-manager/composer.json",
+                "mod/social-auth/composer.json"
+            ]
+        }
+    }
+}
+JSON
+            );
+
+            $this->assertSame([
+                base_path('mod/account-manager/composer.json'),
+                base_path('mod/social-auth/composer.json'),
+            ], ComposerLocalModules::at(base_path())->resolvedMergePluginIncludes());
+        } finally {
+            if ($originalComposerLocal === null) {
+                @unlink(base_path('composer.local.json'));
+            } else {
+                file_put_contents(base_path('composer.local.json'), $originalComposerLocal);
+            }
+        }
+    }
 }

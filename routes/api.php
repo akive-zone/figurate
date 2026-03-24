@@ -4,8 +4,10 @@ use App\Http\Controllers\Server\Api\A2a\StreamController as A2aStreamController;
 use App\Http\Controllers\Server\Api\Acp\SessionController as AcpSessionController;
 use App\Http\Controllers\Server\Api\Acp\TaskController as AcpTaskController;
 use App\Http\Controllers\Server\Api\AgentUserController;
-use App\Http\Controllers\Server\Api\ApiTokenController;
+use App\Http\Controllers\Server\Api\Auth\LoginController;
+use App\Http\Controllers\Server\Api\Auth\LogoutController;
 use App\Http\Controllers\Server\Api\Auth\PasskeyController;
+use App\Http\Controllers\Server\Api\Auth\RegisterController;
 use App\Http\Controllers\Server\Api\ChatController;
 use App\Http\Controllers\Server\Api\ChatPostController;
 use App\Http\Controllers\Server\Api\ChatThreadController;
@@ -16,6 +18,7 @@ use App\Http\Middleware\EnsureDeviceUser;
 use App\Http\Middleware\EnsureTokenAbility;
 use App\Http\Middleware\EnsureTransportUser;
 use App\Http\Middleware\NormalizeA2aRpcMethodNames;
+use App\Http\Middleware\ResolveCurrentGadgetUser;
 use App\Http\Procedures\A2aProcedure;
 use App\Http\Procedures\A2aTasksProcedure;
 use App\Http\Procedures\A2aTasksPushNotificationConfigProcedure;
@@ -23,12 +26,11 @@ use Illuminate\Broadcasting\BroadcastController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function (): void {
-    Route::post('register', [ApiTokenController::class, 'register']);
-    Route::post('login', [ApiTokenController::class, 'login']);
-    Route::post('logout', [ApiTokenController::class, 'logout'])
+    Route::post('register', RegisterController::class);
+    Route::post('login', LoginController::class)
+        ->middleware([ResolveCurrentGadgetUser::class]);
+    Route::post('logout', LogoutController::class)
         ->middleware(['auth:sanctum,passport']);
-    Route::post('agents', [AgentUserController::class, 'store'])
-        ->middleware(['auth:sanctum,passport', EnsureTransportUser::class.':subject']);
 
     Route::middleware(['auth:sanctum,passport'])
         ->prefix('passkeys')
@@ -43,6 +45,9 @@ Route::prefix('auth')->group(function (): void {
 
 Route::post('broadcasting/auth', [BroadcastController::class, 'authenticate'])
     ->middleware([EnsureDeviceUser::class, 'auth:sanctum,passport']);
+
+Route::post('agents', [AgentUserController::class, 'store'])
+    ->middleware(['auth:sanctum,passport', EnsureTransportUser::class.':subject']);
 
 Route::prefix('chats')->middleware([EnsureDeviceUser::class, 'auth:sanctum,passport'])->group(function (): void {
     Route::post('/', [ChatController::class, 'store'])->name('api.chats.store');

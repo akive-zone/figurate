@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\Server\PassportUser;
+use App\Models\Server\User;
+
 return [
 
     /*
@@ -67,12 +70,12 @@ return [
     'providers' => [
         'cookie_users' => [
             'driver' => 'eloquent',
-            'model' => App\Models\Server\User::class,
+            'model' => User::class,
         ],
 
         'oauth_users' => [
             'driver' => 'eloquent',
-            'model' => App\Models\Server\PassportUser::class,
+            'model' => PassportUser::class,
         ],
 
         'users' => [
