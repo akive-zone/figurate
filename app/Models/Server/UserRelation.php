@@ -4,31 +4,33 @@ namespace App\Models\Server;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
 
-class IdentityRelation extends Model
+class UserRelation extends Model
 {
+    public const TypeCreator = 'creator';
+
+    public const TypeOwner = 'owner';
+
     /**
      * @var list<string>
      */
     protected $fillable = [
-        'identity_id',
-        'relatable_type',
-        'relatable_id',
+        'source_user_id',
+        'target_user_id',
         'type',
         'payload',
         'linked_at',
         'unlinked_at',
     ];
 
-    public function identity(): BelongsTo
+    public function sourceUser(): BelongsTo
     {
-        return $this->belongsTo(Identity::class);
+        return $this->belongsTo(User::class, 'source_user_id');
     }
 
-    public function relatable(): MorphTo
+    public function targetUser(): BelongsTo
     {
-        return $this->morphTo();
+        return $this->belongsTo(User::class, 'target_user_id');
     }
 
     /**
@@ -37,6 +39,8 @@ class IdentityRelation extends Model
     protected function casts(): array
     {
         return [
+            'source_user_id' => 'integer',
+            'target_user_id' => 'integer',
             'payload' => 'array',
             'linked_at' => 'datetime',
             'unlinked_at' => 'datetime',

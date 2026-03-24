@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('identity_id')->constrained('identities')->cascadeOnDelete();
             $table->morphs('relatable');
-            $table->string('relationship')->nullable();
+            $table->string('type')->nullable();
             $table->json('payload')->nullable();
             $table->timestamp('linked_at')->nullable();
             $table->timestamp('unlinked_at')->nullable();

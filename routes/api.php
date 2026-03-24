@@ -3,7 +3,6 @@
 use App\Http\Controllers\Api\A2a\StreamController as A2aStreamController;
 use App\Http\Controllers\Api\Acp\SessionController as AcpSessionController;
 use App\Http\Controllers\Api\Acp\TaskController as AcpTaskController;
-use App\Http\Controllers\Api\AgentUserController;
 use App\Http\Controllers\Api\Auth\LoginController;
 use App\Http\Controllers\Api\Auth\LogoutController;
 use App\Http\Controllers\Api\Auth\PasskeyController;
@@ -13,6 +12,7 @@ use App\Http\Controllers\Api\ConversationMessageTurnsController;
 use App\Http\Controllers\Api\ConversationPostController;
 use App\Http\Controllers\Api\ConversationThreadController;
 use App\Http\Controllers\Api\Mcp\ServerController as McpServerController;
+use App\Http\Controllers\Api\RobotUserController;
 use App\Http\Middleware\EnsureA2aEnabled;
 use App\Http\Middleware\EnsureA2aRpcAbility;
 use App\Http\Middleware\EnsureTokenAbility;
@@ -47,7 +47,7 @@ Route::prefix('auth')->group(function (): void {
                 ->name('destroy');
         });
 
-    Route::post('agents', [AgentUserController::class, 'store'])
+    Route::post('robots', [RobotUserController::class, 'store'])
         ->middleware(['auth:sanctum,passport', EnsureTransportUser::class.':subject']);
 });
 

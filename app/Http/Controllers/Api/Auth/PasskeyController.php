@@ -129,7 +129,7 @@ class PasskeyController extends Controller
         ];
 
         if ($user->isWidget()) {
-            $payload['token'] = $this->userRepository->issueToken($user, 'widget-api', [TokenAbility::Chat->value]);
+            $payload['token'] = $this->userRepository->issueToken($user, 'widget-api', [TokenAbility::Compose->value]);
             $payload['token_type'] = 'Bearer';
             $payload['widget_user_id'] = $user->uuid;
         }

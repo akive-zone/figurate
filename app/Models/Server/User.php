@@ -72,8 +72,18 @@ class User extends Authenticatable implements HasPasskeys
     public function identities(): MorphToMany
     {
         return $this->morphToMany(Identity::class, 'relatable', 'identity_relations')
-            ->withPivot(['relationship', 'payload', 'linked_at', 'unlinked_at'])
+            ->withPivot(['type', 'payload', 'linked_at', 'unlinked_at'])
             ->withTimestamps();
+    }
+
+    public function outgoingUserRelations(): HasMany
+    {
+        return $this->hasMany(UserRelation::class, 'source_user_id');
+    }
+
+    public function incomingUserRelations(): HasMany
+    {
+        return $this->hasMany(UserRelation::class, 'target_user_id');
     }
 
     public function latestUserAgent(): HasOne

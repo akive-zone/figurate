@@ -2,9 +2,11 @@
 
 namespace Figurate\AccountManager;
 
+use App\Events\Server\Auth\RobotProvisioned;
 use App\Events\Server\Auth\SubjectAuthenticated;
 use App\Models\Server\User;
 use Figurate\AccountManager\Contracts\AccountContextFactory as AccountContextFactoryContract;
+use Figurate\AccountManager\Listeners\AttachRobotUserToRequestedAccountListener;
 use Figurate\AccountManager\Listeners\AttachWidgetUserToUsersPrimaryAccountListener;
 use Figurate\AccountManager\Listeners\EnsurePrimaryAccountForUserListener;
 use Figurate\AccountManager\Models\Account;
@@ -35,12 +37,13 @@ class AccountManagerServiceProvider extends ServiceProvider
 
         User::resolveRelationUsing('accounts', function (User $user): BelongsToMany {
             return $user->belongsToMany(Account::class, 'account_users', 'user_id', 'account_id')
-                ->withPivot(['relationship', 'is_primary', 'linked_at', 'unlinked_at'])
+                ->withPivot(['type', 'is_primary', 'linked_at', 'unlinked_at'])
                 ->withTimestamps();
         });
 
         Event::listen(Registered::class, EnsurePrimaryAccountForUserListener::class);
         Event::listen(Login::class, EnsurePrimaryAccountForUserListener::class);
         Event::listen(SubjectAuthenticated::class, AttachWidgetUserToUsersPrimaryAccountListener::class);
+        Event::listen(RobotProvisioned::class, AttachRobotUserToRequestedAccountListener::class);
     }
 }

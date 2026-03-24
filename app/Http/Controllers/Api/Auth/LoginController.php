@@ -20,29 +20,29 @@ class LoginController extends Controller
     public function __invoke(LoginRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $subjectUser = $this->userRepository->findByEmail($data['email']);
+        $user = $this->userRepository->findByEmail($data['email']);
 
-        if (! $subjectUser || ! $subjectUser->isSubject() || ! Hash::check($data['password'], (string) $subjectUser->password)) {
+        if (! $user || ! $user->isSubject() || ! Hash::check($data['password'], (string) $user->password)) {
             return response()->json([
                 'message' => 'Invalid credentials.',
             ], 422);
         }
 
-        if ($subjectUser->status !== 'active') {
+        if ($user->status !== 'active') {
             return response()->json([
                 'message' => 'This account is not permitted for Studio access.',
             ], 403);
         }
 
-        event(new Login('sanctum', $subjectUser, false));
-        event(new SubjectAuthenticated($subjectUser, $request, 'login'));
+        event(new Login('sanctum', $user, false));
+        event(new SubjectAuthenticated($user, $request, 'login'));
 
-        $token = $this->userRepository->issueToken($subjectUser, 'studio-api', [TokenAbility::Studio->value]);
+        $token = $this->userRepository->issueToken($user, 'fig', [TokenAbility::Compose->value]);
 
         return response()->json([
             'token' => $token,
             'token_type' => 'Bearer',
-            'user' => $subjectUser,
+            'user' => $user,
         ]);
     }
 }

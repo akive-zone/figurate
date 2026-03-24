@@ -6,7 +6,7 @@ use App\TokenAbility;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class StoreAgentUserRequest extends FormRequest
+class StoreRobotUserRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -20,6 +20,7 @@ class StoreAgentUserRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'string', 'email', 'max:255', 'unique:users,email'],
+            'account_uuid' => ['nullable', 'string', 'uuid'],
             'token_name' => ['nullable', 'string', 'max:255'],
             'abilities' => ['nullable', 'array'],
             'abilities.*' => ['string', Rule::in(TokenAbility::values())],
@@ -33,7 +34,7 @@ class StoreAgentUserRequest extends FormRequest
     {
         if (! $this->has('abilities')) {
             $this->merge([
-                'abilities' => TokenAbility::defaultAgentAbilities(),
+                'abilities' => TokenAbility::defaultRobotAbilities(),
             ]);
         }
     }

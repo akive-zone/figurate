@@ -8,7 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
-class ContextServerApiTest extends TestCase
+class InboundServerApiTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -19,7 +19,7 @@ class ContextServerApiTest extends TestCase
             'allow_private_network' => false,
         ]);
         $user = User::factory()->create();
-        Sanctum::actingAs($user, [TokenAbility::Chat->value]);
+        Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
         $response = $this->postJson(route('api.context-servers.store'), [
             'context_type' => 'user',
@@ -43,7 +43,7 @@ class ContextServerApiTest extends TestCase
             'allow_private_network' => false,
         ]);
         $user = User::factory()->create();
-        Sanctum::actingAs($user, [TokenAbility::Chat->value]);
+        Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
         $contextServer = $user->contextServers()->create([
             'server' => 'planner',

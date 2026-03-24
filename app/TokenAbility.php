@@ -4,9 +4,7 @@ namespace App;
 
 enum TokenAbility: string
 {
-    case Chat = 'chat';
-
-    case Studio = 'studio';
+    case Compose = 'compose';
 
     case McpUse = 'mcp:use';
 
@@ -34,7 +32,7 @@ enum TokenAbility: string
     /**
      * @return list<string>
      */
-    public static function defaultAgentAbilities(): array
+    public static function defaultRobotAbilities(): array
     {
         return [
             self::McpUse->value,

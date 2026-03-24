@@ -3,30 +3,38 @@
 namespace Figurate\AccountManager\Actions;
 
 use App\Models\Server\User;
+use App\Models\Server\UserRelation;
 use Figurate\AccountManager\Models\Account;
 use Figurate\AccountManager\Models\AccountUser;
 use Figurate\AccountManager\Support\AccountContextFactory;
 use Illuminate\Support\Facades\DB;
 
-class AttachWidgetUserToUsersPrimaryAccount
+class AttachRobotUserToRequestedAccount
 {
     public function __construct(protected AccountContextFactory $accountContextFactory) {}
 
-    public function __invoke(?User $widgetUser, User $user): ?Account
+    public function __invoke(User $robot, User $creator, string $accountUuid): ?Account
     {
-        if (! $widgetUser instanceof User || ! $widgetUser->isWidget()) {
+        $normalizedAccountUuid = trim($accountUuid);
+
+        if (! $robot->isRobot() || ! $creator->isSubject() || $normalizedAccountUuid === '') {
             return null;
         }
 
-        $account = $this->accountContextFactory->forUser($user)->primaryAccount();
+        /** @var ?Account $account */
+        $account = $this->accountContextFactory
+            ->forUser($creator)
+            ->activeAccounts()
+            ->where('accounts.uuid', $normalizedAccountUuid)
+            ->first();
 
         if (! $account instanceof Account) {
             return null;
         }
 
-        DB::transaction(function () use ($account, $widgetUser): void {
+        DB::transaction(function () use ($account, $creator, $robot): void {
             AccountUser::query()
-                ->where('user_id', $widgetUser->id)
+                ->where('user_id', $robot->id)
                 ->whereNull('unlinked_at')
                 ->where('account_id', '!=', $account->id)
                 ->update([
@@ -38,21 +46,25 @@ class AttachWidgetUserToUsersPrimaryAccount
             AccountUser::query()->updateOrCreate(
                 [
                     'account_id' => $account->id,
-                    'user_id' => $widgetUser->id,
+                    'user_id' => $robot->id,
                 ],
                 [
-                    'type' => 'widget',
+                    'type' => 'robot',
                     'is_primary' => true,
                     'linked_at' => now(),
                     'unlinked_at' => null,
                 ],
             );
 
-            if ($widgetUser->name === null || trim($widgetUser->name) === '' || $widgetUser->name === 'Widget User') {
-                $widgetUser->forceFill([
-                    'name' => $account->name ?: $widgetUser->name,
-                ])->save();
-            }
+            UserRelation::query()
+                ->where('source_user_id', $creator->id)
+                ->where('target_user_id', $robot->id)
+                ->where('type', UserRelation::TypeOwner)
+                ->whereNull('unlinked_at')
+                ->update([
+                    'unlinked_at' => now(),
+                    'updated_at' => now(),
+                ]);
         });
 
         return $account;

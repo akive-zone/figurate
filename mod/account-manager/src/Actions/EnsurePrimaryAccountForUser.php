@@ -39,7 +39,7 @@ class EnsurePrimaryAccountForUser
 
             $account->users()->syncWithoutDetaching([
                 $user->id => [
-                    'relationship' => 'owner',
+                    'type' => 'owner',
                     'is_primary' => true,
                     'linked_at' => now(),
                     'unlinked_at' => null,

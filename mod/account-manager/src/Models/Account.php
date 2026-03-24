@@ -28,7 +28,7 @@ class Account extends Model
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'account_users')
-            ->withPivot(['relationship', 'is_primary', 'linked_at', 'unlinked_at'])
+            ->withPivot(['type', 'is_primary', 'linked_at', 'unlinked_at'])
             ->withTimestamps();
     }
 
@@ -40,7 +40,7 @@ class Account extends Model
     public function identities(): MorphToMany
     {
         return $this->morphToMany(Identity::class, 'relatable', 'identity_relations')
-            ->withPivot(['relationship', 'payload', 'linked_at', 'unlinked_at'])
+            ->withPivot(['type', 'payload', 'linked_at', 'unlinked_at'])
             ->withTimestamps();
     }
 }

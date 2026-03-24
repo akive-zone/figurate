@@ -61,7 +61,7 @@ class EloquentUserRepository implements UserRepository
 
         /** @var ?User $accountUser */
         $accountUser = $account->activeUsers
-            ->sortByDesc(fn (User $user): int => (int) ($user->pivot?->relationship === 'owner'))
+            ->sortByDesc(fn (User $user): int => (int) ($user->pivot?->type === 'owner'))
             ->sortByDesc(fn (User $user): int => (int) ($user->pivot?->is_primary ?? false))
             ->first();
 
@@ -97,7 +97,7 @@ class EloquentUserRepository implements UserRepository
 
         $user->identities()->syncWithoutDetaching([
             $identity->getKey() => [
-                'relationship' => $attributes['relationship'] ?? null,
+                'type' => $attributes['type'] ?? null,
                 'payload' => $attributes['relation_payload'] ?? null,
                 'linked_at' => $attributes['linked_at'] ?? now(),
                 'unlinked_at' => null,

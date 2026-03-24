@@ -29,14 +29,14 @@ class Identity extends Model
     public function users(): MorphedByMany
     {
         return $this->morphedByMany(User::class, 'relatable', 'identity_relations')
-            ->withPivot(['relationship', 'payload', 'linked_at', 'unlinked_at'])
+            ->withPivot(['type', 'payload', 'linked_at', 'unlinked_at'])
             ->withTimestamps();
     }
 
     public function accounts(): MorphedByMany
     {
         return $this->morphedByMany(Account::class, 'relatable', 'identity_relations')
-            ->withPivot(['relationship', 'payload', 'linked_at', 'unlinked_at'])
+            ->withPivot(['type', 'payload', 'linked_at', 'unlinked_at'])
             ->withTimestamps();
     }
 

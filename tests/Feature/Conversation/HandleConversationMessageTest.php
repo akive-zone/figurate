@@ -35,7 +35,7 @@ class HandleConversationMessageTest extends TestCase
         $thread = $this->makeThread($channel);
         $this->addThreadActor($thread, ThreadActor::RolePresenter, ThreadActor::ActorRequestAgent);
 
-        Sanctum::actingAs($user, [TokenAbility::Chat->value]);
+        Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
         $this->postJson('/api/conversations', [
             'channel' => $channel->uuid,
@@ -70,7 +70,7 @@ class HandleConversationMessageTest extends TestCase
         $thread = $this->makeThread($channel);
         $this->addThreadActor($thread, ThreadActor::RoleObserver, ThreadActor::ActorSafetyGuard);
 
-        Sanctum::actingAs($user, [TokenAbility::Chat->value]);
+        Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
         $this->postJson('/api/conversations', [
             'channel' => $channel->uuid,
@@ -106,7 +106,7 @@ class HandleConversationMessageTest extends TestCase
         $this->addThreadActor($thread, ThreadActor::RolePresenter, ThreadActor::ActorRequestAgent);
         $this->addThreadActor($thread, ThreadActor::RoleObserver, ThreadActor::ActorSafetyGuard, 2);
 
-        Sanctum::actingAs($user, [TokenAbility::Chat->value]);
+        Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
         $this->postJson('/api/conversations', [
             'channel' => $channel->uuid,
@@ -154,7 +154,7 @@ class HandleConversationMessageTest extends TestCase
             ],
         ]);
 
-        Sanctum::actingAs($user, [TokenAbility::Chat->value]);
+        Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
         $this->getJson(sprintf('/api/conversations/%s/messages/%d/turns', $channel->uuid, $promptMessage->id))
             ->assertOk()

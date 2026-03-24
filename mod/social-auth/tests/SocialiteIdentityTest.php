@@ -55,7 +55,7 @@ class SocialiteIdentityTest extends TestCase
         $this->assertDatabaseHas('account_users', [
             'account_id' => $account->id,
             'user_id' => $subjectUser->id,
-            'relationship' => 'owner',
+            'type' => 'owner',
             'is_primary' => true,
             'unlinked_at' => null,
         ]);

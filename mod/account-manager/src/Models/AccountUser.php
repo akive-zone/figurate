@@ -14,7 +14,7 @@ class AccountUser extends Model
     protected $fillable = [
         'account_id',
         'user_id',
-        'relationship',
+        'type',
         'is_primary',
         'linked_at',
         'unlinked_at',

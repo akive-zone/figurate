@@ -37,14 +37,14 @@ class WidgetAccountAttachmentTest extends TestCase
         $this->assertDatabaseHas('account_users', [
             'account_id' => $account->id,
             'user_id' => $subjectUser->id,
-            'relationship' => 'owner',
+            'type' => 'owner',
             'is_primary' => true,
             'unlinked_at' => null,
         ]);
 
         $this->assertDatabaseMissing('account_users', [
             'account_id' => $account->id,
-            'relationship' => 'widget',
+            'type' => 'widget',
             'unlinked_at' => null,
         ]);
     }
@@ -70,7 +70,7 @@ class WidgetAccountAttachmentTest extends TestCase
         $this->assertDatabaseHas('account_users', [
             'account_id' => $account->id,
             'user_id' => $subjectUser->id,
-            'relationship' => 'owner',
+            'type' => 'owner',
             'is_primary' => true,
             'unlinked_at' => null,
         ]);
@@ -78,7 +78,7 @@ class WidgetAccountAttachmentTest extends TestCase
         $this->assertDatabaseHas('account_users', [
             'account_id' => $account->id,
             'user_id' => $widgetUser->id,
-            'relationship' => 'widget',
+            'type' => 'widget',
             'unlinked_at' => null,
         ]);
     }
@@ -109,14 +109,14 @@ class WidgetAccountAttachmentTest extends TestCase
         $this->assertDatabaseHas('account_users', [
             'account_id' => $account->id,
             'user_id' => $subjectUser->id,
-            'relationship' => 'owner',
+            'type' => 'owner',
             'is_primary' => true,
             'unlinked_at' => null,
         ]);
 
         $this->assertDatabaseMissing('account_users', [
             'account_id' => $account->id,
-            'relationship' => 'widget',
+            'type' => 'widget',
             'unlinked_at' => null,
         ]);
 
@@ -137,7 +137,7 @@ class WidgetAccountAttachmentTest extends TestCase
             'status' => 'active',
         ]);
         $account->users()->attach($subjectUser->id, [
-            'relationship' => 'owner',
+            'type' => 'owner',
             'is_primary' => true,
             'linked_at' => now(),
         ]);
@@ -156,7 +156,7 @@ class WidgetAccountAttachmentTest extends TestCase
         $this->assertDatabaseHas('account_users', [
             'account_id' => $account->id,
             'user_id' => $widgetUser->id,
-            'relationship' => 'widget',
+            'type' => 'widget',
             'unlinked_at' => null,
         ]);
     }
@@ -175,7 +175,7 @@ class WidgetAccountAttachmentTest extends TestCase
             'status' => 'active',
         ]);
         $account->users()->attach($subjectUser->id, [
-            'relationship' => 'owner',
+            'type' => 'owner',
             'is_primary' => true,
             'linked_at' => now(),
         ]);
@@ -247,7 +247,7 @@ class WidgetAccountAttachmentTest extends TestCase
         $this->assertDatabaseHas('account_users', [
             'account_id' => $account->id,
             'user_id' => $widgetUser->id,
-            'relationship' => 'widget',
+            'type' => 'widget',
             'unlinked_at' => null,
         ]);
 
