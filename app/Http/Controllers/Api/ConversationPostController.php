@@ -10,12 +10,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 
-class ChatPostController extends Controller
+class ConversationPostController extends Controller
 {
-    public function index(string $chat): JsonResponse
+    public function index(string $conversation): JsonResponse
     {
         $channelRecord = Channel::query()
-            ->where('uuid', $chat)
+            ->where('uuid', $conversation)
             ->firstOrFail();
 
         Gate::authorize('view', $channelRecord);

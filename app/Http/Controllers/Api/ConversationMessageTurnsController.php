@@ -1,0 +1,51 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Features\Actions\Chat\ProjectAgentTurns;
+use App\Features\Actions\Chat\ResolveConversationRouteThread;
+use App\Http\Controllers\Controller;
+use App\Models\Server\Message;
+use App\Models\Server\User;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class ConversationMessageTurnsController extends Controller
+{
+    public function __construct(
+        protected ProjectAgentTurns $projectAgentTurns,
+        protected ResolveConversationRouteThread $resolveConversationRouteThread,
+    ) {}
+
+    public function __invoke(Request $request, string $conversation, Message $message): JsonResponse
+    {
+        /** @var User $actor */
+        $actor = $request->user();
+        [$threadRecord] = $this->resolveConversationRouteThread->execute($conversation, $actor);
+
+        if (! $threadRecord) {
+            abort(404, 'Thread not found.');
+        }
+
+        if (
+            $message->messageable_type !== $threadRecord->getMorphClass()
+            || $message->messageable_id !== $threadRecord->getKey()
+        ) {
+            abort(404, 'Message not found in this thread.');
+        }
+
+        $threadMessages = $threadRecord->messages()
+            ->orderBy('created_at')
+            ->get();
+        $turns = collect($this->projectAgentTurns->execute($threadRecord, $threadMessages, $actor))
+            ->filter(fn (array $turn): bool => (int) ($turn['prompt_message_id'] ?? 0) === (int) $message->id)
+            ->values()
+            ->all();
+
+        return response()->json([
+            'data' => $turns,
+            'thread' => $threadRecord->uuid,
+            'message_id' => $message->id,
+        ]);
+    }
+}

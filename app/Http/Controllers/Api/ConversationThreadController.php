@@ -12,12 +12,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
-class ChatThreadController extends Controller
+class ConversationThreadController extends Controller
 {
-    public function index(Request $request, string $chat): JsonResponse
+    public function index(Request $request, string $conversation): JsonResponse
     {
         $channel = Channel::query()
-            ->where('uuid', $chat)
+            ->where('uuid', $conversation)
             ->firstOrFail();
 
         Gate::authorize('view', $channel);
@@ -25,10 +25,10 @@ class ChatThreadController extends Controller
         return response()->json($this->cursorPageForRequest($request, $channel));
     }
 
-    public function store(Request $request, string $chat): JsonResponse
+    public function store(Request $request, string $conversation): JsonResponse
     {
         $channel = Channel::query()
-            ->where('uuid', $chat)
+            ->where('uuid', $conversation)
             ->firstOrFail();
 
         Gate::authorize('update', $channel);

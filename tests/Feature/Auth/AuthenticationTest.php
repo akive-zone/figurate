@@ -7,7 +7,7 @@ use App\Models\Server\UserAgent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-class ApiAuthenticationTest extends TestCase
+class AuthenticationTest extends TestCase
 {
     use RefreshDatabase;
 

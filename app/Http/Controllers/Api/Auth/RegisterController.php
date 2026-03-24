@@ -6,7 +6,6 @@ use App\Contracts\Users\UserRepository;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Auth\RegisterRequest;
 use App\Models\Server\User;
-use App\TokenAbility;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

@@ -19,7 +19,7 @@ use Laravel\Sanctum\Sanctum;
 use Mockery\MockInterface;
 use Tests\TestCase;
 
-class HandleChatMessageTest extends TestCase
+class HandleConversationMessageTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -39,7 +39,7 @@ class HandleChatMessageTest extends TestCase
         Sanctum::actingAs($user, [TokenAbility::Chat->value]);
 
         $this->withoutMiddleware(EnsureDeviceUser::class)
-            ->postJson('/api/chats', [
+            ->postJson('/api/conversations', [
                 'channel' => $channel->uuid,
                 'thread' => $thread->uuid,
                 'content' => [
@@ -75,7 +75,7 @@ class HandleChatMessageTest extends TestCase
         Sanctum::actingAs($user, [TokenAbility::Chat->value]);
 
         $this->withoutMiddleware(EnsureDeviceUser::class)
-            ->postJson('/api/chats', [
+            ->postJson('/api/conversations', [
                 'channel' => $channel->uuid,
                 'thread' => $thread->uuid,
                 'content' => [
@@ -112,7 +112,7 @@ class HandleChatMessageTest extends TestCase
         Sanctum::actingAs($user, [TokenAbility::Chat->value]);
 
         $this->withoutMiddleware(EnsureDeviceUser::class)
-            ->postJson('/api/chats', [
+            ->postJson('/api/conversations', [
                 'channel' => $channel->uuid,
                 'thread' => $thread->uuid,
                 'content' => [
@@ -130,6 +130,45 @@ class HandleChatMessageTest extends TestCase
         $this->assertSame('agent_prompt', data_get($message->meta, 'source'));
         $this->assertTrue((bool) data_get($message->meta, 'observer_dispatch'));
         Queue::assertPushed(ProcessThreadObservers::class, 1);
+    }
+
+    public function test_it_returns_turns_for_a_conversation_message_from_the_dedicated_endpoint(): void
+    {
+        $user = $this->makeUser();
+        $channel = $this->accessibleChannel($user);
+        $thread = $this->makeThread($channel);
+
+        $promptMessage = $thread->messages()->create([
+            'type' => 'text',
+            'text' => 'Please help me scope the repair.',
+            'senderable_type' => $user->getMorphClass(),
+            'senderable_id' => $user->id,
+            'meta' => [
+                'source' => 'agent_prompt',
+            ],
+        ]);
+
+        $assistantMessage = $thread->messages()->create([
+            'type' => 'text',
+            'text' => 'Start by listing the visible damage and confirming access.',
+            'meta' => [
+                'source' => 'agent_response',
+                'in_reply_to_message_id' => $promptMessage->id,
+                'actor_key' => 'request_agent',
+            ],
+        ]);
+
+        Sanctum::actingAs($user, [TokenAbility::Chat->value]);
+
+        $this->withoutMiddleware(EnsureDeviceUser::class)
+            ->getJson(sprintf('/api/conversations/%s/messages/%d/turns', $channel->uuid, $promptMessage->id))
+            ->assertOk()
+            ->assertJsonPath('thread', $thread->uuid)
+            ->assertJsonPath('message_id', $promptMessage->id)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.prompt_message_id', $promptMessage->id)
+            ->assertJsonPath('data.0.assistant_message_id', $assistantMessage->id)
+            ->assertJsonPath('data.0.status', 'completed');
     }
 
     protected function accessibleChannel(User $user): Channel

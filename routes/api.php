@@ -8,9 +8,10 @@ use App\Http\Controllers\Api\Auth\LoginController;
 use App\Http\Controllers\Api\Auth\LogoutController;
 use App\Http\Controllers\Api\Auth\PasskeyController;
 use App\Http\Controllers\Api\Auth\RegisterController;
-use App\Http\Controllers\Api\ChatController;
-use App\Http\Controllers\Api\ChatPostController;
-use App\Http\Controllers\Api\ChatThreadController;
+use App\Http\Controllers\Api\ConversationController;
+use App\Http\Controllers\Api\ConversationMessageTurnsController;
+use App\Http\Controllers\Api\ConversationPostController;
+use App\Http\Controllers\Api\ConversationThreadController;
 use App\Http\Controllers\Api\Mcp\ServerController as McpServerController;
 use App\Http\Middleware\EnsureA2aEnabled;
 use App\Http\Middleware\EnsureA2aRpcAbility;
@@ -44,19 +45,19 @@ Route::prefix('auth')->group(function (): void {
 });
 
 Route::post('broadcasting/auth', [BroadcastController::class, 'authenticate'])
-    ->middleware([EnsureDeviceUser::class, 'auth:sanctum,passport']);
+    ->middleware(['auth:guest,sanctum,passport']);
 
 Route::post('agents', [AgentUserController::class, 'store'])
     ->middleware(['auth:sanctum,passport', EnsureTransportUser::class.':subject']);
 
-Route::prefix('chats')->middleware([EnsureDeviceUser::class, 'auth:sanctum,passport'])->group(function (): void {
-    Route::post('/', [ChatController::class, 'store'])->name('api.chats.store');
-    Route::get('/', [ChatController::class, 'index'])->name('api.chats.index');
-    Route::get('/{chat}', [ChatController::class, 'show'])->name('api.chats.show');
-    Route::get('/{chat}/messages/{message}/turns', [ChatController::class, 'showMessageTurns'])->name('api.chats.message-turns');
-    Route::get('/{chat}/threads', [ChatThreadController::class, 'index'])->name('api.chats.threads');
-    Route::post('/{chat}/threads', [ChatThreadController::class, 'store'])->name('api.chats.threads.store');
-    Route::get('/{chat}/posts', [ChatPostController::class, 'index'])->name('api.chats.posts');
+Route::prefix('conversations')->middleware([EnsureDeviceUser::class, 'auth:sanctum,passport'])->group(function (): void {
+    Route::post('/', [ConversationController::class, 'store'])->name('api.conversations.store');
+    Route::get('/', [ConversationController::class, 'index'])->name('api.conversations.index');
+    Route::get('/{conversation}', [ConversationController::class, 'show'])->name('api.conversations.show');
+    Route::get('/{conversation}/messages/{message}/turns', ConversationMessageTurnsController::class)->name('api.conversations.message-turns');
+    Route::get('/{conversation}/threads', [ConversationThreadController::class, 'index'])->name('api.conversations.threads');
+    Route::post('/{conversation}/threads', [ConversationThreadController::class, 'store'])->name('api.conversations.threads.store');
+    Route::get('/{conversation}/posts', [ConversationPostController::class, 'index'])->name('api.conversations.posts');
 });
 
 Route::prefix('mcp')->middleware([EnsureDeviceUser::class, 'auth:sanctum,passport'])->group(function (): void {
