@@ -54,10 +54,10 @@ Route::prefix('conversations')->middleware([EnsureDeviceUser::class, 'auth:sanct
     Route::post('/', [ConversationController::class, 'store'])->name('api.conversations.store');
     Route::get('/', [ConversationController::class, 'index'])->name('api.conversations.index');
     Route::get('/{conversation}', [ConversationController::class, 'show'])->name('api.conversations.show');
-    Route::get('/{conversation}/messages/{message}/turns', ConversationMessageTurnsController::class)->name('api.conversations.message-turns');
-    Route::get('/{conversation}/threads', [ConversationThreadController::class, 'index'])->name('api.conversations.threads');
+    Route::get('/{conversation}/messages/{message}/turns', ConversationMessageTurnsController::class)->name('api.conversations.message-turns.show');
+    Route::get('/{conversation}/threads', [ConversationThreadController::class, 'index'])->name('api.conversations.threads.index');
     Route::post('/{conversation}/threads', [ConversationThreadController::class, 'store'])->name('api.conversations.threads.store');
-    Route::get('/{conversation}/posts', [ConversationPostController::class, 'index'])->name('api.conversations.posts');
+    Route::get('/{conversation}/posts', [ConversationPostController::class, 'index'])->name('api.conversations.posts.index');
 });
 
 Route::prefix('mcp')->middleware([EnsureDeviceUser::class, 'auth:sanctum,passport'])->group(function (): void {
