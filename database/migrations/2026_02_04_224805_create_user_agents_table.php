@@ -10,12 +10,12 @@ return new class extends Migration
     {
         Schema::create('user_agents', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
-            $table->string('kind')->default('web');
-            $table->string('device_identifier')->nullable();
+            $table->foreignId('user_id');
             $table->text('user_agent')->nullable();
+            $table->string('device_identifier')->nullable();
             $table->string('ip_address', 45)->nullable();
             $table->string('app_version')->nullable();
+            $table->string('kind')->default('web');
             $table->string('platform')->nullable();
             $table->jsonb('data')->nullable();
             $table->json('metadata')->nullable();
