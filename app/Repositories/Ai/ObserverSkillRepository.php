@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Ai\Support\Observer;
+namespace App\Repositories\Ai;
 
 use App\Models\Server\ThreadActor;
 use Illuminate\Support\Facades\File;

@@ -7,6 +7,7 @@ use App\Ai\Tools\SafetyGuardObserver;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
+use App\Repositories\Ai\ObserverSkillRepository;
 
 class ObserverRegistry
 {

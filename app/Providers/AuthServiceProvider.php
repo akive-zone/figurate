@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Providers\Server;
+namespace App\Providers;
 
 use App\Listeners\Server\Auth\MarkWidgetSessionAsPasskeyVerified;
 use App\Listeners\Server\Auth\MergeWidgetUsersAfterPasskeyAuthentication;

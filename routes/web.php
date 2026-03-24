@@ -10,10 +10,10 @@ use Laravel\Mcp\Facades\Mcp;
 if (runtime() === 'server') {
     Route::get('/.well-known/agent-card', AgentCardController::class)->name('a2a.agent-card');
 
+    Route::passkeys();
+
     Mcp::oauthRoutes();
 
     Mcp::web('/mcp/figurate', FigurateServer::class)
         ->middleware(['auth:sanctum,passport', EnsureTransportUser::class, EnsureTokenAbility::class.':mcp:use']);
-
-    Route::passkeys();
 }

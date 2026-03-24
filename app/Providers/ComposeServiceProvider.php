@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Providers\Server;
+namespace App\Providers;
 
 use App\Features\Actions\Chat\ActivityPubOutboundMessageSender;
 use App\Features\Actions\Chat\ChatProtocolRegistry;
@@ -16,7 +16,7 @@ use App\Policies\Server\ThreadPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
-class ChatServiceProvider extends ServiceProvider
+class ComposeServiceProvider extends ServiceProvider
 {
     public function register(): void
     {

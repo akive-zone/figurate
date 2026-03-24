@@ -12,8 +12,8 @@ use App\Models\Server\User;
 use App\Providers\Server\AuthServiceProvider;
 use App\Providers\Server\ChatServiceProvider;
 use App\Providers\Server\ControlPanelProvider;
+use App\Repositories\Users\EloquentUserRepository;
 use App\Support\Runtime\AppRuntime;
-use App\Support\Users\EloquentUserRepository;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Route;
@@ -49,8 +49,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Passport::tokensCan([
-            'chat' => 'Use chat-oriented API capabilities.',
-            'studio' => 'Use the studio API.',
+            'composer' => 'Use message-oriented API capabilities.',
             'mcp:use' => 'Use the Figurate MCP transport.',
             'acp:use' => 'Use the ACP transport.',
             'a2a:message.send' => 'Send A2A messages.',
@@ -59,23 +58,17 @@ class AppServiceProvider extends ServiceProvider
             'a2a:push.config.manage' => 'Manage A2A push notification configuration.',
         ]);
 
-        if (! $this->isNativeRuntime()) {
-            $this->loadMigrationsFrom(database_path('migrations/server'));
+        $this->loadMigrationsFrom(database_path('migrations/server'));
 
-            Relation::morphMap([
-                'channel' => Channel::class,
-                'message' => Message::class,
-                'post' => Post::class,
-                'store' => Store::class,
-                'thread' => Thread::class,
-                'user' => User::class,
-            ]);
+        Relation::morphMap([
+            'channel' => Channel::class,
+            'message' => Message::class,
+            'post' => Post::class,
+            'store' => Store::class,
+            'thread' => Thread::class,
+            'user' => User::class,
+        ]);
 
-            Route::middleware('api')
-                ->prefix('api')
-                ->group(base_path('routes/api.php'));
-
-        }
     }
 
     protected function isNativeRuntime(): bool
@@ -89,9 +82,7 @@ class AppServiceProvider extends ServiceProvider
     protected function serverProviders(): array
     {
         return [
-            AuthServiceProvider::class,
-            ChatServiceProvider::class,
-            ControlPanelProvider::class,
+
         ];
     }
 }

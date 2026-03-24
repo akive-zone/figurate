@@ -1,12 +1,11 @@
 <?php
 
-namespace App\Support\Users;
+namespace App\Repositories\Users;
 
 use App\Contracts\Users\UserRepository;
 use App\Models\Server\Identity;
 use App\Models\Server\SanctumUser;
 use App\Models\Server\User;
-use Figurate\AccountManager\Models\Account;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -33,39 +32,6 @@ class EloquentUserRepository implements UserRepository
     public function findByEmail(string $email): ?User
     {
         return User::query()->where('email', $email)->first();
-    }
-
-    public function findByIdentity(string $provider, string $providerSubject): ?User
-    {
-        $identity = Identity::query()
-            ->where('provider', $provider)
-            ->where('provider_subject', $providerSubject)
-            ->with(['users', 'accounts.activeUsers'])
-            ->first();
-
-        if (! $identity instanceof Identity) {
-            return null;
-        }
-
-        $directUser = $identity->users->first();
-
-        if ($directUser instanceof User) {
-            return $directUser;
-        }
-
-        $account = $identity->accounts->first();
-
-        if (! $account instanceof Account) {
-            return null;
-        }
-
-        /** @var ?User $accountUser */
-        $accountUser = $account->activeUsers
-            ->sortByDesc(fn (User $user): int => (int) ($user->pivot?->type === 'owner'))
-            ->sortByDesc(fn (User $user): int => (int) ($user->pivot?->is_primary ?? false))
-            ->first();
-
-        return $accountUser;
     }
 
     public function create(array $attributes): User
