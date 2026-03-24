@@ -75,7 +75,8 @@ class PasskeyManagementApiTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('data.options.challenge', 'guest-register-challenge')
-            ->assertHeader('X-Widget-User-ID');
+            ->assertHeader('X-Widget-User-ID')
+            ->assertHeaderMissing('X-Gadget-User-ID');
 
         $widgetUserId = (string) $response->headers->get('X-Widget-User-ID');
         $widgetUser = User::query()->where('uuid', $widgetUserId)->firstOrFail();
@@ -179,6 +180,7 @@ class PasskeyManagementApiTest extends TestCase
             ->assertJsonPath('data.id', $storedPasskey->id)
             ->assertJsonPath('data.name', 'Guest Key')
             ->assertJsonPath('widget_user_id', $widgetUserId)
+            ->assertJsonMissingPath('gadget_user_id')
             ->assertJsonPath('token_type', 'Bearer');
     }
 

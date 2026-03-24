@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->uuid('uuid')->unique()->after('id');
-            $table->string('type')->default('subject')->after('password');
+            $table->string('type')->nullable()->after('password');
             $table->string('status')->default('active')->after('type');
 
             $table->index(['type', 'status']);

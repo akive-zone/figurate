@@ -132,7 +132,6 @@ class PasskeyController extends Controller
             $payload['token'] = $this->userRepository->issueToken($user, 'widget-api', [TokenAbility::Chat->value]);
             $payload['token_type'] = 'Bearer';
             $payload['widget_user_id'] = $user->uuid;
-            $payload['gadget_user_id'] = $user->uuid;
         }
 
         return response()->json($payload, 201);
@@ -207,13 +206,12 @@ class PasskeyController extends Controller
     protected function attachWidgetUserHeaders(JsonResponse $response, User $user): void
     {
         $response->headers->set(ResolveWidgetUser::WidgetUserHeader, (string) $user->uuid);
-        $response->headers->set(ResolveWidgetUser::LegacyGadgetUserHeader, (string) $user->uuid);
 
         $existingExposeHeaders = (string) $response->headers->get('Access-Control-Expose-Headers', '');
         $exposeHeaders = collect(explode(',', $existingExposeHeaders))
             ->map(fn (string $value): string => trim($value))
             ->filter(fn (string $value): bool => $value !== '')
-            ->merge([ResolveWidgetUser::WidgetUserHeader, ResolveWidgetUser::LegacyGadgetUserHeader])
+            ->merge([ResolveWidgetUser::WidgetUserHeader])
             ->unique()
             ->implode(', ');
 

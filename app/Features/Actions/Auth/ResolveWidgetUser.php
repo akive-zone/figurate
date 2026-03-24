@@ -11,8 +11,6 @@ class ResolveWidgetUser
 {
     public const WidgetUserHeader = 'X-Widget-User-ID';
 
-    public const LegacyGadgetUserHeader = 'X-Gadget-User-ID';
-
     public const LegacyDeviceHeader = 'X-Device-Id';
 
     public const DeviceCookie = 'device_id';
@@ -34,7 +32,6 @@ class ResolveWidgetUser
         return [
             'headers' => [
                 self::WidgetUserHeader => $request->header(self::WidgetUserHeader),
-                self::LegacyGadgetUserHeader => $request->header(self::LegacyGadgetUserHeader),
                 self::LegacyDeviceHeader => $request->header(self::LegacyDeviceHeader),
                 'X-App-Version' => $request->header('X-App-Version'),
                 'X-Platform' => $request->header('X-Platform'),
@@ -114,8 +111,7 @@ class ResolveWidgetUser
      */
     public function resolveWidgetUserIdentifier(array $context): ?string
     {
-        $widgetUserId = $this->header($context, self::WidgetUserHeader)
-            ?? $this->header($context, self::LegacyGadgetUserHeader);
+        $widgetUserId = $this->header($context, self::WidgetUserHeader);
 
         if (is_string($widgetUserId) && trim($widgetUserId) !== '') {
             return trim($widgetUserId);

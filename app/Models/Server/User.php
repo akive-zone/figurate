@@ -23,8 +23,6 @@ class User extends Authenticatable implements HasPasskeys
 
     public const TypeWidget = 'widget';
 
-    public const TypeGadget = 'gadget';
-
     public const TypeSubject = 'subject';
 
     protected $table = 'users';
@@ -140,17 +138,12 @@ class User extends Authenticatable implements HasPasskeys
 
     public function isRobot(): bool
     {
-        return in_array($this->type, [self::TypeRobot, 'agent'], true);
+        return $this->type === self::TypeRobot;
     }
 
     public function isWidget(): bool
     {
-        return in_array($this->type, [self::TypeWidget, self::TypeGadget, 'device'], true);
-    }
-
-    public function isGadget(): bool
-    {
-        return $this->isWidget();
+        return $this->type === self::TypeWidget;
     }
 
     public function isSubject(): bool

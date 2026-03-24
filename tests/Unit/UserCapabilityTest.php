@@ -40,4 +40,29 @@ class UserCapabilityTest extends TestCase
         $this->assertFalse($user->canAccessMarketplace());
         $this->assertTrue($user->canUseInteractiveTransport());
     }
+
+    public function test_legacy_widget_aliases_are_not_treated_as_widget_users(): void
+    {
+        $legacyAliasUser = new User([
+            'type' => 'gadget',
+        ]);
+        $legacyMachineAliasUser = new User([
+            'type' => 'device',
+        ]);
+
+        $this->assertFalse($legacyAliasUser->isWidget());
+        $this->assertFalse($legacyMachineAliasUser->isWidget());
+        $this->assertFalse($legacyAliasUser->canActAsEndUser());
+        $this->assertFalse($legacyMachineAliasUser->canActAsEndUser());
+    }
+
+    public function test_legacy_agent_alias_is_not_treated_as_robot(): void
+    {
+        $legacyAgentUser = new User([
+            'type' => 'agent',
+        ]);
+
+        $this->assertFalse($legacyAgentUser->isRobot());
+        $this->assertFalse($legacyAgentUser->canUseInteractiveTransport());
+    }
 }

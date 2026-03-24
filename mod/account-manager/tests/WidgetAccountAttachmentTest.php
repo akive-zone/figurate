@@ -15,7 +15,7 @@ use Figurate\AccountManager\Models\Account;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-class GadgetAccountAttachmentTest extends TestCase
+class WidgetAccountAttachmentTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -51,9 +51,9 @@ class GadgetAccountAttachmentTest extends TestCase
 
     public function test_register_links_an_existing_widget_user_to_the_new_subject_account(): void
     {
-        $gadgetUser = $this->makeUser(User::TypeWidget, 'machine-register-event-1');
+        $widgetUser = $this->makeUser(User::TypeWidget, 'machine-register-event-1');
 
-        $response = $this->withHeader('X-Widget-User-ID', (string) $gadgetUser->uuid)
+        $response = $this->withHeader('X-Widget-User-ID', (string) $widgetUser->uuid)
             ->postJson('/api/auth/register', [
                 'name' => 'Studio Owner',
                 'email' => 'owner-link@example.com',
@@ -77,7 +77,7 @@ class GadgetAccountAttachmentTest extends TestCase
 
         $this->assertDatabaseHas('account_users', [
             'account_id' => $account->id,
-            'user_id' => $gadgetUser->id,
+            'user_id' => $widgetUser->id,
             'relationship' => 'widget',
             'unlinked_at' => null,
         ]);
@@ -142,9 +142,9 @@ class GadgetAccountAttachmentTest extends TestCase
             'linked_at' => now(),
         ]);
 
-        $gadgetUser = $this->makeUser(User::TypeWidget, 'widget-login-event-1');
+        $widgetUser = $this->makeUser(User::TypeWidget, 'widget-login-event-1');
 
-        $response = $this->withHeader('X-Widget-User-ID', (string) $gadgetUser->uuid)
+        $response = $this->withHeader('X-Widget-User-ID', (string) $widgetUser->uuid)
             ->postJson('/api/auth/login', [
                 'email' => 'existing-event@example.com',
                 'password' => 'password123',
@@ -155,7 +155,7 @@ class GadgetAccountAttachmentTest extends TestCase
 
         $this->assertDatabaseHas('account_users', [
             'account_id' => $account->id,
-            'user_id' => $gadgetUser->id,
+            'user_id' => $widgetUser->id,
             'relationship' => 'widget',
             'unlinked_at' => null,
         ]);
@@ -180,13 +180,13 @@ class GadgetAccountAttachmentTest extends TestCase
             'linked_at' => now(),
         ]);
 
-        $gadgetUser = $this->makeUser(User::TypeWidget, 'widget-login-1');
+        $widgetUser = $this->makeUser(User::TypeWidget, 'widget-login-1');
         $channel = Channel::query()->create(['status' => 'open']);
         ChannelActorState::query()->create([
             'channel_id' => $channel->id,
             'thread_id' => null,
-            'actorable_type' => $gadgetUser->getMorphClass(),
-            'actorable_id' => $gadgetUser->id,
+            'actorable_type' => $widgetUser->getMorphClass(),
+            'actorable_id' => $widgetUser->id,
             'status' => ChannelActorState::StatusActive,
         ]);
 
@@ -199,8 +199,8 @@ class GadgetAccountAttachmentTest extends TestCase
 
         $threadActor = ThreadActor::query()->create([
             'thread_id' => $thread->id,
-            'actorable_type' => $gadgetUser->getMorphClass(),
-            'actorable_id' => $gadgetUser->id,
+            'actorable_type' => $widgetUser->getMorphClass(),
+            'actorable_id' => $widgetUser->id,
             'role' => ThreadActor::RoleMember,
             'status' => ThreadActor::StatusActive,
             'priority' => 1,
@@ -209,14 +209,14 @@ class GadgetAccountAttachmentTest extends TestCase
 
         $conversation = AgentConversation::query()->create([
             'id' => 'conv-widget-login-1',
-            'user_id' => $gadgetUser->id,
+            'user_id' => $widgetUser->id,
             'title' => 'Anonymous conversation',
         ]);
 
         $session = ThreadActorSession::query()->create([
             'thread_id' => $thread->id,
             'thread_actor_id' => $threadActor->id,
-            'user_id' => $gadgetUser->id,
+            'user_id' => $widgetUser->id,
             'conversation_id' => $conversation->id,
             'provider' => 'openai',
             'model' => 'gpt-test',
@@ -225,11 +225,11 @@ class GadgetAccountAttachmentTest extends TestCase
         $task = AgentTask::query()->create([
             'uuid' => (string) fake()->uuid(),
             'thread_id' => $thread->id,
-            'user_id' => $gadgetUser->id,
+            'user_id' => $widgetUser->id,
             'status' => 'submitted',
         ]);
 
-        $response = $this->withHeader('X-Widget-User-ID', (string) $gadgetUser->uuid)
+        $response = $this->withHeader('X-Widget-User-ID', (string) $widgetUser->uuid)
             ->postJson('/api/auth/login', [
                 'email' => 'existing@example.com',
                 'password' => 'password123',
@@ -246,7 +246,7 @@ class GadgetAccountAttachmentTest extends TestCase
 
         $this->assertDatabaseHas('account_users', [
             'account_id' => $account->id,
-            'user_id' => $gadgetUser->id,
+            'user_id' => $widgetUser->id,
             'relationship' => 'widget',
             'unlinked_at' => null,
         ]);
@@ -257,14 +257,14 @@ class GadgetAccountAttachmentTest extends TestCase
         $session->refresh();
         $task->refresh();
 
-        $this->assertSame($gadgetUser->id, $conversation->user_id);
-        $this->assertSame($gadgetUser->id, $session->user_id);
-        $this->assertSame($gadgetUser->id, $task->user_id);
-        $this->assertTrue($channel->hasActor($gadgetUser));
+        $this->assertSame($widgetUser->id, $conversation->user_id);
+        $this->assertSame($widgetUser->id, $session->user_id);
+        $this->assertSame($widgetUser->id, $task->user_id);
+        $this->assertTrue($channel->hasActor($widgetUser));
         $this->assertDatabaseHas('thread_actors', [
             'id' => $threadActor->id,
-            'actorable_type' => $gadgetUser->getMorphClass(),
-            'actorable_id' => $gadgetUser->id,
+            'actorable_type' => $widgetUser->getMorphClass(),
+            'actorable_id' => $widgetUser->id,
         ]);
     }
 

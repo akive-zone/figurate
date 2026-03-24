@@ -20,7 +20,7 @@ class AgentUserProvisioningTest extends TestCase
 
         Sanctum::actingAs($person, [TokenAbility::Studio->value]);
 
-        $response = $this->postJson('/api/agents', [
+        $response = $this->postJson('/api/auth/agents', [
             'name' => 'Remote Planner',
         ]);
 
@@ -45,32 +45,32 @@ class AgentUserProvisioningTest extends TestCase
 
     public function test_a_widget_user_cannot_provision_an_agent_user_without_account_access(): void
     {
-        $device = $this->makeUser(User::TypeWidget);
+        $widgetUser = $this->makeUser(User::TypeWidget);
 
-        Sanctum::actingAs($device, [TokenAbility::Chat->value]);
+        Sanctum::actingAs($widgetUser, [TokenAbility::Chat->value]);
 
-        $this->postJson('/api/agents', [
+        $this->postJson('/api/auth/agents', [
             'name' => 'Blocked Agent',
         ])->assertForbidden();
     }
 
     public function test_an_account_linked_widget_user_cannot_provision_an_agent_user(): void
     {
-        $gadget = $this->makeUser(User::TypeWidget, 'widget-owner@example.com');
+        $widgetUser = $this->makeUser(User::TypeWidget, 'widget-owner@example.com');
         $account = Account::query()->create([
             'name' => 'Widget Owner',
             'status' => 'active',
         ]);
 
-        $gadget->accounts()->attach($account->id, [
+        $widgetUser->accounts()->attach($account->id, [
             'relationship' => 'widget',
             'is_primary' => true,
             'linked_at' => now(),
         ]);
 
-        Sanctum::actingAs($gadget, [TokenAbility::Studio->value]);
+        Sanctum::actingAs($widgetUser, [TokenAbility::Studio->value]);
 
-        $this->postJson('/api/agents', [
+        $this->postJson('/api/auth/agents', [
             'name' => 'Linked Widget Agent',
         ])->assertForbidden();
     }
