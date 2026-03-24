@@ -3,10 +3,12 @@
 namespace Figurate\SocialAuth\Http\Controllers;
 
 use App\Contracts\Users\UserRepository;
+use App\Events\Server\Auth\SubjectAuthenticated;
 use App\Http\Controllers\Controller;
 use App\Models\Server\User;
 use Figurate\AccountManager\Contracts\AccountContextFactory;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -32,7 +34,7 @@ class SocialiteController extends Controller
         return Socialite::driver($provider)->redirect();
     }
 
-    public function callback(string $provider): RedirectResponse
+    public function callback(Request $request, string $provider): RedirectResponse
     {
         $this->ensureProviderIsAllowed($provider);
 
@@ -41,6 +43,7 @@ class SocialiteController extends Controller
 
         Auth::login($subjectUser);
         $this->attachSubjectIdentity($subjectUser, $provider, $socialUser);
+        event(new SubjectAuthenticated($subjectUser, $request, 'social'));
 
         return redirect()->route('chat.index');
     }

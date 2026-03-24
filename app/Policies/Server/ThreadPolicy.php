@@ -14,7 +14,7 @@ class ThreadPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->isRobot() || $user->isGadget() || $user->canActAsHuman();
+        return $user->canUseInteractiveTransport();
     }
 
     /**

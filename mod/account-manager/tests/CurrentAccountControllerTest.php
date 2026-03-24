@@ -13,7 +13,7 @@ use Tests\TestCase;
 
 class CurrentAccountControllerTest extends TestCase
 {
-    public function test_it_rejects_gadget_users_when_resolving_the_current_account(): void
+    public function test_it_rejects_widget_users_when_resolving_the_current_account(): void
     {
         $accountContextFactory = Mockery::mock(AccountContextFactory::class);
         $accountContextFactory->shouldNotReceive('forUser');
@@ -21,9 +21,9 @@ class CurrentAccountControllerTest extends TestCase
         $controller = new CurrentAccountController($accountContextFactory);
         $request = Request::create('/api/accounts/current', 'GET');
         $request->setUserResolver(fn (): User => new User([
-            'name' => 'Gadget User',
-            'email' => 'gadget@example.com',
-            'type' => User::TypeGadget,
+            'name' => 'Widget User',
+            'email' => 'widget@example.com',
+            'type' => User::TypeWidget,
             'status' => 'active',
         ]));
 

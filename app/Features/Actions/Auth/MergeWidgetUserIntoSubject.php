@@ -7,44 +7,44 @@ use App\Models\Server\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-class MergeGadgetUserIntoPerson
+class MergeWidgetUserIntoSubject
 {
     public function __construct(protected UserRepository $userRepository) {}
 
-    public function execute(?User $gadgetUser, User $subjectUser): void
+    public function execute(?User $widgetUser, User $subjectUser): void
     {
-        if (! $gadgetUser) {
+        if (! $widgetUser) {
             return;
         }
 
-        if ($gadgetUser->is($subjectUser)) {
+        if ($widgetUser->is($subjectUser)) {
             return;
         }
 
-        if (! $gadgetUser->isGadget() || ! $subjectUser->isSubject()) {
+        if (! $widgetUser->isWidget() || ! $subjectUser->isSubject()) {
             return;
         }
 
-        DB::transaction(function () use ($gadgetUser, $subjectUser): void {
-            $this->migrateRequestActors($gadgetUser, $subjectUser);
-            $this->migrateChannelActorStates($gadgetUser, $subjectUser);
-            $this->migratePasskeys($gadgetUser, $subjectUser);
-            $this->migrateUserAgents($gadgetUser, $subjectUser);
+        DB::transaction(function () use ($widgetUser, $subjectUser): void {
+            $this->migrateRequestActors($widgetUser, $subjectUser);
+            $this->migrateChannelActorStates($widgetUser, $subjectUser);
+            $this->migratePasskeys($widgetUser, $subjectUser);
+            $this->migrateUserAgents($widgetUser, $subjectUser);
 
-            $gadgetUser->forceFill([
+            $widgetUser->forceFill([
                 'status' => 'merged',
             ]);
-            $this->userRepository->save($gadgetUser);
+            $this->userRepository->save($widgetUser);
 
-            $this->userRepository->deleteAuthTokens($gadgetUser);
+            $this->userRepository->deleteAuthTokens($widgetUser);
         });
     }
 
-    protected function migrateRequestActors(User $gadgetUser, User $subjectUser): void
+    protected function migrateRequestActors(User $widgetUser, User $subjectUser): void
     {
         $rows = DB::table('request_actors')
-            ->where('actor_type', $gadgetUser->getMorphClass())
-            ->where('actor_id', $gadgetUser->id)
+            ->where('actor_type', $widgetUser->getMorphClass())
+            ->where('actor_id', $widgetUser->id)
             ->get();
 
         foreach ($rows as $row) {
@@ -73,15 +73,15 @@ class MergeGadgetUserIntoPerson
         }
     }
 
-    protected function migrateChannelActorStates(User $gadgetUser, User $subjectUser): void
+    protected function migrateChannelActorStates(User $widgetUser, User $subjectUser): void
     {
         if (! Schema::hasTable('actor_states')) {
             return;
         }
 
         $rows = DB::table('actor_states')
-            ->where('actorable_type', $gadgetUser->getMorphClass())
-            ->where('actorable_id', $gadgetUser->id)
+            ->where('actorable_type', $widgetUser->getMorphClass())
+            ->where('actorable_id', $widgetUser->id)
             ->get();
 
         foreach ($rows as $row) {
@@ -109,14 +109,14 @@ class MergeGadgetUserIntoPerson
         }
     }
 
-    protected function migratePasskeys(User $gadgetUser, User $subjectUser): void
+    protected function migratePasskeys(User $widgetUser, User $subjectUser): void
     {
         if (! Schema::hasTable('passkeys')) {
             return;
         }
 
         $rows = DB::table('passkeys')
-            ->where('authenticatable_id', $gadgetUser->id)
+            ->where('authenticatable_id', $widgetUser->id)
             ->get();
 
         foreach ($rows as $row) {
@@ -167,14 +167,14 @@ class MergeGadgetUserIntoPerson
         }
     }
 
-    protected function migrateUserAgents(User $gadgetUser, User $subjectUser): void
+    protected function migrateUserAgents(User $widgetUser, User $subjectUser): void
     {
         if (! Schema::hasTable('user_agents')) {
             return;
         }
 
         $rows = DB::table('user_agents')
-            ->where('user_id', $gadgetUser->id)
+            ->where('user_id', $widgetUser->id)
             ->get();
 
         foreach ($rows as $row) {

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Mcp;
 
-use App\Http\Middleware\EnsureGadgetUser;
 use App\Models\Server\User;
 use App\TokenAbility;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,8 +18,6 @@ class ContextServerApiTest extends TestCase
             'allow_http' => false,
             'allow_private_network' => false,
         ]);
-        $this->withoutMiddleware(EnsureGadgetUser::class);
-
         $user = User::factory()->create();
         Sanctum::actingAs($user, [TokenAbility::Chat->value]);
 
@@ -45,8 +42,6 @@ class ContextServerApiTest extends TestCase
             'allow_http' => false,
             'allow_private_network' => false,
         ]);
-        $this->withoutMiddleware(EnsureGadgetUser::class);
-
         $user = User::factory()->create();
         Sanctum::actingAs($user, [TokenAbility::Chat->value]);
 
@@ -60,7 +55,7 @@ class ContextServerApiTest extends TestCase
             'allowed_tools' => ['search'],
         ]);
 
-        $response = $this->patchJson(route('api.context-servers.update', ['contextServer' => $contextServer->id]), [
+        $response = $this->patchJson(route('api.context-servers.update', ['server' => $contextServer->id]), [
             'endpoint_url' => 'http://127.0.0.1:3000/mcp',
         ]);
 

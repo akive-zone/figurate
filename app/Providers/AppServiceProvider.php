@@ -3,7 +3,6 @@
 namespace App\Providers;
 
 use App\Contracts\Users\UserRepository;
-use App\Http\Middleware\EnsureGadgetUser;
 use App\Models\Server\Channel;
 use App\Models\Server\Message;
 use App\Models\Server\Post;
@@ -15,10 +14,8 @@ use App\Providers\Server\ChatServiceProvider;
 use App\Providers\Server\ControlPanelProvider;
 use App\Support\Runtime\AppRuntime;
 use App\Support\Users\EloquentUserRepository;
-use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Passport\Passport;
@@ -78,28 +75,7 @@ class AppServiceProvider extends ServiceProvider
                 ->prefix('api')
                 ->group(base_path('routes/api.php'));
 
-            $router = $this->app->make(Router::class);
-
-            $router->pushMiddlewareToGroup('web', EnsureGadgetUser::class);
-            $this->prioritizeGadgetMiddlewareBeforeAuth($router);
         }
-    }
-
-    protected function prioritizeGadgetMiddlewareBeforeAuth(Router $router): void
-    {
-        if (in_array(EnsureGadgetUser::class, $router->middlewarePriority, true)) {
-            return;
-        }
-
-        $authIndex = array_search(AuthenticatesRequests::class, $router->middlewarePriority, true);
-
-        if ($authIndex === false) {
-            array_unshift($router->middlewarePriority, EnsureGadgetUser::class);
-
-            return;
-        }
-
-        array_splice($router->middlewarePriority, $authIndex, 0, [EnsureGadgetUser::class]);
     }
 
     protected function isNativeRuntime(): bool

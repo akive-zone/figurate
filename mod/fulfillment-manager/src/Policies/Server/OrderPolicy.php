@@ -12,7 +12,7 @@ class OrderPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->isSystem() || $user->canActAsHuman();
+        return $user->canActAsHuman();
     }
 
     /**
@@ -20,10 +20,6 @@ class OrderPolicy
      */
     public function view(User $user, Order $order): bool
     {
-        if ($user->type === 'system') {
-            return true;
-        }
-
         if ($order->buyer_id === $user->id) {
             return true;
         }
@@ -36,7 +32,7 @@ class OrderPolicy
      */
     public function create(User $user): bool
     {
-        return $user->isSystem() || $user->canActAsHuman();
+        return $user->canActAsHuman();
     }
 
     /**
@@ -44,10 +40,6 @@ class OrderPolicy
      */
     public function update(User $user, Order $order): bool
     {
-        if ($user->type === 'system') {
-            return true;
-        }
-
         if ($order->buyer_id === $user->id) {
             return true;
         }
@@ -60,7 +52,7 @@ class OrderPolicy
      */
     public function delete(User $user, Order $order): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 
     /**
@@ -68,7 +60,7 @@ class OrderPolicy
      */
     public function restore(User $user, Order $order): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 
     /**
@@ -76,6 +68,6 @@ class OrderPolicy
      */
     public function forceDelete(User $user, Order $order): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 }

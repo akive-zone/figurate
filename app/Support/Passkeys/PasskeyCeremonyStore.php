@@ -24,7 +24,10 @@ class PasskeyCeremonyStore
         return $ceremonyId;
     }
 
-    public function consumeRegistrationOptions(User $user, string $ceremonyId): ?string
+    /**
+     * @return array{user_id:int,options:string}|null
+     */
+    public function consumeRegistrationOptions(string $ceremonyId): ?array
     {
         $payload = Cache::pull($this->cacheKey('registration', $ceremonyId));
 
@@ -32,13 +35,17 @@ class PasskeyCeremonyStore
             return null;
         }
 
-        if ((int) ($payload['user_id'] ?? 0) !== (int) $user->getKey()) {
+        $userId = (int) ($payload['user_id'] ?? 0);
+        $options = $payload['options'] ?? null;
+
+        if ($userId <= 0 || ! is_string($options) || $options === '') {
             return null;
         }
 
-        $options = $payload['options'] ?? null;
-
-        return is_string($options) && $options !== '' ? $options : null;
+        return [
+            'user_id' => $userId,
+            'options' => $options,
+        ];
     }
 
     protected function cacheKey(string $type, string $ceremonyId): string

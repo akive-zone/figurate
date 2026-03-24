@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Contracts\Users\UserRepository;
+use App\Events\Server\Auth\SubjectAuthenticated;
 use App\Http\Controllers\Controller;
-use App\Http\Middleware\ResolveCurrentGadgetUser;
 use App\Http\Requests\Server\Auth\LoginRequest;
 use App\TokenAbility;
 use Illuminate\Auth\Events\Login;
@@ -35,13 +35,13 @@ class LoginController extends Controller
         }
 
         event(new Login('sanctum', $subjectUser, false));
+        event(new SubjectAuthenticated($subjectUser, $request, 'login'));
 
         $token = $this->userRepository->issueToken($subjectUser, 'studio-api', [TokenAbility::Studio->value]);
 
         return response()->json([
             'token' => $token,
             'token_type' => 'Bearer',
-            'gadget_user_id' => ResolveCurrentGadgetUser::resolvedUser($request)?->uuid,
             'user' => $subjectUser,
         ]);
     }

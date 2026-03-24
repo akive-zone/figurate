@@ -12,7 +12,7 @@ class ServiceCategoryPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->isSystem() || $user->isGadget() || $user->canActAsHuman();
+        return $user->canAccessMarketplace();
     }
 
     /**
@@ -20,7 +20,7 @@ class ServiceCategoryPolicy
      */
     public function view(User $user, ServiceCategory $serviceCategory): bool
     {
-        return $user->isSystem() || $user->isGadget() || $user->canActAsHuman();
+        return $user->canAccessMarketplace();
     }
 
     /**
@@ -28,7 +28,7 @@ class ServiceCategoryPolicy
      */
     public function create(User $user): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 
     /**
@@ -36,7 +36,7 @@ class ServiceCategoryPolicy
      */
     public function update(User $user, ServiceCategory $serviceCategory): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 
     /**
@@ -44,7 +44,7 @@ class ServiceCategoryPolicy
      */
     public function delete(User $user, ServiceCategory $serviceCategory): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 
     /**
@@ -52,7 +52,7 @@ class ServiceCategoryPolicy
      */
     public function restore(User $user, ServiceCategory $serviceCategory): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 
     /**
@@ -60,6 +60,6 @@ class ServiceCategoryPolicy
      */
     public function forceDelete(User $user, ServiceCategory $serviceCategory): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 }

@@ -12,7 +12,7 @@ class RequestPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->isSystem() || $user->isGadget() || $user->canActAsHuman();
+        return $user->canAccessMarketplace();
     }
 
     /**
@@ -20,10 +20,6 @@ class RequestPolicy
      */
     public function view(User $user, Request $request): bool
     {
-        if ($user->type === 'system') {
-            return true;
-        }
-
         if ($request->hasUserActor($user)) {
             return true;
         }
@@ -38,7 +34,7 @@ class RequestPolicy
      */
     public function create(User $user): bool
     {
-        return $user->isGadget() || $user->canActAsHuman();
+        return $user->canActAsEndUser();
     }
 
     /**
@@ -46,7 +42,7 @@ class RequestPolicy
      */
     public function update(User $user, Request $request): bool
     {
-        return $user->type === 'system' || $request->hasUserActor($user, Request::ActionAsker);
+        return $request->hasUserActor($user, Request::ActionAsker);
     }
 
     /**
@@ -54,7 +50,7 @@ class RequestPolicy
      */
     public function delete(User $user, Request $request): bool
     {
-        return $user->type === 'system' || $request->hasUserActor($user, Request::ActionAsker);
+        return $request->hasUserActor($user, Request::ActionAsker);
     }
 
     /**
@@ -62,7 +58,7 @@ class RequestPolicy
      */
     public function restore(User $user, Request $request): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 
     /**
@@ -70,6 +66,6 @@ class RequestPolicy
      */
     public function forceDelete(User $user, Request $request): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 }

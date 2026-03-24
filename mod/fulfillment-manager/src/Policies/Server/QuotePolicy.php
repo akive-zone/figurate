@@ -12,7 +12,7 @@ class QuotePolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->isSystem() || $user->isGadget() || $user->canActAsHuman();
+        return $user->canAccessMarketplace();
     }
 
     /**
@@ -20,10 +20,6 @@ class QuotePolicy
      */
     public function view(User $user, Quote $quote): bool
     {
-        if ($user->type === 'system') {
-            return true;
-        }
-
         if ($quote->profile?->user_id === $user->id) {
             return true;
         }
@@ -44,10 +40,6 @@ class QuotePolicy
      */
     public function update(User $user, Quote $quote): bool
     {
-        if ($user->type === 'system') {
-            return true;
-        }
-
         if ($quote->profile?->user_id === $user->id) {
             return true;
         }
@@ -60,7 +52,7 @@ class QuotePolicy
      */
     public function delete(User $user, Quote $quote): bool
     {
-        return $user->type === 'system' || $quote->profile?->user_id === $user->id;
+        return $quote->profile?->user_id === $user->id;
     }
 
     /**
@@ -68,7 +60,7 @@ class QuotePolicy
      */
     public function restore(User $user, Quote $quote): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 
     /**
@@ -76,6 +68,6 @@ class QuotePolicy
      */
     public function forceDelete(User $user, Quote $quote): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 }

@@ -5,16 +5,50 @@ namespace App\Features\Actions\Auth;
 use App\Contracts\Users\UserRepository;
 use App\Models\Server\User;
 use App\Models\Server\UserAgent;
+use Illuminate\Http\Request;
 
-class ResolveGadgetUser
+class ResolveWidgetUser
 {
-    public const GadgetUserHeader = 'X-Gadget-User-ID';
+    public const WidgetUserHeader = 'X-Widget-User-ID';
+
+    public const LegacyGadgetUserHeader = 'X-Gadget-User-ID';
 
     public const LegacyDeviceHeader = 'X-Device-Id';
 
     public const DeviceCookie = 'device_id';
 
     public function __construct(protected UserRepository $userRepository) {}
+
+    /**
+     * @return array{
+     *     headers: array<string, mixed>,
+     *     cookies: array<string, mixed>,
+     *     user_agent: ?string,
+     *     ip_address: ?string,
+     *     expects_json: bool,
+     *     path: string
+     * }
+     */
+    public static function contextFromRequest(Request $request): array
+    {
+        return [
+            'headers' => [
+                self::WidgetUserHeader => $request->header(self::WidgetUserHeader),
+                self::LegacyGadgetUserHeader => $request->header(self::LegacyGadgetUserHeader),
+                self::LegacyDeviceHeader => $request->header(self::LegacyDeviceHeader),
+                'X-App-Version' => $request->header('X-App-Version'),
+                'X-Platform' => $request->header('X-Platform'),
+                'X-NativePHP' => $request->header('X-NativePHP'),
+            ],
+            'cookies' => [
+                self::DeviceCookie => $request->cookie(self::DeviceCookie),
+            ],
+            'user_agent' => $request->userAgent(),
+            'ip_address' => $request->ip(),
+            'expects_json' => $request->expectsJson(),
+            'path' => $request->path(),
+        ];
+    }
 
     /**
      * @param  array{
@@ -28,21 +62,21 @@ class ResolveGadgetUser
      */
     public function execute(array $context, ?User $requestUser = null): ?User
     {
-        if ($requestUser instanceof User && $requestUser->isGadget()) {
+        if ($requestUser instanceof User && $requestUser->isWidget()) {
             $this->remember($requestUser, $context);
 
             return $requestUser;
         }
 
-        $gadgetUserIdentifier = $this->resolveGadgetUserIdentifier($context);
+        $widgetUserIdentifier = $this->resolveWidgetUserIdentifier($context);
 
-        if (is_string($gadgetUserIdentifier) && trim($gadgetUserIdentifier) !== '') {
-            $gadgetUser = $this->resolveByGadgetUserIdentifier(trim($gadgetUserIdentifier));
+        if (is_string($widgetUserIdentifier) && trim($widgetUserIdentifier) !== '') {
+            $widgetUser = $this->resolveByWidgetUserIdentifier(trim($widgetUserIdentifier));
 
-            if ($gadgetUser instanceof User) {
-                $this->remember($gadgetUser, $context);
+            if ($widgetUser instanceof User) {
+                $this->remember($widgetUser, $context);
 
-                return $gadgetUser;
+                return $widgetUser;
             }
         }
 
@@ -59,13 +93,13 @@ class ResolveGadgetUser
             ->first()
             ?->user;
 
-        if (! $user instanceof User || ! $user->isGadget()) {
+        if (! $user instanceof User || ! $user->isWidget()) {
             return null;
         }
 
-        if ($user->type !== User::TypeGadget) {
+        if ($user->type !== User::TypeWidget) {
             $user->forceFill([
-                'type' => User::TypeGadget,
+                'type' => User::TypeWidget,
             ]);
             $this->userRepository->save($user);
         }
@@ -78,12 +112,13 @@ class ResolveGadgetUser
     /**
      * @param  array<string, mixed>  $context
      */
-    public function resolveGadgetUserIdentifier(array $context): ?string
+    public function resolveWidgetUserIdentifier(array $context): ?string
     {
-        $gadgetUserId = $this->header($context, self::GadgetUserHeader);
+        $widgetUserId = $this->header($context, self::WidgetUserHeader)
+            ?? $this->header($context, self::LegacyGadgetUserHeader);
 
-        if (is_string($gadgetUserId) && trim($gadgetUserId) !== '') {
-            return trim($gadgetUserId);
+        if (is_string($widgetUserId) && trim($widgetUserId) !== '') {
+            return trim($widgetUserId);
         }
 
         return null;
@@ -133,7 +168,7 @@ class ResolveGadgetUser
                 ],
                 'metadata' => [
                     'native' => $this->header($context, 'X-NativePHP') !== null,
-                    'gadget_user_uuid' => $user->uuid,
+                    'widget_user_uuid' => $user->uuid,
                 ],
                 'last_seen_at' => now(),
             ],
@@ -184,16 +219,16 @@ class ResolveGadgetUser
         return $cookies[$key] ?? null;
     }
 
-    protected function resolveByGadgetUserIdentifier(string $gadgetUserIdentifier): ?User
+    protected function resolveByWidgetUserIdentifier(string $widgetUserIdentifier): ?User
     {
-        $gadgetUser = $this->userRepository->findByUuid($gadgetUserIdentifier);
+        $widgetUser = $this->userRepository->findByUuid($widgetUserIdentifier);
 
-        if (! $gadgetUser instanceof User && ctype_digit($gadgetUserIdentifier)) {
-            $gadgetUser = $this->userRepository->findById((int) $gadgetUserIdentifier);
+        if (! $widgetUser instanceof User && ctype_digit($widgetUserIdentifier)) {
+            $widgetUser = $this->userRepository->findById((int) $widgetUserIdentifier);
         }
 
-        return $gadgetUser instanceof User && $gadgetUser->isGadget()
-            ? $gadgetUser
+        return $widgetUser instanceof User && $widgetUser->isWidget()
+            ? $widgetUser
             : null;
     }
 }

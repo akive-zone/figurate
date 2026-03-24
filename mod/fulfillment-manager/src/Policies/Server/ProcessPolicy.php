@@ -12,7 +12,7 @@ class ProcessPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->isSystem() || $user->canActAsHuman();
+        return $user->canActAsHuman();
     }
 
     /**
@@ -20,10 +20,6 @@ class ProcessPolicy
      */
     public function view(User $user, Process $process): bool
     {
-        if ($user->type === 'system') {
-            return true;
-        }
-
         if ($process->order?->buyer_id === $user->id) {
             return true;
         }
@@ -36,7 +32,7 @@ class ProcessPolicy
      */
     public function create(User $user): bool
     {
-        return $user->isSystem() || $user->canActAsHuman();
+        return $user->canActAsHuman();
     }
 
     /**
@@ -44,10 +40,6 @@ class ProcessPolicy
      */
     public function update(User $user, Process $process): bool
     {
-        if ($user->type === 'system') {
-            return true;
-        }
-
         return $process->profile?->user_id === $user->id;
     }
 
@@ -56,7 +48,7 @@ class ProcessPolicy
      */
     public function delete(User $user, Process $process): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 
     /**
@@ -64,7 +56,7 @@ class ProcessPolicy
      */
     public function restore(User $user, Process $process): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 
     /**
@@ -72,6 +64,6 @@ class ProcessPolicy
      */
     public function forceDelete(User $user, Process $process): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 }

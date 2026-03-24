@@ -7,10 +7,10 @@ use App\Models\Server\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
-class ResolveOrCreateGadgetUser
+class ResolveOrCreateWidgetUser
 {
     public function __construct(
-        protected ResolveGadgetUser $resolveGadgetUser,
+        protected ResolveWidgetUser $resolveWidgetUser,
         protected UserRepository $userRepository,
     ) {}
 
@@ -26,23 +26,23 @@ class ResolveOrCreateGadgetUser
      */
     public function execute(array $context, ?User $requestUser = null): User
     {
-        $user = $this->resolveGadgetUser->execute($context, $requestUser);
+        $user = $this->resolveWidgetUser->execute($context, $requestUser);
 
         if ($user instanceof User) {
             return $user;
         }
 
-        $deviceIdentifier = $this->resolveGadgetUser->resolveDeviceIdentifier($context) ?? (string) Str::uuid();
+        $deviceIdentifier = $this->resolveWidgetUser->resolveDeviceIdentifier($context) ?? (string) Str::uuid();
 
         $user = $this->userRepository->create([
-            'name' => 'Gadget User',
-            'email' => "gadget-{$deviceIdentifier}@example.invalid",
+            'name' => 'Widget User',
+            'email' => "widget-{$deviceIdentifier}@example.invalid",
             'password' => Hash::make(Str::random(48)),
-            'type' => User::TypeGadget,
+            'type' => User::TypeWidget,
             'status' => 'active',
         ]);
 
-        $this->resolveGadgetUser->remember($user, $context, $deviceIdentifier);
+        $this->resolveWidgetUser->remember($user, $context, $deviceIdentifier);
 
         return $user;
     }

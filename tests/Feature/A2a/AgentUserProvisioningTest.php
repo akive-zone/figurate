@@ -20,7 +20,7 @@ class AgentUserProvisioningTest extends TestCase
 
         Sanctum::actingAs($person, [TokenAbility::Studio->value]);
 
-        $response = $this->postJson('/api/auth/agents', [
+        $response = $this->postJson('/api/agents', [
             'name' => 'Remote Planner',
         ]);
 
@@ -43,35 +43,35 @@ class AgentUserProvisioningTest extends TestCase
         $this->assertSame(TokenAbility::defaultAgentAbilities(), $token->abilities);
     }
 
-    public function test_a_gadget_user_cannot_provision_an_agent_user_without_account_access(): void
+    public function test_a_widget_user_cannot_provision_an_agent_user_without_account_access(): void
     {
-        $device = $this->makeUser(User::TypeGadget);
+        $device = $this->makeUser(User::TypeWidget);
 
         Sanctum::actingAs($device, [TokenAbility::Chat->value]);
 
-        $this->postJson('/api/auth/agents', [
+        $this->postJson('/api/agents', [
             'name' => 'Blocked Agent',
         ])->assertForbidden();
     }
 
-    public function test_an_account_linked_gadget_user_cannot_provision_an_agent_user(): void
+    public function test_an_account_linked_widget_user_cannot_provision_an_agent_user(): void
     {
-        $gadget = $this->makeUser(User::TypeGadget, 'gadget-owner@example.com');
+        $gadget = $this->makeUser(User::TypeWidget, 'widget-owner@example.com');
         $account = Account::query()->create([
-            'name' => 'Gadget Owner',
+            'name' => 'Widget Owner',
             'status' => 'active',
         ]);
 
         $gadget->accounts()->attach($account->id, [
-            'relationship' => 'gadget',
+            'relationship' => 'widget',
             'is_primary' => true,
             'linked_at' => now(),
         ]);
 
         Sanctum::actingAs($gadget, [TokenAbility::Studio->value]);
 
-        $this->postJson('/api/auth/agents', [
-            'name' => 'Linked Gadget Agent',
+        $this->postJson('/api/agents', [
+            'name' => 'Linked Widget Agent',
         ])->assertForbidden();
     }
 

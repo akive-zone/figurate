@@ -15,11 +15,9 @@ use App\Http\Controllers\Api\ConversationThreadController;
 use App\Http\Controllers\Api\Mcp\ServerController as McpServerController;
 use App\Http\Middleware\EnsureA2aEnabled;
 use App\Http\Middleware\EnsureA2aRpcAbility;
-use App\Http\Middleware\EnsureGadgetUser;
 use App\Http\Middleware\EnsureTokenAbility;
 use App\Http\Middleware\EnsureTransportUser;
 use App\Http\Middleware\NormalizeA2aRpcMethodNames;
-use App\Http\Middleware\ResolveCurrentGadgetUser;
 use App\Http\Procedures\A2aProcedure;
 use App\Http\Procedures\A2aTasksProcedure;
 use App\Http\Procedures\A2aTasksPushNotificationConfigProcedure;
@@ -27,31 +25,33 @@ use Illuminate\Broadcasting\BroadcastController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function (): void {
-    Route::post('register', RegisterController::class)
-        ->middleware([ResolveCurrentGadgetUser::class]);
-    Route::post('login', LoginController::class)
-        ->middleware([ResolveCurrentGadgetUser::class]);
+    Route::post('register', RegisterController::class);
+    Route::post('login', LoginController::class);
     Route::post('logout', LogoutController::class)
         ->middleware(['auth:sanctum,passport']);
+    Route::post('broadcasting', [BroadcastController::class, 'authenticate'])
+        ->middleware(['auth:sanctum,passport']);
 
-    Route::middleware(['auth:sanctum,passport'])
-        ->prefix('passkeys')
+    Route::prefix('passkeys')
         ->name('api.passkeys.')
         ->group(function (): void {
-            Route::get('/', [PasskeyController::class, 'index'])->name('index');
-            Route::post('/options/register', [PasskeyController::class, 'generateRegisterOptions'])->name('register-options');
-            Route::post('/', [PasskeyController::class, 'store'])->name('store');
-            Route::delete('/{passkey}', [PasskeyController::class, 'destroy'])->name('destroy');
+            Route::get('/', [PasskeyController::class, 'index'])
+                ->middleware(['auth:sanctum,passport'])
+                ->name('index');
+            Route::post('/options/register', [PasskeyController::class, 'generateRegisterOptions'])
+                ->name('register-options');
+            Route::post('/', [PasskeyController::class, 'store'])
+                ->name('store');
+            Route::delete('/{passkey}', [PasskeyController::class, 'destroy'])
+                ->middleware(['auth:sanctum,passport'])
+                ->name('destroy');
         });
+
+    Route::post('agents', [AgentUserController::class, 'store'])
+        ->middleware(['auth:sanctum,passport', EnsureTransportUser::class.':subject']);
 });
 
-Route::post('broadcasting/auth', [BroadcastController::class, 'authenticate'])
-    ->middleware(['auth:guest,sanctum,passport']);
-
-Route::post('agents', [AgentUserController::class, 'store'])
-    ->middleware(['auth:sanctum,passport', EnsureTransportUser::class.':subject']);
-
-Route::prefix('conversations')->middleware([EnsureGadgetUser::class, 'auth:sanctum,passport'])->group(function (): void {
+Route::prefix('conversations')->middleware(['auth:sanctum,passport'])->group(function (): void {
     Route::post('/', [ConversationController::class, 'store'])->name('api.conversations.store');
     Route::get('/', [ConversationController::class, 'index'])->name('api.conversations.index');
     Route::get('/{conversation}', [ConversationController::class, 'show'])->name('api.conversations.show');
@@ -61,7 +61,7 @@ Route::prefix('conversations')->middleware([EnsureGadgetUser::class, 'auth:sanct
     Route::get('/{conversation}/posts', [ConversationPostController::class, 'index'])->name('api.conversations.posts.index');
 });
 
-Route::prefix('mcp')->middleware([EnsureGadgetUser::class, 'auth:sanctum,passport'])->group(function (): void {
+Route::prefix('mcp')->middleware(['auth:sanctum,passport'])->group(function (): void {
     Route::get('/servers', [McpServerController::class, 'index'])->name('api.context-servers.index');
     Route::post('/servers', [McpServerController::class, 'store'])->name('api.context-servers.store');
     Route::patch('/servers/{server}', [McpServerController::class, 'update'])->name('api.context-servers.update');

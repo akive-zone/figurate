@@ -16,16 +16,16 @@ class EnsurePanelUser
     {
         $user = $request->user();
 
-        if ($user instanceof User && $user->isGadget()) {
+        if ($user instanceof User && $user->isWidget()) {
             if ($request->expectsJson()) {
                 return response()->json([
-                    'message' => 'Gadget users do not have access to panel mode.',
+                    'message' => 'Widget users do not have access to panel mode.',
                 ], 403);
             }
 
             return redirect()
                 ->route('chat.index')
-                ->with('error', 'Gadget users do not have access to panel mode.');
+                ->with('error', 'Widget users do not have access to panel mode.');
         }
 
         return $next($request);

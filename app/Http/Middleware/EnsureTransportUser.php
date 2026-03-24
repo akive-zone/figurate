@@ -45,7 +45,7 @@ class EnsureTransportUser
     {
         return match ($allowedType) {
             'subject' => $user->canActAsHuman(),
-            'device', 'gadget' => $user->isGadget(),
+            'device', 'gadget', 'widget' => $user->isWidget(),
             'agent', 'robot' => $user->isRobot(),
             default => $user->type === $allowedType,
         };

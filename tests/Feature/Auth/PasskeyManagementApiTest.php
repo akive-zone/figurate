@@ -57,6 +57,32 @@ class PasskeyManagementApiTest extends TestCase
             ]);
     }
 
+    public function test_a_guest_can_generate_registration_options_and_become_a_widget_candidate(): void
+    {
+        $optionsJson = json_encode([
+            'challenge' => 'guest-register-challenge',
+            'rp' => ['name' => 'Figurate'],
+        ], JSON_THROW_ON_ERROR);
+
+        $this->mock(GeneratePasskeyRegisterOptionsAction::class, function (MockInterface $mock) use ($optionsJson): void {
+            $mock->shouldReceive('execute')
+                ->once()
+                ->withArgs(fn (User $user): bool => $user->isWidget())
+                ->andReturn($optionsJson);
+        });
+
+        $response = $this->postJson('/api/auth/passkeys/options/register');
+
+        $response->assertOk()
+            ->assertJsonPath('data.options.challenge', 'guest-register-challenge')
+            ->assertHeader('X-Widget-User-ID');
+
+        $widgetUserId = (string) $response->headers->get('X-Widget-User-ID');
+        $widgetUser = User::query()->where('uuid', $widgetUserId)->firstOrFail();
+
+        $this->assertSame(User::TypeWidget, $widgetUser->type);
+    }
+
     public function test_it_stores_a_passkey_using_cached_ceremony_options(): void
     {
         $user = $this->makeUser();
@@ -103,6 +129,57 @@ class PasskeyManagementApiTest extends TestCase
         ])->assertCreated()
             ->assertJsonPath('data.id', $storedPasskey->id)
             ->assertJsonPath('data.name', 'Office Key');
+    }
+
+    public function test_a_guest_receives_a_widget_token_after_storing_a_passkey(): void
+    {
+        $optionsJson = json_encode([
+            'challenge' => 'guest-register-challenge',
+            'rp' => ['name' => 'Figurate'],
+        ], JSON_THROW_ON_ERROR);
+
+        $this->mock(GeneratePasskeyRegisterOptionsAction::class, function (MockInterface $mock) use ($optionsJson): void {
+            $mock->shouldReceive('execute')
+                ->once()
+                ->withArgs(fn (User $user): bool => $user->isWidget())
+                ->andReturn($optionsJson);
+        });
+
+        $optionsResponse = $this->postJson('/api/auth/passkeys/options/register')
+            ->assertOk();
+
+        $widgetUserId = (string) $optionsResponse->headers->get('X-Widget-User-ID');
+        $widgetUser = User::query()->where('uuid', $widgetUserId)->firstOrFail();
+        $ceremonyId = (string) $optionsResponse->json('data.ceremony_id');
+
+        $storedPasskey = Passkey::factory()->for($widgetUser, 'authenticatable')->create([
+            'name' => 'Guest Key',
+        ]);
+
+        $this->mock(StorePasskeyAction::class, function (MockInterface $mock) use ($widgetUser, $optionsJson, $storedPasskey): void {
+            $mock->shouldReceive('execute')
+                ->once()
+                ->withArgs(function (User $authenticatable, string $passkeyJson, string $storedOptionsJson, string $relyingPartyId, array $attributes) use ($widgetUser, $optionsJson): bool {
+                    return $authenticatable->is($widgetUser)
+                        && $authenticatable->isWidget()
+                        && $passkeyJson === '{"id":"guest-credential"}'
+                        && $storedOptionsJson === $optionsJson
+                        && $relyingPartyId !== ''
+                        && ($attributes['name'] ?? null) === 'Guest Key';
+                })
+                ->andReturn($storedPasskey);
+        });
+
+        $this->withHeader('X-Widget-User-ID', $widgetUserId)
+            ->postJson('/api/auth/passkeys', [
+                'name' => 'Guest Key',
+                'ceremony_id' => $ceremonyId,
+                'passkey' => '{"id":"guest-credential"}',
+            ])->assertCreated()
+            ->assertJsonPath('data.id', $storedPasskey->id)
+            ->assertJsonPath('data.name', 'Guest Key')
+            ->assertJsonPath('widget_user_id', $widgetUserId)
+            ->assertJsonPath('token_type', 'Bearer');
     }
 
     public function test_it_deletes_a_passkey_owned_by_the_authenticated_user(): void

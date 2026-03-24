@@ -12,7 +12,7 @@ class RatingPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->isSystem() || $user->canActAsHuman();
+        return $user->canActAsHuman();
     }
 
     /**
@@ -20,10 +20,6 @@ class RatingPolicy
      */
     public function view(User $user, Rating $rating): bool
     {
-        if ($user->type === 'system') {
-            return true;
-        }
-
         if ($rating->rater_id === $user->id) {
             return true;
         }
@@ -44,7 +40,7 @@ class RatingPolicy
      */
     public function update(User $user, Rating $rating): bool
     {
-        return $user->type === 'system' || $rating->rater_id === $user->id;
+        return $rating->rater_id === $user->id;
     }
 
     /**
@@ -52,7 +48,7 @@ class RatingPolicy
      */
     public function delete(User $user, Rating $rating): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 
     /**
@@ -60,7 +56,7 @@ class RatingPolicy
      */
     public function restore(User $user, Rating $rating): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 
     /**
@@ -68,6 +64,6 @@ class RatingPolicy
      */
     public function forceDelete(User $user, Rating $rating): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 }

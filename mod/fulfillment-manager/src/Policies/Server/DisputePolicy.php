@@ -12,7 +12,7 @@ class DisputePolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->isSystem() || $user->canActAsHuman();
+        return $user->canActAsHuman();
     }
 
     /**
@@ -20,10 +20,6 @@ class DisputePolicy
      */
     public function view(User $user, Dispute $dispute): bool
     {
-        if ($user->type === 'system') {
-            return true;
-        }
-
         if ($dispute->opened_by === $user->id) {
             return true;
         }
@@ -48,7 +44,7 @@ class DisputePolicy
      */
     public function update(User $user, Dispute $dispute): bool
     {
-        return $user->type === 'system' || $dispute->opened_by === $user->id;
+        return $dispute->opened_by === $user->id;
     }
 
     /**
@@ -56,7 +52,7 @@ class DisputePolicy
      */
     public function delete(User $user, Dispute $dispute): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 
     /**
@@ -64,7 +60,7 @@ class DisputePolicy
      */
     public function restore(User $user, Dispute $dispute): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 
     /**
@@ -72,6 +68,6 @@ class DisputePolicy
      */
     public function forceDelete(User $user, Dispute $dispute): bool
     {
-        return $user->type === 'system';
+        return false;
     }
 }

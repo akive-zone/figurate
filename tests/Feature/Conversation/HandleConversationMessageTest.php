@@ -3,7 +3,6 @@
 namespace Tests\Feature\Chat;
 
 use App\Ai\Support\ChatAgentExecutor;
-use App\Http\Middleware\EnsureGadgetUser;
 use App\Jobs\ProcessThreadObservers;
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelActorState;
@@ -38,14 +37,13 @@ class HandleConversationMessageTest extends TestCase
 
         Sanctum::actingAs($user, [TokenAbility::Chat->value]);
 
-        $this->withoutMiddleware(EnsureGadgetUser::class)
-            ->postJson('/api/conversations', [
-                'channel' => $channel->uuid,
-                'thread' => $thread->uuid,
-                'content' => [
-                    'text' => 'Please help me scope the repair.',
-                ],
-            ])
+        $this->postJson('/api/conversations', [
+            'channel' => $channel->uuid,
+            'thread' => $thread->uuid,
+            'content' => [
+                'text' => 'Please help me scope the repair.',
+            ],
+        ])
             ->assertAccepted()
             ->assertJsonPath('interaction_mode', 'presenter')
             ->assertJsonPath('observer_status', 'none')
@@ -74,14 +72,13 @@ class HandleConversationMessageTest extends TestCase
 
         Sanctum::actingAs($user, [TokenAbility::Chat->value]);
 
-        $this->withoutMiddleware(EnsureGadgetUser::class)
-            ->postJson('/api/conversations', [
-                'channel' => $channel->uuid,
-                'thread' => $thread->uuid,
-                'content' => [
-                    'text' => 'I have shared the details with the artisan.',
-                ],
-            ])
+        $this->postJson('/api/conversations', [
+            'channel' => $channel->uuid,
+            'thread' => $thread->uuid,
+            'content' => [
+                'text' => 'I have shared the details with the artisan.',
+            ],
+        ])
             ->assertOk()
             ->assertJsonPath('interaction_mode', 'peer')
             ->assertJsonPath('observer_status', 'queued')
@@ -111,14 +108,13 @@ class HandleConversationMessageTest extends TestCase
 
         Sanctum::actingAs($user, [TokenAbility::Chat->value]);
 
-        $this->withoutMiddleware(EnsureGadgetUser::class)
-            ->postJson('/api/conversations', [
-                'channel' => $channel->uuid,
-                'thread' => $thread->uuid,
-                'content' => [
-                    'text' => 'We are confirming the visit window now.',
-                ],
-            ])
+        $this->postJson('/api/conversations', [
+            'channel' => $channel->uuid,
+            'thread' => $thread->uuid,
+            'content' => [
+                'text' => 'We are confirming the visit window now.',
+            ],
+        ])
             ->assertAccepted()
             ->assertJsonPath('interaction_mode', 'hybrid')
             ->assertJsonPath('observer_status', 'queued')
@@ -160,8 +156,7 @@ class HandleConversationMessageTest extends TestCase
 
         Sanctum::actingAs($user, [TokenAbility::Chat->value]);
 
-        $this->withoutMiddleware(EnsureGadgetUser::class)
-            ->getJson(sprintf('/api/conversations/%s/messages/%d/turns', $channel->uuid, $promptMessage->id))
+        $this->getJson(sprintf('/api/conversations/%s/messages/%d/turns', $channel->uuid, $promptMessage->id))
             ->assertOk()
             ->assertJsonPath('thread', $thread->uuid)
             ->assertJsonPath('message_id', $promptMessage->id)

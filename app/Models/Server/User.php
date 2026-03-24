@@ -21,6 +21,8 @@ class User extends Authenticatable implements HasPasskeys
 
     public const TypeRobot = 'robot';
 
+    public const TypeWidget = 'widget';
+
     public const TypeGadget = 'gadget';
 
     public const TypeSubject = 'subject';
@@ -141,9 +143,14 @@ class User extends Authenticatable implements HasPasskeys
         return in_array($this->type, [self::TypeRobot, 'agent'], true);
     }
 
+    public function isWidget(): bool
+    {
+        return in_array($this->type, [self::TypeWidget, self::TypeGadget, 'device'], true);
+    }
+
     public function isGadget(): bool
     {
-        return in_array($this->type, [self::TypeGadget, 'device'], true);
+        return $this->isWidget();
     }
 
     public function isSubject(): bool
@@ -156,9 +163,19 @@ class User extends Authenticatable implements HasPasskeys
         return $this->isSubject();
     }
 
+    public function canActAsEndUser(): bool
+    {
+        return $this->isWidget() || $this->canActAsHuman();
+    }
+
+    public function canAccessMarketplace(): bool
+    {
+        return $this->canActAsEndUser();
+    }
+
     public function canUseInteractiveTransport(): bool
     {
-        return $this->isRobot() || $this->canActAsHuman();
+        return $this->isRobot() || $this->canActAsEndUser();
     }
 
     /**

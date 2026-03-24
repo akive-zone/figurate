@@ -8,13 +8,13 @@ use Figurate\AccountManager\Models\AccountUser;
 use Figurate\AccountManager\Support\AccountContextFactory;
 use Illuminate\Support\Facades\DB;
 
-class AttachGadgetUserToUsersPrimaryAccount
+class AttachWidgetUserToUsersPrimaryAccount
 {
     public function __construct(protected AccountContextFactory $accountContextFactory) {}
 
-    public function __invoke(?User $gadgetUser, User $user): ?Account
+    public function __invoke(?User $widgetUser, User $user): ?Account
     {
-        if (! $gadgetUser instanceof User || ! $gadgetUser->isGadget()) {
+        if (! $widgetUser instanceof User || ! $widgetUser->isWidget()) {
             return null;
         }
 
@@ -24,9 +24,9 @@ class AttachGadgetUserToUsersPrimaryAccount
             return null;
         }
 
-        DB::transaction(function () use ($account, $gadgetUser): void {
+        DB::transaction(function () use ($account, $widgetUser): void {
             AccountUser::query()
-                ->where('user_id', $gadgetUser->id)
+                ->where('user_id', $widgetUser->id)
                 ->whereNull('unlinked_at')
                 ->where('account_id', '!=', $account->id)
                 ->update([
@@ -38,19 +38,19 @@ class AttachGadgetUserToUsersPrimaryAccount
             AccountUser::query()->updateOrCreate(
                 [
                     'account_id' => $account->id,
-                    'user_id' => $gadgetUser->id,
+                    'user_id' => $widgetUser->id,
                 ],
                 [
-                    'relationship' => 'gadget',
+                    'relationship' => 'widget',
                     'is_primary' => true,
                     'linked_at' => now(),
                     'unlinked_at' => null,
                 ],
             );
 
-            if ($gadgetUser->name === null || trim($gadgetUser->name) === '' || $gadgetUser->name === 'Gadget User') {
-                $gadgetUser->forceFill([
-                    'name' => $account->name ?: $gadgetUser->name,
+            if ($widgetUser->name === null || trim($widgetUser->name) === '' || $widgetUser->name === 'Widget User') {
+                $widgetUser->forceFill([
+                    'name' => $account->name ?: $widgetUser->name,
                 ])->save();
             }
         });
