@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Server\Api\Acp;
+namespace App\Http\Controllers\Api\Acp;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Acp\PromptAcpSessionRequest;

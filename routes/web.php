@@ -1,7 +1,7 @@
 <?php
 
 use App\Ai\Gateways\Mcp\Servers\FigurateServer;
-use App\Http\Controllers\Server\Api\A2a\AgentCardController;
+use App\Http\Controllers\Api\A2a\AgentCardController;
 use App\Http\Middleware\EnsureTokenAbility;
 use App\Http\Middleware\EnsureTransportUser;
 use Illuminate\Support\Facades\Route;

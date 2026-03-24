@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Server\Api;
+namespace App\Http\Controllers\Api\Mcp;
 
 use App\Ai\Support\Mcp\ContextServerRegistry;
 use App\Contracts\Users\UserRepository;
@@ -16,7 +16,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
-class ContextServerController extends Controller
+class ServerController extends Controller
 {
     public function __construct(protected UserRepository $userRepository) {}
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Server\Api\A2a;
+namespace App\Http\Controllers\Api\A2a;
 
 use App\Ai\Support\A2a\A2aMethodRouter;
 use App\Http\Controllers\Controller;

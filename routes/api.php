@@ -1,17 +1,17 @@
 <?php
 
-use App\Http\Controllers\Server\Api\A2a\StreamController as A2aStreamController;
-use App\Http\Controllers\Server\Api\Acp\SessionController as AcpSessionController;
-use App\Http\Controllers\Server\Api\Acp\TaskController as AcpTaskController;
-use App\Http\Controllers\Server\Api\AgentUserController;
-use App\Http\Controllers\Server\Api\Auth\LoginController;
-use App\Http\Controllers\Server\Api\Auth\LogoutController;
-use App\Http\Controllers\Server\Api\Auth\PasskeyController;
-use App\Http\Controllers\Server\Api\Auth\RegisterController;
-use App\Http\Controllers\Server\Api\ChatController;
-use App\Http\Controllers\Server\Api\ChatPostController;
-use App\Http\Controllers\Server\Api\ChatThreadController;
-use App\Http\Controllers\Server\Api\ContextServerController;
+use App\Http\Controllers\Api\A2a\StreamController as A2aStreamController;
+use App\Http\Controllers\Api\Acp\SessionController as AcpSessionController;
+use App\Http\Controllers\Api\Acp\TaskController as AcpTaskController;
+use App\Http\Controllers\Api\AgentUserController;
+use App\Http\Controllers\Api\Auth\LoginController;
+use App\Http\Controllers\Api\Auth\LogoutController;
+use App\Http\Controllers\Api\Auth\PasskeyController;
+use App\Http\Controllers\Api\Auth\RegisterController;
+use App\Http\Controllers\Api\ChatController;
+use App\Http\Controllers\Api\ChatPostController;
+use App\Http\Controllers\Api\ChatThreadController;
+use App\Http\Controllers\Api\Mcp\ServerController as McpServerController;
 use App\Http\Middleware\EnsureA2aEnabled;
 use App\Http\Middleware\EnsureA2aRpcAbility;
 use App\Http\Middleware\EnsureDeviceUser;
@@ -59,11 +59,11 @@ Route::prefix('chats')->middleware([EnsureDeviceUser::class, 'auth:sanctum,passp
     Route::get('/{chat}/posts', [ChatPostController::class, 'index'])->name('api.chats.posts');
 });
 
-Route::prefix('context-servers')->middleware([EnsureDeviceUser::class, 'auth:sanctum,passport'])->group(function (): void {
-    Route::get('/', [ContextServerController::class, 'index'])->name('api.context-servers.index');
-    Route::post('/', [ContextServerController::class, 'store'])->name('api.context-servers.store');
-    Route::patch('/{contextServer}', [ContextServerController::class, 'update'])->name('api.context-servers.update');
-    Route::delete('/{contextServer}', [ContextServerController::class, 'destroy'])->name('api.context-servers.destroy');
+Route::prefix('mcp')->middleware([EnsureDeviceUser::class, 'auth:sanctum,passport'])->group(function (): void {
+    Route::get('/servers', [McpServerController::class, 'index'])->name('api.context-servers.index');
+    Route::post('/servers', [McpServerController::class, 'store'])->name('api.context-servers.store');
+    Route::patch('/servers/{server}', [McpServerController::class, 'update'])->name('api.context-servers.update');
+    Route::delete('/servers/{server}', [McpServerController::class, 'destroy'])->name('api.context-servers.destroy');
 });
 
 Route::prefix('acp')->middleware(['auth:sanctum,passport', EnsureTransportUser::class, EnsureTokenAbility::class.':acp:use'])->group(function (): void {
