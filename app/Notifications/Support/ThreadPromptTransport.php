@@ -1,0 +1,159 @@
+<?php
+
+namespace App\Notifications\Support;
+
+use App\Ai\Storage\ConversationPersistenceResolver;
+use App\Ai\Support\ChatAgentExecutor;
+use App\Features\Actions\Chat\ResolveActiveThreadPresenters;
+use App\Models\Server\Message;
+use App\Models\Server\Thread;
+use App\Models\Server\ThreadActor;
+use App\Models\Server\ThreadEvent;
+use App\Models\Server\User;
+use Illuminate\Notifications\Notification;
+
+class ThreadPromptTransport
+{
+    public function __construct(
+        protected ChatAgentExecutor $chatAgentExecutor,
+        protected ResolveActiveThreadPresenters $resolveActiveThreadPresenters,
+    ) {}
+
+    public function send(object $notifiable, Notification $notification, string $conversationPersistenceMode): void
+    {
+        if (! $notifiable instanceof User || ! method_exists($notification, 'toPromptTransport')) {
+            return;
+        }
+
+        $payload = $notification->toPromptTransport($notifiable);
+
+        if (! is_array($payload)) {
+            return;
+        }
+
+        $thread = $payload['thread'] ?? null;
+        $message = $payload['message'] ?? null;
+
+        if (! $thread instanceof Thread || ! $message instanceof Message) {
+            return;
+        }
+
+        $resolvedMode = ConversationPersistenceResolver::normalizeMode($conversationPersistenceMode);
+        $transport = $this->transportNameForMode($resolvedMode);
+        $presenter = $this->resolveActiveThreadPresenters->execute($thread)->first();
+
+        if (! $presenter instanceof ThreadActor) {
+            $this->recordEvent(
+                thread: $thread,
+                message: $message,
+                recipient: $notifiable,
+                notification: $notification,
+                transport: $transport,
+                state: ThreadEvent::StateFailed,
+                eventType: "orchestration.notification.{$transport}_missing_presenter",
+                payload: [
+                    'reason' => 'missing_presenter',
+                    'conversation_persistence' => $resolvedMode,
+                ],
+            );
+
+            return;
+        }
+
+        $actorKey = $presenter->actorName() ?: ThreadActor::ActorRequestAgent;
+        $existingStatus = data_get($message->meta, "invocations.{$actorKey}.status");
+
+        if (is_string($existingStatus) && trim($existingStatus) !== '') {
+            $this->recordEvent(
+                thread: $thread,
+                message: $message,
+                recipient: $notifiable,
+                notification: $notification,
+                transport: $transport,
+                state: ThreadEvent::StateReceived,
+                eventType: "orchestration.notification.{$transport}_skipped",
+                payload: [
+                    'reason' => 'existing_invocation',
+                    'conversation_persistence' => $resolvedMode,
+                    'presenter_actor_id' => $presenter->id,
+                    'presenter_actor_key' => $actorKey,
+                    'existing_status' => $existingStatus,
+                ],
+                threadActor: $presenter,
+            );
+
+            return;
+        }
+
+        $this->chatAgentExecutor->queue(
+            thread: $thread,
+            userMessage: $message,
+            user: $notifiable,
+            threadActor: $presenter,
+            broadcastChannelId: "threads.{$thread->uuid}",
+            conversationPersistenceMode: $resolvedMode,
+        );
+
+        $this->recordEvent(
+            thread: $thread,
+            message: $message,
+            recipient: $notifiable,
+            notification: $notification,
+            transport: $transport,
+            state: ThreadEvent::StateRequested,
+            eventType: "orchestration.notification.{$transport}_requested",
+            payload: [
+                'reason' => 'queued',
+                'conversation_persistence' => $resolvedMode,
+                'presenter_actor_id' => $presenter->id,
+                'presenter_actor_key' => $actorKey,
+            ],
+            threadActor: $presenter,
+        );
+    }
+
+    protected function transportNameForMode(?string $conversationPersistenceMode): string
+    {
+        return match ($conversationPersistenceMode) {
+            ConversationPersistenceResolver::ThreadCompletion => ConversationTransportRouter::Completion,
+            default => ConversationTransportRouter::Continuation,
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    protected function recordEvent(
+        Thread $thread,
+        Message $message,
+        User $recipient,
+        Notification $notification,
+        string $transport,
+        string $state,
+        string $eventType,
+        array $payload,
+        ?ThreadActor $threadActor = null,
+    ): void {
+        $thread->events()->create([
+            'thread_actor_id' => $threadActor?->id,
+            'message_id' => $message->id,
+            'event_key' => "notification:{$transport}:".$recipient->getKey(),
+            'layer' => ThreadEvent::LayerExecution,
+            'kind' => ThreadEvent::KindOrchestration,
+            'operation' => "notification.channel.{$transport}",
+            'state' => $state,
+            'event_type' => $eventType,
+            'severity' => $state === ThreadEvent::StateFailed ? 'medium' : 'low',
+            'payload' => [
+                'notification' => $notification::class,
+                'recipient_user_id' => $recipient->id,
+                'recipient_user_uuid' => $recipient->uuid,
+                'recipient_user_type' => $recipient->type,
+                'message_id' => $message->id,
+                'message_ulid' => $message->ulid,
+                'thread_uuid' => $thread->uuid,
+                ...$payload,
+            ],
+        ]);
+    }
+}

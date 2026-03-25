@@ -2,6 +2,7 @@
 
 namespace App\Features\Actions\Chat;
 
+use App\Ai\Storage\ConversationPersistenceResolver;
 use App\Ai\Support\Knowledge\MessageAttachmentStoreIngestor;
 use App\Models\Server\Channel;
 use App\Models\Server\Message;
@@ -25,11 +26,7 @@ class DispatchThreadMessage
             thread: $entry->thread,
             sender: $entry->actor,
             text: $entry->text,
-            meta: [
-                ...$entry->meta,
-                'source' => $entry->source,
-                'observer_dispatch' => $entry->dispatchObservers,
-            ],
+            meta: $this->messageMeta($entry),
             type: $entry->type,
             tag: $entry->tag,
         );
@@ -63,5 +60,41 @@ class DispatchThreadMessage
         }
 
         return $channel->hasActor($actor);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function messageMeta(ThreadMessageEntry $entry): array
+    {
+        $meta = [
+            ...$entry->meta,
+            'source' => $entry->source,
+            'observer_dispatch' => $entry->dispatchObservers,
+        ];
+
+        if (! array_key_exists('conversation_persistence', $meta)) {
+            $conversationPersistence = $this->requestedConversationPersistenceMode();
+
+            if ($conversationPersistence !== null) {
+                $meta['conversation_persistence'] = $conversationPersistence;
+            }
+        }
+
+        return $meta;
+    }
+
+    protected function requestedConversationPersistenceMode(): ?string
+    {
+        if (! app()->bound('request')) {
+            return null;
+        }
+
+        $request = request();
+
+        return ConversationPersistenceResolver::normalizeMode(
+            $request?->input('conversation_persistence')
+            ?? $request?->header('X-Conversation-Persistence')
+        );
     }
 }

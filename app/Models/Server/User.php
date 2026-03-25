@@ -181,6 +181,11 @@ class User extends Authenticatable implements HasPasskeys
         return $this->isRobot() || $this->canActAsEndUser();
     }
 
+    public function receivesBroadcastNotificationsOn(): string
+    {
+        return 'users.'.$this->uuid.'.notifications';
+    }
+
     /**
      * Get the attributes that should be cast.
      *

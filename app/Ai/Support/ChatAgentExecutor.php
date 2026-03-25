@@ -37,7 +37,8 @@ class ChatAgentExecutor
         Message $userMessage,
         User $user,
         ThreadActor $threadActor,
-        string $broadcastChannelId
+        string $broadcastChannelId,
+        ?string $conversationPersistenceMode = null,
     ): void {
         if (
             $threadActor->thread_id !== $thread->id ||
@@ -65,7 +66,7 @@ class ChatAgentExecutor
 
         $userId = $user->id;
         $session = $this->resolveThreadActorSession($thread, $threadActor, $userId);
-        $handler = $this->resolveThreadActorHandler($threadActor, $user);
+        $handler = $this->resolveThreadActorHandler($threadActor, $user, $conversationPersistenceMode);
         $this->markPromptInvocationState(
             userMessage: $userMessage,
             threadActor: $threadActor,
@@ -133,10 +134,10 @@ class ChatAgentExecutor
         );
     }
 
-    protected function resolveThreadActorHandler(ThreadActor $threadActor, User $user): Agent
+    protected function resolveThreadActorHandler(ThreadActor $threadActor, User $user, ?string $requestedConversationPersistenceMode = null): Agent
     {
         $thread = $threadActor->thread;
-        $conversationPersistenceMode = $this->requestedConversationPersistenceMode();
+        $conversationPersistenceMode = $this->requestedConversationPersistenceMode($requestedConversationPersistenceMode);
 
         $agent = match ($threadActor->actorName()) {
             default => PresenterAgent::make(
@@ -156,8 +157,14 @@ class ChatAgentExecutor
         return $agent;
     }
 
-    protected function requestedConversationPersistenceMode(): ?string
+    protected function requestedConversationPersistenceMode(?string $requestedMode = null): ?string
     {
+        $explicitMode = ConversationPersistenceResolver::normalizeMode($requestedMode);
+
+        if ($explicitMode !== null) {
+            return $explicitMode;
+        }
+
         if (! app()->bound('request')) {
             return null;
         }

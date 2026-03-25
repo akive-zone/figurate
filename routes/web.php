@@ -7,13 +7,11 @@ use App\Http\Middleware\EnsureTransportUser;
 use Illuminate\Support\Facades\Route;
 use Laravel\Mcp\Facades\Mcp;
 
-if (runtime() === 'server') {
-    Route::get('/.well-known/agent-card', AgentCardController::class)->name('a2a.agent-card');
+Route::get('/.well-known/agent-card', AgentCardController::class)->name('a2a.agent-card');
 
-    Route::passkeys();
+Route::passkeys();
 
-    Mcp::oauthRoutes();
+Mcp::oauthRoutes();
 
-    Mcp::web('/mcp/figurate', FigurateServer::class)
-        ->middleware(['auth:sanctum,passport', EnsureTransportUser::class, EnsureTokenAbility::class.':mcp:use']);
-}
+Mcp::web('/mcp/figurate', FigurateServer::class)
+    ->middleware(['auth:sanctum,passport', EnsureTransportUser::class, EnsureTokenAbility::class.':mcp:use']);

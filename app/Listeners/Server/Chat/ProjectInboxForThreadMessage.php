@@ -3,15 +3,12 @@
 namespace App\Listeners\Server\Chat;
 
 use App\Events\Server\Chat\ThreadMessageStored;
-use App\Features\Actions\Chat\ProjectThreadMessageToInbox;
 use App\Features\Actions\Chat\ResolveThreadMessageInboxRecipients;
+use App\Notifications\Server\Chat\ThreadMessageNotification;
 
 class ProjectInboxForThreadMessage
 {
-    public function __construct(
-        protected ResolveThreadMessageInboxRecipients $resolveThreadMessageInboxRecipients,
-        protected ProjectThreadMessageToInbox $projectThreadMessageToInbox,
-    ) {}
+    public function __construct(protected ResolveThreadMessageInboxRecipients $resolveThreadMessageInboxRecipients) {}
 
     public function handle(ThreadMessageStored $event): void
     {
@@ -22,7 +19,7 @@ class ProjectInboxForThreadMessage
         }
 
         $recipients->each(function ($recipient) use ($event): void {
-            $this->projectThreadMessageToInbox->execute($recipient, $event->message);
+            $recipient->notify(new ThreadMessageNotification($event->message));
         });
     }
 }
