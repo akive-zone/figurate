@@ -1,12 +1,12 @@
 <?php
 
-use Figurate\WebView\Http\Controllers\Web\ChannelController;
+use Figurate\WebView\Http\Controllers\Web\SpaceController;
 use Illuminate\Support\Facades\Route;
 
 Route::name('chat.')
     ->group(function () {
-        Route::get('/', [ChannelController::class, 'index'])->name('index');
-        Route::get('/create', [ChannelController::class, 'index'])->name('create');
-        Route::get('/c/{channel}', [ChannelController::class, 'show'])->name('show');
-        Route::get('/c/{channel}/t/{thread}', [ChannelController::class, 'showThread'])->name('thread');
+        Route::get('/', [SpaceController::class, 'index'])->name('index');
+        Route::get('/create', [SpaceController::class, 'index'])->name('create');
+        Route::get('/c/{space}', [SpaceController::class, 'show'])->name('show');
+        Route::get('/c/{space}/t/{thread}', [SpaceController::class, 'showThread'])->name('thread');
     });

@@ -65,8 +65,8 @@ const resolveChatRoute = (runtime = {}, routeKey, fallbackPath) => {
     return fallbackPath;
 };
 
-export const sendChatChatMessage = async (payload, runtime = {}, options = {}) => {
-    const chatsStoreUrl = resolveChatRoute(runtime, 'chats_store', '/api/chats');
+export const sendConversationMessage = async (payload, runtime = {}, options = {}) => {
+    const storeUrl = resolveChatRoute(runtime, 'conversation_store', '/api/conversations');
     const headers = {
         ...chatAuthHeaders(),
     };
@@ -77,7 +77,7 @@ export const sendChatChatMessage = async (payload, runtime = {}, options = {}) =
     }
 
     try {
-        const response = await axios.post(chatApiUrl(chatsStoreUrl, runtime), payload, {
+        const response = await axios.post(chatApiUrl(storeUrl, runtime), payload, {
             headers,
         });
         persistChatBootstrapHeaders(response);
@@ -89,11 +89,11 @@ export const sendChatChatMessage = async (payload, runtime = {}, options = {}) =
     }
 };
 
-export const fetchChatChats = async (runtime = {}, query = {}) => {
-    const chatsIndexUrl = resolveChatRoute(runtime, 'chats', '/api/chats');
+export const fetchConversations = async (runtime = {}, query = {}) => {
+    const indexUrl = resolveChatRoute(runtime, 'conversations', '/api/conversations');
 
     try {
-        const response = await axios.get(chatApiUrl(chatsIndexUrl, runtime), {
+        const response = await axios.get(chatApiUrl(indexUrl, runtime), {
             params: query,
             headers: chatAuthHeaders(),
         });
@@ -106,11 +106,11 @@ export const fetchChatChats = async (runtime = {}, query = {}) => {
     }
 };
 
-export const fetchChatChatThreads = async (chatId, runtime = {}, query = {}) => {
-    const template = (runtime?.routes?.chats_threads_template ?? '').toString().trim();
+export const fetchConversationThreads = async (conversationId, runtime = {}, query = {}) => {
+    const template = (runtime?.routes?.conversation_threads_template ?? '').toString().trim();
     const path = template !== ''
-        ? template.replace('__CHAT__', chatId)
-        : `/api/chats/${chatId}/threads`;
+        ? template.replace('__CONVERSATION__', conversationId)
+        : `/api/conversations/${conversationId}/threads`;
 
     try {
         const response = await axios.get(chatApiUrl(path, runtime), {
@@ -126,11 +126,11 @@ export const fetchChatChatThreads = async (chatId, runtime = {}, query = {}) => 
     }
 };
 
-export const createChatThread = async (chatId, payload, runtime = {}) => {
-    const template = (runtime?.routes?.chats_threads_template ?? '').toString().trim();
+export const createConversationThread = async (conversationId, payload, runtime = {}) => {
+    const template = (runtime?.routes?.conversation_threads_template ?? '').toString().trim();
     const path = template !== ''
-        ? template.replace('__CHAT__', chatId)
-        : `/api/chats/${chatId}/threads`;
+        ? template.replace('__CONVERSATION__', conversationId)
+        : `/api/conversations/${conversationId}/threads`;
 
     try {
         const response = await axios.post(chatApiUrl(path, runtime), payload, {
@@ -145,11 +145,11 @@ export const createChatThread = async (chatId, payload, runtime = {}) => {
     }
 };
 
-export const fetchChatThreadMessages = async (chatId, runtime = {}) => {
-    const template = (runtime?.routes?.chats_show_template ?? '').toString().trim();
+export const fetchConversationMessages = async (conversationId, runtime = {}) => {
+    const template = (runtime?.routes?.conversation_show_template ?? '').toString().trim();
     const path = template !== ''
-        ? template.replace('__CHAT__', chatId)
-        : `/api/chats/${chatId}`;
+        ? template.replace('__CONVERSATION__', conversationId)
+        : `/api/conversations/${conversationId}`;
 
     try {
         const response = await axios.get(chatApiUrl(path, runtime), {
@@ -164,12 +164,12 @@ export const fetchChatThreadMessages = async (chatId, runtime = {}) => {
     }
 };
 
-export const fetchChatMessageTurns = async (chatId, messageId, runtime = {}) => {
-    const template = (runtime?.routes?.chats_message_turns_template ?? '').toString().trim();
+export const fetchConversationMessageTurns = async (conversationId, messageId, runtime = {}) => {
+    const template = (runtime?.routes?.conversation_message_turns_template ?? '').toString().trim();
     const normalizedMessageId = (messageId ?? '').toString().trim();
     const path = template !== ''
-        ? template.replace('__CHAT__', chatId).replace('__MESSAGE__', normalizedMessageId)
-        : `/api/chats/${chatId}/messages/${normalizedMessageId}/turns`;
+        ? template.replace('__CONVERSATION__', conversationId).replace('__MESSAGE__', normalizedMessageId)
+        : `/api/conversations/${conversationId}/messages/${normalizedMessageId}/turns`;
 
     try {
         const response = await axios.get(chatApiUrl(path, runtime), {
@@ -184,11 +184,11 @@ export const fetchChatMessageTurns = async (chatId, messageId, runtime = {}) => 
     }
 };
 
-export const fetchChatChannelPosts = async (channelId, runtime = {}) => {
-    const template = (runtime?.routes?.chat_posts_template ?? '').toString().trim();
+export const fetchConversationPosts = async (conversationId, runtime = {}) => {
+    const template = (runtime?.routes?.conversation_posts_template ?? '').toString().trim();
     const path = template !== ''
-        ? template.replace('__CHAT__', channelId)
-        : `/api/chats/${channelId}/posts`;
+        ? template.replace('__CONVERSATION__', conversationId)
+        : `/api/conversations/${conversationId}/posts`;
 
     try {
         const response = await axios.get(chatApiUrl(path, runtime), {

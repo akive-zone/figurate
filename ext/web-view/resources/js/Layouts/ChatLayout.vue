@@ -1,16 +1,15 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3';
-import { router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { useChatSidebar } from '../composables/useChatSidebar';
 import { chatAuthHeaders } from '../api/chat';
 
 const props = defineProps({
-    channels: {
+    spaces: {
         type: Array,
         default: () => [],
     },
-    activeChannelId: {
+    activeSpaceId: {
         type: String,
         default: null,
     },
@@ -40,13 +39,13 @@ const chatIndexUrl = computed(() => {
 
     return fallback !== '' ? fallback : '/';
 });
-const chatCreateChannelUrl = computed(() => {
+const chatCreateSpaceUrl = computed(() => {
     const configured = (chatRoutes.value.create ?? '').toString().trim();
     if (configured !== '') {
         return configured;
     }
 
-    return '/channels';
+    return '/create';
 });
 const chatShowTemplate = computed(() => {
     const configured = (chatRoutes.value.show_template ?? '').toString().trim();
@@ -54,7 +53,7 @@ const chatShowTemplate = computed(() => {
         return configured;
     }
 
-    return '/channels/__CHANNEL__';
+    return '/c/__SPACE__';
 });
 const chatShowThreadTemplate = computed(() => {
     const configured = (chatRoutes.value.show_thread_template ?? '').toString().trim();
@@ -62,25 +61,25 @@ const chatShowThreadTemplate = computed(() => {
         return configured;
     }
 
-    return '/channels/__CHANNEL__/threads/__THREAD__';
+    return '/c/__SPACE__/t/__THREAD__';
 });
-const chatChannelUrl = (channelId) => chatShowTemplate.value.replace('__CHANNEL__', channelId);
-const chatChannelThreadUrl = (channelId, threadId) => {
-    const channelUrl = chatChannelUrl(channelId);
+const chatSpaceUrl = (spaceId) => chatShowTemplate.value.replace('__SPACE__', spaceId);
+const chatSpaceThreadUrl = (spaceId, threadId) => {
+    const spaceUrl = chatSpaceUrl(spaceId);
 
     if (!threadId) {
-        return channelUrl;
+        return spaceUrl;
     }
 
     return chatShowThreadTemplate.value
-        .replace('__CHANNEL__', channelId)
+        .replace('__SPACE__', spaceId)
         .replace('__THREAD__', threadId);
 };
-const chatChannelId = (chat) => (chat?.channel?.id ?? '').toString();
+const chatSpaceId = (chat) => (chat?.space?.id ?? '').toString();
 const chatThreads = (chat) => (Array.isArray(chat?.threads) ? chat.threads : []);
-const channelTitle = (chat) => (chat?.name ?? '').toString();
+const spaceTitle = (chat) => (chat?.name ?? '').toString();
 const chatLatestMessageBody = (chat) => {
-    const latest = chat?.channel?.latest_message;
+    const latest = chat?.space?.latest_message;
 
     if (typeof latest?.content === 'object' && latest?.content !== null) {
         return (latest.content.text ?? 'No messages yet').toString();
@@ -149,18 +148,18 @@ const displayAccountName = computed(() => {
 
 const handleThreadClick = (chat, thread) => {
     emit('open-thread', {
-        channelId: chatChannelId(chat),
+        spaceId: chatSpaceId(chat),
         threadId: thread.id,
         thread: thread
     });
 };
 
 const {
-    sidebarChannels,
+    sidebarSpaces,
     canLoadMoreThreads,
     isLoadingMoreThreads,
     loadMoreThreads,
-} = useChatSidebar(runtime, computed(() => props.channels ?? []));
+} = useChatSidebar(runtime, computed(() => props.spaces ?? []));
 
 const continueWithPasskey = async () => {
     passkeyLoginError.value = '';
@@ -296,25 +295,25 @@ const createPasskey = async () => {
         <aside class="sidebar">
             <div class="sidebar__head">
                 <p class="sidebar__kicker">Chat</p>
-                <h1 class="sidebar__title">Chats</h1>
+                <h1 class="sidebar__title">Spaces</h1>
             </div>
 
             <div class="sidebar__actions">
-                <Link :href="chatCreateChannelUrl" class="button button--full">New Chat</Link>
+                <Link :href="chatCreateSpaceUrl" class="button button--full">New Space</Link>
             </div>
 
             <nav class="channel-nav">
-                <div v-for="chat in sidebarChannels" :key="chat.id" class="channel-group">
+                <div v-for="chat in sidebarSpaces" :key="chat.id" class="channel-group">
                     <Link
-                        :href="chatChannelUrl(chatChannelId(chat))"
+                        :href="chatSpaceUrl(chatSpaceId(chat))"
                         class="channel-link"
-                        :class="{ 'channel-link--active': props.activeChannelId === chatChannelId(chat) }"
+                        :class="{ 'channel-link--active': props.activeSpaceId === chatSpaceId(chat) }"
                     >
-                        <p class="channel-link__title">{{ channelTitle(chat) }}</p>
+                        <p class="channel-link__title">{{ spaceTitle(chat) }}</p>
                         <p class="channel-link__meta">{{ chatLatestMessageBody(chat) }}</p>
                     </Link>
                     <div
-                        v-if="props.activeChannelId === chatChannelId(chat) && chatThreads(chat).length > 0"
+                        v-if="props.activeSpaceId === chatSpaceId(chat) && chatThreads(chat).length > 0"
                         class="thread-tree"
                     >
                         <button
@@ -338,7 +337,7 @@ const createPasskey = async () => {
                         </button>
                     </div>
                 </div>
-                <p v-if="sidebarChannels.length === 0" class="sidebar__empty">No chats yet</p>
+                <p v-if="sidebarSpaces.length === 0" class="sidebar__empty">No conversations yet</p>
             </nav>
 
             <footer class="footer" v-if="authUser">

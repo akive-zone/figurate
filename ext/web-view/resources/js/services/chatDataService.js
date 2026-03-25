@@ -1,39 +1,39 @@
 import {
-    createChatThread,
-    fetchChatChannelPosts,
-    fetchChatChatThreads,
-    fetchChatChats,
-    fetchChatMessageTurns,
-    fetchChatThreadMessages,
-    sendChatChatMessage,
+    createConversationThread,
+    fetchConversationMessageTurns,
+    fetchConversationMessages,
+    fetchConversationPosts,
+    fetchConversations,
+    fetchConversationThreads,
+    sendConversationMessage,
 } from '@web-view/api';
 
 export const chatDataService = {
-    async listChats(runtime, query = {}) {
-        return fetchChatChats(runtime, query);
+    async listConversations(runtime, query = {}) {
+        return fetchConversations(runtime, query);
     },
 
-    async listChatThreads(chatId, runtime, query = {}) {
-        return fetchChatChatThreads(chatId, runtime, query);
+    async listConversationThreads(conversationId, runtime, query = {}) {
+        return fetchConversationThreads(conversationId, runtime, query);
     },
 
-    async listThreadMessages(chatId, runtime) {
-        return fetchChatThreadMessages(chatId, runtime);
+    async listConversationMessages(conversationId, runtime) {
+        return fetchConversationMessages(conversationId, runtime);
     },
 
-    async listChannelPosts(chatId, runtime) {
-        return fetchChatChannelPosts(chatId, runtime);
+    async listConversationPosts(conversationId, runtime) {
+        return fetchConversationPosts(conversationId, runtime);
     },
 
-    async listMessageTurns(chatId, messageId, runtime) {
-        return fetchChatMessageTurns(chatId, messageId, runtime);
+    async listConversationMessageTurns(conversationId, messageId, runtime) {
+        return fetchConversationMessageTurns(conversationId, messageId, runtime);
     },
 
     async sendMessage(payload, runtime, options = {}) {
-        return sendChatChatMessage(payload, runtime, options);
+        return sendConversationMessage(payload, runtime, options);
     },
 
-    async createThread(chatId, payload, runtime) {
-        return createChatThread(chatId, payload, runtime);
+    async createThread(conversationId, payload, runtime) {
+        return createConversationThread(conversationId, payload, runtime);
     },
 };

@@ -1,7 +1,7 @@
 <script setup>
 import ChatLayout from '../../Layouts/ChatLayout.vue';
 import AgentWorkspacePanel from './AgentWorkspacePanel.vue';
-import ChannelTimelinePanel from './ChannelTimelinePanel.vue';
+import SpaceTimelinePanel from './SpaceTimelinePanel.vue';
 import HumanChatPanel from './HumanChatPanel.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed, reactive, ref, watch } from 'vue';
@@ -11,11 +11,11 @@ import { useThreadEcho } from '../../composables/useThreadEcho';
 import { buildA2uiActionRequest } from '@web-view/a2ui';
 
 const props = defineProps({
-    channels: {
+    spaces: {
         type: Array,
         default: () => [],
     },
-    channelId: {
+    spaceId: {
         type: String,
         default: '',
     },
@@ -23,13 +23,13 @@ const props = defineProps({
         type: String,
         default: null,
     },
-    channel: {
+    space: {
         type: Object,
         default: null,
     },
 });
 
-const activeChannel = ref(null);
+const activeSpace = ref(null);
 const page = usePage();
 const runtime = computed(() => page.props.runtime ?? {});
 const chatRoutes = computed(() => runtime.value.routes ?? {});
@@ -53,9 +53,9 @@ const promptForm = reactive({
 const promptErrors = ref({});
 const promptErrorMessage = ref('');
 const isPrompting = ref(false);
-const channelPosts = ref([]);
-const isLoadingChannelPosts = ref(false);
-const channelPostsError = ref('');
+const spacePosts = ref([]);
+const isLoadingSpacePosts = ref(false);
+const spacePostsError = ref('');
 const workspaceMessages = ref({});
 const workspaceTurns = ref({});
 const isLoadingThreads = ref({});
@@ -89,43 +89,43 @@ const deriveSuggestedOpenThreads = (threads = []) => {
     return suggested;
 };
 
-const loadActiveChannel = async () => {
-    const channelId = (props.channelId ?? props.channel?.id ?? '').toString().trim();
+const loadActiveSpace = async () => {
+    const spaceId = (props.spaceId ?? props.space?.id ?? '').toString().trim();
 
-    if (channelId === '') {
-        activeChannel.value = null;
+    if (spaceId === '') {
+        activeSpace.value = null;
         return;
     }
 
     try {
-        const chatsPayload = await chatDataService.listChats(runtime.value);
-        const chats = Array.isArray(chatsPayload?.data) ? chatsPayload.data : [];
-        const matched = chats.find((chat) => (chat?.id ?? '').toString() === channelId);
+        const conversationsPayload = await chatDataService.listConversations(runtime.value);
+        const conversations = Array.isArray(conversationsPayload?.data) ? conversationsPayload.data : [];
+        const matched = conversations.find((conversation) => (conversation?.id ?? '').toString() === spaceId);
 
         if (!matched) {
-            activeChannel.value = null;
+            activeSpace.value = null;
             return;
         }
 
-        const threadsPayload = await chatDataService.listChatThreads(channelId, runtime.value);
+        const threadsPayload = await chatDataService.listConversationThreads(spaceId, runtime.value);
         const threads = Array.isArray(threadsPayload?.data) ? threadsPayload.data : (Array.isArray(matched?.threads) ? matched.threads : []);
         const requestedThreadId = (props.threadId ?? '').toString().trim();
-        const defaultThreadId = (matched?.channel?.active_thread_id ?? '').toString().trim();
+        const defaultThreadId = (matched?.space?.active_thread_id ?? '').toString().trim();
         const resolvedThreadId = requestedThreadId !== ''
             ? requestedThreadId
             : (defaultThreadId !== '' ? defaultThreadId : ((threads[0]?.id ?? '').toString().trim() || null));
 
-        activeChannel.value = {
-            id: channelId,
-            status: (matched?.channel?.status ?? 'open').toString(),
+        activeSpace.value = {
+            id: spaceId,
+            status: (matched?.space?.status ?? 'open').toString(),
             threads,
             active_thread: resolvedThreadId,
             suggested_open_threads: deriveSuggestedOpenThreads(threads),
-            channel_feed: [],
+            space_feed: [],
             thread_messages: [],
         };
     } catch {
-        activeChannel.value = null;
+        activeSpace.value = null;
     }
 };
 
@@ -161,7 +161,7 @@ const submitPrompt = async (targetThreadId = null) => {
 
     try {
         const response = await chatDataService.sendMessage({
-            channel: activeChannel.value.id,
+            space: activeSpace.value.id,
             thread: threadId ?? null,
             content: {
                 text: promptForm.content,
@@ -193,9 +193,9 @@ const submitPrompt = async (targetThreadId = null) => {
     }
 };
 
-const activeThreadId = computed(() => (activeChannel.value?.active_thread ?? '').toString().trim());
-const suggestedOpenThreads = computed(() => Array.isArray(activeChannel.value?.suggested_open_threads) ? activeChannel.value.suggested_open_threads : []);
-const allThreads = computed(() => Array.isArray(activeChannel.value?.threads) ? activeChannel.value.threads : []);
+const activeThreadId = computed(() => (activeSpace.value?.active_thread ?? '').toString().trim());
+const suggestedOpenThreads = computed(() => Array.isArray(activeSpace.value?.suggested_open_threads) ? activeSpace.value.suggested_open_threads : []);
+const allThreads = computed(() => Array.isArray(activeSpace.value?.threads) ? activeSpace.value.threads : []);
 
 const openThreadTabs = computed(() => {
     const uniqueIds = new Set([activeThreadId.value, ...suggestedOpenThreads.value, ...Array.from(openAgentThreadIds.value)].filter(Boolean));
@@ -250,12 +250,12 @@ const isHumanConversationMessage = (message) => {
     return messageSource(message) === 'peer_message';
 };
 
-const channelFeedItems = computed(() => {
-    if (!activeChannel.value) {
+const spaceFeedItems = computed(() => {
+    if (!activeSpace.value) {
         return [];
     }
 
-    return channelPosts.value;
+    return spacePosts.value;
 });
 
 const floatingChatMessages = computed(() => {
@@ -324,32 +324,32 @@ const slidingChatMessages = computed(() => {
     });
 });
 
-const loadChannelPosts = async () => {
-    if (!activeChannel.value) {
-        channelPostsError.value = '';
+const loadSpacePosts = async () => {
+    if (!activeSpace.value) {
+        spacePostsError.value = '';
         return;
     }
 
-    channelPosts.value = Array.isArray(activeChannel.value.channel_feed)
-        ? activeChannel.value.channel_feed.map((item) => (item?.kind === 'message' ? normalizeThreadMessage(item) : item))
+    spacePosts.value = Array.isArray(activeSpace.value.space_feed)
+        ? activeSpace.value.space_feed.map((item) => (item?.kind === 'message' ? normalizeThreadMessage(item) : item))
         : [];
-    isLoadingChannelPosts.value = true;
-    channelPostsError.value = '';
+    isLoadingSpacePosts.value = true;
+    spacePostsError.value = '';
 
     try {
-        const payload = await chatDataService.listChannelPosts(activeChannel.value.id, runtime.value);
-        channelPosts.value = Array.isArray(payload?.data)
+        const payload = await chatDataService.listConversationPosts(activeSpace.value.id, runtime.value);
+        spacePosts.value = Array.isArray(payload?.data)
             ? payload.data.map((item) => (item?.kind === 'message' ? normalizeThreadMessage(item) : item))
             : [];
     } catch (error) {
-        channelPostsError.value = error.response?.data?.message ?? `Unable to load channel posts (${error.response?.status ?? 'network'}).`;
+        spacePostsError.value = error.response?.data?.message ?? `Unable to load space posts (${error.response?.status ?? 'network'}).`;
     } finally {
-        isLoadingChannelPosts.value = false;
+        isLoadingSpacePosts.value = false;
     }
 };
 
 const loadThreadMessages = async (threadId) => {
-    if (!activeChannel.value || !threadId) {
+    if (!activeSpace.value || !threadId) {
         return;
     }
 
@@ -357,7 +357,7 @@ const loadThreadMessages = async (threadId) => {
     threadLoadError.value = '';
 
     try {
-        const payload = await chatDataService.listThreadMessages(threadId, runtime.value);
+        const payload = await chatDataService.listConversationMessages(threadId, runtime.value);
         workspaceMessages.value[threadId] = Array.isArray(payload?.data)
             ? payload.data.map((item) => normalizeThreadMessage(item))
             : [];
@@ -383,12 +383,12 @@ const chatShowThreadTemplate = computed(() => {
         return configured;
     }
 
-    return '/channels/__CHANNEL__/threads/__THREAD__';
+    return '/c/__SPACE__/t/__THREAD__';
 });
 
-const chatChannelThreadUrl = (channelId, threadId) => {
+const chatSpaceThreadUrl = (spaceId, threadId) => {
     return chatShowThreadTemplate.value
-        .replace('__CHANNEL__', channelId)
+        .replace('__SPACE__', spaceId)
         .replace('__THREAD__', threadId);
 };
 
@@ -404,11 +404,11 @@ const handleOpenThread = ({ threadId, thread }) => {
     }
 
     if (threadId !== activeThreadId.value) {
-        inertiaNavigationService.visitPreservingState(chatChannelThreadUrl(activeChannel.value.id, threadId));
+        inertiaNavigationService.visitPreservingState(chatSpaceThreadUrl(activeSpace.value.id, threadId));
     }
 
-    activeChannel.value = {
-        ...activeChannel.value,
+    activeSpace.value = {
+        ...activeSpace.value,
         active_thread: threadId,
     };
     loadThreadMessages(threadId);
@@ -431,16 +431,16 @@ const handleCreateThread = async () => {
     if (!title) return;
 
     try {
-        const response = await chatDataService.createThread(activeChannel.value.id, {
+        const response = await chatDataService.createThread(activeSpace.value.id, {
             title: title,
             purpose: 'execution',
             nature: 'human'
         }, runtime.value);
 
         if (response?.data) {
-            await loadActiveChannel();
+            await loadActiveSpace();
             handleOpenThread({ threadId: response.data.id, thread: response.data });
-            inertiaNavigationService.visitPreservingState(chatChannelThreadUrl(activeChannel.value.id, response.data.id));
+            inertiaNavigationService.visitPreservingState(chatSpaceThreadUrl(activeSpace.value.id, response.data.id));
         }
     } catch (error) {
         alert('Failed to create workstream.');
@@ -490,7 +490,7 @@ const loadTurnsForMessage = async (messageId, threadId = null) => {
     }
 
     try {
-        const payload = await chatDataService.listMessageTurns(targetThreadId, normalizedMessageId, runtime.value);
+        const payload = await chatDataService.listConversationMessageTurns(targetThreadId, normalizedMessageId, runtime.value);
         mergeThreadTurns(targetThreadId, payload?.data ?? []);
     } catch {
         // Keep current turn state if scoped refresh fails.
@@ -499,7 +499,7 @@ const loadTurnsForMessage = async (messageId, threadId = null) => {
 
 useThreadEcho({
     threadId: activeThreadId,
-    enabled: computed(() => activeChannel.value !== null),
+    enabled: computed(() => activeSpace.value !== null),
     onReplyStarted: () => {
         agentStatusMessage.value = 'Agent is thinking...';
     },
@@ -509,7 +509,7 @@ useThreadEcho({
             loadTurnsForMessage(latestSubmittedPromptMessageId.value, activeAgentThreadId.value);
         }
         loadWorkspace();
-        loadActiveChannel();
+        loadActiveSpace();
     },
     onReplyFailed: (event) => {
         agentStatusMessage.value = '';
@@ -531,7 +531,7 @@ useThreadEcho({
             loadTurnsForMessage(latestSubmittedPromptMessageId.value, activeAgentThreadId.value);
         }
         loadWorkspace();
-        loadActiveChannel();
+        loadActiveSpace();
     },
     onError: (_event, payload) => {
         const message = (payload?.message ?? '').toString().trim();
@@ -542,15 +542,15 @@ useThreadEcho({
 });
 
 watch(
-    () => [props.channelId, props.channel?.id ?? null, props.threadId],
+    () => [props.spaceId, props.space?.id ?? null, props.threadId],
     () => {
-        loadActiveChannel();
+        loadActiveSpace();
     },
     { immediate: true },
 );
 
 watch(
-    () => activeChannel.value?.id ?? null,
+    () => activeSpace.value?.id ?? null,
     (newId, oldId) => {
         if (newId !== oldId) {
             workspaceMessages.value = {};
@@ -561,10 +561,10 @@ watch(
 );
 
 watch(
-    () => [activeChannel.value?.id ?? null, activeThreadId.value],
+    () => [activeSpace.value?.id ?? null, activeThreadId.value],
     () => {
         latestSubmittedPromptMessageId.value = null;
-        loadChannelPosts();
+        loadSpacePosts();
         loadWorkspace();
     },
     { immediate: true },
@@ -581,7 +581,7 @@ const submitSlidingPrompt = async (content) => {
 };
 
 const submitA2uiAction = async (actionPayload) => {
-    if (!activeChannel.value) {
+    if (!activeSpace.value) {
         return;
     }
 
@@ -596,7 +596,7 @@ const submitA2uiAction = async (actionPayload) => {
 
     try {
         const response = await chatDataService.sendMessage(buildA2uiActionRequest({
-            channel: activeChannel.value.id,
+            space: activeSpace.value.id,
             thread: threadId,
             action: actionPayload,
         }), runtime.value, {
@@ -634,15 +634,15 @@ const retryFailedTurn = async (turn) => {
 };
 
 const buildContextServerCreateUrl = () => {
-    const channelId = (activeChannel.value?.id ?? '').toString().trim();
+    const spaceId = (activeSpace.value?.id ?? '').toString().trim();
 
-    if (channelId === '') {
+    if (spaceId === '') {
         return '/p/context-servers/create';
     }
 
     const params = new URLSearchParams({
-        context_type: 'channel',
-        context_id: channelId,
+        context_type: 'space',
+        context_id: spaceId,
     });
 
     return `/p/context-servers/create?${params.toString()}`;
@@ -682,7 +682,7 @@ const handleEmbedPanelLoad = () => {
             isEmbedPanelOpen.value = false;
 
             if (embedPanelReloadOnSuccess.value) {
-                loadActiveChannel();
+                loadActiveSpace();
             }
         }
 
@@ -696,7 +696,7 @@ const openContextServerPanel = () => {
     openEmbedPanel({
         source: buildContextServerCreateUrl(),
         kicker: 'Context Server',
-        title: 'Manage MCP for this channel',
+        title: 'Manage MCP for this space',
         successFromPath: '/p/context-servers/create',
         successPathPrefix: '/p/context-servers',
         reloadOnSuccess: true,
@@ -705,14 +705,15 @@ const openContextServerPanel = () => {
 </script>
 
 <template>
-    <Head :title="activeChannel ? `Chat #${activeChannel.id}` : 'Chat Chat'" />
+    <Head :title="activeSpace ? `Space #${activeSpace.id}` : 'Chat Chat'" />
 
     <ChatLayout
-        :active-channel-id="activeChannel?.id ?? null"
-        :active-thread-id="activeChannel?.active_thread ?? null"
+        :spaces="spaces"
+        :active-space-id="activeSpace?.id ?? null"
+        :active-thread-id="activeSpace?.active_thread ?? null"
         @open-thread="handleOpenThread"
     >
-        <section v-if="activeChannel">
+        <section v-if="activeSpace">
             <nav v-if="openThreadTabs.length > 0" class="workspace-tabs">
                 <button
                     v-for="thread in openThreadTabs"
@@ -728,30 +729,30 @@ const openContextServerPanel = () => {
                 </button>
             </nav>
 
-            <ChannelTimelinePanel
-                :channel-id="activeChannel.id"
-                :messages="channelFeedItems"
+            <SpaceTimelinePanel
+                :space-id="activeSpace.id"
+                :messages="spaceFeedItems"
                 :threads="allThreads"
-                :is-loading="isLoadingChannelPosts"
-                :error-message="channelPostsError"
+                :is-loading="isLoadingSpacePosts"
+                :error-message="spacePostsError"
                 @manage-mcp="openContextServerPanel"
                 @open-thread="handleOpenThread"
                 @create-thread="handleCreateThread"
             />
-            <p v-if="activeChannel.active_thread && threadLoadError" class="error">{{ threadLoadError }}</p>
+            <p v-if="activeSpace.active_thread && threadLoadError" class="error">{{ threadLoadError }}</p>
             <p v-if="promptErrors['content.text']" class="error">{{ promptErrors['content.text'][0] }}</p>
             <p v-if="promptErrorMessage" class="error">{{ promptErrorMessage }}</p>
             <p v-if="agentStatusMessage" class="thread__meta">{{ agentStatusMessage }}</p>
         </section>
 
         <section v-else class="empty">
-            <h3>Unable to load channel</h3>
+            <h3>Unable to load space</h3>
             <p>Check your API connection and try again.</p>
             <Link :href="chatIndexUrl" class="link">Back</Link>
         </section>
 
         <HumanChatPanel
-            v-if="activeChannel && shouldShowHumanChatPanel"
+            v-if="activeSpace && shouldShowHumanChatPanel"
             v-model="isFloatingChatOpen"
             :active-thread-id="latestHumanThread?.id"
             :messages="floatingChatMessages"
@@ -760,7 +761,7 @@ const openContextServerPanel = () => {
         />
 
         <AgentWorkspacePanel
-            v-if="activeChannel"
+            v-if="activeSpace"
             v-model="isSlidingChatOpen"
             :active-thread-id="activeAgentThreadId"
             :threads="dockedAgentThreads"

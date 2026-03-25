@@ -6,7 +6,7 @@ import { reactive, ref } from 'vue';
 import { chatDataService } from '../../services/chatDataService';
 
 defineProps({
-    channels: {
+    spaces: {
         type: Array,
         default: () => [],
     },
@@ -15,13 +15,13 @@ defineProps({
 const page = usePage();
 const runtime = computed(() => page.props.runtime ?? {});
 const chatRoutes = computed(() => runtime.value.routes ?? {});
-const chatCreateChannelUrl = computed(() => {
+const chatCreateSpaceUrl = computed(() => {
     const configured = (chatRoutes.value.create ?? '').toString().trim();
     if (configured !== '') {
         return configured;
     }
 
-    return '/channels';
+    return '/create';
 });
 const chatShowTemplate = computed(() => {
     const configured = (chatRoutes.value.show_template ?? '').toString().trim();
@@ -29,19 +29,19 @@ const chatShowTemplate = computed(() => {
         return configured;
     }
 
-    return '/channels/__CHANNEL__';
+    return '/c/__SPACE__';
 });
-const chatChannelUrl = (channelId) => chatShowTemplate.value.replace('__CHANNEL__', channelId);
+const chatSpaceUrl = (spaceId) => chatShowTemplate.value.replace('__SPACE__', spaceId);
 const chatShowThreadTemplate = computed(() => {
     const configured = (chatRoutes.value.show_thread_template ?? '').toString().trim();
     if (configured !== '') {
         return configured;
     }
 
-    return '/channels/__CHANNEL__/threads/__THREAD__';
+    return '/c/__SPACE__/t/__THREAD__';
 });
-const chatThreadUrl = (channelId, threadId) => chatShowThreadTemplate.value
-    .replace('__CHANNEL__', channelId)
+const chatThreadUrl = (spaceId, threadId) => chatShowThreadTemplate.value
+    .replace('__SPACE__', spaceId)
     .replace('__THREAD__', threadId);
 
 const form = reactive({
@@ -69,20 +69,21 @@ const submit = async () => {
         }
 
         const response = await chatDataService.sendMessage({
+            space: null,
             content: {
                 text: message,
                 attachments: [],
             },
         }, runtime.value);
-        const channelId = response.data?.channel;
+        const spaceId = response.data?.space;
         const threadId = response.data?.thread;
 
-        if (channelId) {
-            window.location.href = threadId ? chatThreadUrl(channelId, threadId) : chatChannelUrl(channelId);
+        if (spaceId) {
+            window.location.href = threadId ? chatThreadUrl(spaceId, threadId) : chatSpaceUrl(spaceId);
             return;
         }
 
-        window.location.href = chatCreateChannelUrl.value;
+        window.location.href = chatCreateSpaceUrl.value;
     } catch (error) {
         if (error.response?.status === 422) {
             errors.value = error.response.data.errors ?? {};
@@ -98,10 +99,10 @@ const submit = async () => {
 <template>
     <Head title="Chat Chat" />
 
-    <ChatLayout :channels="channels">
+    <ChatLayout :spaces="spaces">
         <section class="home home--composer">
             <h2 class="home__title">What&rsquo;s on the agenda today?</h2>
-            <p class="home__subtitle">Start typing to open a new channel, or open one from the sidebar.</p>
+            <p class="home__subtitle">Start typing to open a new space, or open one from the sidebar.</p>
 
             <form class="form form--home" @submit.prevent="submit">
                 <textarea
@@ -116,7 +117,7 @@ const submit = async () => {
                 <p v-if="errors['content.text']" class="error">{{ errors['content.text'][0] }}</p>
                 <p v-if="formError" class="error">{{ formError }}</p>
                 <div class="form__actions">
-                    <Link :href="chatCreateChannelUrl" class="link">Open Full Composer</Link>
+                    <Link :href="chatCreateSpaceUrl" class="link">Open Full Composer</Link>
                     <button class="button" :disabled="isSubmitting">Send</button>
                 </div>
             </form>

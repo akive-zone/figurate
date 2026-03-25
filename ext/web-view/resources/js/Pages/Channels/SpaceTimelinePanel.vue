@@ -3,7 +3,7 @@ import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 
 const props = defineProps({
-    channelId: {
+    spaceId: {
         type: String,
         default: '',
     },
@@ -53,9 +53,9 @@ const renderMessageContent = (content) => {
     <section class="thread">
         <header class="thread__header">
             <div>
-                <p class="thread__kicker">Channel</p>
-                <h2 class="thread__title">Channel {{ props.channelId }}</h2>
-                <p class="thread__meta">Relevant channel posts for your account.</p>
+                <p class="thread__kicker">Space</p>
+                <h2 class="thread__title">Space {{ props.spaceId }}</h2>
+                <p class="thread__meta">Relevant space posts for your account.</p>
             </div>
             <div class="thread__header-actions">
                 <button type="button" class="button" @click="emit('create-thread')">
@@ -68,7 +68,7 @@ const renderMessageContent = (content) => {
         </header>
 
         <section class="thread__messages">
-            <template v-for="message in props.messages" :key="`${message.kind ?? 'message'}-${message.scope ?? 'channel'}-${message.id}`">
+            <template v-for="message in props.messages" :key="`${message.kind ?? 'message'}-${message.scope ?? 'space'}-${message.id}`">
                 <article
                     v-if="message.kind === 'thread_event'"
                     class="history-marker"
@@ -92,11 +92,11 @@ const renderMessageContent = (content) => {
                     v-else
                     class="message"
                     :class="[
-                        message.scope === 'channel' ? 'message--channel' : 'message--conversation'
+                        message.scope === 'space' ? 'message--space' : 'message--conversation'
                     ]"
                 >
                     <p class="message__author">
-                        {{ message.scope === 'channel' ? (message.type ? message.type.toUpperCase() : 'Channel') : 'Conversation' }}
+                        {{ message.scope === 'space' ? (message.type ? message.type.toUpperCase() : 'Space') : 'Conversation' }}
                     </p>
                     <div class="message__content" v-html="renderMessageContent(message.content)" />
                     <ul v-if="message.attachments?.length" class="thread__attachments">

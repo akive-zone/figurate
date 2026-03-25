@@ -1,13 +1,13 @@
 import { DEFAULT_A2UI_CLIENT_CONFIG } from '../constants';
 
 export const buildA2uiActionRequest = ({
-    channel,
+    space,
     thread,
     action,
     clientConfig = DEFAULT_A2UI_CLIENT_CONFIG,
 }) => {
     return {
-        channel,
+        space,
         thread,
         content: {
             text: null,

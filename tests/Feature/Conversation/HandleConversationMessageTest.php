@@ -45,10 +45,12 @@ class HandleConversationMessageTest extends TestCase
             ],
         ])
             ->assertAccepted()
+            ->assertJsonPath('space', $space->uuid)
             ->assertJsonPath('interaction_mode', 'presenter')
             ->assertJsonPath('observer_status', 'none')
             ->assertJsonPath('pending', true)
-            ->assertJsonPath('pending_presenters', 1);
+            ->assertJsonPath('pending_presenters', 1)
+            ->assertJsonMissingPath('channel');
 
         $message = Message::query()->latest('id')->firstOrFail();
 
@@ -164,6 +166,55 @@ class HandleConversationMessageTest extends TestCase
             ->assertJsonPath('data.0.prompt_message_id', $promptMessage->id)
             ->assertJsonPath('data.0.assistant_message_id', $assistantMessage->id)
             ->assertJsonPath('data.0.status', 'completed');
+    }
+
+    public function test_it_lists_conversations_with_space_summary_keys(): void
+    {
+        $user = $this->makeUser();
+        $space = $this->accessibleSpace($user);
+        $thread = $this->makeThread($space);
+
+        SpaceActorState::query()
+            ->where('space_id', $space->id)
+            ->where('actorable_type', $user->getMorphClass())
+            ->where('actorable_id', $user->id)
+            ->update(['thread_id' => $thread->id]);
+
+        Sanctum::actingAs($user, [TokenAbility::Compose->value]);
+
+        $this->getJson('/api/conversations')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $space->uuid)
+            ->assertJsonPath('data.0.space.id', $space->uuid)
+            ->assertJsonPath('data.0.space.active_thread_id', $thread->uuid)
+            ->assertJsonMissingPath('data.0.channel');
+    }
+
+    public function test_it_returns_space_metadata_when_loading_a_space_backed_conversation(): void
+    {
+        $user = $this->makeUser();
+        $space = $this->accessibleSpace($user);
+        $thread = $this->makeThread($space);
+
+        $thread->messages()->create([
+            'type' => 'text',
+            'text' => 'Please confirm the visit window.',
+            'senderable_type' => $user->getMorphClass(),
+            'senderable_id' => $user->id,
+            'meta' => [
+                'source' => 'peer_message',
+            ],
+        ]);
+
+        Sanctum::actingAs($user, [TokenAbility::Compose->value]);
+
+        $this->getJson(sprintf('/api/conversations/%s', $space->uuid))
+            ->assertOk()
+            ->assertJsonPath('conversation.id', $space->uuid)
+            ->assertJsonPath('conversation.space_id', $space->uuid)
+            ->assertJsonPath('conversation.thread_id', $thread->uuid)
+            ->assertJsonPath('thread.id', $thread->uuid)
+            ->assertJsonMissingPath('conversation.channel_id');
     }
 
     protected function accessibleSpace(User $user): Space

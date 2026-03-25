@@ -1,24 +1,24 @@
 import { onMounted, ref, watch } from 'vue';
 import { chatDataService } from '../services/chatDataService';
 
-export const useChatSidebar = (runtime, initialChannels) => {
-    const sidebarChannels = ref(Array.isArray(initialChannels?.value) ? initialChannels.value : []);
+export const useChatSidebar = (runtime, initialSpaces) => {
+    const sidebarSpaces = ref(Array.isArray(initialSpaces?.value) ? initialSpaces.value : []);
     const loadingMoreThreadsByChat = ref({});
 
     watch(
-        initialChannels,
+        initialSpaces,
         (value) => {
-            sidebarChannels.value = Array.isArray(value) ? value : [];
+            sidebarSpaces.value = Array.isArray(value) ? value : [];
         },
         { deep: true },
     );
 
-    const refreshSidebarChats = async () => {
+    const refreshSidebarConversations = async () => {
         try {
-            const payloadResponse = await chatDataService.listChats(runtime.value);
+            const payloadResponse = await chatDataService.listConversations(runtime.value);
             const payload = payloadResponse?.data;
             if (Array.isArray(payload)) {
-                sidebarChannels.value = payload;
+                sidebarSpaces.value = payload;
             }
         } catch {
             // Keep existing sidebar state when request fails.
@@ -66,11 +66,11 @@ export const useChatSidebar = (runtime, initialChannels) => {
         };
 
         try {
-            const payload = await chatDataService.listChatThreads(chatId, runtime.value, { cursor });
+            const payload = await chatDataService.listConversationThreads(chatId, runtime.value, { cursor });
             const nextThreads = Array.isArray(payload?.data) ? payload.data : [];
             const nextMeta = payload?.meta ?? {};
 
-            sidebarChannels.value = sidebarChannels.value.map((item) => {
+            sidebarSpaces.value = sidebarSpaces.value.map((item) => {
                 if (item?.id !== chatId) {
                     return item;
                 }
@@ -96,12 +96,12 @@ export const useChatSidebar = (runtime, initialChannels) => {
     };
 
     onMounted(() => {
-        refreshSidebarChats();
+        refreshSidebarConversations();
     });
 
     return {
-        sidebarChannels,
-        refreshSidebarChats,
+        sidebarSpaces,
+        refreshSidebarConversations,
         canLoadMoreThreads,
         isLoadingMoreThreads,
         loadMoreThreads,
