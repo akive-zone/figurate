@@ -4,7 +4,7 @@ namespace App\Ai\Tools;
 
 use App\Ai\Support\SubAgents\SubAgentInvocationMemory;
 use App\Ai\Tools\Diagnostics\EncodesToolResponse;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadEvent;
@@ -95,9 +95,8 @@ class GetSubAgentInvocationContextTool implements Tool
 
     protected function inferParentInvocationId(): ?string
     {
-        $latestAssistantInvocationId = Message::query()
-            ->where('messageable_type', $this->thread->getMorphClass())
-            ->where('messageable_id', $this->thread->getKey())
+        $latestAssistantInvocationId = Post::query()
+            ->forThread($this->thread)
             ->where('meta->source', 'agent_response')
             ->latest('id')
             ->value('meta->invocation_id');

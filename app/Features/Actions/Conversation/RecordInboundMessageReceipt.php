@@ -2,8 +2,8 @@
 
 namespace App\Features\Actions\Conversation;
 
-use App\Models\Server\Message;
 use App\Models\Server\Outbox;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 
 class RecordInboundMessageReceipt
@@ -13,7 +13,7 @@ class RecordInboundMessageReceipt
      */
     public function execute(
         Thread $thread,
-        Message $message,
+        Post $message,
         string $idempotencyKey,
         string $protocol,
         ?string $provider,
@@ -27,7 +27,7 @@ class RecordInboundMessageReceipt
             ],
             [
                 'thread_id' => $thread->id,
-                'message_id' => $message->id,
+                'post_id' => $message->id,
                 'protocol' => $protocol,
                 'provider' => $provider,
                 'target' => $externalActorId,

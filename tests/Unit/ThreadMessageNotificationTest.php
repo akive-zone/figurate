@@ -3,7 +3,8 @@
 namespace Tests\Unit;
 
 use App\Ai\Storage\ConversationPersistenceResolver;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
+use App\Models\Server\PostRelation;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
@@ -35,18 +36,24 @@ class ThreadMessageNotificationTest extends TestCase
         $thread->exists = true;
         $thread->setRelation('threadable', $space);
 
-        $message = new Message([
-            'type' => 'text',
-            'text' => 'The artisan has arrived.',
-            'attachments' => null,
+        $message = new Post([
+            'type' => Post::TypeMessage,
+            'status' => Post::StatusActive,
+            'data' => [
+                'text' => 'The artisan has arrived.',
+                'message_type' => 'text',
+            ],
             'meta' => ['source' => 'peer_message'],
-            'senderable_type' => User::class,
-            'senderable_id' => 7,
         ]);
         $message->id = 99;
         $message->ulid = '01JQ3X2CZJ4EXAMPLE000001';
         $message->exists = true;
-        $message->setRelation('messageable', $thread);
+        $message->setRelation('postable', $thread);
+        $message->setRelation('senderRelation', new PostRelation([
+            'relationable_type' => User::class,
+            'relationable_id' => 7,
+            'role' => Post::RelationRoleSender,
+        ]));
 
         $subject = new User([
             'type' => User::TypeSubject,
@@ -62,41 +69,53 @@ class ThreadMessageNotificationTest extends TestCase
         $this->assertSame([CoordinationChannel::class], $notification->via($subject));
         $this->assertSame([CoordinationChannel::class], $notification->via($robot));
 
-        $completionMessage = new Message([
-            'type' => 'text',
-            'text' => 'The artisan has arrived.',
-            'attachments' => null,
+        $completionMessage = new Post([
+            'type' => Post::TypeMessage,
+            'status' => Post::StatusActive,
+            'data' => [
+                'text' => 'The artisan has arrived.',
+                'message_type' => 'text',
+            ],
             'meta' => [
                 'source' => 'peer_message',
                 'conversation_persistence' => ConversationPersistenceResolver::ThreadCompletion,
             ],
-            'senderable_type' => User::class,
-            'senderable_id' => 7,
         ]);
         $completionMessage->id = 100;
         $completionMessage->ulid = '01JQ3X2CZJ4EXAMPLE000002';
         $completionMessage->exists = true;
-        $completionMessage->setRelation('messageable', $thread);
+        $completionMessage->setRelation('postable', $thread);
+        $completionMessage->setRelation('senderRelation', new PostRelation([
+            'relationable_type' => User::class,
+            'relationable_id' => 7,
+            'role' => Post::RelationRoleSender,
+        ]));
 
         $completionNotification = new ThreadMessageNotification($completionMessage);
 
         $this->assertSame([CompletionChannel::class], $completionNotification->via($robot));
 
-        $continuationMessage = new Message([
-            'type' => 'text',
-            'text' => 'The artisan has arrived.',
-            'attachments' => null,
+        $continuationMessage = new Post([
+            'type' => Post::TypeMessage,
+            'status' => Post::StatusActive,
+            'data' => [
+                'text' => 'The artisan has arrived.',
+                'message_type' => 'text',
+            ],
             'meta' => [
                 'source' => 'peer_message',
                 'conversation_persistence' => ConversationPersistenceResolver::ThreadContinuation,
             ],
-            'senderable_type' => User::class,
-            'senderable_id' => 7,
         ]);
         $continuationMessage->id = 101;
         $continuationMessage->ulid = '01JQ3X2CZJ4EXAMPLE000003';
         $continuationMessage->exists = true;
-        $continuationMessage->setRelation('messageable', $thread);
+        $continuationMessage->setRelation('postable', $thread);
+        $continuationMessage->setRelation('senderRelation', new PostRelation([
+            'relationable_type' => User::class,
+            'relationable_id' => 7,
+            'role' => Post::RelationRoleSender,
+        ]));
 
         $continuationNotification = new ThreadMessageNotification($continuationMessage);
 

@@ -6,6 +6,7 @@ use App\Features\Actions\Conversation\ChannelOutboundMessageSender;
 use App\Features\Actions\Conversation\Protocols\ChannelProtocol;
 use App\Models\Server\Channel;
 use App\Models\Server\Outbox;
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
@@ -26,21 +27,24 @@ class ChannelOutboundMessageSenderTest extends TestCase
             'phase' => 'execution',
             'status' => 'open',
         ]);
-        $message = $thread->messages()->create([
-            'type' => 'text',
-            'text' => 'Send this update externally.',
-            'senderable_type' => $sender->getMorphClass(),
-            'senderable_id' => $sender->id,
+        $post = $thread->posts()->create([
+            'type' => Post::TypeMessage,
+            'status' => Post::StatusActive,
+            'data' => [
+                'text' => 'Send this update externally.',
+                'message_type' => 'text',
+            ],
             'meta' => [
                 'source' => 'peer_message',
             ],
         ]);
+        $post->attachRelation($sender, Post::RelationRoleSender);
         $channel = Channel::factory()->create([
             'driver' => Channel::DriverGeneric,
         ]);
         $outbox = Outbox::query()->create([
             'thread_id' => $thread->id,
-            'message_id' => $message->id,
+            'post_id' => $post->id,
             'direction' => Outbox::DirectionOutbound,
             'protocol' => ChannelProtocol::Key,
             'provider' => Channel::DriverGeneric,

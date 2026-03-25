@@ -11,7 +11,7 @@ use App\Features\Actions\Conversation\ResolveConversationThreadContext;
 use App\Features\Operations\Chat\DispatchPromptOperation;
 use App\Features\Operations\Chat\ResolveConversationThreadOperation;
 use App\Models\Server\AgentTask;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Support\Orchestrate\AgentTaskService;
 use App\Support\Orchestrate\MessageTaskService;
@@ -215,7 +215,7 @@ class A2aMethodRouter
 
         $task = $this->agentTaskService->syncLocalTask($task);
         $promptMessage = $task->message;
-        if (! $promptMessage instanceof Message) {
+        if (! $promptMessage instanceof Post) {
             return $this->invalidParams(['task_id' => ['Task was not found.']]);
         }
 
@@ -225,7 +225,7 @@ class A2aMethodRouter
         $assistantReplies = $snapshot['assistant_replies'];
         $promptPayload = $this->messagePayload($promptMessage);
         $artifacts = $assistantReplies
-            ->map(fn (Message $message): array => $this->toTaskArtifactPayload($message, $promptMessage))
+            ->map(fn (Post $message): array => $this->toTaskArtifactPayload($message, $promptMessage))
             ->values()
             ->all();
 
@@ -300,7 +300,7 @@ class A2aMethodRouter
         }
 
         $promptMessage = $task->message;
-        if (! $promptMessage instanceof Message) {
+        if (! $promptMessage instanceof Post) {
             return $this->invalidParams(['task_id' => ['Task was not found.']]);
         }
 
@@ -311,7 +311,7 @@ class A2aMethodRouter
             canceledMetaPath: 'a2a_canceled_at',
         );
         $promptMessage = $task->message;
-        if (! $promptMessage instanceof Message) {
+        if (! $promptMessage instanceof Post) {
             return $this->invalidParams(['task_id' => ['Task was not found.']]);
         }
         $this->taskPushNotificationDispatcher->dispatchTaskUpdate($promptMessage, 'canceled');
@@ -1104,7 +1104,7 @@ class A2aMethodRouter
     /**
      * @return array<string, mixed>|null
      */
-    protected function messagePayload(Message $message): ?array
+    protected function messagePayload(Post $message): ?array
     {
         $surface = data_get($message->meta, 'a2ui');
         $surface = is_array($surface) ? $surface : null;
@@ -1139,7 +1139,7 @@ class A2aMethodRouter
         ];
     }
 
-    protected function toTaskArtifactPayload(Message $message, Message $promptMessage): array
+    protected function toTaskArtifactPayload(Post $message, Post $promptMessage): array
     {
         $text = is_string($message->text) ? trim($message->text) : '';
 
@@ -1186,7 +1186,7 @@ class A2aMethodRouter
     /**
      * @return array<string, mixed>|null
      */
-    protected function resolveA2uiAssistantPayload(Message $message, ?array $clientCapabilities = null): ?array
+    protected function resolveA2uiAssistantPayload(Post $message, ?array $clientCapabilities = null): ?array
     {
         $payload = data_get($message->meta, 'a2ui');
 
@@ -1197,9 +1197,10 @@ class A2aMethodRouter
         return null;
     }
 
-    protected function resolvePromptMessage(string $taskId): ?Message
+    protected function resolvePromptMessage(string $taskId): ?Post
     {
-        $promptMessage = Message::query()
+        $promptMessage = Post::query()
+            ->messageType()
             ->where(function ($query) use ($taskId): void {
                 $query->where('meta->a2a_task_id', $taskId)
                     ->orWhere('ulid', $taskId);
@@ -1250,7 +1251,7 @@ class A2aMethodRouter
         ];
     }
 
-    protected function ownsTask(Message $promptMessage): bool
+    protected function ownsTask(Post $promptMessage): bool
     {
         $owner = $this->resolveAuthenticatedOwner();
         $taskOwner = data_get($promptMessage->meta, 'a2a_owner');
@@ -1273,7 +1274,7 @@ class A2aMethodRouter
     /**
      * @return list<array<string, mixed>>
      */
-    protected function pushConfigs(Message $promptMessage): array
+    protected function pushConfigs(Post $promptMessage): array
     {
         $configs = data_get($promptMessage->meta, 'a2a.push_notification_configs');
 
@@ -1287,22 +1288,22 @@ class A2aMethodRouter
             ->all();
     }
 
-    protected function resolveMessageThread(Message $message): ?Thread
+    protected function resolveMessageThread(Post $message): ?Thread
     {
         return $this->messageTaskService->resolveMessageThread($message);
     }
 
     /**
-     * @return Collection<int, Message>
+     * @return Collection<int, Post>
      */
-    protected function assistantRepliesForPrompt(?Thread $thread, Message $promptMessage): Collection
+    protected function assistantRepliesForPrompt(?Thread $thread, Post $promptMessage): Collection
     {
         return $this->messageTaskService->assistantRepliesForPrompt($thread, $promptMessage);
     }
 
     /**
      * @param  array<string, mixed>  $invocations
-     * @param  Collection<int, Message>  $assistantReplies
+     * @param  Collection<int, Post>  $assistantReplies
      */
     protected function resolveTaskState(array $invocations, Collection $assistantReplies): string
     {

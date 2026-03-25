@@ -2,7 +2,7 @@
 
 namespace App\Support\Orchestrate;
 
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
@@ -15,11 +15,11 @@ class MessageTaskService
      *     thread: ?Thread,
      *     space: ?Space,
      *     invocations: array<string, mixed>,
-     *     assistant_replies: Collection<int, Message>,
+     *     assistant_replies: Collection<int, Post>,
      *     state: string
      * }
      */
-    public function snapshot(Message $promptMessage): array
+    public function snapshot(Post $promptMessage): array
     {
         $thread = $this->resolveMessageThread($promptMessage);
         $space = $thread?->threadable instanceof Space ? $thread->threadable : null;
@@ -35,29 +35,27 @@ class MessageTaskService
         ];
     }
 
-    public function resolveMessageThread(Message $message): ?Thread
+    public function resolveMessageThread(Post $message): ?Thread
     {
-        if ($message->messageable_type !== (new Thread)->getMorphClass()) {
+        if ($message->postable_type !== (new Thread)->getMorphClass()) {
             return null;
         }
 
-        return Thread::query()->find($message->messageable_id);
+        return Thread::query()->find($message->postable_id);
     }
 
     /**
-     * @return Collection<int, Message>
+     * @return Collection<int, Post>
      */
-    public function assistantRepliesForPrompt(?Thread $thread, Message $promptMessage): Collection
+    public function assistantRepliesForPrompt(?Thread $thread, Post $promptMessage): Collection
     {
         if (! $thread instanceof Thread) {
             return collect();
         }
 
-        return Message::query()
-            ->where('messageable_type', $thread->getMorphClass())
-            ->where('messageable_id', $thread->getKey())
-            ->whereNull('senderable_type')
-            ->whereNull('senderable_id')
+        return Post::query()
+            ->forThread($thread)
+            ->withoutSender()
             ->where('meta->source', 'agent_response')
             ->where('meta->in_reply_to_message_id', $promptMessage->id)
             ->oldest('id')
@@ -93,7 +91,7 @@ class MessageTaskService
     /**
      * @return array<string, mixed>
      */
-    public function basicArtifactPayload(Message $message): array
+    public function basicArtifactPayload(Post $message): array
     {
         return [
             'id' => $message->ulid,
@@ -109,7 +107,7 @@ class MessageTaskService
     /**
      * @param  Collection<int, ThreadActor>  $presenters
      */
-    public function cancelPrompt(Message $promptMessage, Collection $presenters, ?string $canceledMetaPath = null): Message
+    public function cancelPrompt(Post $promptMessage, Collection $presenters, ?string $canceledMetaPath = null): Post
     {
         $meta = is_array($promptMessage->meta) ? $promptMessage->meta : [];
         $invocations = is_array($meta['invocations'] ?? null) ? $meta['invocations'] : [];
@@ -162,7 +160,7 @@ class MessageTaskService
 
     /**
      * @param  array<string, mixed>  $invocations
-     * @param  Collection<int, Message>|null  $assistantReplies
+     * @param  Collection<int, Post>|null  $assistantReplies
      */
     public function resolveTaskState(array $invocations, ?Collection $assistantReplies = null): string
     {

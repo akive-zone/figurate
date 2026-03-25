@@ -54,6 +54,11 @@ class Thread extends Model
         return $this->morphMany(Post::class, 'postable');
     }
 
+    public function messages(): MorphMany
+    {
+        return $this->posts()->where('type', Post::TypeMessage);
+    }
+
     public function actors(): HasMany
     {
         return $this->hasMany(ThreadActor::class);

@@ -3,7 +3,8 @@
 namespace Tests\Unit;
 
 use App\Features\Actions\Conversation\ResolveThreadMessageInboxRecipients;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
+use App\Models\Server\PostRelation;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
@@ -86,19 +87,31 @@ class ResolveThreadMessageInboxRecipientsTest extends TestCase
         return $thread;
     }
 
-    protected function makeMessage(Thread $thread, ?User $sender, string $source): Message
+    protected function makeMessage(Thread $thread, ?User $sender, string $source): Post
     {
-        $message = new Message([
-            'type' => 'text',
+        $message = new Post([
+            'type' => Post::TypeMessage,
+            'status' => Post::StatusActive,
             'text' => 'Test message',
             'attachments' => null,
             'meta' => ['source' => $source],
-            'senderable_type' => $sender?->getMorphClass(),
-            'senderable_id' => $sender?->getKey(),
         ]);
         $message->id = 99;
         $message->exists = true;
+        $message->postable_type = $thread->getMorphClass();
+        $message->postable_id = $thread->getKey();
+        $message->setRelation('postable', $thread);
         $message->setRelation('messageable', $thread);
+
+        if ($sender instanceof User) {
+            $relation = new PostRelation([
+                'relationable_type' => $sender->getMorphClass(),
+                'relationable_id' => $sender->getKey(),
+                'role' => Post::RelationRoleSender,
+            ]);
+            $relation->setRelation('relationable', $sender);
+            $message->setRelation('senderRelation', $relation);
+        }
 
         return $message;
     }

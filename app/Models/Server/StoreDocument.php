@@ -20,6 +20,7 @@ class StoreDocument extends Model
         'store_id',
         'media_id',
         'post_id',
+        'attachment_path',
         'origin',
         'provider_file_id',
         'provider_document_id',

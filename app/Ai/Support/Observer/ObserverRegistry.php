@@ -4,7 +4,7 @@ namespace App\Ai\Support\Observer;
 
 use App\Ai\Support\Observer\Contracts\ObserverSkill;
 use App\Ai\Tools\SafetyGuardObserver;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Repositories\Ai\ObserverSkillRepository;
@@ -18,7 +18,7 @@ class ObserverRegistry
     public function resolve(
         ThreadActor $threadActor,
         Thread $thread,
-        Message $message,
+        Post $message,
     ): ?ObserverSkill {
         $skill = $this->observerSkillRepository->resolve($threadActor);
 

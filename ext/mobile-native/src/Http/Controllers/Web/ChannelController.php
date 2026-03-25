@@ -181,8 +181,8 @@ class ChannelController extends Controller
 
             if ($requestId) {
                 $messages = $this->fetchCollection($request, '/api/platform/messages', [
-                    'messageable_type' => 'Figurate\FulfillmentManager\Models\Request',
-                    'messageable_id' => $requestId,
+                    'postable_type' => 'Figurate\FulfillmentManager\Models\Request',
+                    'postable_id' => $requestId,
                     'order[created_at]' => 'desc',
                     'itemsPerPage' => 1,
                 ]);
@@ -246,8 +246,8 @@ class ChannelController extends Controller
 
         if ($requestId) {
             $messages = $this->fetchCollection($request, '/api/platform/messages', [
-                'messageable_type' => 'Figurate\FulfillmentManager\Models\Request',
-                'messageable_id' => $requestId,
+                'postable_type' => 'Figurate\FulfillmentManager\Models\Request',
+                'postable_id' => $requestId,
                 'order[created_at]' => 'asc',
                 'itemsPerPage' => 100,
             ]);

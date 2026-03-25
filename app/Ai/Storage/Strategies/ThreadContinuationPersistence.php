@@ -4,7 +4,8 @@ namespace App\Ai\Storage\Strategies;
 
 use App\Ai\Storage\Contracts\ThreadConversationPersistence;
 use App\Ai\Storage\Strategies\Concerns\InteractsWithThreadActorSessions;
-use App\Models\Server\Message as ThreadMessageModel;
+use App\Models\Server\Post as ThreadMessageModel;
+use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -161,8 +162,9 @@ class ThreadContinuationPersistence implements ThreadConversationPersistence
         [$thread] = $this->resolveConversationContext($conversationId, null);
         if ($thread) {
             return ThreadMessageModel::query()
-                ->where('messageable_type', $thread->getMorphClass())
-                ->where('messageable_id', $thread->getKey())
+                ->messageType()
+                ->where('postable_type', $thread->getMorphClass())
+                ->where('postable_id', $thread->getKey())
                 ->orderByDesc('id')
                 ->limit(max(1, $limit))
                 ->get()
@@ -197,7 +199,7 @@ class ThreadContinuationPersistence implements ThreadConversationPersistence
             return $value->values()->all();
         }
 
-        if ($value instanceof \Illuminate\Contracts\Support\Arrayable) {
+        if ($value instanceof Arrayable) {
             return $value->toArray();
         }
 

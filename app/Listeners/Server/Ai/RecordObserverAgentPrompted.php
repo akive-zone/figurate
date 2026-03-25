@@ -24,7 +24,7 @@ class RecordObserverAgentPrompted
 
         $thread->events()->create([
             'thread_actor_id' => $threadActor?->id,
-            'message_id' => $message->id,
+            'post_id' => $message->id,
             'event_key' => $threadActor?->actorReference() ?? 'observer_agent',
             'layer' => ThreadEvent::LayerExecution,
             'kind' => ThreadEvent::KindObserver,

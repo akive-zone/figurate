@@ -7,7 +7,7 @@ use App\Features\Actions\Conversation\ChannelOutboundMessageSender;
 use App\Features\Actions\Conversation\ProtocolRegistry;
 use App\Features\Actions\Conversation\Protocols\AgentPromptProtocol;
 use App\Features\Actions\Conversation\Protocols\ChannelProtocol;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Policies\Server\MessagePolicy;
@@ -34,7 +34,7 @@ class ComposeServiceProvider extends ServiceProvider
     public function boot(ProtocolRegistry $protocolRegistry): void
     {
         Gate::policy(Space::class, SpacePolicy::class);
-        Gate::policy(Message::class, MessagePolicy::class);
+        Gate::policy(Post::class, MessagePolicy::class);
         Gate::policy(Thread::class, ThreadPolicy::class);
 
         $existingWebhookConfigs = collect(config('webhook-client.configs', []))

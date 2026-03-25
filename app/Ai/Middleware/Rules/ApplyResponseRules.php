@@ -2,7 +2,7 @@
 
 namespace App\Ai\Middleware\Rules;
 
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use Closure;
 use Laravel\Ai\Prompts\AgentPrompt;
@@ -41,7 +41,7 @@ class ApplyResponseRules
     {
         $inboundMessage = $this->resolveLatestInboundMessage($prompt);
 
-        if (! $inboundMessage instanceof Message) {
+        if (! $inboundMessage instanceof Post) {
             return [];
         }
 
@@ -75,7 +75,7 @@ class ApplyResponseRules
         return $rules;
     }
 
-    protected function resolveLatestInboundMessage(AgentPrompt $prompt): ?Message
+    protected function resolveLatestInboundMessage(AgentPrompt $prompt): ?Post
     {
         $thread = $this->resolveThread($prompt);
 
@@ -83,9 +83,8 @@ class ApplyResponseRules
             return null;
         }
 
-        return Message::query()
-            ->where('messageable_type', $thread->getMorphClass())
-            ->where('messageable_id', $thread->getKey())
+        return Post::query()
+            ->forThread($thread)
             ->whereIn('meta->source', ['agent_prompt', 'peer_message'])
             ->orderByDesc('id')
             ->first();

@@ -2,14 +2,14 @@
 
 namespace App\Features\Actions\Conversation;
 
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Support\Facades\Cache;
 
 class FindExistingIdempotentConversationMessage
 {
-    public function execute(Thread $thread, User $actor, ?string $idempotencyKey): ?Message
+    public function execute(Thread $thread, User $actor, ?string $idempotencyKey): ?Post
     {
         if ($idempotencyKey === null) {
             return null;
@@ -20,12 +20,11 @@ class FindExistingIdempotentConversationMessage
             return null;
         }
 
-        return Message::query()
+        return Post::query()
+            ->messageType()
             ->whereKey($cachedMessageId)
-            ->where('messageable_type', $thread->getMorphClass())
-            ->where('messageable_id', $thread->getKey())
-            ->where('senderable_type', $actor->getMorphClass())
-            ->where('senderable_id', $actor->getKey())
+            ->forThread($thread)
+            ->fromSender($actor)
             ->first();
     }
 

@@ -9,7 +9,7 @@ use App\Features\Actions\Conversation\RecordInboundMessageReceipt;
 use App\Features\Actions\Conversation\RecordInboundThreadEvent;
 use App\Features\Actions\Conversation\ResolveInboundMessageIdempotency;
 use App\Features\Actions\Conversation\ThreadMessageEntry;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 
 class IngestInboundChatMessageOperation
 {
@@ -24,7 +24,7 @@ class IngestInboundChatMessageOperation
     /**
      * @param  array<string, mixed>  $payload
      */
-    public function run(InboundMessageEnvelope $envelope): Message
+    public function run(InboundMessageEnvelope $envelope): Post
     {
         $thread = $envelope->thread;
         $payload = $envelope->payload;
@@ -37,7 +37,7 @@ class IngestInboundChatMessageOperation
         );
         $existingMessage = $this->findExistingInboundMessage->execute($inboundMessageContext['idempotency_key']);
 
-        if ($existingMessage instanceof Message) {
+        if ($existingMessage instanceof Post) {
             return $existingMessage;
         }
 

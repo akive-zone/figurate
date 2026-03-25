@@ -3,7 +3,7 @@
 namespace App\Features\Actions\Conversation;
 
 use App\Ai\Support\AgentExecutor;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
@@ -18,7 +18,7 @@ class QueuePresenterReplies
      */
     public function execute(
         Thread $thread,
-        Message $userMessage,
+        Post $userMessage,
         User $actor,
         Collection $presenters,
         string $broadcastSpaceId,
@@ -26,7 +26,7 @@ class QueuePresenterReplies
         $presenters->each(function (ThreadActor $presenter) use ($thread, $userMessage, $actor, $broadcastSpaceId): void {
             $this->agentExecutor->queue(
                 thread: $thread,
-                userMessage: $userMessage,
+                post: $userMessage,
                 user: $actor,
                 threadActor: $presenter,
                 broadcastSpaceId: $broadcastSpaceId,

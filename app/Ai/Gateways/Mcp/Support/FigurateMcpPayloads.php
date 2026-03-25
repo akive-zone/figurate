@@ -2,7 +2,6 @@
 
 namespace App\Ai\Gateways\Mcp\Support;
 
-use App\Models\Server\Message;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Store;
@@ -177,7 +176,7 @@ class FigurateMcpPayloads
         ];
     }
 
-    public function mapMessage(Message $message): array
+    public function mapMessage(Post $message): array
     {
         return [
             'id' => $message->ulid,

@@ -3,7 +3,7 @@
 namespace App\Ai\Agents;
 
 use App\Ai\Middleware\Workflows\ApplyObserverWorkflow;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -21,7 +21,7 @@ class ObserverAgent implements Agent, HasMiddleware, HasStructuredOutput
 
     public function __construct(
         public Thread $thread,
-        public Message $message,
+        public Post $message,
         public ?ThreadActor $threadActor = null,
     ) {}
 

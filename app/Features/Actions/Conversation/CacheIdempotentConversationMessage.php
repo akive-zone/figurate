@@ -2,14 +2,14 @@
 
 namespace App\Features\Actions\Conversation;
 
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Support\Facades\Cache;
 
 class CacheIdempotentConversationMessage
 {
-    public function execute(Thread $thread, User $actor, ?string $idempotencyKey, Message $message): void
+    public function execute(Thread $thread, User $actor, ?string $idempotencyKey, Post $message): void
     {
         if ($idempotencyKey === null) {
             return;

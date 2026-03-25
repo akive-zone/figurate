@@ -3,7 +3,7 @@
 namespace Tests\Unit;
 
 use App\Features\Actions\Conversation\ProjectMessageExtra;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use Tests\TestCase;
 
 class ProjectMessageExtraTest extends TestCase
@@ -20,7 +20,7 @@ class ProjectMessageExtraTest extends TestCase
             ],
         ]);
 
-        $message = new Message([
+        $message = new Post([
             'meta' => [
                 'a2ui' => [
                     'surface' => [

@@ -4,9 +4,9 @@ namespace Tests\Unit;
 
 use App\Features\Actions\Conversation\ProjectThreadMessageToInbox;
 use App\Models\Server\Inbox;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
+use App\Models\Server\PostRelation;
 use App\Models\Server\Thread;
-use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Model;
 use PHPUnit\Framework\TestCase;
@@ -93,9 +93,6 @@ class ProjectThreadMessageToInboxTest extends TestCase
         $this->assertSame('The agent completed the review.', $projected->summary);
     }
 
-    /**
-     * @param  list<ThreadActor>  $actors
-     */
     protected function makeThread(): Thread
     {
         $thread = new Thread([
@@ -108,20 +105,29 @@ class ProjectThreadMessageToInboxTest extends TestCase
         return $thread;
     }
 
-    protected function makeMessage(Thread $thread, ?User $sender, string $text, string $source): Message
+    protected function makeMessage(Thread $thread, ?User $sender, string $text, string $source): Post
     {
-        $message = new Message([
-            'type' => 'text',
-            'text' => $text,
-            'attachments' => null,
+        $message = new Post([
+            'type' => Post::TypeMessage,
+            'status' => Post::StatusActive,
+            'data' => [
+                'text' => $text,
+                'message_type' => 'text',
+            ],
             'meta' => ['source' => $source],
-            'senderable_type' => $sender?->getMorphClass(),
-            'senderable_id' => $sender?->getKey(),
         ]);
         $message->id = 99;
         $message->ulid = '01JNYM8Q1B6EXAMPLE0000001';
         $message->exists = true;
-        $message->setRelation('messageable', $thread);
+        $message->setRelation('postable', $thread);
+
+        if ($sender) {
+            $message->setRelation('senderRelation', new PostRelation([
+                'relationable_type' => $sender->getMorphClass(),
+                'relationable_id' => $sender->getKey(),
+                'role' => Post::RelationRoleSender,
+            ]));
+        }
 
         return $message;
     }

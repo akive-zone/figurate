@@ -5,7 +5,7 @@ namespace App\Jobs;
 use App\Features\Actions\Conversation\DispatchThreadMessage;
 use App\Features\Actions\Conversation\ThreadMessageEntry;
 use App\Models\Server\AgentTask;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadEvent;
 use Spatie\WebhookClient\Jobs\ProcessWebhookJob;
@@ -39,7 +39,7 @@ class ProcessInboundA2aPushWebhookJob extends ProcessWebhookJob
 
         $threadEvent = $thread->events()->create([
             'thread_actor_id' => null,
-            'message_id' => $message?->id,
+            'post_id' => $message?->id,
             'event_key' => 'a2a_push_webhook',
             'layer' => ThreadEvent::LayerExecution,
             'kind' => ThreadEvent::KindA2a,
@@ -168,7 +168,7 @@ class ProcessInboundA2aPushWebhookJob extends ProcessWebhookJob
         ?string $state,
         ?string $taskId,
         ?string $remoteAgentId
-    ): ?Message {
+    ): ?Post {
         $thread = $link->thread;
 
         if (! $thread) {
@@ -178,9 +178,8 @@ class ProcessInboundA2aPushWebhookJob extends ProcessWebhookJob
         $body = $this->extractResponseText($payload)
             ?? $this->fallbackBody($state, $taskId, $remoteAgentId);
 
-        $dedupe = Message::query()
-            ->where('messageable_type', $thread->getMorphClass())
-            ->where('messageable_id', $thread->getKey())
+        $dedupe = Post::query()
+            ->forThread($thread)
             ->where('meta->source', 'a2a_remote_response')
             ->where('meta->remote_task_id', $taskId)
             ->where('meta->status', $state)

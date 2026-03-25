@@ -6,7 +6,7 @@ use App\Features\Actions\Conversation\EnsureThreadMembership;
 use App\Features\Actions\Conversation\ResolveActiveThreadPresenters;
 use App\Features\Operations\Chat\DispatchPromptOperation;
 use App\Models\Server\AgentTask;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
@@ -105,7 +105,7 @@ class AcpSessionService
         $messages = $thread->messages()
             ->orderBy('created_at')
             ->get()
-            ->map(fn (Message $message): array => $this->messagePayload($message))
+            ->map(fn (Post $message): array => $this->messagePayload($message))
             ->values()
             ->all();
 
@@ -123,7 +123,7 @@ class AcpSessionService
         $thread = $this->resolveThread($actor, $sessionUuid);
         $space = $this->resolveThreadSpace($thread, $spaceUuid);
 
-        Gate::forUser($actor)->authorize('create', Message::class);
+        Gate::forUser($actor)->authorize('create', Post::class);
 
         $text = $this->trimmedString($text);
         abort_if($text === null, 422, 'A text prompt is required.');
@@ -206,7 +206,7 @@ class AcpSessionService
         abort_unless($task instanceof AgentTask, 404);
 
         $promptMessage = $task->message;
-        abort_unless($promptMessage instanceof Message, 404);
+        abort_unless($promptMessage instanceof Post, 404);
         $thread = $this->messageTaskService->resolveMessageThread($promptMessage);
 
         if (! $thread instanceof Thread) {
@@ -308,7 +308,7 @@ class AcpSessionService
     /**
      * @return array<string, mixed>
      */
-    protected function messagePayload(Message $message): array
+    protected function messagePayload(Post $message): array
     {
         return [
             'id' => $message->id,
@@ -319,7 +319,7 @@ class AcpSessionService
         ];
     }
 
-    protected function messageRole(Message $message): string
+    protected function messageRole(Post $message): string
     {
         if (data_get($message->meta, 'source') === 'agent_response' || $message->senderable_type === null) {
             return 'assistant';
@@ -334,7 +334,7 @@ class AcpSessionService
     protected function taskPayload(AgentTask $task): array
     {
         $promptMessage = $task->message;
-        abort_unless($promptMessage instanceof Message, 404);
+        abort_unless($promptMessage instanceof Post, 404);
 
         $task = $this->agentTaskService->syncLocalTask($task);
         $snapshot = $this->messageTaskService->snapshot($promptMessage);
@@ -356,7 +356,7 @@ class AcpSessionService
             ],
             'invocations' => $this->messageTaskService->invocationPayload($invocations),
             'artifacts' => $assistantReplies
-                ->map(fn (Message $message): array => $this->messageTaskService->basicArtifactPayload($message))
+                ->map(fn (Post $message): array => $this->messageTaskService->basicArtifactPayload($message))
                 ->values()
                 ->all(),
         ];

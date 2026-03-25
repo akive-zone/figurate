@@ -2,7 +2,6 @@
 
 namespace Figurate\FulfillmentManager\Models;
 
-use App\Models\Server\Message;
 use App\Models\Server\Post;
 use App\Models\Server\PostRelation;
 use App\Models\Server\Profile;
@@ -83,12 +82,15 @@ class Request extends Post
 
     public function messages(): MorphMany
     {
-        return $this->morphMany(Message::class, 'messageable');
+        return $this->morphMany(Post::class, 'postable')
+            ->where('type', Post::TypeMessage);
     }
 
     public function latestMessage(): MorphOne
     {
-        return $this->morphOne(Message::class, 'messageable')->latestOfMany();
+        return $this->morphOne(Post::class, 'postable')
+            ->where('type', Post::TypeMessage)
+            ->latestOfMany();
     }
 
     public function threads(): MorphMany

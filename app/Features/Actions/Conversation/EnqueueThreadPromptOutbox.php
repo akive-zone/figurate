@@ -5,8 +5,8 @@ namespace App\Features\Actions\Conversation;
 use App\Ai\Storage\ConversationPersistenceResolver;
 use App\Features\Actions\Conversation\Protocols\AgentPromptProtocol;
 use App\Jobs\DeliverOutboxMessage;
-use App\Models\Server\Message;
 use App\Models\Server\Outbox;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
@@ -15,7 +15,7 @@ class EnqueueThreadPromptOutbox
 {
     public function execute(
         Thread $thread,
-        Message $message,
+        Post $post,
         User $recipient,
         ThreadActor $threadActor,
         ?string $conversationPersistenceMode = null,
@@ -25,7 +25,7 @@ class EnqueueThreadPromptOutbox
         $actorKey = $threadActor->actorName() ?: ThreadActor::ActorRequestAgent;
         $target = $threadActor->actorReference() ?: $actorKey;
         $idempotencyKey = $this->promptIdempotencyKey(
-            message: $message,
+            post: $post,
             recipient: $recipient,
             threadActor: $threadActor,
             conversationPersistenceMode: $resolvedConversationPersistenceMode,
@@ -35,7 +35,7 @@ class EnqueueThreadPromptOutbox
             ['idempotency_key' => $idempotencyKey],
             [
                 'thread_id' => $thread->id,
-                'message_id' => $message->id,
+                'post_id' => $post->id,
                 'direction' => Outbox::DirectionOutbound,
                 'protocol' => AgentPromptProtocol::Key,
                 'provider' => 'laravel-ai',
@@ -45,12 +45,12 @@ class EnqueueThreadPromptOutbox
                 'available_at' => now(),
                 'payload' => [
                     'message' => [
-                        'id' => $message->id,
-                        'ulid' => $message->ulid,
-                        'text' => $message->text,
-                        'source' => data_get($message->meta, 'source'),
-                        'meta' => is_array($message->meta) ? $message->meta : [],
-                        'created_at' => optional($message->created_at)?->toIso8601String(),
+                        'id' => $post->id,
+                        'ulid' => $post->ulid,
+                        'text' => $post->text,
+                        'source' => data_get($post->meta, 'source'),
+                        'meta' => is_array($post->meta) ? $post->meta : [],
+                        'created_at' => optional($post->created_at)?->toIso8601String(),
                     ],
                     'thread' => [
                         'id' => $thread->id,
@@ -77,14 +77,14 @@ class EnqueueThreadPromptOutbox
     }
 
     public function promptIdempotencyKey(
-        Message $message,
+        Post $post,
         User $recipient,
         ThreadActor $threadActor,
         string $conversationPersistenceMode,
     ): string {
         return sprintf(
             'prompt:%d:%d:%d:%s',
-            $message->id,
+            $post->id,
             $threadActor->id,
             $recipient->id,
             $conversationPersistenceMode,

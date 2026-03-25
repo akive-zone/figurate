@@ -8,7 +8,7 @@ use App\Features\Actions\Conversation\EnsureThreadPresenter;
 use App\Features\Actions\Conversation\QueuePresenterReplies;
 use App\Features\Actions\Conversation\ResolveActiveThreadPresenters;
 use App\Features\Actions\Conversation\ThreadMessageEntry;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
@@ -40,7 +40,7 @@ class DispatchPromptOperation
      *     broadcast_space_id?: string|null
      * }  $options
      * @return array{
-     *     message: Message,
+     *     message: Post,
      *     presenters: Collection<int, ThreadActor>,
      *     direct: bool,
      *     broadcast_space_id: string

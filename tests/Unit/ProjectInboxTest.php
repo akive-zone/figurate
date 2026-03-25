@@ -4,7 +4,7 @@ namespace Tests\Unit;
 
 use App\Features\Actions\Conversation\ProjectInbox;
 use App\Models\Server\Inbox;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadEvent;
 use App\Models\Server\User;
@@ -115,15 +115,19 @@ class ProjectInboxTest extends TestCase
         return $thread;
     }
 
-    protected function makeMessage(Thread $thread, int $id): Message
+    protected function makeMessage(Thread $thread, int $id): Post
     {
-        $message = new Message([
-            'type' => 'text',
+        $message = new Post([
+            'type' => Post::TypeMessage,
+            'status' => Post::StatusActive,
             'text' => 'Can you share an update?',
             'attachments' => null,
         ]);
         $message->id = $id;
         $message->exists = true;
+        $message->postable_type = $thread->getMorphClass();
+        $message->postable_id = $thread->getKey();
+        $message->setRelation('postable', $thread);
         $message->setRelation('messageable', $thread);
 
         return $message;

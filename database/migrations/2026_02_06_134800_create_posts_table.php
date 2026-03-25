@@ -16,14 +16,18 @@ return new class extends Migration
             $table->ulid('ulid')->unique();
             $table->nullableMorphs('postable');
             $table->string('type');
+            $table->string('tag')->nullable();
             $table->string('status');
-            $table->json('payload')->nullable();
+            $table->json('data')->nullable();
             $table->json('meta')->nullable();
+            $table->json('attachments')->nullable();
+            $table->json('actions')->nullable();
+            $table->json('errors')->nullable();
             $table->timestamp('occurred_at')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index(['type', 'status', 'created_at']);
+            $table->index(['type', 'status', 'tag', 'created_at']);
             $table->index(['occurred_at']);
         });
     }

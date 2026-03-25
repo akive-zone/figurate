@@ -17,7 +17,7 @@ class RecordConversationOperationEvents
 
             $thread->events()->create([
                 'thread_actor_id' => null,
-                'message_id' => null,
+                'post_id' => null,
                 'event_key' => 'orchestrator',
                 'layer' => ThreadEvent::LayerExecution,
                 'kind' => ThreadEvent::KindOrchestration,

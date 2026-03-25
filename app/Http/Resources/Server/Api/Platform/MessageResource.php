@@ -15,7 +15,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\QueryParameter;
-use App\Models\Server\Message as MessageModel;
+use App\Models\Server\Post as MessageModel;
 
 #[ApiResource(
     shortName: 'Platform Message',
@@ -47,10 +47,8 @@ use App\Models\Server\Message as MessageModel;
         ),
     ],
 )]
-#[QueryParameter(key: 'messageable_type', filter: EqualsFilter::class, property: 'messageable_type')]
-#[QueryParameter(key: 'messageable_id', filter: EqualsFilter::class, property: 'messageable_id')]
-#[QueryParameter(key: 'senderable_type', filter: EqualsFilter::class, property: 'senderable_type')]
-#[QueryParameter(key: 'senderable_id', filter: EqualsFilter::class, property: 'senderable_id')]
+#[QueryParameter(key: 'postable_type', filter: EqualsFilter::class, property: 'postable_type')]
+#[QueryParameter(key: 'postable_id', filter: EqualsFilter::class, property: 'postable_id')]
 #[QueryParameter(key: 'text', filter: PartialSearchFilter::class, property: 'text')]
 #[QueryParameter(key: 'order', filter: OrderFilter::class, properties: ['created_at' => 'created_at'])]
 final class MessageResource {}

@@ -5,7 +5,7 @@ namespace App\Ai\Tools;
 use App\Ai\Agents\ObserverAgent;
 use App\Ai\Support\Observer\Contracts\ObserverSkill;
 use App\Ai\Support\Observer\ObserverResult;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use Throwable;
@@ -14,7 +14,7 @@ class SafetyGuardObserver implements ObserverSkill
 {
     public function __construct(
         protected Thread $thread,
-        protected Message $message,
+        protected Post $message,
         protected ThreadActor $threadActor,
         protected array $skill = [],
     ) {}
@@ -72,7 +72,7 @@ class SafetyGuardObserver implements ObserverSkill
         };
     }
 
-    protected function fallbackKeywordRules(Message $message): ?ObserverResult
+    protected function fallbackKeywordRules(Post $message): ?ObserverResult
     {
         $content = mb_strtolower((string) $message->text);
 

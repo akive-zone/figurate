@@ -23,6 +23,7 @@ class ThreadMessageNotificationDispatchTest extends TestCase
         $sender = User::factory()->create();
         $recipient = User::factory()->create();
         $channel = Channel::query()->create([
+            'driver' => Channel::DriverGeneric,
             'status' => 'open',
         ]);
         $thread = $channel->threads()->create([

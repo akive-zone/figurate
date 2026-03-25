@@ -4,7 +4,7 @@ namespace App\Features\Actions\Conversation;
 
 use App\Ai\Support\A2ui\A2uiCatalogRegistry;
 use App\Ai\Support\A2ui\A2uiPayloadContract;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 
 class ProjectMessageExtra
 {
@@ -16,7 +16,7 @@ class ProjectMessageExtra
     /**
      * @return array<string, mixed>|null
      */
-    public function execute(Message $message): ?array
+    public function execute(Post $message): ?array
     {
         $surface = data_get($message->meta, 'a2ui');
         $surface = is_array($surface) ? $surface : null;

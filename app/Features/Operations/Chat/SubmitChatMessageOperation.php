@@ -14,7 +14,7 @@ use App\Features\Actions\Conversation\ResolveConversationIdempotencyKey;
 use App\Features\Actions\Conversation\ResolveConversationSpaceContext;
 use App\Features\Actions\Conversation\ResolveConversationThreadContext;
 use App\Features\Actions\Conversation\SendPeerThreadMessage;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
@@ -78,7 +78,7 @@ class SubmitChatMessageOperation
         }
 
         Gate::authorize('view', $space);
-        Gate::authorize('create', Message::class);
+        Gate::authorize('create', Post::class);
 
         $normalizedRequestContent = $normalizedPayload['text'];
 
@@ -131,7 +131,7 @@ class SubmitChatMessageOperation
                     'message_id' => $existingUserMessage->id,
                     'assistant_message_id' => $firstAssistantMessage?->id,
                     'assistant_messages' => $existingAssistantMessages
-                        ->map(fn (Message $message): array => [
+                        ->map(fn (Post $message): array => [
                             'id' => $message->id,
                             'actor_key' => data_get($message->meta, 'actor_key'),
                             'text' => $message->text,

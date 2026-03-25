@@ -4,6 +4,8 @@ namespace App\Ai\Tools;
 
 use App\Ai\Storage\ConversationPersistenceResolver;
 use App\Ai\Tools\Diagnostics\EncodesToolResponse;
+use App\Models\Server\Post;
+use App\Models\Server\PostRelation;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -27,10 +29,11 @@ class AutoModeSelectorTool implements Tool
 
     public function handle(ToolRequest $request): Stringable|string
     {
-        $participantCount = (int) $this->thread->messages()
-            ->whereNotNull('senderable_id')
-            ->distinct('senderable_id')
-            ->count('senderable_id');
+        $participantCount = (int) PostRelation::query()
+            ->where('role', Post::RelationRoleSender)
+            ->whereIn('post_id', $this->thread->messages()->select('posts.id'))
+            ->distinct('relationable_id')
+            ->count('relationable_id');
 
         $privacySensitive = (bool) ($request['privacy_sensitive'] ?? false);
         $requestedMode = ConversationPersistenceResolver::normalizeMode($request['requested_mode'] ?? null);

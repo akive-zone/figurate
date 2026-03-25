@@ -9,8 +9,8 @@ use App\Features\Actions\Conversation\InboundMessageEnvelope;
 use App\Features\Actions\Conversation\ProtocolRegistry;
 use App\Features\Actions\Conversation\ProtocolWebhook;
 use App\Jobs\ProcessInboundMessageWebhookJob;
-use App\Models\Server\Message;
 use App\Models\Server\Outbox;
+use App\Models\Server\Post;
 use Illuminate\Container\Container;
 use PHPUnit\Framework\TestCase;
 use Spatie\WebhookClient\Models\WebhookCall;
@@ -24,17 +24,17 @@ class ProtocolRegistryTest extends TestCase
     {
         $httpReceiver = new class implements InboundMessageReceiver
         {
-            public function receive(InboundMessageEnvelope $envelope): Message
+            public function receive(InboundMessageEnvelope $envelope): Post
             {
-                return new Message;
+                return new Post;
             }
         };
 
         $relayReceiver = new class implements InboundMessageReceiver
         {
-            public function receive(InboundMessageEnvelope $envelope): Message
+            public function receive(InboundMessageEnvelope $envelope): Post
             {
-                return new Message;
+                return new Post;
             }
         };
 
@@ -145,9 +145,9 @@ class ProtocolRegistryTest extends TestCase
     {
         $fallbackReceiver = new class implements InboundMessageReceiver
         {
-            public function receive(InboundMessageEnvelope $envelope): Message
+            public function receive(InboundMessageEnvelope $envelope): Post
             {
-                return new Message;
+                return new Post;
             }
         };
 

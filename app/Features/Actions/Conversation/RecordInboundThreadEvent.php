@@ -2,7 +2,7 @@
 
 namespace App\Features\Actions\Conversation;
 
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadEvent;
 
@@ -10,7 +10,7 @@ class RecordInboundThreadEvent
 {
     public function execute(
         Thread $thread,
-        Message $message,
+        Post $message,
         string $protocol,
         ?string $provider,
         string $externalActorId,
@@ -19,7 +19,7 @@ class RecordInboundThreadEvent
     ): void {
         $thread->events()->create([
             'thread_actor_id' => null,
-            'message_id' => $message->id,
+            'post_id' => $message->id,
             'event_key' => "protocol.{$protocol}.inbound",
             'layer' => ThreadEvent::LayerExecution,
             'kind' => ThreadEvent::KindOrchestration,

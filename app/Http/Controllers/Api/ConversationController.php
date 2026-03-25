@@ -8,7 +8,7 @@ use App\Features\Actions\Conversation\ResolveConversationRouteThread;
 use App\Features\Operations\Chat\SubmitChatMessageOperation;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Chat\StoreChatRequest;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
@@ -58,7 +58,7 @@ class ConversationController extends Controller
             ->get();
 
         $messages = $threadMessages
-            ->map(function (Message $message) use ($threadRecord): array {
+            ->map(function (Post $message) use ($threadRecord): array {
                 return [
                     'kind' => 'message',
                     'scope' => 'thread',
@@ -296,7 +296,7 @@ class ConversationController extends Controller
     /**
      * @return array<string, mixed>
      */
-    protected function messageContent(Message $message): array
+    protected function messageContent(Post $message): array
     {
         return [
             'text' => is_string($message->text) ? $message->text : '',

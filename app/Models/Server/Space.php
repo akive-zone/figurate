@@ -208,16 +208,17 @@ class Space extends Model
             ->get();
     }
 
-    public function latestConversationMessage(): ?Message
+    public function latestConversationMessage(): ?Post
     {
         $threadIds = $this->conversationThreadIds();
         if ($threadIds->isEmpty()) {
             return null;
         }
 
-        return Message::query()
-            ->where('messageable_type', (new Thread)->getMorphClass())
-            ->whereIn('messageable_id', $threadIds->all())
+        return Post::query()
+            ->messageType()
+            ->where('postable_type', (new Thread)->getMorphClass())
+            ->whereIn('postable_id', $threadIds->all())
             ->latest('created_at')
             ->first();
     }

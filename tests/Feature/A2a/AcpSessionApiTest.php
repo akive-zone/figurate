@@ -4,7 +4,7 @@ namespace Tests\Feature\A2a;
 
 use App\Ai\Support\AgentExecutor;
 use App\Models\Server\AgentTask;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
@@ -49,22 +49,21 @@ class AcpSessionApiTest extends TestCase
             'status' => ThreadActor::StatusActive,
         ]);
 
-        Message::query()->create([
-            'messageable_type' => $thread->getMorphClass(),
-            'messageable_id' => $thread->id,
-            'senderable_type' => $user->getMorphClass(),
-            'senderable_id' => $user->id,
-            'type' => 'text',
+        $message = Post::query()->create([
+            'postable_type' => $thread->getMorphClass(),
+            'postable_id' => $thread->id,
+            'type' => Post::TypeMessage,
+            'status' => Post::StatusActive,
             'text' => 'Please inspect the workspace.',
             'meta' => ['source' => 'acp_prompt'],
         ]);
+        $message->attachRelation($user, Post::RelationRoleSender);
 
-        Message::query()->create([
-            'messageable_type' => $thread->getMorphClass(),
-            'messageable_id' => $thread->id,
-            'senderable_type' => null,
-            'senderable_id' => null,
-            'type' => 'text',
+        Post::query()->create([
+            'postable_type' => $thread->getMorphClass(),
+            'postable_id' => $thread->id,
+            'type' => Post::TypeMessage,
+            'status' => Post::StatusActive,
             'text' => 'Inspection complete.',
             'meta' => [
                 'source' => 'agent_response',
@@ -114,7 +113,7 @@ class AcpSessionApiTest extends TestCase
         $task = AgentTask::query()->where('uuid', $taskId)->firstOrFail();
 
         $this->assertSame('submitted', $task->status);
-        $this->assertNotNull($task->message_id);
+        $this->assertNotNull($task->post_id);
         $this->assertSame($user->id, $task->user_id);
 
         $this->getJson("/api/acp/tasks/{$taskId}")

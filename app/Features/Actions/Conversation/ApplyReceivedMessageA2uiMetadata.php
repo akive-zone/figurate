@@ -2,7 +2,7 @@
 
 namespace App\Features\Actions\Conversation;
 
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 
 class ApplyReceivedMessageA2uiMetadata
 {
@@ -12,7 +12,7 @@ class ApplyReceivedMessageA2uiMetadata
      * @param  array<string, mixed>|null  $a2uiClientCapabilities
      */
     public function execute(
-        Message $message,
+        Post $message,
         array $a2uiActions,
         array $a2uiErrors,
         ?string $a2uiClientDataModel,

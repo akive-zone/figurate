@@ -2,7 +2,7 @@
 
 namespace App\Ai\Support\A2a;
 
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadEvent;
 use Illuminate\Support\Str;
@@ -11,7 +11,7 @@ use Throwable;
 
 class TaskPushNotificationDispatcher
 {
-    public function dispatchTaskUpdate(Message $promptMessage, string $state): void
+    public function dispatchTaskUpdate(Post $promptMessage, string $state): void
     {
         $taskId = $this->taskId($promptMessage);
 
@@ -89,7 +89,7 @@ class TaskPushNotificationDispatcher
         }
     }
 
-    protected function recordDispatchFailure(Message $promptMessage, string $taskId, array $config, string $errorMessage): void
+    protected function recordDispatchFailure(Post $promptMessage, string $taskId, array $config, string $errorMessage): void
     {
         $thread = $this->thread($promptMessage);
 
@@ -99,7 +99,7 @@ class TaskPushNotificationDispatcher
 
         $thread->events()->create([
             'thread_actor_id' => null,
-            'message_id' => $promptMessage->id,
+            'post_id' => $promptMessage->id,
             'event_key' => 'a2a_push_notifications',
             'layer' => ThreadEvent::LayerExecution,
             'kind' => ThreadEvent::KindA2a,
@@ -119,7 +119,7 @@ class TaskPushNotificationDispatcher
     /**
      * @return list<array<string, mixed>>
      */
-    protected function configs(Message $promptMessage): array
+    protected function configs(Post $promptMessage): array
     {
         $configs = data_get($promptMessage->meta, 'a2a.push_notification_configs');
 
@@ -133,7 +133,7 @@ class TaskPushNotificationDispatcher
             ->all();
     }
 
-    protected function taskId(Message $promptMessage): ?string
+    protected function taskId(Post $promptMessage): ?string
     {
         $taskId = data_get($promptMessage->meta, 'a2a_task_id');
 
@@ -144,19 +144,19 @@ class TaskPushNotificationDispatcher
         return $promptMessage->ulid ?: null;
     }
 
-    protected function threadUuid(Message $promptMessage): ?string
+    protected function threadUuid(Post $promptMessage): ?string
     {
         $thread = $this->thread($promptMessage);
 
         return $thread?->uuid;
     }
 
-    protected function thread(Message $promptMessage): ?Thread
+    protected function thread(Post $promptMessage): ?Thread
     {
-        if ($promptMessage->messageable_type !== (new Thread)->getMorphClass()) {
+        if ($promptMessage->postable_type !== (new Thread)->getMorphClass()) {
             return null;
         }
 
-        return Thread::query()->find($promptMessage->messageable_id);
+        return Thread::query()->find($promptMessage->postable_id);
     }
 }

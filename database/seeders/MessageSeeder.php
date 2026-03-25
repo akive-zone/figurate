@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use Illuminate\Database\Seeder;
 
 class MessageSeeder extends Seeder
@@ -12,6 +12,6 @@ class MessageSeeder extends Seeder
      */
     public function run(): void
     {
-        Message::factory()->count(20)->create();
+        Post::factory()->count(20)->create();
     }
 }

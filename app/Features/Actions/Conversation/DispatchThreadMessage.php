@@ -32,14 +32,15 @@ class DispatchThreadMessage
         );
 
         if ($entry->attachments->isNotEmpty()) {
-            // Post model stores attachments as inline array
-            $attachmentsPayload = $entry->attachments->map(fn (array $attachment) => [
-                'name' => pathinfo($attachment['original_name'], PATHINFO_FILENAME),
-                'file_name' => $attachment['original_name'],
-                'path' => $attachment['path'],
-            ])->all();
+            foreach ($entry->attachments as $attachment) {
+                $post->addMedia($attachment['path'])
+                    ->usingName(pathinfo($attachment['original_name'], PATHINFO_FILENAME))
+                    ->usingFileName($attachment['original_name'])
+                    ->toMediaCollection(Post::AttachmentCollection);
+            }
 
-            $post->forceFill(['attachments' => $attachmentsPayload])->save();
+            $post->unsetRelation('media');
+            $post->refresh();
 
             if ($entry->actor) {
                 $this->messageAttachmentStoreIngestor->ingest($entry->thread, $post, $entry->actor);

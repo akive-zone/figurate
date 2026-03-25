@@ -3,7 +3,7 @@
 namespace App\Support\Orchestrate;
 
 use App\Models\Server\AgentTask;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
@@ -21,19 +21,19 @@ class AgentTaskService
      * @param  array<string, mixed>  $payload
      */
     public function createLocalTask(
-        Message $promptMessage,
+        Post $promptMessage,
         ?User $user = null,
         array $payload = [],
         ?string $stateOverride = null,
     ): AgentTask {
         $thread = $this->resolvePromptThread($promptMessage);
         $task = AgentTask::query()->firstOrNew([
-            'message_id' => $promptMessage->getKey(),
+            'post_id' => $promptMessage->getKey(),
         ]);
 
         $task->forceFill([
             'thread_id' => $thread->getKey(),
-            'message_id' => $promptMessage->getKey(),
+            'post_id' => $promptMessage->getKey(),
             'user_id' => $user?->getKey(),
             'remote' => null,
             'last_payload' => $this->mergedLocalPayload($task, $payload),
@@ -49,7 +49,7 @@ class AgentTaskService
         }
 
         $promptMessage = $task->message;
-        if (! $promptMessage instanceof Message) {
+        if (! $promptMessage instanceof Post) {
             return $task;
         }
 
@@ -72,7 +72,7 @@ class AgentTaskService
             'state' => $state,
             'invocations' => $this->messageTaskService->invocationPayload($snapshot['invocations']),
             'artifacts' => $snapshot['assistant_replies']
-                ->map(fn (Message $message): array => $this->messageTaskService->basicArtifactPayload($message))
+                ->map(fn (Post $message): array => $this->messageTaskService->basicArtifactPayload($message))
                 ->values()
                 ->all(),
             'updated_at' => now()->toIso8601String(),
@@ -89,10 +89,10 @@ class AgentTaskService
         return $task->fresh();
     }
 
-    public function syncLocalTaskForPromptMessage(Message $promptMessage, ?string $stateOverride = null): ?AgentTask
+    public function syncLocalTaskForPromptMessage(Post $promptMessage, ?string $stateOverride = null): ?AgentTask
     {
         $task = $this->localTasksQuery()
-            ->where('message_id', $promptMessage->getKey())
+            ->where('post_id', $promptMessage->getKey())
             ->latest('id')
             ->first();
 
@@ -168,7 +168,7 @@ class AgentTaskService
     {
         $promptMessage = $task->message;
 
-        if (! $promptMessage instanceof Message) {
+        if (! $promptMessage instanceof Post) {
             return $task;
         }
 
@@ -212,7 +212,7 @@ class AgentTaskService
         ];
     }
 
-    protected function resolvePromptThread(Message $promptMessage): Thread
+    protected function resolvePromptThread(Post $promptMessage): Thread
     {
         $thread = $this->messageTaskService->resolveMessageThread($promptMessage);
 

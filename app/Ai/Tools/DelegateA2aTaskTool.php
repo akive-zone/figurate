@@ -304,7 +304,7 @@ class DelegateA2aTaskTool implements Tool
     ): void {
         $threadEvent = $this->thread->events()->create([
             'thread_actor_id' => $this->threadActor?->id,
-            'message_id' => null,
+            'post_id' => null,
             'event_key' => 'a2a_delegate_tool',
             'layer' => ThreadEvent::LayerExecution,
             'kind' => ThreadEvent::KindA2a,
@@ -353,7 +353,7 @@ class DelegateA2aTaskTool implements Tool
         if (! $link) {
             return AgentTask::query()->create([
                 'thread_id' => $this->thread->id,
-                'message_id' => null,
+                'post_id' => null,
                 'user_id' => $this->actor->id,
                 'remote' => [
                     'agent_id' => $agentId,
@@ -373,7 +373,7 @@ class DelegateA2aTaskTool implements Tool
 
         $link->forceFill([
             'thread_id' => $this->thread->id,
-            'message_id' => null,
+            'post_id' => null,
             'user_id' => $this->actor->id,
             'remote' => $remote,
             'status' => 'submitted',

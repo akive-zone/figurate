@@ -14,17 +14,22 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-class Post extends Model
+class Post extends Model implements HasMedia
 {
     /** @use HasFactory<PostFactory> */
-    use HasFactory, HasUlids, SoftDeletes;
+    use HasFactory, HasUlids, InteractsWithMedia, SoftDeletes;
 
     public const TypeMessage = 'message';
 
     public const RelationRoleSender = 'sender';
 
     public const StatusActive = 'active';
+
+    public const AttachmentCollection = 'attachments';
 
     /**
      * @var list<string>
@@ -36,6 +41,7 @@ class Post extends Model
         'type',
         'tag',
         'status',
+        'text',
         'data',
         'payload',
         'attachments',
@@ -65,7 +71,7 @@ class Post extends Model
         return Attribute::make(
             get: fn (): ?string => is_array($this->data) ? (isset($this->data['text']) ? (string) $this->data['text'] : null) : null,
             set: fn (mixed $value): array => [
-                'data' => array_merge(is_array($this->data) ? $this->data : [], ['text' => $value]),
+                'data' => json_encode(array_merge(is_array($this->data) ? $this->data : [], ['text' => $value])) ?: null,
             ],
         );
     }
@@ -88,11 +94,15 @@ class Post extends Model
     {
         return Attribute::make(
             get: function (): ?string {
-                if ($this->relationLoaded('senderRelation') && $this->senderRelation !== null) {
-                    return $this->senderRelation->relationable_type;
+                if ($this->relationLoaded('senderRelation')) {
+                    return $this->senderRelation?->relationable_type;
                 }
 
-                return null;
+                if (self::getConnectionResolver() === null) {
+                    return null;
+                }
+
+                return $this->senderRelation()->first()?->relationable_type;
             },
         );
     }
@@ -101,11 +111,15 @@ class Post extends Model
     {
         return Attribute::make(
             get: function (): mixed {
-                if ($this->relationLoaded('senderRelation') && $this->senderRelation !== null) {
-                    return $this->senderRelation->relationable_id;
+                if ($this->relationLoaded('senderRelation')) {
+                    return $this->senderRelation?->relationable_id;
                 }
 
-                return null;
+                if (self::getConnectionResolver() === null) {
+                    return null;
+                }
+
+                return $this->senderRelation()->first()?->relationable_id;
             },
         );
     }
@@ -120,6 +134,30 @@ class Post extends Model
         );
     }
 
+    protected function attachments(): Attribute
+    {
+        return Attribute::make(
+            get: function (mixed $value, array $attributes): array {
+                $media = $this->attachmentMedia();
+
+                if ($media !== []) {
+                    return $media;
+                }
+
+                if (is_array($value)) {
+                    return $value;
+                }
+
+                $decoded = json_decode((string) ($attributes['attachments'] ?? 'null'), true);
+
+                return is_array($decoded) ? $decoded : [];
+            },
+            set: fn (mixed $value): array => [
+                'attachments' => is_array($value) && $value !== [] ? json_encode($value) : null,
+            ],
+        );
+    }
+
     /**
      * @return array<int, string>
      */
@@ -128,9 +166,19 @@ class Post extends Model
         return ['ulid'];
     }
 
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection(self::AttachmentCollection);
+    }
+
     public function relations(): HasMany
     {
         return $this->hasMany(PostRelation::class, 'post_id');
+    }
+
+    public function messageable(): MorphTo
+    {
+        return $this->postable();
     }
 
     public function postable(): MorphTo
@@ -148,6 +196,34 @@ class Post extends Model
     public function posts(): MorphMany
     {
         return $this->morphMany(self::class, 'postable');
+    }
+
+    public function scopeMessageType(Builder $query): Builder
+    {
+        return $query->where('type', self::TypeMessage);
+    }
+
+    public function scopeForThread(Builder $query, Thread $thread): Builder
+    {
+        return $query
+            ->messageType()
+            ->where('postable_type', $thread->getMorphClass())
+            ->where('postable_id', $thread->getKey());
+    }
+
+    public function scopeFromSender(Builder $query, EloquentModel $sender): Builder
+    {
+        return $query->whereHas('senderRelation', function (Builder $relationQuery) use ($sender): void {
+            $relationQuery
+                ->where('relationable_type', $sender->getMorphClass())
+                ->where('relationable_id', $sender->getKey())
+                ->where('role', self::RelationRoleSender);
+        });
+    }
+
+    public function scopeWithoutSender(Builder $query): Builder
+    {
+        return $query->whereDoesntHave('senderRelation');
     }
 
     public function attachRelation(EloquentModel $model, string $role = 'context'): PostRelation
@@ -189,6 +265,10 @@ class Post extends Model
 
     public function sender(): ?EloquentModel
     {
+        if ($this->relationLoaded('senderRelation')) {
+            return $this->senderRelation?->relationable;
+        }
+
         return $this->senderRelation()->first()?->relationable;
     }
 
@@ -204,5 +284,32 @@ class Post extends Model
         $meta = $this->meta ?? [];
         $meta[$key] = $value;
         $this->meta = $meta;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function attachmentMedia(): array
+    {
+        if (! app()->bound('config') || self::getConnectionResolver() === null) {
+            return [];
+        }
+
+        $mediaItems = $this->relationLoaded('media')
+            ? $this->media->where('collection_name', self::AttachmentCollection)->values()
+            : $this->getMedia(self::AttachmentCollection);
+
+        return $mediaItems
+            ->map(fn (Media $media): array => [
+                'id' => $media->id,
+                'name' => $media->name ?: pathinfo($media->file_name, PATHINFO_FILENAME),
+                'file_name' => $media->file_name,
+                'mime' => $media->mime_type,
+                'size' => $media->size,
+                'url' => $media->getUrl(),
+                'path' => $media->getPath(),
+            ])
+            ->values()
+            ->all();
     }
 }

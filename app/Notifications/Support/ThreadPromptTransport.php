@@ -5,7 +5,7 @@ namespace App\Notifications\Support;
 use App\Ai\Storage\ConversationPersistenceResolver;
 use App\Features\Actions\Conversation\EnqueueThreadPromptOutbox;
 use App\Features\Actions\Conversation\ResolveActiveThreadPresenters;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadEvent;
@@ -34,7 +34,7 @@ class ThreadPromptTransport
         $thread = $payload['thread'] ?? null;
         $message = $payload['message'] ?? null;
 
-        if (! $thread instanceof Thread || ! $message instanceof Message) {
+        if (! $thread instanceof Thread || ! $message instanceof Post) {
             return;
         }
 
@@ -87,7 +87,7 @@ class ThreadPromptTransport
 
         $outbox = $this->enqueueThreadPromptOutbox->execute(
             thread: $thread,
-            message: $message,
+            post: $message,
             recipient: $notifiable,
             threadActor: $presenter,
             conversationPersistenceMode: $resolvedMode,
@@ -150,7 +150,7 @@ class ThreadPromptTransport
      */
     protected function recordEvent(
         Thread $thread,
-        Message $message,
+        Post $message,
         User $recipient,
         Notification $notification,
         string $transport,
@@ -161,7 +161,7 @@ class ThreadPromptTransport
     ): void {
         $thread->events()->create([
             'thread_actor_id' => $threadActor?->id,
-            'message_id' => $message->id,
+            'post_id' => $message->id,
             'event_key' => "notification:{$transport}:".$recipient->getKey(),
             'layer' => ThreadEvent::LayerExecution,
             'kind' => ThreadEvent::KindOrchestration,

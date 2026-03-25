@@ -13,7 +13,6 @@ use App\Ai\Gateways\Mcp\Tools\ReadThreadTool;
 use App\Ai\Gateways\Mcp\Tools\SearchConversationContextTool;
 use App\Ai\Gateways\Mcp\Tools\TransferThreadSessionTool;
 use App\Models\Server\AgentConversation;
-use App\Models\Server\Message;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
@@ -62,15 +61,15 @@ class FigurateMcpServerTest extends TestCase
             'priority' => 1,
             'config' => null,
         ]);
-        Message::query()->create([
-            'messageable_type' => $thread->getMorphClass(),
-            'messageable_id' => $thread->id,
-            'senderable_type' => $user->getMorphClass(),
-            'senderable_id' => $user->getKey(),
-            'type' => 'text',
+        $message = Post::query()->create([
+            'postable_type' => $thread->getMorphClass(),
+            'postable_id' => $thread->id,
+            'type' => Post::TypeMessage,
+            'status' => Post::StatusActive,
             'text' => 'Need a quick check on the kitchen sink leak.',
             'meta' => ['source' => 'test'],
         ]);
+        $message->attachRelation($user, Post::RelationRoleSender);
         $thread->posts()->create([
             'type' => 'summary.snapshot',
             'status' => 'draft',
@@ -133,15 +132,15 @@ class FigurateMcpServerTest extends TestCase
             'phase' => 'support_open',
             'status' => 'open',
         ]);
-        Message::query()->create([
-            'messageable_type' => $thread->getMorphClass(),
-            'messageable_id' => $thread->id,
-            'senderable_type' => $user->getMorphClass(),
-            'senderable_id' => $user->getKey(),
-            'type' => 'text',
+        $message = Post::query()->create([
+            'postable_type' => $thread->getMorphClass(),
+            'postable_id' => $thread->id,
+            'type' => Post::TypeMessage,
+            'status' => Post::StatusActive,
             'text' => 'The basement drain smells bad after the rain.',
             'meta' => ['source' => 'test'],
         ]);
+        $message->attachRelation($user, Post::RelationRoleSender);
         Post::query()->create([
             'postable_type' => $thread->getMorphClass(),
             'postable_id' => $thread->id,

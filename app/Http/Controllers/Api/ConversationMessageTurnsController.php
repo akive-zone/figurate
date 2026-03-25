@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Features\Actions\Conversation\ProjectAgentTurns;
 use App\Features\Actions\Conversation\ResolveConversationRouteThread;
 use App\Http\Controllers\Controller;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,7 +17,7 @@ class ConversationMessageTurnsController extends Controller
         protected ResolveConversationRouteThread $resolveConversationRouteThread,
     ) {}
 
-    public function __invoke(Request $request, string $conversation, Message $message): JsonResponse
+    public function __invoke(Request $request, string $conversation, Post $message): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
@@ -28,8 +28,8 @@ class ConversationMessageTurnsController extends Controller
         }
 
         if (
-            $message->messageable_type !== $threadRecord->getMorphClass()
-            || $message->messageable_id !== $threadRecord->getKey()
+            $message->postable_type !== $threadRecord->getMorphClass()
+            || $message->postable_id !== $threadRecord->getKey()
         ) {
             abort(404, 'Message not found in this thread.');
         }

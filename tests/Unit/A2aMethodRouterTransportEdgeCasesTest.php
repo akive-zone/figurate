@@ -12,7 +12,7 @@ use App\Features\Actions\Conversation\ResolveConversationSpaceContext;
 use App\Features\Actions\Conversation\ResolveConversationThreadContext;
 use App\Features\Operations\Chat\DispatchPromptOperation;
 use App\Features\Operations\Chat\ResolveConversationThreadOperation;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Support\Orchestrate\AgentTaskService;
 use App\Support\Orchestrate\MessageTaskService;
 use PHPUnit\Framework\TestCase;
@@ -162,10 +162,10 @@ class A2aMethodRouterTransportEdgeCasesTest extends TestCase
     public function test_it_emits_data_artifact_when_text_is_empty_and_a2ui_payload_exists(): void
     {
         $router = $this->makeRouter();
-        $promptMessage = new Message([
+        $promptMessage = new Post([
             'meta' => [],
         ]);
-        $assistantMessage = new Message([
+        $assistantMessage = new Post([
             'ulid' => '01JVD4H4R8J7E0BV3Q0YQ2WATN',
             'text' => '',
             'meta' => [
@@ -247,7 +247,7 @@ class A2aMethodRouterTransportEdgeCasesTest extends TestCase
             /**
              * @return array<string, mixed>
              */
-            public function publicToTaskArtifactPayload(Message $message, Message $promptMessage): array
+            public function publicToTaskArtifactPayload(Post $message, Post $promptMessage): array
             {
                 return $this->toTaskArtifactPayload($message, $promptMessage);
             }

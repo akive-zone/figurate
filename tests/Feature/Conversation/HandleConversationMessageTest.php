@@ -4,7 +4,7 @@ namespace Tests\Feature\Chat;
 
 use App\Ai\Support\AgentExecutor;
 use App\Jobs\ProcessThreadObservers;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
@@ -52,7 +52,7 @@ class HandleConversationMessageTest extends TestCase
             ->assertJsonPath('pending_presenters', 1)
             ->assertJsonMissingPath('channel');
 
-        $message = Message::query()->latest('id')->firstOrFail();
+        $message = Post::query()->messageType()->latest('id')->firstOrFail();
 
         $this->assertSame('agent_prompt', data_get($message->meta, 'source'));
         $this->assertFalse((bool) data_get($message->meta, 'observer_dispatch'));
@@ -87,7 +87,7 @@ class HandleConversationMessageTest extends TestCase
             ->assertJsonPath('pending', false)
             ->assertJsonPath('pending_presenters', 0);
 
-        $message = Message::query()->latest('id')->firstOrFail();
+        $message = Post::query()->messageType()->latest('id')->firstOrFail();
 
         $this->assertSame('peer_message', data_get($message->meta, 'source'));
         $this->assertTrue((bool) data_get($message->meta, 'observer_dispatch'));
@@ -123,7 +123,7 @@ class HandleConversationMessageTest extends TestCase
             ->assertJsonPath('pending', true)
             ->assertJsonPath('pending_presenters', 1);
 
-        $message = Message::query()->latest('id')->firstOrFail();
+        $message = Post::query()->messageType()->latest('id')->firstOrFail();
 
         $this->assertSame('agent_prompt', data_get($message->meta, 'source'));
         $this->assertTrue((bool) data_get($message->meta, 'observer_dispatch'));
@@ -137,17 +137,18 @@ class HandleConversationMessageTest extends TestCase
         $thread = $this->makeThread($space);
 
         $promptMessage = $thread->messages()->create([
-            'type' => 'text',
+            'type' => Post::TypeMessage,
+            'status' => Post::StatusActive,
             'text' => 'Please help me scope the repair.',
-            'senderable_type' => $user->getMorphClass(),
-            'senderable_id' => $user->id,
             'meta' => [
                 'source' => 'agent_prompt',
             ],
         ]);
+        $promptMessage->attachRelation($user, Post::RelationRoleSender);
 
         $assistantMessage = $thread->messages()->create([
-            'type' => 'text',
+            'type' => Post::TypeMessage,
+            'status' => Post::StatusActive,
             'text' => 'Start by listing the visible damage and confirming access.',
             'meta' => [
                 'source' => 'agent_response',
@@ -197,14 +198,13 @@ class HandleConversationMessageTest extends TestCase
         $thread = $this->makeThread($space);
 
         $thread->messages()->create([
-            'type' => 'text',
+            'type' => Post::TypeMessage,
+            'status' => Post::StatusActive,
             'text' => 'Please confirm the visit window.',
-            'senderable_type' => $user->getMorphClass(),
-            'senderable_id' => $user->id,
             'meta' => [
                 'source' => 'peer_message',
             ],
-        ]);
+        ])->attachRelation($user, Post::RelationRoleSender);
 
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 

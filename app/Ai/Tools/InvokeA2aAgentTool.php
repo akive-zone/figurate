@@ -175,7 +175,7 @@ class InvokeA2aAgentTool implements Tool
     ): void {
         $this->thread->events()->create([
             'thread_actor_id' => $this->threadActor?->id,
-            'message_id' => null,
+            'post_id' => null,
             'event_key' => 'a2a_outbound_tool',
             'layer' => ThreadEvent::LayerExecution,
             'kind' => ThreadEvent::KindA2a,

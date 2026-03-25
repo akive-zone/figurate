@@ -183,10 +183,8 @@ class AgentExecutor
         ThreadActor $threadActor
     ): ?Post {
         return Post::query()
-            ->where('postable_type', $thread->getMorphClass())
-            ->where('postable_id', $thread->getKey())
-            ->whereNull('senderable_type')
-            ->whereNull('senderable_id')
+            ->forThread($thread)
+            ->withoutSender()
             ->where('meta->source', 'agent_response')
             ->where('meta->actor_key', $threadActor->actorName())
             ->where('meta->in_reply_to_message_id', $userPost->id)

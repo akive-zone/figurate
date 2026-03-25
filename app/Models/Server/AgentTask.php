@@ -3,17 +3,20 @@
 namespace App\Models\Server;
 
 use App\Models\Concerns\HasPublicUuid;
+use Database\Factories\AgentTaskFactory;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Staudenmeir\EloquentJsonRelations\HasJsonRelationships;
 
 class AgentTask extends Model
 {
-    /** @use HasFactory<\Database\Factories\AgentTaskFactory> */
+    /** @use HasFactory<AgentTaskFactory> */
     use HasFactory, HasPublicUuid;
 
-    use \Staudenmeir\EloquentJsonRelations\HasJsonRelationships;
+    use HasJsonRelationships;
 
     /**
      * @var list<string>
@@ -21,7 +24,7 @@ class AgentTask extends Model
     protected $fillable = [
         'uuid',
         'thread_id',
-        'message_id',
+        'post_id',
         'user_id',
         'remote',
         'status',
@@ -52,12 +55,20 @@ class AgentTask extends Model
 
     public function message(): BelongsTo
     {
-        return $this->belongsTo(Message::class);
+        return $this->belongsTo(Post::class, 'post_id');
     }
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    protected function messageId(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): ?int => $this->post_id,
+            set: fn (mixed $value): array => ['post_id' => $value],
+        );
     }
 
     public function threadEvents(): BelongsToMany

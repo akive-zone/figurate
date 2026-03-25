@@ -3,7 +3,7 @@
 namespace App\Features\Actions\Conversation;
 
 use App\Models\Server\AgentConversationMessage;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Support\Collection;
@@ -13,22 +13,22 @@ class ProjectAgentTurns
     public function __construct(protected ProjectMessageExtra $projectMessageExtra) {}
 
     /**
-     * @param  Collection<int, Message>  $threadMessages
+     * @param  Collection<int, Post>  $threadMessages
      * @return array<int, array<string, mixed>>
      */
     public function execute(Thread $thread, Collection $threadMessages, User $actor): array
     {
         $promptMessages = $threadMessages
-            ->filter(fn (Message $message): bool => data_get($message->meta, 'source') === 'agent_prompt')
+            ->filter(fn (Post $message): bool => data_get($message->meta, 'source') === 'agent_prompt')
             ->values();
         $assistantMessages = $threadMessages
-            ->filter(fn (Message $message): bool => data_get($message->meta, 'source') === 'agent_response')
+            ->filter(fn (Post $message): bool => data_get($message->meta, 'source') === 'agent_response')
             ->values();
 
         $assistantByPromptId = $assistantMessages
-            ->groupBy(fn (Message $message): int => (int) data_get($message->meta, 'in_reply_to_message_id', 0));
+            ->groupBy(fn (Post $message): int => (int) data_get($message->meta, 'in_reply_to_message_id', 0));
         $invocationIds = $assistantMessages
-            ->map(fn (Message $message): ?string => $this->trimmedString(data_get($message->meta, 'invocation_id')))
+            ->map(fn (Post $message): ?string => $this->trimmedString(data_get($message->meta, 'invocation_id')))
             ->filter()
             ->values()
             ->all();
@@ -60,7 +60,7 @@ class ProjectAgentTurns
                 $resolvedActorKey = is_string($actorKey) ? trim($actorKey) : null;
                 $resolvedInvocationId = $this->trimmedString(data_get($invocationContext, 'invocation_id'));
                 $resolvedStatus = $this->trimmedString(data_get($invocationContext, 'status'));
-                $assistantMessage = $assistantCandidates->first(function (Message $message) use ($resolvedActorKey, $resolvedInvocationId): bool {
+                $assistantMessage = $assistantCandidates->first(function (Post $message) use ($resolvedActorKey, $resolvedInvocationId): bool {
                     $messageInvocationId = $this->trimmedString(data_get($message->meta, 'invocation_id'));
                     $messageActorKey = $this->trimmedString(data_get($message->meta, 'actor_key'));
 
@@ -137,14 +137,14 @@ class ProjectAgentTurns
      */
     protected function mapTurn(
         Thread $thread,
-        Message $promptMessage,
-        ?Message $assistantMessage,
+        Post $promptMessage,
+        ?Post $assistantMessage,
         ?string $actorKey,
         ?string $invocationId,
         ?array $telemetry,
         ?string $requestedStatus = null,
     ): array {
-        $status = $assistantMessage instanceof Message
+        $status = $assistantMessage instanceof Post
             ? 'completed'
             : (in_array($requestedStatus, ['pending', 'failed'], true) ? $requestedStatus : 'pending');
 
@@ -158,8 +158,8 @@ class ProjectAgentTurns
             'assistant_message_id' => $assistantMessage?->id,
             'prompt_text' => is_string($promptMessage->text) ? $promptMessage->text : '',
             'assistant_text' => is_string($assistantMessage?->text) ? $assistantMessage->text : null,
-            'assistant_content' => $assistantMessage instanceof Message ? $this->messageContent($assistantMessage) : null,
-            'assistant_extra' => $assistantMessage instanceof Message ? $this->projectMessageExtra->execute($assistantMessage) : null,
+            'assistant_content' => $assistantMessage instanceof Post ? $this->messageContent($assistantMessage) : null,
+            'assistant_extra' => $assistantMessage instanceof Post ? $this->projectMessageExtra->execute($assistantMessage) : null,
             'prompt_content' => $this->messageContent($promptMessage),
             'prompt_extra' => $this->projectMessageExtra->execute($promptMessage),
             'tool_calls' => is_array($telemetry['tool_calls'] ?? null) ? $telemetry['tool_calls'] : [],
@@ -203,7 +203,7 @@ class ProjectAgentTurns
     /**
      * @return array<string, mixed>
      */
-    protected function messageContent(Message $message): array
+    protected function messageContent(Post $message): array
     {
         return [
             'text' => is_string($message->text) ? $message->text : '',

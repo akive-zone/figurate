@@ -156,12 +156,11 @@ class AgentPromptOutboxDispatchTest extends TestCase
                 'text' => 'Generate a summary.',
                 'message_type' => 'text',
             ],
-            'senderable_type' => $sender->getMorphClass(),
-            'senderable_id' => $sender->id,
             'meta' => [
                 'source' => 'peer_message',
             ],
         ]);
+        $post->attachRelation($sender, Post::RelationRoleSender);
         $presenter = $thread->actors()->create([
             'actorable_type' => ThreadActor::ActorRequestAgent,
             'actorable_id' => null,

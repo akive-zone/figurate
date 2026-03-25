@@ -5,7 +5,7 @@ namespace App\Jobs;
 use App\Ai\Support\Observer\Contracts\ObserverSkill;
 use App\Ai\Support\Observer\ObserverRegistry;
 use App\Ai\Support\Observer\ObserverResult;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadEvent;
@@ -33,7 +33,9 @@ class ProcessThreadObservers implements ShouldQueue
                 ->orderBy('priority')])
             ->find($this->threadId);
 
-        $message = Message::query()->find($this->messageId);
+        $message = Post::query()
+            ->messageType()
+            ->find($this->messageId);
 
         if (! $thread || ! $message) {
             return;
@@ -63,7 +65,7 @@ class ProcessThreadObservers implements ShouldQueue
 
             $thread->events()->create([
                 'thread_actor_id' => $threadActor->id,
-                'message_id' => $message->id,
+                'post_id' => $message->id,
                 'event_key' => $threadActor->actorReference(),
                 'layer' => ThreadEvent::LayerExecution,
                 'kind' => ThreadEvent::KindObserver,

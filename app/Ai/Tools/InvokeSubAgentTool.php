@@ -5,7 +5,7 @@ namespace App\Ai\Tools;
 use App\Ai\Support\SubAgents\SubAgentDispatcher;
 use App\Ai\Support\SubAgents\SubAgentInvocationMemory;
 use App\Ai\Tools\Diagnostics\EncodesToolResponse;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadEvent;
@@ -111,7 +111,7 @@ class InvokeSubAgentTool implements Tool
     {
         $this->thread->events()->create([
             'thread_actor_id' => $this->threadActor?->id,
-            'message_id' => null,
+            'post_id' => null,
             'event_key' => 'sub_agent_invoke_tool',
             'layer' => ThreadEvent::LayerExecution,
             'kind' => ThreadEvent::KindOrchestration,
@@ -168,9 +168,8 @@ class InvokeSubAgentTool implements Tool
             return $memoryParentInvocationId;
         }
 
-        $latestAssistantInvocationId = Message::query()
-            ->where('messageable_type', $this->thread->getMorphClass())
-            ->where('messageable_id', $this->thread->getKey())
+        $latestAssistantInvocationId = Post::query()
+            ->forThread($this->thread)
             ->where('meta->source', 'agent_response')
             ->latest('id')
             ->value('meta->invocation_id');

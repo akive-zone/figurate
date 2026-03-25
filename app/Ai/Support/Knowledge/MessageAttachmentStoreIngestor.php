@@ -28,9 +28,34 @@ class MessageAttachmentStoreIngestor
             'local_only' => 0,
         ];
 
-        $attachments = (array) data_get($post->data, 'attachments', []);
+        $mediaItems = $post->getMedia(Post::AttachmentCollection);
 
-        foreach ($attachments as $attachment) {
+        foreach ($mediaItems as $media) {
+            try {
+                $document = $this->documentIndexer->indexMedia(
+                    store: $store,
+                    post: $post,
+                    media: $media,
+                    origin: 'thread_message',
+                );
+
+                if ($document->status === 'indexed') {
+                    $result['indexed']++;
+                } elseif ($document->status === 'local_only') {
+                    $result['local_only']++;
+                }
+            } catch (\Throwable $exception) {
+                report($exception);
+                $result['failed']++;
+            }
+            $result['processed']++;
+        }
+
+        if ($result['processed'] > 0) {
+            return $result;
+        }
+
+        foreach ((array) $post->attachments as $attachment) {
             try {
                 $document = $this->documentIndexer->indexPostAttachment(
                     store: $store,

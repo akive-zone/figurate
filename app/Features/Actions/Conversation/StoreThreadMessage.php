@@ -24,6 +24,7 @@ class StoreThreadMessage
         $post = $thread->posts()->create([
             'type' => Post::TypeMessage,
             'tag' => $tag,
+            'status' => Post::StatusActive,
             'data' => [
                 'text' => $text,
                 'message_type' => $type,

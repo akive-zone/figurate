@@ -474,7 +474,7 @@ class DelegateAcpTaskTool implements Tool
 
         $updates = [
             'thread_id' => $this->thread->id,
-            'message_id' => null,
+            'post_id' => null,
             'user_id' => $this->actor->id,
             'remote' => [
                 'protocol' => 'acp',
@@ -507,7 +507,7 @@ class DelegateAcpTaskTool implements Tool
     ): void {
         $threadEvent = $this->thread->events()->create([
             'thread_actor_id' => $this->threadActor?->id,
-            'message_id' => null,
+            'post_id' => null,
             'event_key' => 'acp_delegate_tool',
             'layer' => ThreadEvent::LayerExecution,
             'kind' => ThreadEvent::KindAcp,

@@ -2,7 +2,7 @@
 
 namespace App\Policies\Server;
 
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
@@ -10,7 +10,7 @@ use Figurate\FulfillmentManager\Models\Request;
 
 class MessagePolicy
 {
-    protected function isSender(User $user, Message $message): bool
+    protected function isSender(User $user, Post $message): bool
     {
         return $message->senderable_type === $user->getMorphClass()
             && (string) $message->senderable_id === (string) $user->getKey();
@@ -27,7 +27,7 @@ class MessagePolicy
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, Message $message): bool
+    public function view(User $user, Post $message): bool
     {
         if ($this->isSender($user, $message)) {
             return true;
@@ -79,7 +79,7 @@ class MessagePolicy
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, Message $message): bool
+    public function update(User $user, Post $message): bool
     {
         return $this->isSender($user, $message);
     }
@@ -87,7 +87,7 @@ class MessagePolicy
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, Message $message): bool
+    public function delete(User $user, Post $message): bool
     {
         return $this->isSender($user, $message);
     }
@@ -95,7 +95,7 @@ class MessagePolicy
     /**
      * Determine whether the user can restore the model.
      */
-    public function restore(User $user, Message $message): bool
+    public function restore(User $user, Post $message): bool
     {
         return false;
     }
@@ -103,7 +103,7 @@ class MessagePolicy
     /**
      * Determine whether the user can permanently delete the model.
      */
-    public function forceDelete(User $user, Message $message): bool
+    public function forceDelete(User $user, Post $message): bool
     {
         return false;
     }

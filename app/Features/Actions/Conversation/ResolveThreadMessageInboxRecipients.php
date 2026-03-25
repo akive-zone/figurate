@@ -3,7 +3,7 @@
 namespace App\Features\Actions\Conversation;
 
 use App\Contracts\Users\UserRepository;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
@@ -16,35 +16,35 @@ class ResolveThreadMessageInboxRecipients
     /**
      * @return Collection<int, User>
      */
-    public function execute(Message $message): Collection
+    public function execute(Post $post): Collection
     {
-        $thread = $this->resolveThread($message);
+        $thread = $this->resolveThread($post);
 
-        if (! $thread || ! $message->exists) {
+        if (! $thread || ! $post->exists) {
             return collect();
         }
 
-        $senderUserId = $this->senderUserId($message);
+        $senderUserId = $this->senderUserId($post);
 
         return $this->resolveRecipients($thread)
             ->reject(fn (User $user): bool => $senderUserId !== null && (int) $user->getKey() === $senderUserId)
             ->values();
     }
 
-    protected function resolveThread(Message $message): ?Thread
+    protected function resolveThread(Post $post): ?Thread
     {
-        if ($message->relationLoaded('messageable') && $message->messageable instanceof Thread) {
-            return $message->messageable;
+        if ($post->relationLoaded('postable') && $post->postable instanceof Thread) {
+            return $post->postable;
         }
 
         $threadMorphClass = (new Thread)->getMorphClass();
-        $messageableType = is_string($message->messageable_type) ? trim($message->messageable_type) : '';
+        $postableType = is_string($post->postable_type) ? trim($post->postable_type) : '';
 
-        if (! in_array($messageableType, [$threadMorphClass, Thread::class], true)) {
+        if (! in_array($postableType, [$threadMorphClass, Thread::class], true)) {
             return null;
         }
 
-        return Thread::query()->find($message->messageable_id);
+        return Thread::query()->find($post->postable_id);
     }
 
     /**
@@ -90,15 +90,15 @@ class ResolveThreadMessageInboxRecipients
         return $this->userRepository ?? app(UserRepository::class);
     }
 
-    protected function senderUserId(Message $message): ?int
+    protected function senderUserId(Post $post): ?int
     {
-        $senderType = is_string($message->senderable_type) ? trim($message->senderable_type) : '';
+        $senderType = is_string($post->senderable_type) ? trim($post->senderable_type) : '';
         $userMorphClass = (new User)->getMorphClass();
 
-        if (! in_array($senderType, [$userMorphClass, User::class], true) || $message->senderable_id === null) {
+        if (! in_array($senderType, [$userMorphClass, User::class], true) || $post->senderable_id === null) {
             return null;
         }
 
-        return (int) $message->senderable_id;
+        return (int) $post->senderable_id;
     }
 }

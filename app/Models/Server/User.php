@@ -6,6 +6,7 @@ use App\Models\Concerns\HasPublicUuid;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
@@ -49,9 +50,19 @@ class User extends Authenticatable implements HasPasskeys
         'remember_token',
     ];
 
-    public function messages(): MorphMany
+    public function messages(): HasManyThrough
     {
-        return $this->morphMany(Message::class, 'senderable');
+        return $this->hasManyThrough(
+            Post::class,
+            PostRelation::class,
+            'relationable_id',
+            'id',
+            'id',
+            'post_id',
+        )
+            ->where('post_relations.relationable_type', $this->getMorphClass())
+            ->where('post_relations.role', Post::RelationRoleSender)
+            ->where('posts.type', Post::TypeMessage);
     }
 
     public function contextServers(): MorphToMany

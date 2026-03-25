@@ -4,7 +4,7 @@ namespace App\Support\Channels\Drivers;
 
 use App\Contracts\Channels\ChannelDriver;
 use App\Models\Server\Channel;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use Illuminate\Support\Str;
 
@@ -14,7 +14,7 @@ class GenericChannelDriver implements ChannelDriver
      * @param  array<string, mixed>  $bindingConfig
      * @return array<string, mixed>
      */
-    public function send(Channel $channel, Thread $thread, Message $message, array $bindingConfig = []): array
+    public function send(Channel $channel, Thread $thread, Post $message, array $bindingConfig = []): array
     {
         return [
             'status' => 'queued',
