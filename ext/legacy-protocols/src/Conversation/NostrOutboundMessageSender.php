@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Features\Actions\Conversation;
+namespace Figurate\LegacyProtocols\Conversation;
 
 use App\Features\Actions\Conversation\Contracts\OutboundMessageSender;
 use App\Models\Server\Outbox;

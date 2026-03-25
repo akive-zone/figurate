@@ -2,13 +2,11 @@
 
 namespace App\Providers;
 
-use App\Features\Actions\Conversation\ActivityPubOutboundMessageSender;
 use App\Features\Actions\Conversation\AgentPromptOutboundMessageSender;
-use App\Features\Actions\Conversation\NostrOutboundMessageSender;
+use App\Features\Actions\Conversation\ChannelOutboundMessageSender;
 use App\Features\Actions\Conversation\ProtocolRegistry;
-use App\Features\Actions\Conversation\Protocols\ActivityPubProtocol;
 use App\Features\Actions\Conversation\Protocols\AgentPromptProtocol;
-use App\Features\Actions\Conversation\Protocols\NostrProtocol;
+use App\Features\Actions\Conversation\Protocols\ChannelProtocol;
 use App\Models\Server\Message;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
@@ -24,15 +22,12 @@ class ComposeServiceProvider extends ServiceProvider
     {
         $this->app->scoped(ProtocolRegistry::class);
         $this->app->singleton(AgentPromptOutboundMessageSender::class);
-        $this->app->singleton(ActivityPubOutboundMessageSender::class);
-        $this->app->singleton(NostrOutboundMessageSender::class);
+        $this->app->singleton(ChannelOutboundMessageSender::class);
         $this->app->singleton(AgentPromptProtocol::class);
-        $this->app->singleton(ActivityPubProtocol::class);
-        $this->app->singleton(NostrProtocol::class);
+        $this->app->singleton(ChannelProtocol::class);
         $this->app->tag([
             AgentPromptProtocol::class,
-            ActivityPubProtocol::class,
-            NostrProtocol::class,
+            ChannelProtocol::class,
         ], ProtocolRegistry::DriverTag);
     }
 

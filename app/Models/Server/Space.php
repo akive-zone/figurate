@@ -64,9 +64,18 @@ class Space extends Model
             ->withTimestamps();
     }
 
-    public function contextServers(): MorphMany
+    public function channelRelations(): MorphMany
     {
-        return $this->morphMany(ContextServer::class, 'contextable');
+        return $this->morphMany(ChannelRelation::class, 'relationable');
+    }
+
+    public function contextServers(): MorphToMany
+    {
+        return $this->morphToMany(Channel::class, 'relationable', 'channel_relations', 'relationable_id', 'channel_id')
+            ->wherePivot('kind', ChannelRelation::KindLink)
+            ->where('driver', Channel::DriverMcp)
+            ->withPivot(['kind', 'status', 'direction', 'data', 'meta'])
+            ->withTimestamps();
     }
 
     public function hasActor(User $user): bool

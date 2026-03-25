@@ -54,9 +54,18 @@ class User extends Authenticatable implements HasPasskeys
         return $this->morphMany(Message::class, 'senderable');
     }
 
-    public function contextServers(): MorphMany
+    public function contextServers(): MorphToMany
     {
-        return $this->morphMany(ContextServer::class, 'contextable');
+        return $this->morphToMany(Channel::class, 'relationable', 'channel_relations', 'relationable_id', 'channel_id')
+            ->wherePivot('kind', ChannelRelation::KindLink)
+            ->where('driver', Channel::DriverMcp)
+            ->withPivot(['kind', 'status', 'direction', 'data', 'meta'])
+            ->withTimestamps();
+    }
+
+    public function channelRelations(): MorphMany
+    {
+        return $this->morphMany(ChannelRelation::class, 'relationable');
     }
 
     public function inboxes(): HasMany

@@ -20,18 +20,16 @@ class ContextServerForm
             ->components([
                 Section::make('Context')
                     ->schema([
-                        Select::make('contextable_type')
+                        Select::make('channelable_type')
                             ->label('Context Type')
                             ->options(ContextServerResource::contextTypeOptions())
-                            ->required()
                             ->default(array_key_first(ContextServerResource::contextTypeOptions()))
                             ->live(),
-                        Select::make('contextable_id')
+                        Select::make('channelable_id')
                             ->label('Context ID')
-                            ->options(fn (Get $get): array => ContextServerResource::contextIdOptions($get('contextable_type')))
+                            ->options(fn (Get $get): array => ContextServerResource::contextIdOptions($get('channelable_type')))
                             ->searchable()
                             ->preload()
-                            ->required()
                             ->helperText('Only contexts available to your current user are selectable.'),
                     ])
                     ->columns(2),

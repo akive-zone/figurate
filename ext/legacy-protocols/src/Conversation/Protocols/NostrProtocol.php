@@ -1,26 +1,28 @@
 <?php
 
-namespace App\Features\Actions\Conversation\Protocols;
+namespace Figurate\LegacyProtocols\Conversation\Protocols;
 
-use App\Features\Actions\Conversation\ActivityPubOutboundMessageSender;
 use App\Features\Actions\Conversation\Contracts\InboundMessageReceiver;
 use App\Features\Actions\Conversation\Contracts\OutboundMessageSender;
 use App\Features\Actions\Conversation\Contracts\ProtocolDriver;
 use App\Features\Actions\Conversation\HttpInboundMessageReceiver;
 use App\Features\Actions\Conversation\ProtocolWebhook;
 use App\Features\Actions\Conversation\WebhookInboundMessageReceiver;
+use Figurate\LegacyProtocols\Conversation\NostrOutboundMessageSender;
+use Figurate\LegacyProtocols\Conversation\NostrRelayInboundMessageReceiver;
 
-class ActivityPubProtocol implements ProtocolDriver
+class NostrProtocol implements ProtocolDriver
 {
     public function __construct(
         protected HttpInboundMessageReceiver $httpInboundMessageReceiver,
         protected WebhookInboundMessageReceiver $webhookInboundMessageReceiver,
-        protected ActivityPubOutboundMessageSender $activityPubOutboundMessageSender,
+        protected NostrRelayInboundMessageReceiver $nostrRelayInboundMessageReceiver,
+        protected NostrOutboundMessageSender $nostrOutboundMessageSender,
     ) {}
 
     public function key(): string
     {
-        return 'activitypub';
+        return 'nostr';
     }
 
     /**
@@ -31,12 +33,15 @@ class ActivityPubProtocol implements ProtocolDriver
         return [
             'http' => $this->httpInboundMessageReceiver,
             'webhook' => $this->webhookInboundMessageReceiver,
+            'relay' => $this->nostrRelayInboundMessageReceiver,
+            'websocket' => $this->nostrRelayInboundMessageReceiver,
+            'nostr_relay' => $this->nostrRelayInboundMessageReceiver,
         ];
     }
 
     public function outboundSender(): ?OutboundMessageSender
     {
-        return $this->activityPubOutboundMessageSender;
+        return $this->nostrOutboundMessageSender;
     }
 
     /**
@@ -46,10 +51,10 @@ class ActivityPubProtocol implements ProtocolDriver
     {
         return [
             new ProtocolWebhook(
-                configName: 'chat_inbound.activitypub',
-                path: 'webhooks/chats/activitypub',
-                signingSecret: (string) config('webhook-client.chat_protocols.activitypub.signing_secret', ''),
-                signatureHeaderName: (string) config('webhook-client.chat_protocols.activitypub.signature_header_name', 'Signature'),
+                configName: 'chat_inbound.nostr',
+                path: 'webhooks/chats/nostr',
+                signingSecret: (string) config('webhook-client.chat_protocols.nostr.signing_secret', ''),
+                signatureHeaderName: (string) config('webhook-client.chat_protocols.nostr.signature_header_name', 'Signature'),
             ),
         ];
     }

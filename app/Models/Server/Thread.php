@@ -3,6 +3,7 @@
 namespace App\Models\Server;
 
 use App\Models\Concerns\HasPublicUuid;
+use Database\Factories\ThreadFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Thread extends Model
 {
-    /** @use HasFactory<\Database\Factories\ThreadFactory> */
+    /** @use HasFactory<ThreadFactory> */
     use HasFactory, HasPublicUuid, SoftDeletes;
 
     public const PurposeMain = 'main';
@@ -95,8 +96,37 @@ class Thread extends Model
             ->withTimestamps();
     }
 
-    public function contextServers(): MorphMany
+    public function channelRelations(): MorphMany
     {
-        return $this->morphMany(ContextServer::class, 'contextable');
+        return $this->morphMany(ChannelRelation::class, 'relationable');
+    }
+
+    public function contextServers(): MorphToMany
+    {
+        return $this->morphToMany(Channel::class, 'relationable', 'channel_relations', 'relationable_id', 'channel_id')
+            ->wherePivot('kind', ChannelRelation::KindLink)
+            ->where('driver', Channel::DriverMcp)
+            ->withPivot([
+                'kind',
+                'status',
+                'direction',
+                'data',
+                'meta',
+            ])
+            ->withTimestamps();
+    }
+
+    public function channels(): MorphToMany
+    {
+        return $this->morphToMany(Channel::class, 'relationable', 'channel_relations', 'relationable_id', 'channel_id')
+            ->wherePivot('kind', ChannelRelation::KindBind)
+            ->withPivot([
+                'kind',
+                'status',
+                'direction',
+                'data',
+                'meta',
+            ])
+            ->withTimestamps();
     }
 }

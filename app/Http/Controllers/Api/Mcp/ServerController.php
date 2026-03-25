@@ -7,7 +7,8 @@ use App\Contracts\Users\UserRepository;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\ContextServer\StoreContextServerRequest;
 use App\Http\Requests\Server\ContextServer\UpdateContextServerRequest;
-use App\Models\Server\ContextServer;
+use App\Models\Server\Channel;
+use App\Models\Server\ChannelRelation;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
@@ -28,7 +29,9 @@ class ServerController extends Controller
         $requestedContextType = $request->query('context_type');
         $requestedContextId = $request->query('context_id');
 
-        $query = ContextServer::query()->latest('id');
+        $query = Channel::query()
+            ->where('driver', Channel::DriverMcp)
+            ->latest('id');
 
         if (is_string($requestedContextType) && $requestedContextType !== '') {
             [$contextType, $context] = $this->resolveContextTarget(
@@ -37,14 +40,21 @@ class ServerController extends Controller
                 actor: $actor,
             );
 
-            $query->where('contextable_type', $context->getMorphClass())
-                ->where('contextable_id', $context->getKey());
+            $query->whereHas('relations', function ($relationQuery) use ($context): void {
+                $relationQuery
+                    ->where('kind', ChannelRelation::KindLink)
+                    ->where('relationable_type', $context->getMorphClass())
+                    ->where('relationable_id', $context->getKey());
+            });
         } else {
             $query->where(function ($scopedQuery) use ($actor): void {
                 $scopedQuery->orWhere(function ($userQuery) use ($actor): void {
-                    $userQuery
-                        ->where('contextable_type', $actor->getMorphClass())
-                        ->where('contextable_id', $actor->getKey());
+                    $userQuery->whereHas('relations', function ($relationQuery) use ($actor): void {
+                        $relationQuery
+                            ->where('kind', ChannelRelation::KindLink)
+                            ->where('relationable_type', $actor->getMorphClass())
+                            ->where('relationable_id', $actor->getKey());
+                    });
                 });
 
                 $spaceIds = Space::query()
@@ -57,18 +67,21 @@ class ServerController extends Controller
 
                 if ($spaceIds->isNotEmpty()) {
                     $scopedQuery->orWhere(function ($channelQuery) use ($spaceIds): void {
-                        $channelQuery
-                            ->where('contextable_type', (new Space)->getMorphClass())
-                            ->whereIn('contextable_id', $spaceIds->all());
+                        $channelQuery->whereHas('relations', function ($relationQuery) use ($spaceIds): void {
+                            $relationQuery
+                                ->where('kind', ChannelRelation::KindLink)
+                                ->where('relationable_type', (new Space)->getMorphClass())
+                                ->whereIn('relationable_id', $spaceIds->all());
+                        });
                     });
                 }
             });
         }
 
         $servers = $query->get()
-            ->filter(fn (ContextServer $contextServer): bool => $this->canManageContextServer($actor, $contextServer))
+            ->filter(fn (Channel $contextServer): bool => $this->canManageContextServer($actor, $contextServer))
             ->values()
-            ->map(fn (ContextServer $contextServer): array => $this->mapContextServer($contextServer))
+            ->map(fn (Channel $contextServer): array => $this->mapContextServer($contextServer))
             ->all();
 
         return response()->json([
@@ -97,7 +110,7 @@ class ServerController extends Controller
             $endpointUrl = (string) ($validated['endpoint_url'] ?? '');
 
             $contextServer = $contextServerRegistry->registerRemoteServer(
-                contextable: $context,
+                channelable: $context,
                 server: (string) $validated['server'],
                 endpointUrl: $endpointUrl,
                 headers: is_array($credentials['headers'] ?? null) ? $credentials['headers'] : [],
@@ -112,10 +125,16 @@ class ServerController extends Controller
                 'allowed_tools' => is_array($validated['allowed_tools'] ?? null) ? $validated['allowed_tools'] : $contextServer->allowed_tools,
             ])->save();
         } else {
-            /** @var ContextServer $contextServer */
-            $contextServer = $context->contextServers()->updateOrCreate(
-                ['server' => (string) $validated['server']],
-                [
+            $contextServer = $context->contextServers()
+                ->where('server', (string) $validated['server'])
+                ->orderByDesc('id')
+                ->first();
+
+            if (! $contextServer instanceof Channel) {
+                $contextServer = Channel::query()->create([
+                    'name' => ($validated['label'] ?? null) ?: (string) $validated['server'],
+                    'driver' => Channel::DriverMcp,
+                    'server' => (string) $validated['server'],
                     'label' => $validated['label'] ?? null,
                     'enabled' => (bool) ($validated['enabled'] ?? true),
                     'priority' => (int) ($validated['priority'] ?? 0),
@@ -124,6 +143,31 @@ class ServerController extends Controller
                     'allowed_tools' => $validated['allowed_tools'] ?? [],
                     'auth_type' => $validated['auth_type'] ?? null,
                     'credentials' => $credentials,
+                ]);
+            } else {
+                $contextServer->forceFill([
+                    'name' => ($validated['label'] ?? null) ?: (string) $validated['server'],
+                    'label' => $validated['label'] ?? null,
+                    'enabled' => (bool) ($validated['enabled'] ?? true),
+                    'priority' => (int) ($validated['priority'] ?? 0),
+                    'transport' => 'local',
+                    'handler' => $validated['handler'] ?? null,
+                    'allowed_tools' => $validated['allowed_tools'] ?? [],
+                    'auth_type' => $validated['auth_type'] ?? null,
+                    'credentials' => $credentials,
+                ])->save();
+            }
+
+            $context->channelRelations()->updateOrCreate(
+                [
+                    'channel_id' => $contextServer->id,
+                    'kind' => ChannelRelation::KindLink,
+                ],
+                [
+                    'status' => Channel::StatusActive,
+                    'direction' => Channel::DirectionBidirectional,
+                    'data' => [],
+                    'meta' => [],
                 ],
             );
         }
@@ -142,7 +186,9 @@ class ServerController extends Controller
         /** @var User $actor */
         $actor = $request->user();
 
-        $server = ContextServer::query()->findOrFail($contextServer);
+        $server = Channel::query()
+            ->where('driver', Channel::DriverMcp)
+            ->findOrFail($contextServer);
 
         abort_unless($this->canManageContextServer($actor, $server), 403, 'Not authorized to update this context server.');
 
@@ -164,7 +210,9 @@ class ServerController extends Controller
         /** @var User $actor */
         $actor = $request->user();
 
-        $server = ContextServer::query()->findOrFail($contextServer);
+        $server = Channel::query()
+            ->where('driver', Channel::DriverMcp)
+            ->findOrFail($contextServer);
 
         abort_unless($this->canManageContextServer($actor, $server), 403, 'Not authorized to delete this context server.');
 
@@ -213,9 +261,9 @@ class ServerController extends Controller
         abort(422, 'Unsupported context type.');
     }
 
-    protected function canManageContextServer(User $actor, ContextServer $contextServer): bool
+    protected function canManageContextServer(User $actor, Channel $contextServer): bool
     {
-        $context = $contextServer->contextable;
+        $context = $this->resolveOwnerContext($contextServer);
 
         if (! $context instanceof Model) {
             return false;
@@ -239,9 +287,9 @@ class ServerController extends Controller
     /**
      * @return array<string, mixed>
      */
-    protected function mapContextServer(ContextServer $contextServer): array
+    protected function mapContextServer(Channel $contextServer): array
     {
-        $context = $contextServer->contextable;
+        $context = $this->resolveOwnerContext($contextServer);
         $contextType = $context instanceof Model ? strtolower(class_basename($context)) : null;
 
         return [
@@ -262,6 +310,18 @@ class ServerController extends Controller
             'created_at' => optional($contextServer->created_at)?->toIso8601String(),
             'updated_at' => optional($contextServer->updated_at)?->toIso8601String(),
         ];
+    }
+
+    protected function resolveOwnerContext(Channel $channel): ?Model
+    {
+        $ownerRelation = $channel->relations()
+            ->where('kind', ChannelRelation::KindLink)
+            ->orderByDesc('id')
+            ->first();
+
+        $relationable = $ownerRelation?->relationable;
+
+        return $relationable instanceof Model ? $relationable : null;
     }
 
     protected function publicIdentifier(Model $model): mixed

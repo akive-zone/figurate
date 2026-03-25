@@ -2,7 +2,10 @@
 
 namespace App\Features\Actions\Conversation;
 
+use App\Features\Actions\Conversation\Protocols\ChannelProtocol;
 use App\Jobs\DeliverOutboxMessage;
+use App\Models\Server\Channel;
+use App\Models\Server\ChannelRelation;
 use App\Models\Server\Message;
 use App\Models\Server\Outbox;
 use App\Models\Server\Thread;
@@ -34,7 +37,7 @@ class EnqueueThreadMessageOutbox
                 $message->id,
                 $target['protocol'],
                 $target['provider'] ?? 'default',
-                sha1($target['target'])
+                sha1($target['route_key'])
             );
 
             $outbox = Outbox::query()->firstOrCreate(
@@ -59,6 +62,7 @@ class EnqueueThreadMessageOutbox
                         ],
                         'delivery' => [
                             'provider' => $target['provider'],
+                            'target' => $target['target'],
                         ],
                         'thread' => [
                             'id' => $thread->id,
@@ -67,6 +71,15 @@ class EnqueueThreadMessageOutbox
                     ],
                 ],
             );
+
+            if (isset($target['channel']) && is_array($target['channel'])) {
+                $deliveryPayload = is_array($outbox->payload) ? $outbox->payload : [];
+                $deliveryPayload['delivery']['channel'] = $target['channel'];
+                $deliveryPayload['delivery']['binding'] = $target['binding'] ?? [];
+                $outbox->forceFill([
+                    'payload' => $deliveryPayload,
+                ])->save();
+            }
 
             if ($outbox->wasRecentlyCreated) {
                 DeliverOutboxMessage::dispatch($outbox->id);
@@ -97,11 +110,18 @@ class EnqueueThreadMessageOutbox
     }
 
     /**
-     * @return list<array{protocol: string, provider: string|null, target: string}>
+     * @return list<array{
+     *   protocol: string,
+     *   provider: string|null,
+     *   target: string,
+     *   route_key: string,
+     *   channel?: array{uuid: string, id: int, driver: string},
+     *   binding?: array{provider_identifier: string|null, direction: string|null, status: string|null, config: array<string, mixed>}
+     * }>
      */
     protected function resolveFanoutTargets(Thread $thread): array
     {
-        return $thread->actors()
+        $actorTargets = $thread->actors()
             ->whereIn('role', [ThreadActor::RoleMember, ThreadActor::RoleListener])
             ->where('status', ThreadActor::StatusActive)
             ->get()
@@ -126,6 +146,7 @@ class EnqueueThreadMessageOutbox
                         'protocol' => $singleProtocol,
                         'provider' => $singleProvider,
                         'target' => $singleTarget,
+                        'route_key' => "{$singleProtocol}:".($singleProvider ?? 'default').":{$singleTarget}",
                     ]];
                 }
 
@@ -151,13 +172,56 @@ class EnqueueThreadMessageOutbox
                             'protocol' => $protocol,
                             'provider' => $provider,
                             'target' => $endpoint,
+                            'route_key' => "{$protocol}:".($provider ?? 'default').":{$endpoint}",
                         ];
                     })
                     ->filter(fn (mixed $target): bool => is_array($target))
                     ->values()
                     ->all();
             })
-            ->unique(fn (array $target): string => "{$target['protocol']}:".($target['provider'] ?? 'default').":{$target['target']}")
+            ->values();
+
+        $channelTargets = $thread->channels()
+            ->wherePivot('status', 'active')
+            ->get()
+            ->map(function (Channel $channel): ?array {
+                $bindingDirection = $this->normalizedDirection(data_get($channel->pivot, 'direction'));
+
+                if (! in_array($bindingDirection, [Channel::DirectionOutbound, Channel::DirectionBidirectional], true)) {
+                    return null;
+                }
+
+                $bindingData = $this->arrayValue(data_get($channel->pivot, 'data'));
+                $providerIdentifier = $this->normalizedTarget(data_get($bindingData, 'provider_identifier'));
+                $config = $this->arrayValue(data_get($bindingData, 'config'));
+
+                return [
+                    'protocol' => ChannelProtocol::Key,
+                    'provider' => $this->normalizedProvider($channel->driver) ?? Channel::DriverGeneric,
+                    'target' => $providerIdentifier ?? $channel->uuid,
+                    'route_key' => 'channel:'.$channel->uuid.':'.($providerIdentifier ?? 'none'),
+                    'channel' => [
+                        'uuid' => $channel->uuid,
+                        'id' => $channel->id,
+                        'driver' => $channel->driver,
+                    ],
+                    'binding' => [
+                        'provider_identifier' => $providerIdentifier,
+                        'direction' => $bindingDirection,
+                        'status' => data_get($channel->pivot, 'status'),
+                        'config' => $config,
+                        'kind' => data_get($channel->pivot, 'kind', ChannelRelation::KindBind),
+                    ],
+                ];
+            })
+            ->filter(fn (mixed $target): bool => is_array($target))
+            ->values()
+            ->all();
+
+        return collect()
+            ->merge($actorTargets)
+            ->merge($channelTargets)
+            ->unique(fn (array $target): string => (string) $target['route_key'])
             ->values()
             ->all();
     }
@@ -205,5 +269,36 @@ class EnqueueThreadMessageOutbox
         }
 
         return $provider;
+    }
+
+    protected function normalizedDirection(mixed $value): string
+    {
+        if (! is_string($value)) {
+            return Channel::DirectionBidirectional;
+        }
+
+        $direction = strtolower(trim($value));
+
+        return in_array($direction, [Channel::DirectionInbound, Channel::DirectionOutbound, Channel::DirectionBidirectional], true)
+            ? $direction
+            : Channel::DirectionBidirectional;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function arrayValue(mixed $value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (! is_string($value)) {
+            return [];
+        }
+
+        $decoded = json_decode($value, true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 }

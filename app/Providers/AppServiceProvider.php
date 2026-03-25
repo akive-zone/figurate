@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Contracts\Users\UserRepository;
+use App\Models\Server\Channel;
 use App\Models\Server\Message;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
@@ -10,6 +11,7 @@ use App\Models\Server\Store;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use App\Repositories\Users\EloquentUserRepository;
+use App\Support\Channels\ChannelDriverRegistry;
 use App\Support\Runtime\AppRuntime;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -24,6 +26,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(AppRuntime::class);
+        $this->app->singleton(ChannelDriverRegistry::class);
         $this->app->bind(UserRepository::class, EloquentUserRepository::class);
 
         $providers = $this->isNativeRuntime()
@@ -63,6 +66,7 @@ class AppServiceProvider extends ServiceProvider
             'store' => Store::class,
             'thread' => Thread::class,
             'user' => User::class,
+            'channel' => Channel::class,
         ]);
 
     }

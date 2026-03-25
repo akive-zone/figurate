@@ -3,7 +3,8 @@
 namespace App\Ai\Support\Mcp;
 
 use App\Ai\Support\ThreadContextResolver;
-use App\Models\Server\ContextServer;
+use App\Models\Server\Channel;
+use App\Models\Server\ChannelRelation;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Model;
@@ -157,7 +158,7 @@ class McpServerResolver
         );
     }
 
-    protected function resolveContextServer(string $server, ?Thread $thread, ?User $user): ?ContextServer
+    protected function resolveContextServer(string $server, ?Thread $thread, ?User $user): ?Channel
     {
         foreach ($this->credentialCandidates($thread, $user) as $credentialable) {
             $contextServer = $this->findContextServerFor($credentialable, $server);
@@ -192,7 +193,7 @@ class McpServerResolver
         return $candidates;
     }
 
-    protected function findContextServerFor(Model $owner, string $server): ?ContextServer
+    protected function findContextServerFor(Model $owner, string $server): ?Channel
     {
         if (! method_exists($owner, 'contextServers')) {
             return null;
@@ -200,15 +201,19 @@ class McpServerResolver
 
         return $owner->contextServers()
             ->where('server', $server)
+            ->where('driver', Channel::DriverMcp)
             ->where('enabled', true)
             ->orderByDesc('priority')
             ->orderByDesc('id')
             ->first();
     }
 
-    protected function contextSource(ContextServer $contextServer): ?string
+    protected function contextSource(Channel $contextServer): ?string
     {
-        $sourceType = $contextServer->contextable_type;
+        $sourceType = $contextServer->relations()
+            ->where('kind', ChannelRelation::KindLink)
+            ->orderByDesc('id')
+            ->value('relationable_type');
 
         if (! is_string($sourceType) || $sourceType === '') {
             return null;
@@ -259,7 +264,7 @@ class McpServerResolver
     /**
      * @return array<string, string>
      */
-    protected function headersFromContextServer(ContextServer $contextServer): array
+    protected function headersFromContextServer(Channel $contextServer): array
     {
         $headers = [];
         $credentials = is_array($contextServer->credentials) ? $contextServer->credentials : [];

@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources\Server\Web\ContextServers\Tables;
 
-use App\Http\Resources\Server\Web\ContextServers\ContextServerResource;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -30,13 +29,6 @@ class ContextServersTable
                 TextColumn::make('label')
                     ->searchable()
                     ->toggleable(),
-                TextColumn::make('contextable_type')
-                    ->label('Context')
-                    ->formatStateUsing(fn (?string $state): string => self::contextTypeLabel($state))
-                    ->badge(),
-                TextColumn::make('contextable_id')
-                    ->label('Context ID')
-                    ->sortable(),
                 TextColumn::make('transport')
                     ->badge()
                     ->sortable(),
@@ -49,9 +41,6 @@ class ContextServersTable
                     ->sortable(),
             ])
             ->filters([
-                SelectFilter::make('contextable_type')
-                    ->label('Context')
-                    ->options(ContextServerResource::contextTypeOptions()),
                 SelectFilter::make('transport')
                     ->options([
                         'remote' => 'Remote',
@@ -72,18 +61,5 @@ class ContextServersTable
                     RestoreBulkAction::make(),
                 ]),
             ]);
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    protected static function contextTypeOptions(): array
-    {
-        return ContextServerResource::contextTypeOptions();
-    }
-
-    protected static function contextTypeLabel(?string $state): string
-    {
-        return self::contextTypeOptions()[$state ?? ''] ?? (string) $state;
     }
 }

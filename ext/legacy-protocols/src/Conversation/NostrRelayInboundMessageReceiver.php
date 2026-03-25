@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Features\Actions\Conversation;
+namespace Figurate\LegacyProtocols\Conversation;
 
 use App\Features\Actions\Conversation\Contracts\InboundMessageReceiver;
+use App\Features\Actions\Conversation\InboundMessageEnvelope;
 use App\Features\Operations\Chat\IngestInboundChatMessageOperation;
 use App\Models\Server\Message;
 

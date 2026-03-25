@@ -7,7 +7,8 @@ use App\Http\Resources\Server\Web\ContextServers\Pages\EditContextServer;
 use App\Http\Resources\Server\Web\ContextServers\Pages\ListContextServers;
 use App\Http\Resources\Server\Web\ContextServers\Schemas\ContextServerForm;
 use App\Http\Resources\Server\Web\ContextServers\Tables\ContextServersTable;
-use App\Models\Server\ContextServer;
+use App\Models\Server\Channel;
+use App\Models\Server\ChannelRelation;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
@@ -23,7 +24,7 @@ use UnitEnum;
 
 class ContextServerResource extends Resource
 {
-    protected static ?string $model = ContextServer::class;
+    protected static ?string $model = Channel::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
@@ -64,6 +65,7 @@ class ContextServerResource extends Resource
     public static function getRecordRouteBindingEloquentQuery(): Builder
     {
         return parent::getRecordRouteBindingEloquentQuery()
+            ->where('driver', Channel::DriverMcp)
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
@@ -72,6 +74,7 @@ class ContextServerResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery()
+            ->where('driver', Channel::DriverMcp)
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
@@ -90,24 +93,33 @@ class ContextServerResource extends Resource
 
         return $query->where(function (Builder $scopedQuery) use ($actor, $actorMorphClass, $spaceMorphClass, $threadMorphClass, $spaceIds, $threadIds): void {
             $scopedQuery->orWhere(function (Builder $userQuery) use ($actorMorphClass, $actor): void {
-                $userQuery
-                    ->where('contextable_type', $actorMorphClass)
-                    ->where('contextable_id', $actor->getKey());
+                $userQuery->whereHas('relations', function (Builder $relationQuery) use ($actorMorphClass, $actor): void {
+                    $relationQuery
+                        ->where('kind', ChannelRelation::KindLink)
+                        ->where('relationable_type', $actorMorphClass)
+                        ->where('relationable_id', $actor->getKey());
+                });
             });
 
             if ($spaceIds !== []) {
                 $scopedQuery->orWhere(function (Builder $channelQuery) use ($spaceMorphClass, $spaceIds): void {
-                    $channelQuery
-                        ->where('contextable_type', $spaceMorphClass)
-                        ->whereIn('contextable_id', $spaceIds);
+                    $channelQuery->whereHas('relations', function (Builder $relationQuery) use ($spaceMorphClass, $spaceIds): void {
+                        $relationQuery
+                            ->where('kind', ChannelRelation::KindLink)
+                            ->where('relationable_type', $spaceMorphClass)
+                            ->whereIn('relationable_id', $spaceIds);
+                    });
                 });
             }
 
             if ($threadIds !== []) {
                 $scopedQuery->orWhere(function (Builder $threadQuery) use ($threadMorphClass, $threadIds): void {
-                    $threadQuery
-                        ->where('contextable_type', $threadMorphClass)
-                        ->whereIn('contextable_id', $threadIds);
+                    $threadQuery->whereHas('relations', function (Builder $relationQuery) use ($threadMorphClass, $threadIds): void {
+                        $relationQuery
+                            ->where('kind', ChannelRelation::KindLink)
+                            ->where('relationable_type', $threadMorphClass)
+                            ->whereIn('relationable_id', $threadIds);
+                    });
                 });
             }
         });

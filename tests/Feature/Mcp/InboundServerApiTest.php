@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Mcp;
 
+use App\Models\Server\Channel;
+use App\Models\Server\ChannelRelation;
 use App\Models\Server\User;
 use App\TokenAbility;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -45,7 +47,9 @@ class InboundServerApiTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
-        $contextServer = $user->contextServers()->create([
+        $contextServer = Channel::query()->create([
+            'name' => 'Planner',
+            'driver' => Channel::DriverMcp,
             'server' => 'planner',
             'label' => 'Planner',
             'enabled' => true,
@@ -53,6 +57,14 @@ class InboundServerApiTest extends TestCase
             'transport' => 'remote',
             'endpoint_url' => 'https://agents.example/mcp',
             'allowed_tools' => ['search'],
+        ]);
+        $user->channelRelations()->create([
+            'channel_id' => $contextServer->id,
+            'kind' => ChannelRelation::KindLink,
+            'status' => Channel::StatusActive,
+            'direction' => Channel::DirectionBidirectional,
+            'data' => [],
+            'meta' => [],
         ]);
 
         $response = $this->patchJson(route('api.context-servers.update', ['server' => $contextServer->id]), [

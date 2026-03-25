@@ -1,0 +1,17 @@
+{
+    "name": "figurate/legacy-protocols",
+    "type": "library",
+    "description": "Legacy ActivityPub and Nostr protocol support for Figurate",
+    "autoload": {
+        "psr-4": {
+            "Figurate\\LegacyProtocols\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Figurate\\LegacyProtocols\\LegacyProtocolsServiceProvider"
+            ]
+        }
+    }
+}
