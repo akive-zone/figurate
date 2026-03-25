@@ -52,9 +52,9 @@ class ResolveThreadMessageInboxRecipients
      */
     protected function resolveRecipients(Thread $thread): Collection
     {
-        $userMorphClasses = [(new User)->getMorphClass(), User::class];
-
         if ($thread->relationLoaded('actors')) {
+            $userMorphClasses = [(new User)->getMorphClass(), User::class];
+
             return $thread->actors
                 ->filter(function (mixed $actor) use ($userMorphClasses): bool {
                     return $actor instanceof ThreadActor
@@ -71,8 +71,7 @@ class ResolveThreadMessageInboxRecipients
 
         $recipientIds = $thread->actors()
             ->where('status', ThreadActor::StatusActive)
-            ->whereIn('actorable_type', $userMorphClasses)
-            ->whereNotNull('actorable_id')
+            ->whereHasMorph('actorable', [User::class])
             ->pluck('actorable_id')
             ->map(fn (mixed $value): int => (int) $value)
             ->unique()

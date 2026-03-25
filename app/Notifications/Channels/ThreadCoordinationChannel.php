@@ -61,8 +61,7 @@ class ThreadCoordinationChannel
     {
         return $thread->actors()
             ->where('status', ThreadActor::StatusActive)
-            ->where('actorable_type', $recipient->getMorphClass())
-            ->where('actorable_id', $recipient->getKey())
+            ->whereMorphedTo('actorable', $recipient)
             ->value('id');
     }
 }

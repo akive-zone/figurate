@@ -44,8 +44,7 @@ class ResolveConversationRouteThread
         }
 
         $actorStateThreadId = $spaceRecord->actorStates()
-            ->where('actorable_type', $actor->getMorphClass())
-            ->where('actorable_id', $actor->id)
+            ->whereMorphedTo('actor', $actor)
             ->where('status', SpaceActorState::StatusActive)
             ->value('thread_id');
 

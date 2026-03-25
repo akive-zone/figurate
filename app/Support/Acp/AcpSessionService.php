@@ -42,8 +42,9 @@ class AcpSessionService
         }
 
         return Thread::query()
-            ->where('threadable_type', (new Space)->getMorphClass())
-            ->whereIn('threadable_id', $spaceIds->all())
+            ->whereHasMorph('threadable', [Space::class], function (Builder $builder) use ($spaceIds): void {
+                $builder->whereKey($spaceIds->all());
+            })
             ->with('threadable')
             ->withMax('messages', 'created_at')
             ->orderByDesc('created_at')
@@ -230,8 +231,7 @@ class AcpSessionService
 
         $query->whereHas('actorStates', function (Builder $builder) use ($actor): void {
             $builder
-                ->where('actorable_type', $actor->getMorphClass())
-                ->where('actorable_id', $actor->getKey())
+                ->whereMorphedTo('actor', $actor)
                 ->where('status', SpaceActorState::StatusActive);
         });
 

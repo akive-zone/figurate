@@ -207,16 +207,14 @@ class Post extends Model implements HasMedia
     {
         return $query
             ->messageType()
-            ->where('postable_type', $thread->getMorphClass())
-            ->where('postable_id', $thread->getKey());
+            ->whereMorphedTo('postable', $thread);
     }
 
     public function scopeFromSender(Builder $query, EloquentModel $sender): Builder
     {
         return $query->whereHas('senderRelation', function (Builder $relationQuery) use ($sender): void {
             $relationQuery
-                ->where('relationable_type', $sender->getMorphClass())
-                ->where('relationable_id', $sender->getKey())
+                ->whereMorphedTo('relationable', $sender)
                 ->where('role', self::RelationRoleSender);
         });
     }

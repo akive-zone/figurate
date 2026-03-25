@@ -22,8 +22,7 @@ class EnforceThreadParticipation
         }
 
         $isParticipant = $thread->actors()
-            ->where('actorable_type', $actor->getMorphClass())
-            ->where('actorable_id', $actor->getKey())
+            ->whereMorphedTo('actorable', $actor)
             ->exists();
 
         $rule = $isParticipant

@@ -163,8 +163,7 @@ class ThreadContinuationPersistence implements ThreadConversationPersistence
         if ($thread) {
             return ThreadMessageModel::query()
                 ->messageType()
-                ->where('postable_type', $thread->getMorphClass())
-                ->where('postable_id', $thread->getKey())
+                ->whereMorphedTo('postable', $thread)
                 ->orderByDesc('id')
                 ->limit(max(1, $limit))
                 ->get()

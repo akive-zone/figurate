@@ -81,8 +81,7 @@ class Space extends Model
     public function hasActor(User $user): bool
     {
         return $this->actorStates()
-            ->where('actorable_type', $user->getMorphClass())
-            ->where('actorable_id', $user->getKey())
+            ->whereMorphedTo('actor', $user)
             ->exists();
     }
 
@@ -134,8 +133,7 @@ class Space extends Model
             ->select('threads.id')
             ->pluck('threads.id');
         $threadRelationIds = ThreadRelation::query()
-            ->where('relationable_type', $this->getMorphClass())
-            ->where('relationable_id', $this->getKey())
+            ->whereMorphedTo('relationable', $this)
             ->pluck('thread_id');
 
         $relationRows = $this->relations()
@@ -184,22 +182,14 @@ class Space extends Model
     public function conversationPosts(): Collection
     {
         $threadIds = $this->conversationThreadIds();
-        $spaceMorphClass = $this->getMorphClass();
-        $threadMorphClass = (new Thread)->getMorphClass();
 
         return Post::query()
-            ->where(function ($query) use ($spaceMorphClass, $threadMorphClass, $threadIds): void {
-                $query->where(function ($spacePostsQuery) use ($spaceMorphClass): void {
-                    $spacePostsQuery
-                        ->where('postable_type', $spaceMorphClass)
-                        ->where('postable_id', $this->getKey());
-                });
+            ->where(function ($query) use ($threadIds): void {
+                $query->whereMorphedTo('postable', $this);
 
                 if ($threadIds->isNotEmpty()) {
-                    $query->orWhere(function ($threadPostsQuery) use ($threadMorphClass, $threadIds): void {
-                        $threadPostsQuery
-                            ->where('postable_type', $threadMorphClass)
-                            ->whereIn('postable_id', $threadIds->all());
+                    $query->orWhereHasMorph('postable', [Thread::class], function ($threadPostsQuery) use ($threadIds): void {
+                        $threadPostsQuery->whereKey($threadIds->all());
                     });
                 }
             })
@@ -217,8 +207,9 @@ class Space extends Model
 
         return Post::query()
             ->messageType()
-            ->where('postable_type', (new Thread)->getMorphClass())
-            ->whereIn('postable_id', $threadIds->all())
+            ->whereHasMorph('postable', [Thread::class], function ($query) use ($threadIds): void {
+                $query->whereKey($threadIds->all());
+            })
             ->latest('created_at')
             ->first();
     }

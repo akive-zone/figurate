@@ -158,8 +158,7 @@ class ConversationController extends Controller
 
         $spacesQuery->whereHas('actorStates', function ($stateQuery) use ($actor): void {
             $stateQuery
-                ->where('actorable_type', $actor->getMorphClass())
-                ->where('actorable_id', $actor->id)
+                ->whereMorphedTo('actor', $actor)
                 ->where('status', SpaceActorState::StatusActive);
         });
 
@@ -241,8 +240,7 @@ class ConversationController extends Controller
     protected function actorStateForSpace(Space $space, User $actor): ?SpaceActorState
     {
         return $space->actorStates()
-            ->where('actorable_type', $actor->getMorphClass())
-            ->where('actorable_id', $actor->id)
+            ->whereMorphedTo('actor', $actor)
             ->where('status', SpaceActorState::StatusActive)
             ->latest('updated_at')
             ->first();

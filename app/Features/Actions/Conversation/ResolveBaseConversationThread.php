@@ -31,8 +31,7 @@ class ResolveBaseConversationThread
 
         $actorState = SpaceActorState::query()
             ->where('space_id', $space->id)
-            ->where('actorable_type', $actor->getMorphClass())
-            ->where('actorable_id', $actor->getKey())
+            ->whereMorphedTo('actor', $actor)
             ->first();
 
         if ($actorState?->thread_id) {
