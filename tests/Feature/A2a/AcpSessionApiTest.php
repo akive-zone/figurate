@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\A2a;
 
-use App\Ai\Support\ChatAgentExecutor;
+use App\Ai\Support\AgentExecutor;
 use App\Models\Server\AgentTask;
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelActorState;
@@ -85,7 +85,7 @@ class AcpSessionApiTest extends TestCase
 
     public function test_it_prompts_and_cancels_acp_tasks(): void
     {
-        $this->mock(ChatAgentExecutor::class, function (MockInterface $mock): void {
+        $this->mock(AgentExecutor::class, function (MockInterface $mock): void {
             $mock->shouldReceive('queue')->once();
         });
 

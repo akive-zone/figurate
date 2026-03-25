@@ -20,7 +20,7 @@ use App\Ai\Middleware\Workflows\PostResponseLearning;
 use App\Ai\Middleware\Workflows\ResolveAudienceContext;
 use App\Ai\Middleware\Workflows\SelectPresenters;
 use App\Ai\Middleware\Workflows\UseThreadConversationStore;
-use App\Ai\Support\ChatToolResolver;
+use App\Ai\Support\ToolResolver;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
@@ -81,7 +81,7 @@ class PresenterAgent implements Agent, Conversational, HasMiddleware, HasTools
             return [];
         }
 
-        return app(ChatToolResolver::class)->resolve($this->thread, $this->actor, $this->resolveThreadActor());
+        return app(ToolResolver::class)->resolve($this->thread, $this->actor, $this->resolveThreadActor());
     }
 
     public function middleware(): array

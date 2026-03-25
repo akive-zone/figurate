@@ -2,11 +2,13 @@
 
 namespace App\Providers;
 
-use App\Features\Actions\Chat\ActivityPubOutboundMessageSender;
-use App\Features\Actions\Chat\ChatProtocolRegistry;
-use App\Features\Actions\Chat\NostrOutboundMessageSender;
-use App\Features\Actions\Chat\Protocols\ActivityPubChatProtocol;
-use App\Features\Actions\Chat\Protocols\NostrChatProtocol;
+use App\Features\Actions\Conversation\ActivityPubOutboundMessageSender;
+use App\Features\Actions\Conversation\AgentPromptOutboundMessageSender;
+use App\Features\Actions\Conversation\NostrOutboundMessageSender;
+use App\Features\Actions\Conversation\ProtocolRegistry;
+use App\Features\Actions\Conversation\Protocols\ActivityPubProtocol;
+use App\Features\Actions\Conversation\Protocols\AgentPromptProtocol;
+use App\Features\Actions\Conversation\Protocols\NostrProtocol;
 use App\Models\Server\Channel;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
@@ -20,18 +22,21 @@ class ComposeServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->scoped(ChatProtocolRegistry::class);
+        $this->app->scoped(ProtocolRegistry::class);
+        $this->app->singleton(AgentPromptOutboundMessageSender::class);
         $this->app->singleton(ActivityPubOutboundMessageSender::class);
         $this->app->singleton(NostrOutboundMessageSender::class);
-        $this->app->singleton(ActivityPubChatProtocol::class);
-        $this->app->singleton(NostrChatProtocol::class);
+        $this->app->singleton(AgentPromptProtocol::class);
+        $this->app->singleton(ActivityPubProtocol::class);
+        $this->app->singleton(NostrProtocol::class);
         $this->app->tag([
-            ActivityPubChatProtocol::class,
-            NostrChatProtocol::class,
-        ], ChatProtocolRegistry::DriverTag);
+            AgentPromptProtocol::class,
+            ActivityPubProtocol::class,
+            NostrProtocol::class,
+        ], ProtocolRegistry::DriverTag);
     }
 
-    public function boot(ChatProtocolRegistry $chatProtocolRegistry): void
+    public function boot(ProtocolRegistry $protocolRegistry): void
     {
         Gate::policy(Channel::class, ChannelPolicy::class);
         Gate::policy(Message::class, MessagePolicy::class);
@@ -41,7 +46,7 @@ class ComposeServiceProvider extends ServiceProvider
             ->filter(fn (mixed $config): bool => is_array($config) && is_string($config['name'] ?? null))
             ->keyBy(fn (array $config): string => $config['name']);
 
-        $protocolWebhookConfigs = collect($chatProtocolRegistry->webhookConfigs())
+        $protocolWebhookConfigs = collect($protocolRegistry->webhookConfigs())
             ->keyBy(fn (array $config): string => $config['name']);
 
         config([
@@ -51,6 +56,6 @@ class ComposeServiceProvider extends ServiceProvider
                 ->all(),
         ]);
 
-        $chatProtocolRegistry->registerRoutes();
+        $protocolRegistry->registerRoutes();
     }
 }

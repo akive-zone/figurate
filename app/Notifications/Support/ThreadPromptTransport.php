@@ -3,8 +3,8 @@
 namespace App\Notifications\Support;
 
 use App\Ai\Storage\ConversationPersistenceResolver;
-use App\Ai\Support\ChatAgentExecutor;
-use App\Features\Actions\Chat\ResolveActiveThreadPresenters;
+use App\Features\Actions\Conversation\EnqueueThreadPromptOutbox;
+use App\Features\Actions\Conversation\ResolveActiveThreadPresenters;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
@@ -15,8 +15,8 @@ use Illuminate\Notifications\Notification;
 class ThreadPromptTransport
 {
     public function __construct(
-        protected ChatAgentExecutor $chatAgentExecutor,
         protected ResolveActiveThreadPresenters $resolveActiveThreadPresenters,
+        protected EnqueueThreadPromptOutbox $enqueueThreadPromptOutbox,
     ) {}
 
     public function send(object $notifiable, Notification $notification, string $conversationPersistenceMode): void
@@ -85,14 +85,36 @@ class ThreadPromptTransport
             return;
         }
 
-        $this->chatAgentExecutor->queue(
+        $outbox = $this->enqueueThreadPromptOutbox->execute(
             thread: $thread,
-            userMessage: $message,
-            user: $notifiable,
+            message: $message,
+            recipient: $notifiable,
             threadActor: $presenter,
-            broadcastChannelId: "threads.{$thread->uuid}",
             conversationPersistenceMode: $resolvedMode,
         );
+
+        if (! $outbox->wasRecentlyCreated) {
+            $this->recordEvent(
+                thread: $thread,
+                message: $message,
+                recipient: $notifiable,
+                notification: $notification,
+                transport: $transport,
+                state: ThreadEvent::StateReceived,
+                eventType: "orchestration.notification.{$transport}_skipped",
+                payload: [
+                    'reason' => 'existing_outbox',
+                    'conversation_persistence' => $resolvedMode,
+                    'presenter_actor_id' => $presenter->id,
+                    'presenter_actor_key' => $actorKey,
+                    'outbox_id' => $outbox->id,
+                    'outbox_status' => $outbox->status,
+                ],
+                threadActor: $presenter,
+            );
+
+            return;
+        }
 
         $this->recordEvent(
             thread: $thread,
@@ -103,10 +125,13 @@ class ThreadPromptTransport
             state: ThreadEvent::StateRequested,
             eventType: "orchestration.notification.{$transport}_requested",
             payload: [
-                'reason' => 'queued',
+                'reason' => 'outbox_enqueued',
                 'conversation_persistence' => $resolvedMode,
                 'presenter_actor_id' => $presenter->id,
                 'presenter_actor_key' => $actorKey,
+                'outbox_id' => $outbox->id,
+                'outbox_status' => $outbox->status,
+                'outbox_protocol' => $outbox->protocol,
             ],
             threadActor: $presenter,
         );

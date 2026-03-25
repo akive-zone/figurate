@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Features\Actions\Chat\ProjectAgentTurns;
-use App\Features\Actions\Chat\ResolveConversationRouteThread;
+use App\Features\Actions\Conversation\ProjectAgentTurns;
+use App\Features\Actions\Conversation\ResolveConversationRouteThread;
 use App\Http\Controllers\Controller;
 use App\Models\Server\Message;
 use App\Models\Server\User;

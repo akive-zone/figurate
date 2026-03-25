@@ -3,7 +3,7 @@
 namespace Tests\Feature\A2a;
 
 use App\Ai\Support\A2a\A2aMethodRouter;
-use App\Ai\Support\ChatAgentExecutor;
+use App\Ai\Support\AgentExecutor;
 use App\Models\Server\AgentTask;
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelActorState;
@@ -21,7 +21,7 @@ class A2aTaskApiTest extends TestCase
 
     public function test_it_persists_a2a_tasks_in_agent_tasks(): void
     {
-        $this->mock(ChatAgentExecutor::class, function (MockInterface $mock): void {
+        $this->mock(AgentExecutor::class, function (MockInterface $mock): void {
             $mock->shouldReceive('queue')->once();
         });
 

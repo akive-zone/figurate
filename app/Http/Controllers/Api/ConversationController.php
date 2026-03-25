@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Features\Actions\Chat\ProjectAgentTurns;
-use App\Features\Actions\Chat\ProjectMessageExtra;
-use App\Features\Actions\Chat\ResolveConversationRouteThread;
+use App\Features\Actions\Conversation\ProjectAgentTurns;
+use App\Features\Actions\Conversation\ProjectMessageExtra;
+use App\Features\Actions\Conversation\ResolveConversationRouteThread;
 use App\Features\Operations\Chat\SubmitChatMessageOperation;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Chat\StoreChatRequest;

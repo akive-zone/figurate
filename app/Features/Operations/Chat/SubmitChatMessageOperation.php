@@ -2,18 +2,18 @@
 
 namespace App\Features\Operations\Chat;
 
-use App\Features\Actions\Chat\ApplyReceivedMessageA2uiMetadata;
-use App\Features\Actions\Chat\CacheIdempotentChatMessage;
-use App\Features\Actions\Chat\FindAssistantRepliesForMessage;
-use App\Features\Actions\Chat\FindExistingIdempotentChatMessage;
-use App\Features\Actions\Chat\NormalizeInboundChatPayload;
-use App\Features\Actions\Chat\QueuePresenterReplies;
-use App\Features\Actions\Chat\ResolveActiveThreadPresenters;
-use App\Features\Actions\Chat\ResolveChatAttachments;
-use App\Features\Actions\Chat\ResolveChatChannelContext;
-use App\Features\Actions\Chat\ResolveChatIdempotencyKey;
-use App\Features\Actions\Chat\ResolveChatThreadContext;
-use App\Features\Actions\Chat\SendPeerThreadMessage;
+use App\Features\Actions\Conversation\ApplyReceivedMessageA2uiMetadata;
+use App\Features\Actions\Conversation\CacheIdempotentConversationMessage;
+use App\Features\Actions\Conversation\FindAssistantRepliesForMessage;
+use App\Features\Actions\Conversation\FindExistingIdempotentConversationMessage;
+use App\Features\Actions\Conversation\NormalizeInboundConversationPayload;
+use App\Features\Actions\Conversation\QueuePresenterReplies;
+use App\Features\Actions\Conversation\ResolveActiveThreadPresenters;
+use App\Features\Actions\Conversation\ResolveConversationAttachments;
+use App\Features\Actions\Conversation\ResolveConversationChannelContext;
+use App\Features\Actions\Conversation\ResolveConversationIdempotencyKey;
+use App\Features\Actions\Conversation\ResolveConversationThreadContext;
+use App\Features\Actions\Conversation\SendPeerThreadMessage;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
@@ -26,17 +26,17 @@ class SubmitChatMessageOperation
 {
     public function __construct(
         protected ResolveConversationThreadOperation $resolveConversationThreadOperation,
-        protected ResolveChatChannelContext $resolveChatChannelContext,
-        protected ResolveChatThreadContext $resolveChatThreadContext,
-        protected NormalizeInboundChatPayload $normalizeInboundChatPayload,
+        protected ResolveConversationChannelContext $resolveConversationChannelContext,
+        protected ResolveConversationThreadContext $resolveConversationThreadContext,
+        protected NormalizeInboundConversationPayload $normalizeInboundConversationPayload,
         protected SendPeerThreadMessage $sendPeerThreadMessage,
         protected ApplyReceivedMessageA2uiMetadata $applyReceivedMessageA2uiMetadata,
         protected ResolveActiveThreadPresenters $resolveActiveThreadPresenters,
-        protected ResolveChatAttachments $resolveChatAttachments,
-        protected ResolveChatIdempotencyKey $resolveChatIdempotencyKey,
-        protected FindExistingIdempotentChatMessage $findExistingIdempotentChatMessage,
+        protected ResolveConversationAttachments $resolveConversationAttachments,
+        protected ResolveConversationIdempotencyKey $resolveConversationIdempotencyKey,
+        protected FindExistingIdempotentConversationMessage $findExistingIdempotentConversationMessage,
         protected FindAssistantRepliesForMessage $findAssistantRepliesForMessage,
-        protected CacheIdempotentChatMessage $cacheIdempotentChatMessage,
+        protected CacheIdempotentConversationMessage $cacheIdempotentConversationMessage,
         protected QueuePresenterReplies $queuePresenterReplies,
         protected ResolveObserverDispatchPolicy $resolveObserverDispatchPolicy,
     ) {}
@@ -61,7 +61,7 @@ class SubmitChatMessageOperation
         $contentPayload = $input['content'] ?? [];
         $extraPayload = $input['extra'] ?? [];
         $extraPayload = is_array($extraPayload) ? $extraPayload : [];
-        $normalizedPayload = $this->normalizeInboundChatPayload->execute(
+        $normalizedPayload = $this->normalizeInboundConversationPayload->execute(
             is_array($contentPayload) ? $contentPayload : [],
             $extraPayload,
         );
@@ -72,9 +72,9 @@ class SubmitChatMessageOperation
         $thread = null;
 
         if (is_string($threadUuid) && $threadUuid !== '') {
-            [$channel, $thread] = $this->resolveChatThreadContext->execute($threadUuid, $channelUuid);
+            [$channel, $thread] = $this->resolveConversationThreadContext->execute($threadUuid, $channelUuid);
         } else {
-            $channel = $this->resolveChatChannelContext->execute($channelUuid, $actor);
+            $channel = $this->resolveConversationChannelContext->execute($channelUuid, $actor);
         }
 
         Gate::authorize('view', $channel);
@@ -92,7 +92,7 @@ class SubmitChatMessageOperation
 
         $observerPolicy = $this->resolveObserverDispatchPolicy->forThread($thread);
         $activePresenters = $this->resolveActiveThreadPresenters->execute($thread);
-        $attachmentFiles = $this->resolveChatAttachments->execute(
+        $attachmentFiles = $this->resolveConversationAttachments->execute(
             is_array($input['attachments'] ?? null) ? $input['attachments'] : [],
         );
 
@@ -103,8 +103,8 @@ class SubmitChatMessageOperation
             abort(422, 'A text message is required for chat submission.');
         }
 
-        $idempotencyKey = $this->resolveChatIdempotencyKey->execute($input['idempotency_key'] ?? null);
-        $existingUserMessage = $this->findExistingIdempotentChatMessage->execute($thread, $actor, $idempotencyKey);
+        $idempotencyKey = $this->resolveConversationIdempotencyKey->execute($input['idempotency_key'] ?? null);
+        $existingUserMessage = $this->findExistingIdempotentConversationMessage->execute($thread, $actor, $idempotencyKey);
 
         if ($existingUserMessage) {
             if ($existingUserMessage->text !== $content) {
@@ -167,7 +167,7 @@ class SubmitChatMessageOperation
             $this->queuePresenterReplies->execute($thread, $userMessage, $actor, $activePresenters, $broadcastChannelId);
         }
 
-        $this->cacheIdempotentChatMessage->execute($thread, $actor, $idempotencyKey, $userMessage);
+        $this->cacheIdempotentConversationMessage->execute($thread, $actor, $idempotencyKey, $userMessage);
 
         return [
             'status' => $activePresenters->isNotEmpty() ? 202 : 200,

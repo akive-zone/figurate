@@ -2,9 +2,9 @@
 
 namespace App\Jobs;
 
-use App\Features\Actions\Chat\ChatProtocolRegistry;
-use App\Features\Actions\Chat\InboundMessageEnvelope;
-use App\Features\Actions\Chat\InboundMessageReceiverResolver;
+use App\Features\Actions\Conversation\InboundMessageEnvelope;
+use App\Features\Actions\Conversation\InboundMessageReceiverResolver;
+use App\Features\Actions\Conversation\ProtocolRegistry;
 use App\Models\Server\Thread;
 use Spatie\WebhookClient\Jobs\ProcessWebhookJob;
 
@@ -12,12 +12,12 @@ class ProcessInboundMessageWebhookJob extends ProcessWebhookJob
 {
     public function handle(
         InboundMessageReceiverResolver $inboundMessageReceiverResolver,
-        ChatProtocolRegistry $chatProtocolRegistry,
+        ProtocolRegistry $protocolRegistry,
     ): void {
         $payload = is_array($this->webhookCall->payload ?? null) ? $this->webhookCall->payload : [];
 
         $thread = $this->resolveThread($payload);
-        $network = $this->resolveNetwork($chatProtocolRegistry, $payload);
+        $network = $this->resolveNetwork($protocolRegistry, $payload);
         $provider = $this->resolveProvider($payload);
         $externalActorId = $this->resolveExternalActorId($payload);
 
@@ -67,9 +67,9 @@ class ProcessInboundMessageWebhookJob extends ProcessWebhookJob
     /**
      * @param  array<string, mixed>  $payload
      */
-    protected function resolveNetwork(ChatProtocolRegistry $chatProtocolRegistry, array $payload): ?string
+    protected function resolveNetwork(ProtocolRegistry $protocolRegistry, array $payload): ?string
     {
-        $protocolFromWebhookConfig = $chatProtocolRegistry->protocolForWebhookConfig((string) $this->webhookCall->name);
+        $protocolFromWebhookConfig = $protocolRegistry->protocolForWebhookConfig((string) $this->webhookCall->name);
 
         if ($protocolFromWebhookConfig !== null) {
             return $protocolFromWebhookConfig;

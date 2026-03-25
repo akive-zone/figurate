@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Chat;
 
-use App\Ai\Support\ChatAgentExecutor;
+use App\Ai\Support\AgentExecutor;
 use App\Jobs\ProcessThreadObservers;
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelActorState;
@@ -26,7 +26,7 @@ class HandleConversationMessageTest extends TestCase
     {
         Queue::fake();
 
-        $this->mock(ChatAgentExecutor::class, function (MockInterface $mock): void {
+        $this->mock(AgentExecutor::class, function (MockInterface $mock): void {
             $mock->shouldReceive('queue')->once();
         });
 
@@ -61,7 +61,7 @@ class HandleConversationMessageTest extends TestCase
     {
         Queue::fake();
 
-        $this->mock(ChatAgentExecutor::class, function (MockInterface $mock): void {
+        $this->mock(AgentExecutor::class, function (MockInterface $mock): void {
             $mock->shouldNotReceive('queue');
         });
 
@@ -96,7 +96,7 @@ class HandleConversationMessageTest extends TestCase
     {
         Queue::fake();
 
-        $this->mock(ChatAgentExecutor::class, function (MockInterface $mock): void {
+        $this->mock(AgentExecutor::class, function (MockInterface $mock): void {
             $mock->shouldReceive('queue')->once();
         });
 

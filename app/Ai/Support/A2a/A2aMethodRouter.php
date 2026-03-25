@@ -5,9 +5,9 @@ namespace App\Ai\Support\A2a;
 use App\Ai\Support\A2ui\A2uiCatalogRegistry;
 use App\Ai\Support\A2ui\A2uiPayloadContract;
 use App\Contracts\Users\UserRepository;
-use App\Features\Actions\Chat\ResolveActiveThreadPresenters;
-use App\Features\Actions\Chat\ResolveChatChannelContext;
-use App\Features\Actions\Chat\ResolveChatThreadContext;
+use App\Features\Actions\Conversation\ResolveActiveThreadPresenters;
+use App\Features\Actions\Conversation\ResolveConversationChannelContext;
+use App\Features\Actions\Conversation\ResolveConversationThreadContext;
 use App\Features\Operations\Chat\DispatchPromptOperation;
 use App\Features\Operations\Chat\ResolveConversationThreadOperation;
 use App\Models\Server\AgentTask;
@@ -28,8 +28,8 @@ class A2aMethodRouter
 
     public function __construct(
         protected ResolveConversationThreadOperation $resolveConversationThreadOperation,
-        protected ResolveChatChannelContext $resolveChatChannelContext,
-        protected ResolveChatThreadContext $resolveChatThreadContext,
+        protected ResolveConversationChannelContext $resolveConversationChannelContext,
+        protected ResolveConversationThreadContext $resolveConversationThreadContext,
         protected TaskPushNotificationDispatcher $taskPushNotificationDispatcher,
         protected A2uiPayloadContract $a2uiPayloadContract,
         protected A2uiCatalogRegistry $a2uiCatalogRegistry,
@@ -109,9 +109,9 @@ class A2aMethodRouter
         $threadId = null;
 
         if ($threadUuid) {
-            [$channel, $threadId] = $this->resolveChatThreadContext->execute($threadUuid, $channelUuid);
+            [$channel, $threadId] = $this->resolveConversationThreadContext->execute($threadUuid, $channelUuid);
         } else {
-            $channel = $this->resolveChatChannelContext->execute($channelUuid, $user);
+            $channel = $this->resolveConversationChannelContext->execute($channelUuid, $user);
         }
 
         $decision = $this->resolveConversationThreadOperation->run(

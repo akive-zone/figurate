@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Features\Actions\Chat\ResolveThreadMessageInboxRecipients;
+use App\Features\Actions\Conversation\ResolveThreadMessageInboxRecipients;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;

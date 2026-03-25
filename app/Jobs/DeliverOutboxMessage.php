@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Features\Actions\Chat\ChatProtocolRegistry;
+use App\Features\Actions\Conversation\ProtocolRegistry;
 use App\Models\Server\Outbox;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -27,7 +27,7 @@ class DeliverOutboxMessage implements ShouldQueue
         $this->afterCommit();
     }
 
-    public function handle(ChatProtocolRegistry $chatProtocolRegistry): void
+    public function handle(ProtocolRegistry $protocolRegistry): void
     {
         $outbox = Outbox::query()->find($this->outboxId);
         if (! $outbox || $outbox->direction !== Outbox::DirectionOutbound) {
@@ -44,7 +44,7 @@ class DeliverOutboxMessage implements ShouldQueue
         ])->save();
 
         try {
-            $sender = $chatProtocolRegistry->outboundSender($outbox->protocol);
+            $sender = $protocolRegistry->outboundSender($outbox->protocol);
 
             if (! $sender) {
                 throw new \RuntimeException("Unsupported outbox protocol [{$outbox->protocol}]");

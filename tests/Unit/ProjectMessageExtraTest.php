@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Features\Actions\Chat\ProjectMessageExtra;
+use App\Features\Actions\Conversation\ProjectMessageExtra;
 use App\Models\Server\Message;
 use Tests\TestCase;
 

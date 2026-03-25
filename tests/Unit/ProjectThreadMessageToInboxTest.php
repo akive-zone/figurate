@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Features\Actions\Chat\ProjectThreadMessageToInbox;
+use App\Features\Actions\Conversation\ProjectThreadMessageToInbox;
 use App\Models\Server\Inbox;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;

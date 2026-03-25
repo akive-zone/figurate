@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Features\Actions\Chat\DispatchThreadMessage;
-use App\Features\Actions\Chat\ThreadMessageEntry;
+use App\Features\Actions\Conversation\DispatchThreadMessage;
+use App\Features\Actions\Conversation\ThreadMessageEntry;
 use App\Models\Server\AgentTask;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
