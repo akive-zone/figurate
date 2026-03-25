@@ -4,15 +4,15 @@ Build a deterministic flow snapshot from persisted state.
 
 ## Required Reads
 
-1. Resolve channel from thread context.
-2. Resolve request subject post from thread/channel.
+1. Resolve space from thread context.
+2. Resolve request subject post from thread/space.
 3. Resolve current order linked to request (if present).
 4. Resolve actor participation scope.
 
 ## Access Rules
 
 1. If request subject exists: actor must be a participant of request context.
-2. If request subject does not exist: actor must be a channel member.
+2. If request subject does not exist: actor must be a space member.
 3. On failed access check: return `ok:false` with explicit error.
 
 ## Stage Inference
@@ -24,7 +24,7 @@ Build a deterministic flow snapshot from persisted state.
 ## Snapshot Shape
 
 1. `stage`
-2. `channel`: `id`, `uuid`, `status` or `null`
+2. `space`: `id`, `uuid`, `status` or `null`
 3. `request`: `id`, `ulid`, `type`, `status`, `title`, `description` or `null`
 4. `thread`: `id`, `uuid`, `purpose`, `phase`, `status`
 5. `order`: `id`, `status` or `null`

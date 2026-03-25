@@ -2,7 +2,7 @@
 
 namespace App\Features\Actions\Conversation;
 
-use App\Models\Server\Channel;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Support\Collection;
@@ -15,7 +15,7 @@ readonly class ThreadMessageEntry
      */
     public function __construct(
         public Thread $thread,
-        public ?Channel $channel,
+        public ?Space $space,
         public ?User $actor,
         public ?string $text,
         public Collection $attachments,
@@ -32,7 +32,7 @@ readonly class ThreadMessageEntry
      * @param  array<string, mixed>  $meta
      */
     public static function peerMessage(
-        Channel $channel,
+        Space $space,
         Thread $thread,
         User $actor,
         ?string $text,
@@ -43,7 +43,7 @@ readonly class ThreadMessageEntry
     ): self {
         return new self(
             thread: $thread,
-            channel: $channel,
+            space: $space,
             actor: $actor,
             text: $text,
             attachments: $attachments,
@@ -67,7 +67,7 @@ readonly class ThreadMessageEntry
     ): self {
         return new self(
             thread: $thread,
-            channel: null,
+            space: null,
             actor: null,
             text: $text,
             attachments: collect(),

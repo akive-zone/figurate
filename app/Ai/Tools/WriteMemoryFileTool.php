@@ -6,7 +6,7 @@ use App\Ai\Support\Knowledge\KnowledgeStoreManager;
 use App\Ai\Support\Knowledge\StoreDocumentIndexer;
 use App\Ai\Support\ThreadContextResolver;
 use App\Ai\Tools\Diagnostics\EncodesToolResponse;
-use App\Models\Server\Channel;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -44,13 +44,13 @@ class WriteMemoryFileTool implements Tool
         $scope = trim((string) ($request['scope'] ?? 'memory'));
         $scope = $scope === '' ? 'memory' : $scope;
 
-        if ($target === 'channel') {
-            $channel = $this->threadContextResolver->resolveChannel($this->thread);
-            if (! $channel instanceof Channel) {
-                return $this->error('No channel context available for channel-scoped memory.');
+        if ($target === 'space') {
+            $space = $this->threadContextResolver->resolveSpace($this->thread);
+            if (! $space instanceof Space) {
+                return $this->error('No space context available for space-scoped memory.');
             }
 
-            $store = $this->storeManager->forChannel($channel, $this->actor, $scope);
+            $store = $this->storeManager->forSpace($space, $this->actor, $scope);
         } else {
             $store = $this->storeManager->forThread($this->thread, $this->actor, $scope);
         }

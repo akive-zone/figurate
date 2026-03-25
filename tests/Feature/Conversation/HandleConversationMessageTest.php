@@ -4,14 +4,14 @@ namespace Tests\Feature\Chat;
 
 use App\Ai\Support\AgentExecutor;
 use App\Jobs\ProcessThreadObservers;
-use App\Models\Server\Channel;
-use App\Models\Server\ChannelActorState;
 use App\Models\Server\Message;
+use App\Models\Server\Space;
+use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
 use App\TokenAbility;
-use Database\Factories\ChannelFactory;
+use Database\Factories\SpaceFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
@@ -31,14 +31,14 @@ class HandleConversationMessageTest extends TestCase
         });
 
         $user = $this->makeUser();
-        $channel = $this->accessibleChannel($user);
-        $thread = $this->makeThread($channel);
+        $space = $this->accessibleSpace($user);
+        $thread = $this->makeThread($space);
         $this->addThreadActor($thread, ThreadActor::RolePresenter, ThreadActor::ActorRequestAgent);
 
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
         $this->postJson('/api/conversations', [
-            'channel' => $channel->uuid,
+            'space' => $space->uuid,
             'thread' => $thread->uuid,
             'content' => [
                 'text' => 'Please help me scope the repair.',
@@ -66,14 +66,14 @@ class HandleConversationMessageTest extends TestCase
         });
 
         $user = $this->makeUser();
-        $channel = $this->accessibleChannel($user);
-        $thread = $this->makeThread($channel);
+        $space = $this->accessibleSpace($user);
+        $thread = $this->makeThread($space);
         $this->addThreadActor($thread, ThreadActor::RoleObserver, ThreadActor::ActorSafetyGuard);
 
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
         $this->postJson('/api/conversations', [
-            'channel' => $channel->uuid,
+            'space' => $space->uuid,
             'thread' => $thread->uuid,
             'content' => [
                 'text' => 'I have shared the details with the artisan.',
@@ -101,15 +101,15 @@ class HandleConversationMessageTest extends TestCase
         });
 
         $user = $this->makeUser();
-        $channel = $this->accessibleChannel($user);
-        $thread = $this->makeThread($channel);
+        $space = $this->accessibleSpace($user);
+        $thread = $this->makeThread($space);
         $this->addThreadActor($thread, ThreadActor::RolePresenter, ThreadActor::ActorRequestAgent);
         $this->addThreadActor($thread, ThreadActor::RoleObserver, ThreadActor::ActorSafetyGuard, 2);
 
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
         $this->postJson('/api/conversations', [
-            'channel' => $channel->uuid,
+            'space' => $space->uuid,
             'thread' => $thread->uuid,
             'content' => [
                 'text' => 'We are confirming the visit window now.',
@@ -131,8 +131,8 @@ class HandleConversationMessageTest extends TestCase
     public function test_it_returns_turns_for_a_conversation_message_from_the_dedicated_endpoint(): void
     {
         $user = $this->makeUser();
-        $channel = $this->accessibleChannel($user);
-        $thread = $this->makeThread($channel);
+        $space = $this->accessibleSpace($user);
+        $thread = $this->makeThread($space);
 
         $promptMessage = $thread->messages()->create([
             'type' => 'text',
@@ -156,7 +156,7 @@ class HandleConversationMessageTest extends TestCase
 
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
-        $this->getJson(sprintf('/api/conversations/%s/messages/%d/turns', $channel->uuid, $promptMessage->id))
+        $this->getJson(sprintf('/api/conversations/%s/messages/%d/turns', $space->uuid, $promptMessage->id))
             ->assertOk()
             ->assertJsonPath('thread', $thread->uuid)
             ->assertJsonPath('message_id', $promptMessage->id)
@@ -166,24 +166,24 @@ class HandleConversationMessageTest extends TestCase
             ->assertJsonPath('data.0.status', 'completed');
     }
 
-    protected function accessibleChannel(User $user): Channel
+    protected function accessibleSpace(User $user): Space
     {
-        $channel = ChannelFactory::new()->create();
+        $space = SpaceFactory::new()->create();
 
-        ChannelActorState::query()->create([
-            'channel_id' => $channel->id,
+        SpaceActorState::query()->create([
+            'space_id' => $space->id,
             'thread_id' => null,
             'actorable_type' => $user->getMorphClass(),
             'actorable_id' => $user->id,
-            'status' => ChannelActorState::StatusActive,
+            'status' => SpaceActorState::StatusActive,
         ]);
 
-        return $channel;
+        return $space;
     }
 
-    protected function makeThread(Channel $channel): Thread
+    protected function makeThread(Space $space): Thread
     {
-        return $channel->threads()->create([
+        return $space->threads()->create([
             'purpose' => Thread::PurposeMain,
             'title' => 'Main Request Thread',
             'phase' => 'request_intake',

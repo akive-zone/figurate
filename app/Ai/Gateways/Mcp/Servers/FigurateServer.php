@@ -2,19 +2,19 @@
 
 namespace App\Ai\Gateways\Mcp\Servers;
 
-use App\Ai\Gateways\Mcp\Prompts\PlanChannelWorkPrompt;
+use App\Ai\Gateways\Mcp\Prompts\PlanSpaceWorkPrompt;
 use App\Ai\Gateways\Mcp\Prompts\SummarizeThreadPrompt;
-use App\Ai\Gateways\Mcp\Resources\ChannelResource;
 use App\Ai\Gateways\Mcp\Resources\FigurateServerGuideResource;
+use App\Ai\Gateways\Mcp\Resources\SpaceResource;
 use App\Ai\Gateways\Mcp\Resources\ThreadResource;
 use App\Ai\Gateways\Mcp\Tools\AssignThreadActorTool;
 use App\Ai\Gateways\Mcp\Tools\CreatePostTool;
 use App\Ai\Gateways\Mcp\Tools\CreateThreadTool;
-use App\Ai\Gateways\Mcp\Tools\ListChannelsTool;
 use App\Ai\Gateways\Mcp\Tools\ListPostsTool;
+use App\Ai\Gateways\Mcp\Tools\ListSpacesTool;
 use App\Ai\Gateways\Mcp\Tools\ListThreadActorsTool;
 use App\Ai\Gateways\Mcp\Tools\ListThreadsTool;
-use App\Ai\Gateways\Mcp\Tools\ReadChannelTool;
+use App\Ai\Gateways\Mcp\Tools\ReadSpaceTool;
 use App\Ai\Gateways\Mcp\Tools\ReadThreadTool;
 use App\Ai\Gateways\Mcp\Tools\SearchConversationContextTool;
 use App\Ai\Gateways\Mcp\Tools\TransferThreadSessionTool;
@@ -25,12 +25,12 @@ use Laravel\Mcp\Server\Attributes\Version;
 
 #[Name('Figurate Server')]
 #[Version('0.0.1')]
-#[Instructions('Use this server to inspect and operate on Figurate chat context. It exposes channels, threads, posts, actors, and context search. Prefer read tools first, then use create_thread or create_post for safe workflow actions. This server intentionally excludes fulfillment-state transitions for now.')]
+#[Instructions('Use this server to inspect and operate on Figurate chat context. It exposes spaces, threads, posts, actors, and context search. Prefer read tools first, then use create_thread or create_post for safe workflow actions. This server intentionally excludes fulfillment-state transitions for now.')]
 class FigurateServer extends Server
 {
     protected array $tools = [
-        ListChannelsTool::class,
-        ReadChannelTool::class,
+        ListSpacesTool::class,
+        ReadSpaceTool::class,
         ListThreadsTool::class,
         ReadThreadTool::class,
         ListPostsTool::class,
@@ -44,12 +44,12 @@ class FigurateServer extends Server
 
     protected array $resources = [
         FigurateServerGuideResource::class,
-        ChannelResource::class,
+        SpaceResource::class,
         ThreadResource::class,
     ];
 
     protected array $prompts = [
-        PlanChannelWorkPrompt::class,
+        PlanSpaceWorkPrompt::class,
         SummarizeThreadPrompt::class,
     ];
 }

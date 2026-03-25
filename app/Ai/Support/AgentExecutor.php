@@ -37,7 +37,7 @@ class AgentExecutor
         Message $userMessage,
         User $user,
         ThreadActor $threadActor,
-        string $broadcastChannelId,
+        string $broadcastSpaceId,
         ?string $conversationPersistenceMode = null,
     ): void {
         if (
@@ -82,7 +82,7 @@ class AgentExecutor
         try {
             $queuedResponse = $handler->broadcastOnQueue(
                 $content,
-                [new PrivateChannel($broadcastChannelId)],
+                [new PrivateChannel($broadcastSpaceId)],
             );
 
             $queuedResponse->afterCommit();

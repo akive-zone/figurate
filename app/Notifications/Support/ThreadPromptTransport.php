@@ -165,7 +165,7 @@ class ThreadPromptTransport
             'event_key' => "notification:{$transport}:".$recipient->getKey(),
             'layer' => ThreadEvent::LayerExecution,
             'kind' => ThreadEvent::KindOrchestration,
-            'operation' => "notification.channel.{$transport}",
+            'operation' => "notification.space.{$transport}",
             'state' => $state,
             'event_type' => $eventType,
             'severity' => $state === ThreadEvent::StateFailed ? 'medium' : 'low',

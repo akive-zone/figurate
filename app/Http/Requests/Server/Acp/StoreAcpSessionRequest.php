@@ -10,10 +10,10 @@ class StoreAcpSessionRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'channel_uuid' => $this->trimmedString(
-                $this->input('channel_uuid')
-                ?? $this->input('channel_id')
-                ?? $this->input('channelId')
+            'space_uuid' => $this->trimmedString(
+                $this->input('space_uuid')
+                ?? $this->input('space_id')
+                ?? $this->input('spaceId')
                 ?? $this->input('workspaceId')
             ),
             'title' => $this->trimmedString($this->input('title') ?? $this->input('name')),
@@ -29,7 +29,7 @@ class StoreAcpSessionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'channel_uuid' => ['required', 'uuid', 'exists:channels,uuid'],
+            'space_uuid' => ['required', 'uuid', 'exists:spaces,uuid'],
             'title' => ['nullable', 'string', 'max:255'],
             'purpose' => ['nullable', 'string', Rule::in([
                 'main',
@@ -46,8 +46,8 @@ class StoreAcpSessionRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'channel_uuid.required' => 'A channel is required to create an ACP session.',
-            'channel_uuid.exists' => 'The selected channel was not found.',
+            'space_uuid.required' => 'A space is required to create an ACP session.',
+            'space_uuid.exists' => 'The selected space was not found.',
             'purpose.in' => 'The selected ACP session purpose is invalid.',
         ];
     }

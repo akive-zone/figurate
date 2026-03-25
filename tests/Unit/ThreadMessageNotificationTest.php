@@ -3,8 +3,8 @@
 namespace Tests\Unit;
 
 use App\Ai\Storage\ConversationPersistenceResolver;
-use App\Models\Server\Channel;
 use App\Models\Server\Message;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use App\Notifications\Channels\CompletionChannel;
@@ -17,12 +17,12 @@ class ThreadMessageNotificationTest extends TestCase
 {
     public function test_it_routes_notifications_through_completion_continuation_and_coordination_transports(): void
     {
-        $channel = new Channel([
-            'uuid' => 'channel-uuid',
+        $space = new Space([
+            'uuid' => 'space-uuid',
             'status' => 'open',
         ]);
-        $channel->id = 5;
-        $channel->exists = true;
+        $space->id = 5;
+        $space->exists = true;
 
         $thread = new Thread([
             'uuid' => 'thread-uuid',
@@ -33,7 +33,7 @@ class ThreadMessageNotificationTest extends TestCase
         ]);
         $thread->id = 10;
         $thread->exists = true;
-        $thread->setRelation('threadable', $channel);
+        $thread->setRelation('threadable', $space);
 
         $message = new Message([
             'type' => 'text',
@@ -106,7 +106,7 @@ class ThreadMessageNotificationTest extends TestCase
 
         $this->assertSame('thread_message', $payload['kind']);
         $this->assertSame('thread-uuid', data_get($payload, 'thread.id'));
-        $this->assertSame('channel-uuid', data_get($payload, 'channel.id'));
+        $this->assertSame('space-uuid', data_get($payload, 'space.id'));
         $this->assertSame(99, data_get($payload, 'message.id'));
         $this->assertSame('peer_message', data_get($payload, 'message.source'));
         $this->assertNull(data_get($payload, 'message.conversation_persistence'));
@@ -118,7 +118,7 @@ class ThreadMessageNotificationTest extends TestCase
 
         $this->assertIsArray($coordination);
         $this->assertSame($thread, $coordination['thread']);
-        $this->assertSame($channel, $coordination['channel']);
+        $this->assertSame($space, $coordination['space']);
         $this->assertSame($message, $coordination['message']);
         $this->assertSame($robot, $coordination['recipient']);
 

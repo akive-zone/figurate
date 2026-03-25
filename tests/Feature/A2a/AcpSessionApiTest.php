@@ -4,14 +4,14 @@ namespace Tests\Feature\A2a;
 
 use App\Ai\Support\AgentExecutor;
 use App\Models\Server\AgentTask;
-use App\Models\Server\Channel;
-use App\Models\Server\ChannelActorState;
 use App\Models\Server\Message;
+use App\Models\Server\Space;
+use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
 use App\TokenAbility;
-use Database\Factories\ChannelFactory;
+use Database\Factories\SpaceFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Passport\Passport;
 use Laravel\Sanctum\Sanctum;
@@ -25,19 +25,19 @@ class AcpSessionApiTest extends TestCase
     public function test_it_creates_lists_and_loads_acp_sessions(): void
     {
         $user = $this->makeUser(User::TypeRobot);
-        $channel = $this->accessibleChannel($user);
+        $space = $this->accessibleSpace($user);
 
         Sanctum::actingAs($user, [TokenAbility::AcpUse->value]);
 
         $response = $this->postJson('/api/acp/sessions', [
-            'channel_uuid' => $channel->uuid,
+            'space_uuid' => $space->uuid,
             'title' => 'ACP Build Session',
             'purpose' => Thread::PurposeExecution,
         ]);
 
         $response->assertCreated()
             ->assertJsonPath('data.title', 'ACP Build Session')
-            ->assertJsonPath('data.channel.id', $channel->uuid);
+            ->assertJsonPath('data.space.id', $space->uuid);
 
         $sessionId = (string) $response->json('data.id');
         $thread = Thread::query()->where('uuid', $sessionId)->firstOrFail();
@@ -90,12 +90,12 @@ class AcpSessionApiTest extends TestCase
         });
 
         $user = $this->makeUser(User::TypeRobot);
-        $channel = $this->accessibleChannel($user);
+        $space = $this->accessibleSpace($user);
 
         Sanctum::actingAs($user, [TokenAbility::AcpUse->value]);
 
         $sessionResponse = $this->postJson('/api/acp/sessions', [
-            'channel_uuid' => $channel->uuid,
+            'space_uuid' => $space->uuid,
             'title' => 'Cancelable ACP Session',
             'purpose' => Thread::PurposeExecution,
         ])->assertCreated();
@@ -139,32 +139,32 @@ class AcpSessionApiTest extends TestCase
     public function test_an_agent_user_can_access_acp_with_passport_authentication(): void
     {
         $user = $this->makeUser(User::TypeRobot);
-        $channel = $this->accessibleChannel($user);
+        $space = $this->accessibleSpace($user);
 
         Passport::actingAs($user, [TokenAbility::AcpUse->value], 'passport');
 
         $this->postJson('/api/acp/sessions', [
-            'channel_uuid' => $channel->uuid,
+            'space_uuid' => $space->uuid,
             'title' => 'Passport ACP Session',
             'purpose' => Thread::PurposeExecution,
         ])->assertCreated()
             ->assertJsonPath('data.title', 'Passport ACP Session')
-            ->assertJsonPath('data.channel.id', $channel->uuid);
+            ->assertJsonPath('data.space.id', $space->uuid);
     }
 
-    protected function accessibleChannel(User $user): Channel
+    protected function accessibleSpace(User $user): Space
     {
-        $channel = ChannelFactory::new()->create();
+        $space = SpaceFactory::new()->create();
 
-        ChannelActorState::query()->create([
-            'channel_id' => $channel->id,
+        SpaceActorState::query()->create([
+            'space_id' => $space->id,
             'thread_id' => null,
             'actorable_type' => $user->getMorphClass(),
             'actorable_id' => $user->id,
-            'status' => ChannelActorState::StatusActive,
+            'status' => SpaceActorState::StatusActive,
         ]);
 
-        return $channel;
+        return $space;
     }
 
     protected function makeUser(string $type = User::TypeSubject): User

@@ -62,7 +62,7 @@ class EnqueueThreadPromptOutbox
                         'recipient_user_uuid' => $recipient->uuid,
                         'thread_actor_id' => $threadActor->id,
                         'thread_actor_key' => $actorKey,
-                        'broadcast_channel_id' => $this->broadcastChannelId($thread),
+                        'broadcast_space_id' => $this->broadcastSpaceId($thread),
                         'conversation_persistence' => $resolvedConversationPersistenceMode,
                     ],
                 ],
@@ -91,7 +91,7 @@ class EnqueueThreadPromptOutbox
         );
     }
 
-    public function broadcastChannelId(Thread $thread): string
+    public function broadcastSpaceId(Thread $thread): string
     {
         return "threads.{$thread->uuid}";
     }

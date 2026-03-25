@@ -3,6 +3,7 @@
 namespace App\Models\Server;
 
 use App\Models\Concerns\HasPublicUuid;
+use Database\Factories\StoreFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,7 +14,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Store extends Model implements HasMedia
 {
-    /** @use HasFactory<\Database\Factories\StoreFactory> */
+    /** @use HasFactory<StoreFactory> */
     use HasFactory, HasPublicUuid, InteractsWithMedia, SoftDeletes;
 
     protected $table = 'stores';
@@ -45,9 +46,9 @@ class Store extends Model implements HasMedia
         $this->addMediaCollection('documents');
     }
 
-    public function channels(): MorphToMany
+    public function spaces(): MorphToMany
     {
-        return $this->morphedByMany(Channel::class, 'storeable', 'storeables', 'store_id', 'storeable_id')
+        return $this->morphedByMany(Space::class, 'storeable', 'storeables', 'store_id', 'storeable_id')
             ->withPivot(['scope', 'created_by', 'meta'])
             ->withTimestamps();
     }

@@ -2,11 +2,11 @@
 
 namespace Figurate\FulfillmentManager\Models;
 
-use App\Models\Server\Channel;
 use App\Models\Server\Message;
 use App\Models\Server\Post;
 use App\Models\Server\PostRelation;
 use App\Models\Server\Profile;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Figurate\FulfillmentManager\Database\Factories\RequestFactory;
@@ -70,14 +70,14 @@ class Request extends Post
         return Profile::query()->whereIn('profiles.id', $this->participantProfileIds()->all());
     }
 
-    public function channels(): MorphToMany
+    public function spaces(): MorphToMany
     {
         return $this->morphToMany(
-            Channel::class,
+            Space::class,
             'relationable',
-            'channel_relations',
+            'space_relations',
             'relationable_id',
-            'channel_id'
+            'space_id'
         )->withTimestamps();
     }
 
@@ -129,7 +129,7 @@ class Request extends Post
             return true;
         }
 
-        return $this->hasChannelActorFallback($user, $action);
+        return $this->hasSpaceActorFallback($user, $action);
     }
 
     public function hasProfileActorForUser(User $user, ?string $action = null): bool
@@ -153,7 +153,7 @@ class Request extends Post
             return true;
         }
 
-        return $this->hasChannelActorFallback($user);
+        return $this->hasSpaceActorFallback($user);
     }
 
     public function primaryRequester(): ?User
@@ -176,13 +176,13 @@ class Request extends Post
         return $profile;
     }
 
-    protected function hasChannelActorFallback(User $user, ?string $action = null): bool
+    protected function hasSpaceActorFallback(User $user, ?string $action = null): bool
     {
         if ($action !== null && $action !== self::ActionAsker) {
             return false;
         }
 
-        return $this->channels()->whereHas('actorStates', function (Builder $query) use ($user): void {
+        return $this->spaces()->whereHas('actorStates', function (Builder $query) use ($user): void {
             $query->where('actorable_type', $user->getMorphClass())
                 ->where('actorable_id', $user->getKey());
         })->exists();

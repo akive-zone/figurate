@@ -27,7 +27,7 @@ class MergeWidgetUserIntoSubject
 
         DB::transaction(function () use ($widgetUser, $subjectUser): void {
             $this->migratePostRelations($widgetUser, $subjectUser);
-            $this->migrateChannelActorStates($widgetUser, $subjectUser);
+            $this->migrateSpaceActorStates($widgetUser, $subjectUser);
             $this->migratePasskeys($widgetUser, $subjectUser);
             $this->migrateUserAgents($widgetUser, $subjectUser);
 
@@ -77,7 +77,7 @@ class MergeWidgetUserIntoSubject
         }
     }
 
-    protected function migrateChannelActorStates(User $widgetUser, User $subjectUser): void
+    protected function migrateSpaceActorStates(User $widgetUser, User $subjectUser): void
     {
         if (! Schema::hasTable('actor_states')) {
             return;
@@ -90,7 +90,7 @@ class MergeWidgetUserIntoSubject
 
         foreach ($rows as $row) {
             $alreadyExists = DB::table('actor_states')
-                ->where('channel_id', $row->channel_id)
+                ->where('space_id', $row->space_id)
                 ->where('actorable_type', $subjectUser->getMorphClass())
                 ->where('actorable_id', $subjectUser->id)
                 ->exists();

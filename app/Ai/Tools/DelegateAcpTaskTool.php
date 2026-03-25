@@ -6,7 +6,7 @@ use App\Ai\Support\Acp\OutboundAcpClient;
 use App\Ai\Support\Acp\OutboundAgentRegistry;
 use App\Ai\Tools\Diagnostics\EncodesToolResponse;
 use App\Models\Server\AgentTask;
-use App\Models\Server\Channel;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadEvent;
@@ -313,7 +313,7 @@ class DelegateAcpTaskTool implements Tool
      */
     protected function sessionCreatePayload(array $agent, array $overrides): array
     {
-        $channel = $this->thread->threadable;
+        $space = $this->thread->threadable;
         $payload = [
             ...(is_array(data_get($agent, 'session.create_params')) ? data_get($agent, 'session.create_params') : []),
             ...$overrides,
@@ -326,8 +326,8 @@ class DelegateAcpTaskTool implements Tool
             'figurate' => [
                 'thread_uuid' => $this->thread->uuid,
                 'thread_id' => $this->thread->id,
-                'channel_uuid' => $channel instanceof Channel ? $channel->uuid : null,
-                'channel_id' => $channel instanceof Channel ? $channel->id : null,
+                'space_uuid' => $space instanceof Space ? $space->uuid : null,
+                'space_id' => $space instanceof Space ? $space->id : null,
                 'actor_uuid' => $this->actor->uuid,
                 'actor_id' => $this->actor->id,
             ],

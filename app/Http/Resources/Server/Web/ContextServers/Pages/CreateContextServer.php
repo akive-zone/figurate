@@ -4,7 +4,7 @@ namespace App\Http\Resources\Server\Web\ContextServers\Pages;
 
 use App\Contracts\Users\UserRepository;
 use App\Http\Resources\Server\Web\ContextServers\ContextServerResource;
-use App\Models\Server\Channel;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Filament\Resources\Pages\CreateRecord;
@@ -67,14 +67,14 @@ class CreateContextServer extends CreateRecord
 
         $value = strtolower(trim($rawType));
         $userMorphClass = (new User)->getMorphClass();
-        $channelMorphClass = (new Channel)->getMorphClass();
+        $spaceMorphClass = (new Space)->getMorphClass();
         $threadMorphClass = (new Thread)->getMorphClass();
 
         return match ($value) {
             'user', strtolower($userMorphClass) => $userMorphClass,
-            'channel', strtolower($channelMorphClass) => $channelMorphClass,
+            'space', strtolower($spaceMorphClass) => $spaceMorphClass,
             'thread', strtolower($threadMorphClass) => $threadMorphClass,
-            default => in_array(trim($rawType), [$userMorphClass, $channelMorphClass, $threadMorphClass], true)
+            default => in_array(trim($rawType), [$userMorphClass, $spaceMorphClass, $threadMorphClass], true)
                 ? trim($rawType)
                 : null,
         };
@@ -90,8 +90,8 @@ class CreateContextServer extends CreateRecord
             return app(UserRepository::class)->findIdByUuid($rawContextId);
         }
 
-        if ($contextType === (new Channel)->getMorphClass()) {
-            return Channel::query()->where('uuid', $rawContextId)->value('id');
+        if ($contextType === (new Space)->getMorphClass()) {
+            return Space::query()->where('uuid', $rawContextId)->value('id');
         }
 
         if ($contextType === (new Thread)->getMorphClass()) {

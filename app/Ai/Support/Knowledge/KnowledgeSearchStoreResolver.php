@@ -3,7 +3,7 @@
 namespace App\Ai\Support\Knowledge;
 
 use App\Ai\Support\ThreadContextResolver;
-use App\Models\Server\Channel;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 
 class KnowledgeSearchStoreResolver
@@ -25,9 +25,9 @@ class KnowledgeSearchStoreResolver
             ->values()
             ->all();
 
-        $channel = $this->threadContextResolver->resolveChannel($thread);
-        $channelStoreIds = $channel instanceof Channel
-            ? $channel->stores()
+        $space = $this->threadContextResolver->resolveSpace($thread);
+        $channelStoreIds = $space instanceof Space
+            ? $space->stores()
                 ->whereNotNull('external_store_id')
                 ->where('status', 'active')
                 ->pluck('external_store_id')

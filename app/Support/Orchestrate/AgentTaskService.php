@@ -5,6 +5,7 @@ namespace App\Support\Orchestrate;
 use App\Models\Server\AgentTask;
 use App\Models\Server\Message;
 use App\Models\Server\Thread;
+use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -65,7 +66,7 @@ class AgentTaskService
             'prompt_message_id' => $promptMessage->getKey(),
             'prompt_message_ulid' => $promptMessage->ulid,
             'thread_id' => $snapshot['thread']?->uuid,
-            'channel_id' => $snapshot['channel']?->uuid,
+            'space_id' => $snapshot['space']?->uuid,
         ];
         $payload['snapshot'] = [
             'state' => $state,
@@ -161,7 +162,7 @@ class AgentTaskService
     }
 
     /**
-     * @param  Collection<int, \App\Models\Server\ThreadActor>  $presenters
+     * @param  Collection<int, ThreadActor>  $presenters
      */
     public function cancelLocalTask(AgentTask $task, Collection $presenters, ?string $canceledMetaPath = null): AgentTask
     {

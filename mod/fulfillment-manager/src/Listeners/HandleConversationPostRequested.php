@@ -35,7 +35,7 @@ class HandleConversationPostRequested
      */
     protected function createSubjectPost(ConversationPostRequested $event): array
     {
-        $existingSubject = $event->channel->primaryRequestPost();
+        $existingSubject = $event->space->primaryRequestPost();
 
         if ($existingSubject) {
             return [
@@ -70,20 +70,20 @@ class HandleConversationPostRequested
                 'meta' => [
                     'source' => 'tool.create_post_from_conversation',
                     'intent' => 'subject',
-                    'channel_uuid' => $event->channel->uuid,
+                    'space_uuid' => $event->space->uuid,
                     'thread_uuid' => $event->thread->uuid,
                 ],
                 'occurred_at' => now(),
             ]);
 
-            $event->channel->relations()->create([
+            $event->space->relations()->create([
                 'relationable_type' => $subjectPost->getMorphClass(),
                 'relationable_id' => $subjectPost->getKey(),
                 'type' => 'request',
                 'purpose' => 'primary',
             ]);
 
-            $subjectPost->attachRelation($event->channel, 'channel');
+            $subjectPost->attachRelation($event->space, 'space');
             $this->fulfillmentContext->attachAsker($subjectPost, $event->actor);
 
             $event->thread->forceFill([
@@ -151,13 +151,13 @@ class HandleConversationPostRequested
                 'meta' => [
                     'source' => 'tool.create_post_from_conversation',
                     'intent' => 'execution',
-                    'channel_uuid' => $event->channel->uuid,
+                    'space_uuid' => $event->space->uuid,
                     'thread_uuid' => $event->thread->uuid,
                 ],
                 'occurred_at' => now(),
             ]);
 
-            $orderPost->attachRelation($event->channel, 'channel');
+            $orderPost->attachRelation($event->space, 'space');
             $orderPost->attachRelation($event->thread, 'primary');
             $orderPost->attachRelation($subjectPost, 'request');
 

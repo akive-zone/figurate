@@ -2,10 +2,10 @@
 
 namespace App\Policies\Server;
 
-use App\Models\Server\Channel;
+use App\Models\Server\Space;
 use App\Models\Server\User;
 
-class ChannelPolicy
+class SpacePolicy
 {
     /**
      * Determine whether the user can view any models.
@@ -18,12 +18,12 @@ class ChannelPolicy
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, Channel $channel): bool
+    public function view(User $user, Space $space): bool
     {
-        $serviceRequest = $channel->requests()->first();
+        $serviceRequest = $space->requests()->first();
 
         if (! $serviceRequest) {
-            return $channel->hasActor($user);
+            return $space->hasActor($user);
         }
 
         return $serviceRequest->hasParticipant($user);
@@ -40,12 +40,12 @@ class ChannelPolicy
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, Channel $channel): bool
+    public function update(User $user, Space $space): bool
     {
-        $serviceRequest = $channel->requests()->first();
+        $serviceRequest = $space->requests()->first();
 
         if (! $serviceRequest) {
-            return $channel->hasActor($user);
+            return $space->hasActor($user);
         }
 
         return $serviceRequest->hasParticipant($user);
@@ -54,12 +54,12 @@ class ChannelPolicy
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, Channel $channel): bool
+    public function delete(User $user, Space $space): bool
     {
-        $serviceRequest = $channel->requests()->first();
+        $serviceRequest = $space->requests()->first();
 
         if (! $serviceRequest) {
-            return $channel->hasActor($user);
+            return $space->hasActor($user);
         }
 
         return $serviceRequest->hasParticipant($user);
@@ -68,7 +68,7 @@ class ChannelPolicy
     /**
      * Determine whether the user can restore the model.
      */
-    public function restore(User $user, Channel $channel): bool
+    public function restore(User $user, Space $space): bool
     {
         return false;
     }
@@ -76,7 +76,7 @@ class ChannelPolicy
     /**
      * Determine whether the user can permanently delete the model.
      */
-    public function forceDelete(User $user, Channel $channel): bool
+    public function forceDelete(User $user, Space $space): bool
     {
         return false;
     }

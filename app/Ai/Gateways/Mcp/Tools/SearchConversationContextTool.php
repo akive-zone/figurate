@@ -16,14 +16,14 @@ class SearchConversationContextTool extends Tool
     {
         $validated = $request->validate([
             'query' => ['required', 'string'],
-            'channel_id' => ['nullable', 'string'],
+            'space_id' => ['nullable', 'string'],
             'thread_id' => ['nullable', 'string'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:25'],
         ]);
 
         $actor = $payloads->actor($request);
-        $channel = is_string($validated['channel_id'] ?? null)
-            ? $payloads->resolveChannel($actor, (string) $validated['channel_id'])
+        $space = is_string($validated['space_id'] ?? null)
+            ? $payloads->resolveSpace($actor, (string) $validated['space_id'])
             : null;
         $thread = is_string($validated['thread_id'] ?? null)
             ? $payloads->resolveThread($actor, (string) $validated['thread_id'])
@@ -33,7 +33,7 @@ class SearchConversationContextTool extends Tool
             'results' => $payloads->searchContext(
                 actor: $actor,
                 query: (string) $validated['query'],
-                channel: $channel,
+                space: $space,
                 thread: $thread,
                 limit: (int) ($validated['limit'] ?? 10),
             ),
@@ -44,7 +44,7 @@ class SearchConversationContextTool extends Tool
     {
         return [
             'query' => $schema->string()->description('The search text.')->required(),
-            'channel_id' => $schema->string()->description('Optional channel UUID used to scope the search.'),
+            'space_id' => $schema->string()->description('Optional space UUID used to scope the search.'),
             'thread_id' => $schema->string()->description('Optional thread UUID used to scope the search.'),
             'limit' => $schema->integer()->description('Maximum number of matches to return.')->default(10),
         ];

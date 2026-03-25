@@ -8,9 +8,9 @@ use App\Features\Actions\Conversation\ResolveConversationRouteThread;
 use App\Features\Operations\Chat\SubmitChatMessageOperation;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Chat\StoreChatRequest;
-use App\Models\Server\Channel;
-use App\Models\Server\ChannelActorState;
 use App\Models\Server\Message;
+use App\Models\Server\Space;
+use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -38,7 +38,7 @@ class ConversationController extends Controller
     ): JsonResponse {
         /** @var User $actor */
         $actor = $request->user();
-        [$threadRecord, $channelRecord] = $this->resolveConversationRouteThread->execute($conversation, $actor);
+        [$threadRecord, $spaceRecord] = $this->resolveConversationRouteThread->execute($conversation, $actor);
 
         if (! $threadRecord) {
             return response()->json([
@@ -46,7 +46,7 @@ class ConversationController extends Controller
                 'turns' => [],
                 'conversation' => [
                     'id' => $conversation,
-                    'channel_id' => $channelRecord?->uuid,
+                    'space_id' => $spaceRecord?->uuid,
                     'thread_id' => null,
                 ],
                 'thread' => null,
@@ -82,7 +82,7 @@ class ConversationController extends Controller
             'turns' => $turns,
             'conversation' => [
                 'id' => $conversation,
-                'channel_id' => $channelRecord?->uuid,
+                'space_id' => $spaceRecord?->uuid,
                 'thread_id' => $threadRecord->uuid,
             ],
             'thread' => [
@@ -105,7 +105,7 @@ class ConversationController extends Controller
 
         $result = $submitChatMessageOperation->run([
             'actor' => $actor,
-            'channel' => $validated['channel'] ?? null,
+            'space' => $validated['space'] ?? null,
             'thread' => $validated['thread'] ?? null,
             'content' => is_array($validated['content'] ?? null) ? $validated['content'] : [],
             'extra' => is_array($validated['extra'] ?? null) ? $validated['extra'] : [],
@@ -134,12 +134,12 @@ class ConversationController extends Controller
         }
 
         $perPage = max(5, min(100, (int) $request->integer('per_page', 20)));
-        $paginator = $this->queryVisibleChannels($actor)
+        $paginator = $this->queryVisibleSpaces($actor)
             ->cursorPaginate($perPage, ['*'], 'cursor', $request->query('cursor'));
 
         return [
             'data' => collect($paginator->items())
-                ->map(fn (Channel $channel): array => $this->mapConversationListItem($channel, $actor))
+                ->map(fn (Space $space): array => $this->mapConversationListItem($space, $actor))
                 ->values()
                 ->all(),
             'meta' => [
@@ -150,32 +150,32 @@ class ConversationController extends Controller
         ];
     }
 
-    protected function queryVisibleChannels(User $actor): Builder
+    protected function queryVisibleSpaces(User $actor): Builder
     {
-        Gate::forUser($actor)->authorize('viewAny', Channel::class);
+        Gate::forUser($actor)->authorize('viewAny', Space::class);
 
-        $channelsQuery = Channel::query()->latest('created_at');
+        $spacesQuery = Space::query()->latest('created_at');
 
-        $channelsQuery->whereHas('actorStates', function ($stateQuery) use ($actor): void {
+        $spacesQuery->whereHas('actorStates', function ($stateQuery) use ($actor): void {
             $stateQuery
                 ->where('actorable_type', $actor->getMorphClass())
                 ->where('actorable_id', $actor->id)
-                ->where('status', ChannelActorState::StatusActive);
+                ->where('status', SpaceActorState::StatusActive);
         });
 
-        return $channelsQuery;
+        return $spacesQuery;
     }
 
     /**
      * @return array<string, mixed>
      */
-    protected function mapConversationListItem(Channel $channel, User $actor): array
+    protected function mapConversationListItem(Space $space, User $actor): array
     {
-        $actorState = $this->actorStateForChannel($channel, $actor);
-        $threadsPaginator = $this->recentThreadsQuery($channel, $actorState)
+        $actorState = $this->actorStateForSpace($space, $actor);
+        $threadsPaginator = $this->recentThreadsQuery($space, $actorState)
             ->cursorPaginate(5, ['*'], 'threads_cursor', null);
         $threads = collect($threadsPaginator->items());
-        $latestMessageModel = $channel->latestConversationMessage();
+        $latestMessageModel = $space->latestConversationMessage();
         $activeThreadUuid = null;
 
         if (is_int($actorState?->thread_id) && $actorState->thread_id > 0) {
@@ -196,13 +196,13 @@ class ConversationController extends Controller
         }
 
         return [
-            'id' => $channel->uuid,
-            'name' => $this->inferConversationName($channel, $threads, $latestMessageModel?->text),
-            'channel' => [
-                'id' => $channel->uuid,
-                'status' => $channel->status ?? 'open',
+            'id' => $space->uuid,
+            'name' => $this->inferConversationName($space, $threads, $latestMessageModel?->text),
+            'space' => [
+                'id' => $space->uuid,
+                'status' => $space->status ?? 'open',
                 'active_thread_id' => $activeThreadUuid,
-                'last_message_at' => $latestMessage['created_at'] ?? optional($channel->created_at)?->toIso8601String(),
+                'last_message_at' => $latestMessage['created_at'] ?? optional($space->created_at)?->toIso8601String(),
                 'latest_message' => $latestMessage,
             ],
             'threads' => $threads
@@ -221,7 +221,7 @@ class ConversationController extends Controller
      * @param  Collection<int, Thread>  $threads
      */
     protected function inferConversationName(
-        Channel $channel,
+        Space $space,
         Collection $threads,
         ?string $latestMessageBody
     ): string {
@@ -235,22 +235,22 @@ class ConversationController extends Controller
             return mb_substr($messagePreview, 0, 60);
         }
 
-        return sprintf('Conversation %s', mb_substr($channel->uuid, 0, 8));
+        return sprintf('Conversation %s', mb_substr($space->uuid, 0, 8));
     }
 
-    protected function actorStateForChannel(Channel $channel, User $actor): ?ChannelActorState
+    protected function actorStateForSpace(Space $space, User $actor): ?SpaceActorState
     {
-        return $channel->actorStates()
+        return $space->actorStates()
             ->where('actorable_type', $actor->getMorphClass())
             ->where('actorable_id', $actor->id)
-            ->where('status', ChannelActorState::StatusActive)
+            ->where('status', SpaceActorState::StatusActive)
             ->latest('updated_at')
             ->first();
     }
 
-    protected function recentThreadsQuery(Channel $channel, ?ChannelActorState $actorState): Builder
+    protected function recentThreadsQuery(Space $space, ?SpaceActorState $actorState): Builder
     {
-        $threadIds = $channel->conversationThreadIds();
+        $threadIds = $space->conversationThreadIds();
         $query = Thread::query()
             ->whereIn('id', $threadIds->all())
             ->withMax('messages', 'created_at');
@@ -267,7 +267,7 @@ class ConversationController extends Controller
     /**
      * @return array<string, mixed>
      */
-    protected function mapThreadListItem(Thread $thread, ?ChannelActorState $actorState): array
+    protected function mapThreadListItem(Thread $thread, ?SpaceActorState $actorState): array
     {
         return [
             'id' => $thread->uuid,

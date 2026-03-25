@@ -30,7 +30,7 @@ class SessionController extends Controller
         return response()->json([
             'data' => $acpSessionService->createSession(
                 actor: $actor,
-                channelUuid: $request->validated('channel_uuid'),
+                spaceUuid: $request->validated('space_uuid'),
                 title: $request->validated('title'),
                 purpose: $request->validated('purpose'),
             ),
@@ -59,7 +59,7 @@ class SessionController extends Controller
             'data' => $acpSessionService->promptSession(
                 actor: $actor,
                 sessionUuid: $session,
-                channelUuid: $request->validated('channel_uuid'),
+                spaceUuid: $request->validated('space_uuid'),
                 text: $request->validated('text'),
             ),
         ], 202);

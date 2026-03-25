@@ -14,14 +14,14 @@ import (
 )
 
 type Config struct {
-	BaseURL          string
-	Token            string
-	UserUUID         string
-	DefaultChannelID string
-	SessionPurpose   string
-	SessionTitle     string
-	PollInterval     time.Duration
-	PromptTimeout    time.Duration
+	BaseURL        string
+	Token          string
+	UserUUID       string
+	DefaultSpaceID string
+	SessionPurpose string
+	SessionTitle   string
+	PollInterval   time.Duration
+	PromptTimeout  time.Duration
 }
 
 type Client struct {
@@ -32,12 +32,12 @@ type Client struct {
 }
 
 type SessionSummary struct {
-	ID        string         `json:"id"`
-	Title     string         `json:"title"`
-	ChannelID string         `json:"channelId"`
-	Channel   string         `json:"channel,omitempty"`
-	Status    string         `json:"status,omitempty"`
-	Metadata  map[string]any `json:"metadata,omitempty"`
+	ID       string         `json:"id"`
+	Title    string         `json:"title"`
+	SpaceID  string         `json:"spaceId"`
+	Space    string         `json:"space,omitempty"`
+	Status   string         `json:"status,omitempty"`
+	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
 type ChatMessage struct {
@@ -49,17 +49,17 @@ type ChatMessage struct {
 }
 
 type SessionDetail struct {
-	ID        string         `json:"id"`
-	Title     string         `json:"title"`
-	ChannelID string         `json:"channelId,omitempty"`
-	Status    string         `json:"status,omitempty"`
-	Messages  []ChatMessage  `json:"messages"`
-	Metadata  map[string]any `json:"metadata,omitempty"`
+	ID       string         `json:"id"`
+	Title    string         `json:"title"`
+	SpaceID  string         `json:"spaceId,omitempty"`
+	Status   string         `json:"status,omitempty"`
+	Messages []ChatMessage  `json:"messages"`
+	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
 type PromptResult struct {
 	SessionID  string         `json:"sessionId"`
-	ChannelID  string         `json:"channelId,omitempty"`
+	SpaceID    string         `json:"spaceId,omitempty"`
 	TaskID     string         `json:"taskId,omitempty"`
 	State      string         `json:"state"`
 	Text       string         `json:"text,omitempty"`
@@ -70,7 +70,7 @@ type PromptResult struct {
 
 type promptHandle struct {
 	SessionID string
-	ChannelID string
+	SpaceID   string
 	TaskID    string
 }
 
@@ -108,26 +108,26 @@ func (c *Client) Ready() error {
 	}
 }
 
-func (c *Client) CreateSession(ctx context.Context, channelID string, title string) (*SessionSummary, error) {
+func (c *Client) CreateSession(ctx context.Context, spaceID string, title string) (*SessionSummary, error) {
 	if err := c.Ready(); err != nil {
 		return nil, err
 	}
 
 	config := c.Config()
-	if channelID == "" {
-		channelID = config.DefaultChannelID
+	if spaceID == "" {
+		spaceID = config.DefaultSpaceID
 	}
-	if channelID == "" {
-		return nil, fmt.Errorf("channelId is required")
+	if spaceID == "" {
+		return nil, fmt.Errorf("spaceId is required")
 	}
 	if title == "" {
 		title = config.SessionTitle
 	}
 
 	body := map[string]any{
-		"title":        title,
-		"purpose":      config.SessionPurpose,
-		"channel_uuid": channelID,
+		"title":      title,
+		"purpose":    config.SessionPurpose,
+		"space_uuid": spaceID,
 	}
 
 	var response struct {
@@ -137,9 +137,9 @@ func (c *Client) CreateSession(ctx context.Context, channelID string, title stri
 			Status    string `json:"status"`
 			CreatedAt string `json:"created_at"`
 			Purpose   string `json:"purpose"`
-			Channel   struct {
+			Space     struct {
 				ID string `json:"id"`
-			} `json:"channel"`
+			} `json:"space"`
 		} `json:"data"`
 	}
 
@@ -148,10 +148,10 @@ func (c *Client) CreateSession(ctx context.Context, channelID string, title stri
 	}
 
 	return &SessionSummary{
-		ID:        response.Data.ID,
-		Title:     response.Data.Title,
-		ChannelID: coalesce(response.Data.Channel.ID, channelID),
-		Status:    response.Data.Status,
+		ID:      response.Data.ID,
+		Title:   response.Data.Title,
+		SpaceID: coalesce(response.Data.Space.ID, spaceID),
+		Status:  response.Data.Status,
 		Metadata: map[string]any{
 			"createdAt": response.Data.CreatedAt,
 			"purpose":   response.Data.Purpose,
@@ -170,9 +170,9 @@ func (c *Client) ListSessions(ctx context.Context) ([]SessionSummary, error) {
 			Title   string `json:"title"`
 			Purpose string `json:"purpose"`
 			Status  string `json:"status"`
-			Channel struct {
+			Space   struct {
 				ID string `json:"id"`
-			} `json:"channel"`
+			} `json:"space"`
 			LastMessageAt string `json:"last_message_at"`
 		} `json:"data"`
 	}
@@ -184,10 +184,10 @@ func (c *Client) ListSessions(ctx context.Context) ([]SessionSummary, error) {
 	sessions := make([]SessionSummary, 0, len(response.Data))
 	for _, session := range response.Data {
 		sessions = append(sessions, SessionSummary{
-			ID:        session.ID,
-			Title:     session.Title,
-			ChannelID: session.Channel.ID,
-			Status:    session.Status,
+			ID:      session.ID,
+			Title:   session.Title,
+			SpaceID: session.Space.ID,
+			Status:  session.Status,
 			Metadata: map[string]any{
 				"purpose":       session.Purpose,
 				"lastMessageAt": session.LastMessageAt,
@@ -208,12 +208,12 @@ func (c *Client) LoadSession(ctx context.Context, sessionID string) (*SessionDet
 
 	var response struct {
 		Data struct {
-			ID      string `json:"id"`
-			Title   string `json:"title"`
-			Status  string `json:"status"`
-			Channel struct {
+			ID     string `json:"id"`
+			Title  string `json:"title"`
+			Status string `json:"status"`
+			Space  struct {
 				ID string `json:"id"`
-			} `json:"channel"`
+			} `json:"space"`
 			Messages []struct {
 				ID        any    `json:"id"`
 				Role      string `json:"role"`
@@ -247,17 +247,17 @@ func (c *Client) LoadSession(ctx context.Context, sessionID string) (*SessionDet
 	metadata["purpose"] = response.Data.Purpose
 
 	return &SessionDetail{
-		ID:        sessionID,
-		Title:     response.Data.Title,
-		ChannelID: response.Data.Channel.ID,
-		Status:    response.Data.Status,
-		Messages:  messages,
-		Metadata:  metadata,
+		ID:       sessionID,
+		Title:    response.Data.Title,
+		SpaceID:  response.Data.Space.ID,
+		Status:   response.Data.Status,
+		Messages: messages,
+		Metadata: metadata,
 	}, nil
 }
 
-func (c *Client) Prompt(ctx context.Context, channelID string, sessionID string, text string) (*PromptResult, error) {
-	handle, err := c.BeginPrompt(ctx, channelID, sessionID, text)
+func (c *Client) Prompt(ctx context.Context, spaceID string, sessionID string, text string) (*PromptResult, error) {
+	handle, err := c.BeginPrompt(ctx, spaceID, sessionID, text)
 	if err != nil {
 		return nil, err
 	}
@@ -265,7 +265,7 @@ func (c *Client) Prompt(ctx context.Context, channelID string, sessionID string,
 	return c.AwaitPrompt(ctx, handle)
 }
 
-func (c *Client) BeginPrompt(ctx context.Context, channelID string, sessionID string, text string) (*promptHandle, error) {
+func (c *Client) BeginPrompt(ctx context.Context, spaceID string, sessionID string, text string) (*promptHandle, error) {
 	if err := c.Ready(); err != nil {
 		return nil, err
 	}
@@ -273,7 +273,7 @@ func (c *Client) BeginPrompt(ctx context.Context, channelID string, sessionID st
 		return nil, fmt.Errorf("sessionId is required")
 	}
 
-	return c.beginACPPrompt(ctx, channelID, sessionID, text)
+	return c.beginACPPrompt(ctx, spaceID, sessionID, text)
 }
 
 func (c *Client) AwaitPrompt(ctx context.Context, handle *promptHandle) (*PromptResult, error) {
@@ -300,25 +300,25 @@ func (c *Client) CancelTask(ctx context.Context, taskID string) error {
 	return nil
 }
 
-func (c *Client) beginACPPrompt(ctx context.Context, channelID string, sessionID string, text string) (*promptHandle, error) {
+func (c *Client) beginACPPrompt(ctx context.Context, spaceID string, sessionID string, text string) (*promptHandle, error) {
 	config := c.Config()
-	if channelID == "" {
-		channelID = config.DefaultChannelID
+	if spaceID == "" {
+		spaceID = config.DefaultSpaceID
 	}
 
 	body := map[string]any{
 		"text": text,
 	}
 
-	if channelID != "" {
-		body["channel_uuid"] = channelID
+	if spaceID != "" {
+		body["space_uuid"] = spaceID
 	}
 
 	var response struct {
 		Data struct {
 			ID        string `json:"id"`
 			SessionID string `json:"session_id"`
-			ChannelID string `json:"channel_id"`
+			SpaceID   string `json:"space_id"`
 			State     string `json:"state"`
 		} `json:"data"`
 	}
@@ -330,7 +330,7 @@ func (c *Client) beginACPPrompt(ctx context.Context, channelID string, sessionID
 
 	return &promptHandle{
 		SessionID: coalesce(response.Data.SessionID, sessionID),
-		ChannelID: coalesce(response.Data.ChannelID, channelID),
+		SpaceID:   coalesce(response.Data.SpaceID, spaceID),
 		TaskID:    response.Data.ID,
 	}, nil
 }
@@ -342,7 +342,7 @@ func (c *Client) awaitACPPrompt(ctx context.Context, handle *promptHandle) (*Pro
 
 	result := &PromptResult{
 		SessionID: handle.SessionID,
-		ChannelID: handle.ChannelID,
+		SpaceID:   handle.SpaceID,
 		TaskID:    handle.TaskID,
 		State:     "submitted",
 	}
@@ -400,7 +400,7 @@ func (c *Client) GetTask(ctx context.Context, taskID string) (*taskSnapshot, err
 			ID          string `json:"id"`
 			State       string `json:"state"`
 			SessionID   string `json:"session_id"`
-			ChannelID   string `json:"channel_id"`
+			SpaceID     string `json:"space_id"`
 			Artifacts   []any  `json:"artifacts"`
 			Invocations []any  `json:"invocations"`
 		} `json:"data"`
@@ -417,7 +417,7 @@ func (c *Client) GetTask(ctx context.Context, taskID string) (*taskSnapshot, err
 		Metadata: map[string]any{
 			"id":          response.Data.ID,
 			"session_id":  response.Data.SessionID,
-			"channel_id":  response.Data.ChannelID,
+			"space_id":    response.Data.SpaceID,
 			"invocations": response.Data.Invocations,
 		},
 	}, nil

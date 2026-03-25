@@ -9,10 +9,10 @@ class PromptAcpSessionRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'channel_uuid' => $this->trimmedString(
-                $this->input('channel_uuid')
-                ?? $this->input('channel_id')
-                ?? $this->input('channelId')
+            'space_uuid' => $this->trimmedString(
+                $this->input('space_uuid')
+                ?? $this->input('space_id')
+                ?? $this->input('spaceId')
                 ?? $this->input('workspaceId')
             ),
             'text' => $this->trimmedString(
@@ -31,7 +31,7 @@ class PromptAcpSessionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'channel_uuid' => ['nullable', 'uuid', 'exists:channels,uuid'],
+            'space_uuid' => ['nullable', 'uuid', 'exists:spaces,uuid'],
             'text' => ['required', 'string', 'max:5000'],
         ];
     }
@@ -39,7 +39,7 @@ class PromptAcpSessionRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'channel_uuid.exists' => 'The selected channel was not found.',
+            'space_uuid.exists' => 'The selected space was not found.',
             'text.required' => 'A text prompt is required.',
         ];
     }

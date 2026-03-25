@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Server\Channel;
+use App\Models\Server\Space;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
 use Illuminate\Http\JsonResponse;
@@ -14,22 +14,22 @@ class ConversationPostController extends Controller
 {
     public function index(string $conversation): JsonResponse
     {
-        $channelRecord = Channel::query()
+        $spaceRecord = Space::query()
             ->where('uuid', $conversation)
             ->firstOrFail();
 
-        Gate::authorize('view', $channelRecord);
+        Gate::authorize('view', $spaceRecord);
 
-        $channelPosts = $channelRecord->conversationPosts()
+        $channelPosts = $spaceRecord->conversationPosts()
             ->map(function ($post): array {
                 $content = data_get($post->payload, 'title')
                     ?? data_get($post->payload, 'description')
                     ?? $post->type
-                    ?? 'Channel update';
+                    ?? 'Space update';
 
                 return [
                     'kind' => 'post',
-                    'scope' => 'channel',
+                    'scope' => 'space',
                     'thread_id' => null,
                     'id' => $post->id,
                     'sender_name' => null,
@@ -41,11 +41,11 @@ class ConversationPostController extends Controller
             ->filter(fn (array $item): bool => is_string($item['created_at'] ?? null))
             ->all();
 
-        $threadHistory = $channelRecord->conversationThreads()
+        $threadHistory = $spaceRecord->conversationThreads()
             ->map(function ($thread): array {
                 return [
                     'kind' => 'thread_event',
-                    'scope' => 'channel',
+                    'scope' => 'space',
                     'id' => $thread->uuid,
                     'title' => $thread->title ?: 'Thread started',
                     'nature' => $this->resolveThreadNature($thread->actors),
@@ -63,9 +63,9 @@ class ConversationPostController extends Controller
 
         return response()->json([
             'data' => $posts,
-            'channel' => [
-                'id' => $channelRecord->uuid,
-                'status' => $channelRecord->status,
+            'space' => [
+                'id' => $spaceRecord->uuid,
+                'status' => $spaceRecord->status,
             ],
         ]);
     }

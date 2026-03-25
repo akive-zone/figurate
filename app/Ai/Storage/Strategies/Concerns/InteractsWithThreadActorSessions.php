@@ -4,7 +4,7 @@ namespace App\Ai\Storage\Strategies\Concerns;
 
 use App\Ai\Agents\PresenterAgent;
 use App\Ai\Storage\ConversationId;
-use App\Models\Server\ChannelActorState;
+use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadActorSession;
@@ -16,7 +16,7 @@ trait InteractsWithThreadActorSessions
 {
     protected function latestActiveThreadUuid(string|int $userId): ?string
     {
-        $activeThreadId = ChannelActorState::query()
+        $activeThreadId = SpaceActorState::query()
             ->where('actorable_type', (new User)->getMorphClass())
             ->where('actorable_id', $userId)
             ->whereNotNull('thread_id')

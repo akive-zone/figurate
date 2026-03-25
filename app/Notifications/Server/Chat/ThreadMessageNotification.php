@@ -3,9 +3,9 @@
 namespace App\Notifications\Server\Chat;
 
 use App\Ai\Storage\ConversationPersistenceResolver;
-use App\Models\Server\Channel;
 use App\Models\Server\Inbox;
 use App\Models\Server\Message;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use App\Notifications\Support\ConversationTransportRouter;
@@ -42,7 +42,7 @@ class ThreadMessageNotification extends Notification
 
         return [
             'thread' => $this->resolveThread(),
-            'channel' => $this->resolveChannel($this->resolveThread()),
+            'space' => $this->resolveSpace($this->resolveThread()),
             'message' => $this->message,
             'recipient' => $notifiable,
             'source' => $this->source(),
@@ -62,7 +62,7 @@ class ThreadMessageNotification extends Notification
 
         return [
             'thread' => $this->resolveThread(),
-            'channel' => $this->resolveChannel($this->resolveThread()),
+            'space' => $this->resolveSpace($this->resolveThread()),
             'message' => $this->message,
             'recipient' => $notifiable,
             'source' => $this->source(),
@@ -97,7 +97,7 @@ class ThreadMessageNotification extends Notification
     protected function payload(): array
     {
         $thread = $this->resolveThread();
-        $channel = $this->resolveChannel($thread);
+        $space = $this->resolveSpace($thread);
         $source = $this->source();
         $text = is_string($this->message->text) ? trim($this->message->text) : null;
 
@@ -110,9 +110,9 @@ class ThreadMessageNotification extends Notification
                 'phase' => $thread?->phase,
                 'status' => $thread?->status,
             ],
-            'channel' => [
-                'id' => $channel?->uuid,
-                'status' => $channel?->status,
+            'space' => [
+                'id' => $space?->uuid,
+                'status' => $space?->status,
             ],
             'message' => [
                 'id' => $this->message->id,
@@ -151,24 +151,24 @@ class ThreadMessageNotification extends Notification
         return Thread::query()->find($this->message->messageable_id);
     }
 
-    protected function resolveChannel(?Thread $thread): ?Channel
+    protected function resolveSpace(?Thread $thread): ?Space
     {
         if (! $thread) {
             return null;
         }
 
-        if ($thread->relationLoaded('threadable') && $thread->threadable instanceof Channel) {
+        if ($thread->relationLoaded('threadable') && $thread->threadable instanceof Space) {
             return $thread->threadable;
         }
 
         $threadableType = is_string($thread->threadable_type) ? trim($thread->threadable_type) : '';
-        $channelMorphClass = (new Channel)->getMorphClass();
+        $spaceMorphClass = (new Space)->getMorphClass();
 
-        if (! in_array($threadableType, [$channelMorphClass, Channel::class], true)) {
+        if (! in_array($threadableType, [$spaceMorphClass, Space::class], true)) {
             return null;
         }
 
-        return Channel::query()->find($thread->threadable_id);
+        return Space::query()->find($thread->threadable_id);
     }
 
     protected function source(): string

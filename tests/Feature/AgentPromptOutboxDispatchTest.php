@@ -6,10 +6,10 @@ use App\Ai\Storage\ConversationPersistenceResolver;
 use App\Features\Actions\Conversation\EnqueueThreadPromptOutbox;
 use App\Features\Actions\Conversation\Protocols\AgentPromptProtocol;
 use App\Jobs\DeliverOutboxMessage;
-use App\Models\Server\Channel;
-use App\Models\Server\ChannelActorState;
 use App\Models\Server\Inbox;
 use App\Models\Server\Outbox;
+use App\Models\Server\Space;
+use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadEvent;
@@ -32,27 +32,27 @@ class AgentPromptOutboxDispatchTest extends TestCase
         $robot = User::factory()->create([
             'type' => User::TypeRobot,
         ]);
-        $channel = Channel::factory()->create();
-        $thread = $channel->threads()->create([
+        $space = Space::factory()->create();
+        $thread = $space->threads()->create([
             'purpose' => Thread::PurposeMain,
             'title' => 'Prompt Dispatch Thread',
             'phase' => 'execution',
             'status' => 'open',
         ]);
 
-        ChannelActorState::query()->create([
-            'channel_id' => $channel->id,
+        SpaceActorState::query()->create([
+            'space_id' => $space->id,
             'thread_id' => null,
             'actorable_type' => $sender->getMorphClass(),
             'actorable_id' => $sender->id,
-            'status' => ChannelActorState::StatusActive,
+            'status' => SpaceActorState::StatusActive,
         ]);
-        ChannelActorState::query()->create([
-            'channel_id' => $channel->id,
+        SpaceActorState::query()->create([
+            'space_id' => $space->id,
             'thread_id' => null,
             'actorable_type' => $robot->getMorphClass(),
             'actorable_id' => $robot->id,
-            'status' => ChannelActorState::StatusActive,
+            'status' => SpaceActorState::StatusActive,
         ]);
 
         $thread->actors()->create([
@@ -83,7 +83,7 @@ class AgentPromptOutboxDispatchTest extends TestCase
         Sanctum::actingAs($sender, [TokenAbility::Compose->value]);
 
         $response = $this->postJson('/api/conversations', [
-            'channel' => $channel->uuid,
+            'space' => $space->uuid,
             'thread' => $thread->uuid,
             'conversation_persistence' => ConversationPersistenceResolver::ThreadCompletion,
             'content' => [
@@ -121,7 +121,7 @@ class AgentPromptOutboxDispatchTest extends TestCase
             ->first();
 
         $this->assertNotNull($event);
-        $this->assertSame('notification.channel.completion', $event->operation);
+        $this->assertSame('notification.space.completion', $event->operation);
         $this->assertSame('outbox_enqueued', data_get($event->payload, 'reason'));
         $this->assertSame($outbox->id, data_get($event->payload, 'outbox_id'));
         $this->assertSame(AgentPromptProtocol::Key, data_get($event->payload, 'outbox_protocol'));
@@ -141,8 +141,8 @@ class AgentPromptOutboxDispatchTest extends TestCase
             'type' => User::TypeRobot,
         ]);
         $sender = User::factory()->create();
-        $channel = Channel::factory()->create();
-        $thread = $channel->threads()->create([
+        $space = Space::factory()->create();
+        $thread = $space->threads()->create([
             'purpose' => Thread::PurposeMain,
             'title' => 'Prompt Idempotency Thread',
             'phase' => 'execution',

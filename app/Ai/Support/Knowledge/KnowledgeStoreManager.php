@@ -2,7 +2,7 @@
 
 namespace App\Ai\Support\Knowledge;
 
-use App\Models\Server\Channel;
+use App\Models\Server\Space;
 use App\Models\Server\Store;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
@@ -38,9 +38,9 @@ class KnowledgeStoreManager
         return $store;
     }
 
-    public function forChannel(Channel $channel, User $actor, string $scope = 'channel_context'): Store
+    public function forSpace(Space $space, User $actor, string $scope = 'space_context'): Store
     {
-        $store = $channel->stores()
+        $store = $space->stores()
             ->wherePivot('scope', $scope)
             ->latest('stores.id')
             ->first();
@@ -48,12 +48,12 @@ class KnowledgeStoreManager
         if (! $store instanceof Store) {
             $store = Store::query()->create([
                 'uuid' => (string) str()->uuid(),
-                'name' => sprintf('channel-%d-%s', $channel->id, $scope),
+                'name' => sprintf('space-%d-%s', $space->id, $scope),
                 'provider' => (string) config('ai.default', 'default'),
                 'status' => 'active',
             ]);
 
-            $channel->stores()->attach($store->id, [
+            $space->stores()->attach($store->id, [
                 'scope' => $scope,
                 'created_by' => $actor->id,
             ]);

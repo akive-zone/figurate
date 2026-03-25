@@ -27,7 +27,7 @@ class MergeWidgetUserIntoWidget
 
         DB::transaction(function () use ($sourceWidgetUser, $targetWidgetUser): void {
             $this->migratePostRelations($sourceWidgetUser, $targetWidgetUser);
-            $this->migrateChannelActorStates($sourceWidgetUser, $targetWidgetUser);
+            $this->migrateSpaceActorStates($sourceWidgetUser, $targetWidgetUser);
             $this->migrateThreadActorSessions($sourceWidgetUser, $targetWidgetUser);
             $this->migrateAgentConversations($sourceWidgetUser, $targetWidgetUser);
             $this->migrateAgentConversationMessages($sourceWidgetUser, $targetWidgetUser);
@@ -80,7 +80,7 @@ class MergeWidgetUserIntoWidget
         }
     }
 
-    protected function migrateChannelActorStates(User $sourceWidgetUser, User $targetWidgetUser): void
+    protected function migrateSpaceActorStates(User $sourceWidgetUser, User $targetWidgetUser): void
     {
         if (! Schema::hasTable('actor_states')) {
             return;
@@ -93,7 +93,7 @@ class MergeWidgetUserIntoWidget
 
         foreach ($rows as $row) {
             $alreadyExists = DB::table('actor_states')
-                ->where('channel_id', $row->channel_id)
+                ->where('space_id', $row->space_id)
                 ->where('actorable_type', $targetWidgetUser->getMorphClass())
                 ->where('actorable_id', $targetWidgetUser->id)
                 ->exists();

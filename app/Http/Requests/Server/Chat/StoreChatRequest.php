@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Server\Chat;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreChatRequest extends FormRequest
@@ -50,12 +51,12 @@ class StoreChatRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
-            'channel' => ['nullable', 'uuid', 'exists:channels,uuid'],
+            'space' => ['nullable', 'uuid', 'exists:spaces,uuid'],
             'thread' => ['nullable', 'uuid', 'exists:threads,uuid'],
             'content' => ['required', 'array:text,attachments,actions,errors'],
             'extra' => ['nullable', 'array'],
@@ -104,7 +105,7 @@ class StoreChatRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'channel.exists' => 'The selected channel was not found.',
+            'space.exists' => 'The selected space was not found.',
             'thread.exists' => 'The selected thread was not found.',
             'content.text.required_without_all' => 'Enter a text, submit an action, report an error, or attach media.',
             'content.actions.max' => 'You can submit up to 16 actions at once.',

@@ -6,7 +6,7 @@ use App\Ai\Support\A2ui\A2uiCatalogRegistry;
 use App\Ai\Support\A2ui\A2uiPayloadContract;
 use App\Contracts\Users\UserRepository;
 use App\Features\Actions\Conversation\ResolveActiveThreadPresenters;
-use App\Features\Actions\Conversation\ResolveConversationChannelContext;
+use App\Features\Actions\Conversation\ResolveConversationSpaceContext;
 use App\Features\Actions\Conversation\ResolveConversationThreadContext;
 use App\Features\Operations\Chat\DispatchPromptOperation;
 use App\Features\Operations\Chat\ResolveConversationThreadOperation;
@@ -28,7 +28,7 @@ class A2aMethodRouter
 
     public function __construct(
         protected ResolveConversationThreadOperation $resolveConversationThreadOperation,
-        protected ResolveConversationChannelContext $resolveConversationChannelContext,
+        protected ResolveConversationSpaceContext $resolveConversationSpaceContext,
         protected ResolveConversationThreadContext $resolveConversationThreadContext,
         protected TaskPushNotificationDispatcher $taskPushNotificationDispatcher,
         protected A2uiPayloadContract $a2uiPayloadContract,
@@ -75,7 +75,7 @@ class A2aMethodRouter
     {
         $validation = Validator::make($params, [
             'user_uuid' => ['required', 'uuid', 'exists:users,uuid'],
-            'channel' => ['nullable', 'uuid', 'exists:channels,uuid'],
+            'space' => ['nullable', 'uuid', 'exists:spaces,uuid'],
             'thread' => ['nullable', 'uuid', 'exists:threads,uuid'],
         ]);
 
@@ -104,18 +104,18 @@ class A2aMethodRouter
             return $this->invalidParams(['message' => ['Message text may not exceed 5000 characters.']]);
         }
 
-        $channelUuid = $this->trimmedString($params['channel'] ?? null);
+        $spaceUuid = $this->trimmedString($params['space'] ?? null);
         $threadUuid = $this->trimmedString($params['thread'] ?? null);
         $threadId = null;
 
         if ($threadUuid) {
-            [$channel, $threadId] = $this->resolveConversationThreadContext->execute($threadUuid, $channelUuid);
+            [$space, $threadId] = $this->resolveConversationThreadContext->execute($threadUuid, $spaceUuid);
         } else {
-            $channel = $this->resolveConversationChannelContext->execute($channelUuid, $user);
+            $space = $this->resolveConversationSpaceContext->execute($spaceUuid, $user);
         }
 
         $decision = $this->resolveConversationThreadOperation->run(
-            channel: $channel,
+            space: $space,
             actor: $user,
             thread: $threadId,
             message: $content,
@@ -137,7 +137,7 @@ class A2aMethodRouter
         }
 
         $dispatch = $this->dispatchPromptOperation->run(
-            channel: $channel,
+            space: $space,
             thread: $thread,
             actor: $user,
             text: $content,
@@ -149,7 +149,7 @@ class A2aMethodRouter
                 'meta' => $meta,
                 'actions' => $a2uiActions !== [] ? $a2uiActions : null,
                 'errors' => $a2uiErrors !== [] ? $a2uiErrors : null,
-                'broadcast_channel_id' => "threads.{$thread->uuid}",
+                'broadcast_space_id' => "threads.{$thread->uuid}",
             ],
         );
         $message = $dispatch['message'];
@@ -175,7 +175,7 @@ class A2aMethodRouter
                     state: 'completed',
                     context: [
                         'thread_id' => $thread->uuid,
-                        'channel_id' => $channel->uuid,
+                        'space_id' => $space->uuid,
                         'prompt_message_ulid' => $message->ulid,
                         'agent_task_uuid' => $task->uuid,
                     ],
@@ -191,7 +191,7 @@ class A2aMethodRouter
                 state: 'submitted',
                 context: [
                     'thread_id' => $thread->uuid,
-                    'channel_id' => $channel->uuid,
+                    'space_id' => $space->uuid,
                     'prompt_message_ulid' => $message->ulid,
                     'agent_task_uuid' => $task->uuid,
                     'pending_presenters' => $dispatch['presenters']->count(),
@@ -353,7 +353,7 @@ class A2aMethodRouter
                 'streaming' => [
                     'enabled' => true,
                     'transport' => 'sse',
-                    'channel' => '/api/a2a/stream',
+                    'space' => '/api/a2a/stream',
                 ],
             ],
         ];
@@ -378,7 +378,7 @@ class A2aMethodRouter
                 'task' => $taskPayload,
                 'stream' => [
                     'transport' => 'sse',
-                    'channel' => '/api/a2a/stream',
+                    'space' => '/api/a2a/stream',
                     'status' => 'streaming_prepared',
                 ],
             ],

@@ -2,7 +2,7 @@
 
 namespace App\Features\Actions\Conversation;
 
-use App\Models\Server\Channel;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use Illuminate\Database\Eloquent\Builder;
@@ -12,7 +12,7 @@ class ApplyConversationPurposeTriggers
     /**
      * @return array{0: Thread, 1: list<array<string, mixed>>}
      */
-    public function execute(Channel $channel, Thread $thread, ?string $message): array
+    public function execute(Space $space, Thread $thread, ?string $message): array
     {
         $targetPurpose = $this->detectPurposeFromMessage($message);
 
@@ -20,7 +20,7 @@ class ApplyConversationPurposeTriggers
             return [$thread, []];
         }
 
-        $openThread = $this->threadsQuery($channel)
+        $openThread = $this->threadsQuery($space)
             ->where('status', 'open')
             ->where('purpose', $targetPurpose)
             ->latest('id')
@@ -35,7 +35,7 @@ class ApplyConversationPurposeTriggers
             ]]];
         }
 
-        $spawnedThread = $this->createPurposeThread($channel, $targetPurpose);
+        $spawnedThread = $this->createPurposeThread($space, $targetPurpose);
 
         return [$spawnedThread, [[
             'event_type' => 'orchestration.thread_spawned',
@@ -45,14 +45,14 @@ class ApplyConversationPurposeTriggers
         ]]];
     }
 
-    protected function threadsQuery(Channel $channel): Builder
+    protected function threadsQuery(Space $space): Builder
     {
-        return Thread::query()->whereIn('id', $channel->conversationThreadIds()->all());
+        return Thread::query()->whereIn('id', $space->conversationThreadIds()->all());
     }
 
-    protected function createPurposeThread(Channel $channel, string $purpose): Thread
+    protected function createPurposeThread(Space $space, string $purpose): Thread
     {
-        $thread = $channel->threads()->create([
+        $thread = $space->threads()->create([
             'purpose' => $purpose,
             'title' => $this->defaultTitle($purpose),
             'phase' => $this->defaultPhase($purpose),

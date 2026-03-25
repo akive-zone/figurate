@@ -179,9 +179,9 @@ class McpServerResolver
         if ($thread) {
             $candidates[] = $thread;
 
-            $channel = $this->threadContextResolver->resolveChannel($thread);
-            if ($channel) {
-                $candidates[] = $channel;
+            $space = $this->threadContextResolver->resolveSpace($thread);
+            if ($space) {
+                $candidates[] = $space;
             }
         }
 

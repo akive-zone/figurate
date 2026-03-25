@@ -7,8 +7,8 @@ use App\Contracts\Users\UserRepository;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\ContextServer\StoreContextServerRequest;
 use App\Http\Requests\Server\ContextServer\UpdateContextServerRequest;
-use App\Models\Server\Channel;
 use App\Models\Server\ContextServer;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Model;
@@ -47,7 +47,7 @@ class ServerController extends Controller
                         ->where('contextable_id', $actor->getKey());
                 });
 
-                $channelIds = Channel::query()
+                $spaceIds = Space::query()
                     ->whereHas('actorStates', function ($actorStateQuery) use ($actor): void {
                         $actorStateQuery
                             ->where('actorable_type', $actor->getMorphClass())
@@ -55,11 +55,11 @@ class ServerController extends Controller
                     })
                     ->pluck('id');
 
-                if ($channelIds->isNotEmpty()) {
-                    $scopedQuery->orWhere(function ($channelQuery) use ($channelIds): void {
+                if ($spaceIds->isNotEmpty()) {
+                    $scopedQuery->orWhere(function ($channelQuery) use ($spaceIds): void {
                         $channelQuery
-                            ->where('contextable_type', (new Channel)->getMorphClass())
-                            ->whereIn('contextable_id', $channelIds->all());
+                            ->where('contextable_type', (new Space)->getMorphClass())
+                            ->whereIn('contextable_id', $spaceIds->all());
                     });
                 }
             });
@@ -192,13 +192,13 @@ class ServerController extends Controller
             return ['user', $target];
         }
 
-        if ($resolvedType === 'channel') {
-            abort_if(! is_string($contextId) || trim($contextId) === '', 422, 'context_id is required for channel context.');
+        if ($resolvedType === 'space') {
+            abort_if(! is_string($contextId) || trim($contextId) === '', 422, 'context_id is required for space context.');
 
-            $channel = Channel::query()->where('uuid', $contextId)->firstOrFail();
-            Gate::forUser($actor)->authorize('view', $channel);
+            $space = Space::query()->where('uuid', $contextId)->firstOrFail();
+            Gate::forUser($actor)->authorize('view', $space);
 
-            return ['channel', $channel];
+            return ['space', $space];
         }
 
         if ($resolvedType === 'thread') {
@@ -225,7 +225,7 @@ class ServerController extends Controller
             return $context->id === $actor->id;
         }
 
-        if ($context instanceof Channel) {
+        if ($context instanceof Space) {
             return Gate::forUser($actor)->check('view', $context);
         }
 

@@ -3,9 +3,9 @@
 namespace Tests\Feature\A2a;
 
 use App\Ai\Tools\CreatePostFromConversationTool;
-use App\Models\Server\Channel;
-use App\Models\Server\ChannelActorState;
 use App\Models\Server\Post;
+use App\Models\Server\Space;
+use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Figurate\FulfillmentManager\Models\Order;
@@ -20,9 +20,9 @@ class CreatePostFromConversationToolTest extends TestCase
 
     public function test_it_creates_a_subject_post_through_the_domain_listener(): void
     {
-        [$channel, $thread, $actor] = $this->conversationContext();
+        [$space, $thread, $actor] = $this->conversationContext();
 
-        $tool = new CreatePostFromConversationTool($thread, $channel, $actor);
+        $tool = new CreatePostFromConversationTool($thread, $space, $actor);
 
         $response = json_decode($tool->handle(new ToolRequest([
             'intent' => 'subject',
@@ -55,9 +55,9 @@ class CreatePostFromConversationToolTest extends TestCase
 
     public function test_it_creates_an_execution_post_through_the_domain_listener(): void
     {
-        [$channel, $thread, $actor] = $this->conversationContext();
+        [$space, $thread, $actor] = $this->conversationContext();
 
-        $tool = new CreatePostFromConversationTool($thread, $channel, $actor);
+        $tool = new CreatePostFromConversationTool($thread, $space, $actor);
 
         $tool->handle(new ToolRequest([
             'intent' => 'subject',
@@ -85,27 +85,27 @@ class CreatePostFromConversationToolTest extends TestCase
     }
 
     /**
-     * @return array{0: Channel, 1: Thread, 2: User}
+     * @return array{0: Space, 1: Thread, 2: User}
      */
     protected function conversationContext(): array
     {
-        $channel = Channel::factory()->create();
+        $space = Space::factory()->create();
         $actor = User::factory()->create();
         $thread = Thread::factory()->create([
-            'threadable_type' => $channel->getMorphClass(),
-            'threadable_id' => $channel->getKey(),
+            'threadable_type' => $space->getMorphClass(),
+            'threadable_id' => $space->getKey(),
             'phase' => 'conversation_open',
             'status' => 'open',
         ]);
 
-        ChannelActorState::query()->create([
-            'channel_id' => $channel->id,
+        SpaceActorState::query()->create([
+            'space_id' => $space->id,
             'thread_id' => $thread->id,
             'actorable_type' => $actor->getMorphClass(),
             'actorable_id' => $actor->getKey(),
-            'status' => ChannelActorState::StatusActive,
+            'status' => SpaceActorState::StatusActive,
         ]);
 
-        return [$channel, $thread, $actor];
+        return [$space, $thread, $actor];
     }
 }

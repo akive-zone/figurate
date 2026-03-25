@@ -16,14 +16,14 @@ func main() {
 	logger := log.New(os.Stderr, "fig-acp-inbound: ", log.LstdFlags|log.Lmsgprefix)
 
 	config := figurate.Config{
-		BaseURL:          os.Getenv("FIG_ACP_BASE_URL"),
-		Token:            os.Getenv("FIG_ACP_TOKEN"),
-		UserUUID:         os.Getenv("FIG_ACP_USER_UUID"),
-		DefaultChannelID: os.Getenv("FIG_ACP_CHANNEL_ID"),
-		SessionPurpose:   envOrDefault("FIG_ACP_SESSION_PURPOSE", "execution"),
-		SessionTitle:     envOrDefault("FIG_ACP_SESSION_TITLE", "ACP Session"),
-		PollInterval:     durationFromEnv("FIG_ACP_POLL_INTERVAL", time.Second),
-		PromptTimeout:    durationFromEnv("FIG_ACP_PROMPT_TIMEOUT", 2*time.Minute),
+		BaseURL:        os.Getenv("FIG_ACP_BASE_URL"),
+		Token:          os.Getenv("FIG_ACP_TOKEN"),
+		UserUUID:       os.Getenv("FIG_ACP_USER_UUID"),
+		DefaultSpaceID: os.Getenv("FIG_ACP_SPACE_ID"),
+		SessionPurpose: envOrDefault("FIG_ACP_SESSION_PURPOSE", "execution"),
+		SessionTitle:   envOrDefault("FIG_ACP_SESSION_TITLE", "ACP Session"),
+		PollInterval:   durationFromEnv("FIG_ACP_POLL_INTERVAL", time.Second),
+		PromptTimeout:  durationFromEnv("FIG_ACP_PROMPT_TIMEOUT", 2*time.Minute),
 	}
 
 	client := figurate.NewClient(config)

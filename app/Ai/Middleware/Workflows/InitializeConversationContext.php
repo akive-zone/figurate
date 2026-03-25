@@ -22,7 +22,7 @@ class InitializeConversationContext
             return $next($prompt);
         }
 
-        $channel = $this->threadContextResolver->resolveChannel($thread);
+        $space = $this->threadContextResolver->resolveSpace($thread);
 
         $presenterCount = $thread->actors()
             ->where('role', ThreadActor::RolePresenter)
@@ -39,7 +39,7 @@ class InitializeConversationContext
             "- Thread uuid: {$thread->uuid}",
             "- Thread purpose: {$thread->purpose}",
             "- Thread phase: {$thread->phase}",
-            '- Channel id: '.($channel?->id ?? 'none'),
+            '- Space id: '.($space?->id ?? 'none'),
             "- Presenter actors: {$presenterCount}",
             "- Observer actors: {$observerCount}",
             '- Keep all decisions consistent with this thread context.',

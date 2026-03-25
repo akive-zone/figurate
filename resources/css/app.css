@@ -124,7 +124,7 @@ body {
     width: 100%;
 }
 
-.channel-nav {
+.space-nav {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
@@ -132,13 +132,13 @@ body {
     min-height: 0;
 }
 
-.channel-group {
+.space-group {
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
 }
 
-.channel-link {
+.space-link {
     display: block;
     text-decoration: none;
     border: 1px solid transparent;
@@ -150,30 +150,30 @@ body {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.channel-link:hover {
+.space-link:hover {
     border-color: var(--border);
     transform: translateY(-1px);
     box-shadow: var(--shadow);
 }
 
-.channel-link--active {
+.space-link--active {
     border-color: rgba(15, 118, 110, 0.4);
     background: rgba(15, 118, 110, 0.05);
     box-shadow: none;
 }
 
-.channel-link--active:hover {
+.space-link--active:hover {
     transform: none;
     box-shadow: none;
 }
 
-.channel-link__title {
+.space-link__title {
     margin: 0;
     font-size: 0.95rem;
     font-weight: 700;
 }
 
-.channel-link__meta {
+.space-link__meta {
     margin: 0.35rem 0 0;
     font-size: 0.8rem;
     color: var(--soft-ink);
@@ -643,7 +643,7 @@ body {
     background: rgba(15, 118, 110, 0.08);
 }
 
-.message--channel {
+.message--space {
     background: #fdfefe;
     border-left: 4px solid #cbd5e1;
 }

@@ -4,8 +4,8 @@ namespace Figurate\AccountManager\Tests;
 
 use App\Models\Server\AgentConversation;
 use App\Models\Server\AgentTask;
-use App\Models\Server\Channel;
-use App\Models\Server\ChannelActorState;
+use App\Models\Server\Space;
+use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadActorSession;
@@ -181,16 +181,16 @@ class WidgetAccountAttachmentTest extends TestCase
         ]);
 
         $widgetUser = $this->makeUser(User::TypeWidget, 'widget-login-1');
-        $channel = Channel::query()->create(['status' => 'open']);
-        ChannelActorState::query()->create([
-            'channel_id' => $channel->id,
+        $space = Space::query()->create(['status' => 'open']);
+        SpaceActorState::query()->create([
+            'space_id' => $space->id,
             'thread_id' => null,
             'actorable_type' => $widgetUser->getMorphClass(),
             'actorable_id' => $widgetUser->id,
-            'status' => ChannelActorState::StatusActive,
+            'status' => SpaceActorState::StatusActive,
         ]);
 
-        $thread = $channel->threads()->create([
+        $thread = $space->threads()->create([
             'title' => 'Anonymous planning',
             'purpose' => Thread::PurposePlanning,
             'phase' => 'draft',
@@ -251,7 +251,7 @@ class WidgetAccountAttachmentTest extends TestCase
             'unlinked_at' => null,
         ]);
 
-        $channel->refresh();
+        $space->refresh();
         $thread->refresh();
         $conversation->refresh();
         $session->refresh();
@@ -260,7 +260,7 @@ class WidgetAccountAttachmentTest extends TestCase
         $this->assertSame($widgetUser->id, $conversation->user_id);
         $this->assertSame($widgetUser->id, $session->user_id);
         $this->assertSame($widgetUser->id, $task->user_id);
-        $this->assertTrue($channel->hasActor($widgetUser));
+        $this->assertTrue($space->hasActor($widgetUser));
         $this->assertDatabaseHas('thread_actors', [
             'id' => $threadActor->id,
             'actorable_type' => $widgetUser->getMorphClass(),

@@ -23,12 +23,12 @@ const chatIndexUrl = computed(() => {
     <main class="not-found">
         <section class="not-found__card">
             <p class="not-found__kicker">404</p>
-            <h1 class="not-found__title">Channel Not Found</h1>
+            <h1 class="not-found__title">Space Not Found</h1>
             <p class="not-found__copy">
-                The channel link is invalid or the conversation no longer exists.
+                The space link is invalid or the conversation no longer exists.
             </p>
             <div class="not-found__actions">
-                <Link :href="chatIndexUrl" class="button">Back to Channels</Link>
+                <Link :href="chatIndexUrl" class="button">Back to Spaces</Link>
             </div>
         </section>
     </main>

@@ -10,8 +10,8 @@ use App\Features\Actions\Conversation\NormalizeInboundConversationPayload;
 use App\Features\Actions\Conversation\QueuePresenterReplies;
 use App\Features\Actions\Conversation\ResolveActiveThreadPresenters;
 use App\Features\Actions\Conversation\ResolveConversationAttachments;
-use App\Features\Actions\Conversation\ResolveConversationChannelContext;
 use App\Features\Actions\Conversation\ResolveConversationIdempotencyKey;
+use App\Features\Actions\Conversation\ResolveConversationSpaceContext;
 use App\Features\Actions\Conversation\ResolveConversationThreadContext;
 use App\Features\Actions\Conversation\SendPeerThreadMessage;
 use App\Models\Server\Message;
@@ -26,7 +26,7 @@ class SubmitChatMessageOperation
 {
     public function __construct(
         protected ResolveConversationThreadOperation $resolveConversationThreadOperation,
-        protected ResolveConversationChannelContext $resolveConversationChannelContext,
+        protected ResolveConversationSpaceContext $resolveConversationSpaceContext,
         protected ResolveConversationThreadContext $resolveConversationThreadContext,
         protected NormalizeInboundConversationPayload $normalizeInboundConversationPayload,
         protected SendPeerThreadMessage $sendPeerThreadMessage,
@@ -44,7 +44,7 @@ class SubmitChatMessageOperation
     /**
      * @param  array{
      *     actor: User,
-     *     channel?: mixed,
+     *     space?: mixed,
      *     thread?: mixed,
      *     content?: mixed,
      *     extra?: mixed,
@@ -56,7 +56,7 @@ class SubmitChatMessageOperation
     public function run(array $input): array
     {
         $actor = $input['actor'];
-        $channelUuid = $input['channel'] ?? null;
+        $spaceUuid = $input['space'] ?? null;
         $threadUuid = $input['thread'] ?? null;
         $contentPayload = $input['content'] ?? [];
         $extraPayload = $input['extra'] ?? [];
@@ -72,18 +72,18 @@ class SubmitChatMessageOperation
         $thread = null;
 
         if (is_string($threadUuid) && $threadUuid !== '') {
-            [$channel, $thread] = $this->resolveConversationThreadContext->execute($threadUuid, $channelUuid);
+            [$space, $thread] = $this->resolveConversationThreadContext->execute($threadUuid, $spaceUuid);
         } else {
-            $channel = $this->resolveConversationChannelContext->execute($channelUuid, $actor);
+            $space = $this->resolveConversationSpaceContext->execute($spaceUuid, $actor);
         }
 
-        Gate::authorize('view', $channel);
+        Gate::authorize('view', $space);
         Gate::authorize('create', Message::class);
 
         $normalizedRequestContent = $normalizedPayload['text'];
 
         $decision = $this->resolveConversationThreadOperation->run(
-            channel: $channel,
+            space: $space,
             actor: $actor,
             thread: $thread,
             message: $normalizedRequestContent,
@@ -96,7 +96,7 @@ class SubmitChatMessageOperation
             is_array($input['attachments'] ?? null) ? $input['attachments'] : [],
         );
 
-        $broadcastChannelId = $this->broadcastChannelIdForThread($thread);
+        $broadcastSpaceId = $this->broadcastSpaceIdForThread($thread);
         $content = $normalizedRequestContent;
 
         if ($content === null) {
@@ -123,8 +123,8 @@ class SubmitChatMessageOperation
                 'body' => [
                     'message' => 'Message already submitted.',
                     'thread' => $thread->uuid,
-                    'channel' => $channel->uuid,
-                    'broadcast_channel' => $broadcastChannelId,
+                    'space' => $space->uuid,
+                    'broadcast_channel' => $broadcastSpaceId,
                     'interaction_mode' => $observerPolicy['interaction_mode'],
                     'observer_status' => $observerPolicy['status'],
                     'text' => $firstAssistantMessage?->text,
@@ -147,7 +147,7 @@ class SubmitChatMessageOperation
         }
 
         $userMessage = $this->sendPeerThreadMessage->execute(
-            channel: $channel,
+            space: $space,
             thread: $thread,
             actor: $actor,
             text: $content,
@@ -164,7 +164,7 @@ class SubmitChatMessageOperation
         );
 
         if ($activePresenters->isNotEmpty()) {
-            $this->queuePresenterReplies->execute($thread, $userMessage, $actor, $activePresenters, $broadcastChannelId);
+            $this->queuePresenterReplies->execute($thread, $userMessage, $actor, $activePresenters, $broadcastSpaceId);
         }
 
         $this->cacheIdempotentConversationMessage->execute($thread, $actor, $idempotencyKey, $userMessage);
@@ -174,8 +174,8 @@ class SubmitChatMessageOperation
             'body' => [
                 'message' => $activePresenters->isNotEmpty() ? 'Agent response queued.' : 'Message sent.',
                 'thread' => $thread->uuid,
-                'channel' => $channel->uuid,
-                'broadcast_channel' => $broadcastChannelId,
+                'space' => $space->uuid,
+                'broadcast_channel' => $broadcastSpaceId,
                 'interaction_mode' => $observerPolicy['interaction_mode'],
                 'observer_status' => $observerPolicy['status'],
                 'message_id' => $userMessage->id,
@@ -190,7 +190,7 @@ class SubmitChatMessageOperation
         ];
     }
 
-    protected function broadcastChannelIdForThread(Thread $thread): string
+    protected function broadcastSpaceIdForThread(Thread $thread): string
     {
         return "threads.{$thread->uuid}";
     }

@@ -23,7 +23,7 @@ class ListAvailableMcpToolsTool implements Tool
 
     public function description(): Stringable|string
     {
-        return 'List MCP servers available in current thread/channel/user context and the allowlisted tools for each.';
+        return 'List MCP servers available in current thread/space/user context and the allowlisted tools for each.';
     }
 
     public function handle(ToolRequest $request): Stringable|string

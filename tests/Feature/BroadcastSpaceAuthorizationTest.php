@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\Server\Channel;
-use App\Models\Server\ChannelActorState;
+use App\Models\Server\Space;
+use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Figurate\WebView\Http\Middleware\HandleInertiaRequests;
@@ -12,11 +12,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use Tests\TestCase;
 
-class BroadcastChannelAuthorizationTest extends TestCase
+class BroadcastSpaceAuthorizationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_an_authorized_actor_can_subscribe_to_thread_channel_channel_updates_and_personal_notifications(): void
+    public function test_an_authorized_actor_can_subscribe_to_thread_space_updates_and_personal_notifications(): void
     {
         $this->withoutMiddleware([
             HandleInertiaRequests::class,
@@ -24,22 +24,22 @@ class BroadcastChannelAuthorizationTest extends TestCase
         ]);
 
         $user = User::factory()->create();
-        $channel = Channel::query()->create([
+        $space = Space::query()->create([
             'status' => 'open',
         ]);
-        $thread = $channel->threads()->create([
+        $thread = $space->threads()->create([
             'purpose' => Thread::PurposeMain,
             'title' => 'Coordination Thread',
             'phase' => 'coordination',
             'status' => 'open',
         ]);
 
-        ChannelActorState::query()->create([
-            'channel_id' => $channel->id,
+        SpaceActorState::query()->create([
+            'space_id' => $space->id,
             'thread_id' => $thread->id,
             'actorable_type' => $user->getMorphClass(),
             'actorable_id' => $user->id,
-            'status' => ChannelActorState::StatusActive,
+            'status' => SpaceActorState::StatusActive,
         ]);
 
         $this->actingAs($user);
@@ -51,7 +51,7 @@ class BroadcastChannelAuthorizationTest extends TestCase
 
         $this->post('/broadcasting/auth', [
             'socket_id' => '1234.5678',
-            'channel_name' => 'private-channels.'.$channel->uuid,
+            'channel_name' => 'private-spaces.'.$space->uuid,
         ])->assertOk();
 
         $this->post('/broadcasting/auth', [
@@ -60,7 +60,7 @@ class BroadcastChannelAuthorizationTest extends TestCase
         ])->assertOk();
     }
 
-    public function test_access_policies_and_notification_channel_identity_checks_restrict_foreign_subscriptions(): void
+    public function test_access_policies_and_notification_user_identity_checks_restrict_foreign_subscriptions(): void
     {
         $this->withoutMiddleware([
             HandleInertiaRequests::class,
@@ -69,26 +69,26 @@ class BroadcastChannelAuthorizationTest extends TestCase
 
         $authorized = User::factory()->create();
         $intruder = User::factory()->create();
-        $channel = Channel::query()->create([
+        $space = Space::query()->create([
             'status' => 'open',
         ]);
-        $thread = $channel->threads()->create([
+        $thread = $space->threads()->create([
             'purpose' => Thread::PurposeMain,
             'title' => 'Coordination Thread',
             'phase' => 'coordination',
             'status' => 'open',
         ]);
 
-        ChannelActorState::query()->create([
-            'channel_id' => $channel->id,
+        SpaceActorState::query()->create([
+            'space_id' => $space->id,
             'thread_id' => $thread->id,
             'actorable_type' => $authorized->getMorphClass(),
             'actorable_id' => $authorized->id,
-            'status' => ChannelActorState::StatusActive,
+            'status' => SpaceActorState::StatusActive,
         ]);
 
         $this->assertFalse(Gate::forUser($intruder)->allows('view', $thread));
-        $this->assertFalse(Gate::forUser($intruder)->allows('view', $channel));
+        $this->assertFalse(Gate::forUser($intruder)->allows('view', $space));
         $this->assertNotSame($intruder->uuid, $authorized->uuid);
     }
 }

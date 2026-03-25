@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
-class ChannelRelation extends Model
+class SpaceRelation extends Model
 {
     use HasFactory;
 
@@ -15,16 +15,16 @@ class ChannelRelation extends Model
      * @var list<string>
      */
     protected $fillable = [
-        'channel_id',
+        'space_id',
         'relationable_type',
         'relationable_id',
         'type',
         'purpose',
     ];
 
-    public function channel(): BelongsTo
+    public function space(): BelongsTo
     {
-        return $this->belongsTo(Channel::class);
+        return $this->belongsTo(Space::class);
     }
 
     public function relationable(): MorphTo

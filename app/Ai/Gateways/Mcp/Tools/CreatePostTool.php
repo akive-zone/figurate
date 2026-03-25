@@ -3,8 +3,8 @@
 namespace App\Ai\Gateways\Mcp\Tools;
 
 use App\Ai\Gateways\Mcp\Support\FigurateMcpPayloads;
-use App\Models\Server\Channel;
 use App\Models\Server\Post;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -12,13 +12,13 @@ use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Tool;
 
-#[Description('Create a durable post on a channel or thread.')]
+#[Description('Create a durable post on a space or thread.')]
 class CreatePostTool extends Tool
 {
     public function handle(Request $request, FigurateMcpPayloads $payloads): Response
     {
         $validated = $request->validate([
-            'target_type' => ['required', 'string', 'in:channel,thread'],
+            'target_type' => ['required', 'string', 'in:space,thread'],
             'target_id' => ['required', 'string'],
             'type' => ['required', 'string', 'max:120'],
             'status' => ['nullable', 'string', 'max:50'],
@@ -31,8 +31,8 @@ class CreatePostTool extends Tool
 
         $actor = $payloads->actor($request);
         $targetType = (string) $validated['target_type'];
-        $target = $targetType === 'channel'
-            ? $payloads->resolveUpdatableChannel($actor, (string) $validated['target_id'])
+        $target = $targetType === 'space'
+            ? $payloads->resolveUpdatableSpace($actor, (string) $validated['target_id'])
             : $payloads->resolveUpdatableThread($actor, (string) $validated['target_id']);
 
         $payload = is_array($validated['payload'] ?? null) ? $validated['payload'] : [];
@@ -49,7 +49,7 @@ class CreatePostTool extends Tool
         $meta['source'] = 'mcp';
         $meta['actor_id'] = $actor->uuid ?? $actor->getKey();
 
-        /** @var Channel|Thread $target */
+        /** @var Space|Thread $target */
         $post = $target->posts()->create([
             'type' => (string) $validated['type'],
             'status' => (string) ($validated['status'] ?? 'draft'),
@@ -66,8 +66,8 @@ class CreatePostTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'target_type' => $schema->string()->description('Where to attach the post: channel or thread.')->required(),
-            'target_id' => $schema->string()->description('The target channel or thread UUID.')->required(),
+            'target_type' => $schema->string()->description('Where to attach the post: space or thread.')->required(),
+            'target_id' => $schema->string()->description('The target space or thread UUID.')->required(),
             'type' => $schema->string()->description('The post type, for example note.created or summary.snapshot.')->required(),
             'status' => $schema->string()->description('Optional post status.')->default('draft'),
             'title' => $schema->string()->description('Optional title copied into the post payload.'),

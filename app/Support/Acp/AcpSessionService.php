@@ -6,9 +6,9 @@ use App\Features\Actions\Conversation\EnsureThreadMembership;
 use App\Features\Actions\Conversation\ResolveActiveThreadPresenters;
 use App\Features\Operations\Chat\DispatchPromptOperation;
 use App\Models\Server\AgentTask;
-use App\Models\Server\Channel;
-use App\Models\Server\ChannelActorState;
 use App\Models\Server\Message;
+use App\Models\Server\Space;
+use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
@@ -35,21 +35,21 @@ class AcpSessionService
     {
         Gate::forUser($actor)->authorize('viewAny', Thread::class);
 
-        $channelIds = $this->visibleChannelsQuery($actor)->pluck('id');
+        $spaceIds = $this->visibleSpacesQuery($actor)->pluck('id');
 
-        if ($channelIds->isEmpty()) {
+        if ($spaceIds->isEmpty()) {
             return [];
         }
 
         return Thread::query()
-            ->where('threadable_type', (new Channel)->getMorphClass())
-            ->whereIn('threadable_id', $channelIds->all())
+            ->where('threadable_type', (new Space)->getMorphClass())
+            ->whereIn('threadable_id', $spaceIds->all())
             ->with('threadable')
             ->withMax('messages', 'created_at')
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->get()
-            ->filter(fn (Thread $thread): bool => $thread->threadable instanceof Channel)
+            ->filter(fn (Thread $thread): bool => $thread->threadable instanceof Space)
             ->map(fn (Thread $thread): array => $this->sessionPayload($thread, $thread->threadable))
             ->values()
             ->all();
@@ -58,19 +58,19 @@ class AcpSessionService
     /**
      * @return array<string, mixed>
      */
-    public function createSession(User $actor, string $channelUuid, ?string $title = null, ?string $purpose = null): array
+    public function createSession(User $actor, string $spaceUuid, ?string $title = null, ?string $purpose = null): array
     {
-        $channel = Channel::query()
-            ->where('uuid', $channelUuid)
+        $space = Space::query()
+            ->where('uuid', $spaceUuid)
             ->firstOrFail();
 
-        Gate::forUser($actor)->authorize('update', $channel);
+        Gate::forUser($actor)->authorize('update', $space);
 
         $resolvedPurpose = $this->resolvedPurpose($purpose);
         $resolvedTitle = $this->trimmedString($title) ?? $this->defaultTitle($resolvedPurpose);
 
-        $thread = DB::transaction(function () use ($actor, $channel, $resolvedPurpose, $resolvedTitle): Thread {
-            $thread = $channel->threads()->create([
+        $thread = DB::transaction(function () use ($actor, $space, $resolvedPurpose, $resolvedTitle): Thread {
+            $thread = $space->threads()->create([
                 'title' => $resolvedTitle,
                 'purpose' => $resolvedPurpose,
                 'phase' => $this->defaultPhase($resolvedPurpose),
@@ -87,12 +87,12 @@ class AcpSessionService
             ]);
 
             $this->ensureThreadMembership->execute($thread, $actor);
-            $this->markActiveThread($channel, $actor, $thread);
+            $this->markActiveThread($space, $actor, $thread);
 
             return $thread;
         });
 
-        return $this->sessionPayload($thread->fresh(), $channel);
+        return $this->sessionPayload($thread->fresh(), $space);
     }
 
     /**
@@ -101,7 +101,7 @@ class AcpSessionService
     public function loadSession(User $actor, string $sessionUuid): array
     {
         $thread = $this->resolveThread($actor, $sessionUuid);
-        $channel = $this->resolveThreadChannel($thread);
+        $space = $this->resolveThreadSpace($thread);
         $messages = $thread->messages()
             ->orderBy('created_at')
             ->get()
@@ -110,7 +110,7 @@ class AcpSessionService
             ->all();
 
         return [
-            ...$this->sessionPayload($thread, $channel),
+            ...$this->sessionPayload($thread, $space),
             'messages' => $messages,
         ];
     }
@@ -118,20 +118,20 @@ class AcpSessionService
     /**
      * @return array<string, mixed>
      */
-    public function promptSession(User $actor, string $sessionUuid, ?string $channelUuid, string $text): array
+    public function promptSession(User $actor, string $sessionUuid, ?string $spaceUuid, string $text): array
     {
         $thread = $this->resolveThread($actor, $sessionUuid);
-        $channel = $this->resolveThreadChannel($thread, $channelUuid);
+        $space = $this->resolveThreadSpace($thread, $spaceUuid);
 
         Gate::forUser($actor)->authorize('create', Message::class);
 
         $text = $this->trimmedString($text);
         abort_if($text === null, 422, 'A text prompt is required.');
 
-        $this->markActiveThread($channel, $actor, $thread);
+        $this->markActiveThread($space, $actor, $thread);
 
         $dispatch = $this->dispatchPromptOperation->run(
-            channel: $channel,
+            space: $space,
             thread: $thread,
             actor: $actor,
             text: $text,
@@ -149,7 +149,7 @@ class AcpSessionService
                             'subject_type' => $actor->getMorphClass(),
                             'subject_id' => $actor->getKey(),
                         ],
-                        'channel_uuid' => $channel->uuid,
+                        'space_uuid' => $space->uuid,
                         'thread_uuid' => $thread->uuid,
                         'requested_at' => now()->toIso8601String(),
                     ],
@@ -222,17 +222,17 @@ class AcpSessionService
         return $this->taskPayload($task);
     }
 
-    protected function visibleChannelsQuery(User $actor): Builder
+    protected function visibleSpacesQuery(User $actor): Builder
     {
-        Gate::forUser($actor)->authorize('viewAny', Channel::class);
+        Gate::forUser($actor)->authorize('viewAny', Space::class);
 
-        $query = Channel::query()->latest('created_at');
+        $query = Space::query()->latest('created_at');
 
         $query->whereHas('actorStates', function (Builder $builder) use ($actor): void {
             $builder
                 ->where('actorable_type', $actor->getMorphClass())
                 ->where('actorable_id', $actor->getKey())
-                ->where('status', ChannelActorState::StatusActive);
+                ->where('status', SpaceActorState::StatusActive);
         });
 
         return $query;
@@ -249,29 +249,29 @@ class AcpSessionService
         return $thread;
     }
 
-    protected function resolveThreadChannel(Thread $thread, ?string $channelUuid = null): Channel
+    protected function resolveThreadSpace(Thread $thread, ?string $spaceUuid = null): Space
     {
-        $channel = $thread->threadable;
-        abort_unless($channel instanceof Channel, 404, 'Thread channel was not found.');
+        $space = $thread->threadable;
+        abort_unless($space instanceof Space, 404, 'Thread space was not found.');
 
-        if ($channelUuid !== null && $channel->uuid !== $channelUuid) {
-            abort(404, 'Thread channel was not found.');
+        if ($spaceUuid !== null && $space->uuid !== $spaceUuid) {
+            abort(404, 'Thread space was not found.');
         }
 
-        return $channel;
+        return $space;
     }
 
-    protected function markActiveThread(Channel $channel, User $actor, Thread $thread): void
+    protected function markActiveThread(Space $space, User $actor, Thread $thread): void
     {
-        ChannelActorState::query()->updateOrCreate(
+        SpaceActorState::query()->updateOrCreate(
             [
-                'channel_id' => $channel->getKey(),
+                'space_id' => $space->getKey(),
                 'actorable_type' => $actor->getMorphClass(),
                 'actorable_id' => $actor->getKey(),
             ],
             [
                 'thread_id' => $thread->getKey(),
-                'status' => ChannelActorState::StatusActive,
+                'status' => SpaceActorState::StatusActive,
             ],
         );
     }
@@ -279,16 +279,16 @@ class AcpSessionService
     /**
      * @return array<string, mixed>
      */
-    protected function sessionPayload(Thread $thread, Channel $channel): array
+    protected function sessionPayload(Thread $thread, Space $space): array
     {
         return [
             'id' => $thread->uuid,
             'title' => $thread->title ?: 'Thread',
             'purpose' => $thread->purpose,
             'status' => $thread->status,
-            'channel' => [
-                'id' => $channel->uuid,
-                'status' => $channel->status,
+            'space' => [
+                'id' => $space->uuid,
+                'status' => $space->status,
             ],
             'created_at' => optional($thread->created_at)?->toIso8601String(),
             'last_message_at' => $this->messageTimestamp($thread),
@@ -339,7 +339,7 @@ class AcpSessionService
         $task = $this->agentTaskService->syncLocalTask($task);
         $snapshot = $this->messageTaskService->snapshot($promptMessage);
         $thread = $snapshot['thread'];
-        $channel = $snapshot['channel'];
+        $space = $snapshot['space'];
         $assistantReplies = $snapshot['assistant_replies'];
         $invocations = $snapshot['invocations'];
 
@@ -348,7 +348,7 @@ class AcpSessionService
             'kind' => 'task',
             'state' => $task->status,
             'session_id' => $thread?->uuid,
-            'channel_id' => $channel?->uuid,
+            'space_id' => $space?->uuid,
             'prompt' => [
                 'id' => $promptMessage->id,
                 'text' => is_string($promptMessage->text) ? $promptMessage->text : '',

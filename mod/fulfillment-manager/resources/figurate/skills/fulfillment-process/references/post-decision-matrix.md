@@ -10,8 +10,8 @@ Use this matrix to decide the correct action for a fulfillment turn.
 
 ## Required Preconditions (Any Write)
 
-1. Resolve `thread` and `channel` context.
-2. Resolve request subject post from thread/channel.
+1. Resolve `thread` and `space` context.
+2. Resolve request subject post from thread/space.
 3. Confirm actor participation context.
 4. Confirm intent requires a state change.
 
@@ -80,7 +80,7 @@ For all above:
 ## Role Guardrails
 
 1. Only participants can trigger fulfillment writes.
-2. Channel membership is required for conversation-origin writes.
+2. Space membership is required for conversation-origin writes.
 3. If role or participation is unclear, request clarification before writing.
 
 ## Idempotency Guardrails

@@ -169,7 +169,7 @@ func (s *Server) initialize(id any) responseMessage {
 					{
 						"id":          "figurate_bearer",
 						"name":        "Figurate bearer token",
-						"description": "Provide FIG_ACP_BASE_URL, FIG_ACP_TOKEN, FIG_ACP_USER_UUID, and optionally FIG_ACP_CHANNEL_ID.",
+						"description": "Provide FIG_ACP_BASE_URL, FIG_ACP_TOKEN, FIG_ACP_USER_UUID, and optionally FIG_ACP_SPACE_ID.",
 					},
 				},
 				"session": map[string]any{
@@ -181,9 +181,9 @@ func (s *Server) initialize(id any) responseMessage {
 				},
 			},
 			"metadata": map[string]any{
-				"workspaceModel": "channel",
+				"workspaceModel": "space",
 				"sessionModel":   "thread",
-				"defaultChannel": config.DefaultChannelID,
+				"defaultSpace":   config.DefaultSpaceID,
 			},
 		},
 	}
@@ -201,8 +201,8 @@ func (s *Server) authenticate(id any, params map[string]any) responseMessage {
 	if userUUID := stringValue(params["userUuid"]); userUUID != "" {
 		config.UserUUID = userUUID
 	}
-	if channelID := stringValue(params["channelId"]); channelID != "" {
-		config.DefaultChannelID = channelID
+	if spaceID := stringValue(params["spaceId"]); spaceID != "" {
+		config.DefaultSpaceID = spaceID
 	}
 
 	meta, _ := params["_meta"].(map[string]any)
@@ -216,8 +216,8 @@ func (s *Server) authenticate(id any, params map[string]any) responseMessage {
 		if userUUID := stringValue(meta["userUuid"]); userUUID != "" {
 			config.UserUUID = userUUID
 		}
-		if channelID := stringValue(meta["channelId"]); channelID != "" {
-			config.DefaultChannelID = channelID
+		if spaceID := stringValue(meta["spaceId"]); spaceID != "" {
+			config.DefaultSpaceID = spaceID
 		}
 	}
 
@@ -233,9 +233,9 @@ func (s *Server) authenticate(id any, params map[string]any) responseMessage {
 		Result: map[string]any{
 			"authenticated": true,
 			"config": map[string]any{
-				"baseUrl":   config.BaseURL,
-				"userUuid":  config.UserUUID,
-				"channelId": config.DefaultChannelID,
+				"baseUrl":  config.BaseURL,
+				"userUuid": config.UserUUID,
+				"spaceId":  config.DefaultSpaceID,
 			},
 		},
 	}
@@ -246,10 +246,10 @@ func (s *Server) newSession(ctx context.Context, id any, params map[string]any) 
 		return s.errorResponse(id, errorCodeAuthRequired, "Authentication is required.", err.Error())
 	}
 
-	channelID := firstNonEmpty(
-		stringValue(params["channelId"]),
+	spaceID := firstNonEmpty(
+		stringValue(params["spaceId"]),
 		stringValue(params["workspaceId"]),
-		stringValue(params["channel_id"]),
+		stringValue(params["space_id"]),
 	)
 	title := firstNonEmpty(
 		stringValue(params["title"]),
@@ -257,7 +257,7 @@ func (s *Server) newSession(ctx context.Context, id any, params map[string]any) 
 		stringValue(params["description"]),
 	)
 
-	session, err := s.client.CreateSession(ctx, channelID, title)
+	session, err := s.client.CreateSession(ctx, spaceID, title)
 	if err != nil {
 		return s.errorResponse(id, errorCodeInternal, "Failed to create Figurate thread.", err.Error())
 	}
@@ -273,8 +273,8 @@ func (s *Server) newSession(ctx context.Context, id any, params map[string]any) 
 				"status": session.Status,
 			},
 			"workspace": map[string]any{
-				"id":   session.ChannelID,
-				"type": "channel",
+				"id":   session.SpaceID,
+				"type": "space",
 			},
 			"metadata": session.Metadata,
 		},
@@ -297,7 +297,7 @@ func (s *Server) listSessions(ctx context.Context, id any) responseMessage {
 			"id":        session.ID,
 			"title":     session.Title,
 			"status":    session.Status,
-			"workspace": map[string]any{"id": session.ChannelID, "type": "channel", "name": session.Channel},
+			"workspace": map[string]any{"id": session.SpaceID, "type": "space", "name": session.Space},
 			"metadata":  session.Metadata,
 		})
 	}
@@ -355,8 +355,8 @@ func (s *Server) loadSession(ctx context.Context, id any, params map[string]any)
 				"status": session.Status,
 			},
 			"workspace": map[string]any{
-				"id":   session.ChannelID,
-				"type": "channel",
+				"id":   session.SpaceID,
+				"type": "space",
 			},
 			"messages": messages,
 			"metadata": session.Metadata,
@@ -379,7 +379,7 @@ func (s *Server) promptSession(ctx context.Context, id any, params map[string]an
 		return s.errorResponse(id, errorCodeInvalidParams, "Prompt text is required.", nil)
 	}
 
-	channelID := firstNonEmpty(stringValue(params["channelId"]), stringValue(params["workspaceId"]), stringValue(params["channel_id"]))
+	spaceID := firstNonEmpty(stringValue(params["spaceId"]), stringValue(params["workspaceId"]), stringValue(params["space_id"]))
 	promptCtx, cancel := context.WithCancel(ctx)
 	s.setPrompt(sessionID, "", cancel)
 	defer s.clearPrompt(sessionID)
@@ -390,7 +390,7 @@ func (s *Server) promptSession(ctx context.Context, id any, params map[string]an
 		"message":   "Prompt submitted to Figurate.",
 	})
 
-	handle, err := s.client.BeginPrompt(promptCtx, channelID, sessionID, prompt)
+	handle, err := s.client.BeginPrompt(promptCtx, spaceID, sessionID, prompt)
 	if err != nil {
 		return s.errorResponse(id, errorCodeInternal, "Failed to submit Figurate prompt.", err.Error())
 	}
@@ -431,10 +431,10 @@ func (s *Server) promptSession(ctx context.Context, id any, params map[string]an
 				},
 			},
 			"metadata": map[string]any{
-				"channelId": result.ChannelID,
-				"taskId":    result.TaskID,
-				"state":     result.State,
-				"raw":       result.Metadata,
+				"spaceId": result.SpaceID,
+				"taskId":  result.TaskID,
+				"state":   result.State,
+				"raw":     result.Metadata,
 			},
 		},
 	}

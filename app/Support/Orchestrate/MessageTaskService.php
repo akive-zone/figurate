@@ -2,8 +2,8 @@
 
 namespace App\Support\Orchestrate;
 
-use App\Models\Server\Channel;
 use App\Models\Server\Message;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use Illuminate\Support\Collection;
@@ -13,7 +13,7 @@ class MessageTaskService
     /**
      * @return array{
      *     thread: ?Thread,
-     *     channel: ?Channel,
+     *     space: ?Space,
      *     invocations: array<string, mixed>,
      *     assistant_replies: Collection<int, Message>,
      *     state: string
@@ -22,13 +22,13 @@ class MessageTaskService
     public function snapshot(Message $promptMessage): array
     {
         $thread = $this->resolveMessageThread($promptMessage);
-        $channel = $thread?->threadable instanceof Channel ? $thread->threadable : null;
+        $space = $thread?->threadable instanceof Space ? $thread->threadable : null;
         $invocations = is_array(data_get($promptMessage->meta, 'invocations')) ? data_get($promptMessage->meta, 'invocations') : [];
         $assistantReplies = $this->assistantRepliesForPrompt($thread, $promptMessage);
 
         return [
             'thread' => $thread,
-            'channel' => $channel,
+            'space' => $space,
             'invocations' => $invocations,
             'assistant_replies' => $assistantReplies,
             'state' => $this->resolveTaskState($invocations, $assistantReplies),

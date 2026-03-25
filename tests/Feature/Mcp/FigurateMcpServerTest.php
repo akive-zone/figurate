@@ -2,26 +2,26 @@
 
 namespace Tests\Feature\Mcp;
 
-use App\Ai\Gateways\Mcp\Prompts\PlanChannelWorkPrompt;
+use App\Ai\Gateways\Mcp\Prompts\PlanSpaceWorkPrompt;
 use App\Ai\Gateways\Mcp\Resources\FigurateServerGuideResource;
 use App\Ai\Gateways\Mcp\Servers\FigurateServer;
 use App\Ai\Gateways\Mcp\Tools\AssignThreadActorTool;
 use App\Ai\Gateways\Mcp\Tools\CreatePostTool;
 use App\Ai\Gateways\Mcp\Tools\CreateThreadTool;
-use App\Ai\Gateways\Mcp\Tools\ListChannelsTool;
+use App\Ai\Gateways\Mcp\Tools\ListSpacesTool;
 use App\Ai\Gateways\Mcp\Tools\ReadThreadTool;
 use App\Ai\Gateways\Mcp\Tools\SearchConversationContextTool;
 use App\Ai\Gateways\Mcp\Tools\TransferThreadSessionTool;
 use App\Models\Server\AgentConversation;
-use App\Models\Server\Channel;
-use App\Models\Server\ChannelActorState;
 use App\Models\Server\Message;
 use App\Models\Server\Post;
+use App\Models\Server\Space;
+use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadActorSession;
 use App\Models\Server\User;
-use Database\Factories\ChannelFactory;
+use Database\Factories\SpaceFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -30,25 +30,25 @@ class FigurateMcpServerTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_lists_only_accessible_channels(): void
+    public function test_it_lists_only_accessible_spaces(): void
     {
         $user = $this->makeUser(User::TypeRobot);
-        $visibleChannel = $this->accessibleChannel($user);
-        ChannelFactory::new()->create();
+        $visibleSpace = $this->accessibleSpace($user);
+        SpaceFactory::new()->create();
 
-        $response = FigurateServer::actingAs($user)->tool(ListChannelsTool::class, [
+        $response = FigurateServer::actingAs($user)->tool(ListSpacesTool::class, [
             'limit' => 10,
         ]);
 
-        $response->assertOk()->assertSee($visibleChannel->uuid);
+        $response->assertOk()->assertSee($visibleSpace->uuid);
         $response->assertDontSee('"count":0');
     }
 
     public function test_it_reads_a_thread_with_messages_posts_and_actors(): void
     {
         $user = $this->makeUser();
-        $channel = $this->accessibleChannel($user);
-        $thread = $channel->threads()->create([
+        $space = $this->accessibleSpace($user);
+        $thread = $space->threads()->create([
             'title' => 'Repair scope',
             'purpose' => Thread::PurposePlanning,
             'phase' => 'scope_planning',
@@ -92,10 +92,10 @@ class FigurateMcpServerTest extends TestCase
     public function test_it_creates_threads_and_posts_via_mcp_tools(): void
     {
         $user = $this->makeUser();
-        $channel = $this->accessibleChannel($user);
+        $space = $this->accessibleSpace($user);
 
         $createThread = FigurateServer::actingAs($user)->tool(CreateThreadTool::class, [
-            'channel_id' => $channel->uuid,
+            'space_id' => $space->uuid,
             'title' => 'Source replacement',
             'purpose' => Thread::PurposeExecution,
         ]);
@@ -126,8 +126,8 @@ class FigurateMcpServerTest extends TestCase
     public function test_it_searches_thread_context(): void
     {
         $user = $this->makeUser();
-        $channel = $this->accessibleChannel($user);
-        $thread = $channel->threads()->create([
+        $space = $this->accessibleSpace($user);
+        $thread = $space->threads()->create([
             'title' => 'Drain issue',
             'purpose' => Thread::PurposeSupport,
             'phase' => 'support_open',
@@ -165,7 +165,7 @@ class FigurateMcpServerTest extends TestCase
     public function test_it_exposes_a_guide_resource_and_channel_planning_prompt(): void
     {
         $user = $this->makeUser();
-        $channel = $this->accessibleChannel($user);
+        $space = $this->accessibleSpace($user);
 
         FigurateServer::actingAs($user)
             ->resource(FigurateServerGuideResource::class)
@@ -174,12 +174,12 @@ class FigurateMcpServerTest extends TestCase
             ->assertSee('create_thread');
 
         FigurateServer::actingAs($user)
-            ->prompt(PlanChannelWorkPrompt::class, [
-                'channel_id' => $channel->uuid,
+            ->prompt(PlanSpaceWorkPrompt::class, [
+                'space_id' => $space->uuid,
                 'objective' => 'Prepare the next repair workflow.',
             ])
             ->assertOk()
-            ->assertSee($channel->uuid)
+            ->assertSee($space->uuid)
             ->assertSee('Prepare the next repair workflow');
     }
 
@@ -187,8 +187,8 @@ class FigurateMcpServerTest extends TestCase
     {
         $user = $this->makeUser();
         $targetUser = $this->makeUser();
-        $channel = $this->accessibleChannel($user);
-        $thread = $channel->threads()->create([
+        $space = $this->accessibleSpace($user);
+        $thread = $space->threads()->create([
             'title' => 'Assigned work',
             'purpose' => Thread::PurposeExecution,
             'phase' => 'order_kickoff',
@@ -248,19 +248,19 @@ class FigurateMcpServerTest extends TestCase
         ]);
     }
 
-    protected function accessibleChannel(User $user): Channel
+    protected function accessibleSpace(User $user): Space
     {
-        $channel = ChannelFactory::new()->create();
+        $space = SpaceFactory::new()->create();
 
-        ChannelActorState::query()->create([
-            'channel_id' => $channel->id,
+        SpaceActorState::query()->create([
+            'space_id' => $space->id,
             'thread_id' => null,
             'actorable_type' => $user->getMorphClass(),
             'actorable_id' => $user->id,
-            'status' => ChannelActorState::StatusActive,
+            'status' => SpaceActorState::StatusActive,
         ]);
 
-        return $channel;
+        return $space;
     }
 
     protected function makeUser(string $type = User::TypeSubject): User

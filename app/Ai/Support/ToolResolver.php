@@ -29,7 +29,7 @@ use App\Ai\Tools\SessionMergeSummaryTool;
 use App\Ai\Tools\SessionResetTool;
 use App\Ai\Tools\SessionTransferTool;
 use App\Ai\Tools\WriteMemoryFileTool;
-use App\Models\Server\Channel;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
@@ -50,7 +50,7 @@ class ToolResolver
         $sharedTools = $this->sharedTools($thread, $user, $threadActor);
         $threadable = $thread->threadable;
 
-        if ($threadable instanceof Channel) {
+        if ($threadable instanceof Space) {
             $sharedTools[] = new CreatePostFromConversationTool($thread, $threadable, $user);
         }
 

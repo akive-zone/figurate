@@ -16,7 +16,7 @@ class EnforceActorPermissions
         $policy = implode("\n", [
             'Actor permission rules:',
             '- Respond only within your assigned presenter capabilities.',
-            '- Do not perform actions the actor cannot perform in this channel/thread.',
+            '- Do not perform actions the actor cannot perform in this space/thread.',
             '- If authorization is uncertain, ask for clarification before taking action.',
             '- Never reveal sensitive state to unauthorized participants.',
         ]);

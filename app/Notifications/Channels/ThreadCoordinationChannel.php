@@ -2,8 +2,8 @@
 
 namespace App\Notifications\Channels;
 
-use App\Models\Server\Channel;
 use App\Models\Server\Message;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadEvent;
@@ -26,7 +26,7 @@ class ThreadCoordinationChannel
 
         $thread = $coordination['thread'] ?? null;
         $message = $coordination['message'] ?? null;
-        $channel = $coordination['channel'] ?? null;
+        $space = $coordination['space'] ?? null;
         $source = $coordination['source'] ?? null;
 
         if (! $thread instanceof Thread || ! $message instanceof Message) {
@@ -39,7 +39,7 @@ class ThreadCoordinationChannel
             'event_key' => 'notification:coordination:'.$notifiable->getKey(),
             'layer' => ThreadEvent::LayerExecution,
             'kind' => ThreadEvent::KindOrchestration,
-            'operation' => 'notification.channel.coordination',
+            'operation' => 'notification.space.coordination',
             'state' => ThreadEvent::StateRequested,
             'event_type' => 'orchestration.notification.coordination_requested',
             'severity' => 'low',
@@ -51,7 +51,7 @@ class ThreadCoordinationChannel
                 'message_id' => $message->id,
                 'message_ulid' => $message->ulid,
                 'thread_uuid' => $thread->uuid,
-                'channel_uuid' => $channel instanceof Channel ? $channel->uuid : null,
+                'space_uuid' => $space instanceof Space ? $space->uuid : null,
                 'source' => is_string($source) && trim($source) !== '' ? trim($source) : null,
             ],
         ]);

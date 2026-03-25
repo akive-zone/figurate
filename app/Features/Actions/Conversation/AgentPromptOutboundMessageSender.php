@@ -37,7 +37,7 @@ class AgentPromptOutboundMessageSender implements OutboundMessageSender
         $conversationPersistenceMode = ConversationPersistenceResolver::normalizeMode(
             data_get($outbox->payload, 'dispatch.conversation_persistence')
         );
-        $broadcastChannelId = $this->stringValue(data_get($outbox->payload, 'dispatch.broadcast_channel_id'))
+        $broadcastSpaceId = $this->stringValue(data_get($outbox->payload, 'dispatch.broadcast_space_id'))
             ?? "threads.{$thread->uuid}";
 
         $this->agentExecutor->queue(
@@ -45,7 +45,7 @@ class AgentPromptOutboundMessageSender implements OutboundMessageSender
             userMessage: $message,
             user: $recipient,
             threadActor: $threadActor,
-            broadcastChannelId: $broadcastChannelId,
+            broadcastSpaceId: $broadcastSpaceId,
             conversationPersistenceMode: $conversationPersistenceMode,
         );
 

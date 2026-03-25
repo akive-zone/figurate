@@ -1,6 +1,6 @@
 ---
 name: fulfillment-process
-description: Run fulfillment orchestration for channel/thread conversations. Use when the agent must derive fulfillment state, enforce participation checks, decide whether to write or retrieve, and create request or order posts using current runtime tools.
+description: Run fulfillment orchestration for space/thread conversations. Use when the agent must derive fulfillment state, enforce participation checks, decide whether to write or retrieve, and create request or order posts using current runtime tools.
 ---
 
 # Fulfillment Process

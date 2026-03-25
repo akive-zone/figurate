@@ -3,6 +3,7 @@
 namespace App\Models\Server;
 
 use App\Models\Concerns\HasPublicUuid;
+use Database\Factories\SpaceFactory;
 use Figurate\FulfillmentManager\Models\Request;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,9 +13,9 @@ use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
 
-class Channel extends Model
+class Space extends Model
 {
-    /** @use HasFactory<\Database\Factories\ChannelFactory> */
+    /** @use HasFactory<SpaceFactory> */
     use HasFactory, HasPublicUuid, SoftDeletes;
 
     /**
@@ -27,7 +28,7 @@ class Channel extends Model
 
     public function actorStates(): HasMany
     {
-        return $this->hasMany(ChannelActorState::class);
+        return $this->hasMany(SpaceActorState::class);
     }
 
     public function threads(): MorphMany
@@ -37,7 +38,7 @@ class Channel extends Model
 
     public function relations(): HasMany
     {
-        return $this->hasMany(ChannelRelation::class);
+        return $this->hasMany(SpaceRelation::class);
     }
 
     public function requests(): MorphToMany
@@ -45,8 +46,8 @@ class Channel extends Model
         return $this->morphedByMany(
             Request::class,
             'relationable',
-            'channel_relations',
-            'channel_id',
+            'space_relations',
+            'space_id',
             'relationable_id'
         )->withTimestamps();
     }
@@ -87,9 +88,9 @@ class Channel extends Model
 
         return Post::query()
             ->whereIn('id', function ($query) use ($postMorphClass): void {
-                $query->from('channel_relations')
+                $query->from('space_relations')
                     ->select('relationable_id')
-                    ->where('channel_id', $this->getKey())
+                    ->where('space_id', $this->getKey())
                     ->whereIn('relationable_type', [$postMorphClass, Post::class])
                     ->where('type', 'request');
             })
@@ -174,14 +175,14 @@ class Channel extends Model
     public function conversationPosts(): Collection
     {
         $threadIds = $this->conversationThreadIds();
-        $channelMorphClass = $this->getMorphClass();
+        $spaceMorphClass = $this->getMorphClass();
         $threadMorphClass = (new Thread)->getMorphClass();
 
         return Post::query()
-            ->where(function ($query) use ($channelMorphClass, $threadMorphClass, $threadIds): void {
-                $query->where(function ($channelPostsQuery) use ($channelMorphClass): void {
-                    $channelPostsQuery
-                        ->where('postable_type', $channelMorphClass)
+            ->where(function ($query) use ($spaceMorphClass, $threadMorphClass, $threadIds): void {
+                $query->where(function ($spacePostsQuery) use ($spaceMorphClass): void {
+                    $spacePostsQuery
+                        ->where('postable_type', $spaceMorphClass)
                         ->where('postable_id', $this->getKey());
                 });
 

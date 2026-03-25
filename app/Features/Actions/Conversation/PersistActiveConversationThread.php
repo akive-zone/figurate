@@ -2,24 +2,24 @@
 
 namespace App\Features\Actions\Conversation;
 
-use App\Models\Server\Channel;
-use App\Models\Server\ChannelActorState;
+use App\Models\Server\Space;
+use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 
 class PersistActiveConversationThread
 {
-    public function execute(Channel $channel, User $actor, Thread $thread): void
+    public function execute(Space $space, User $actor, Thread $thread): void
     {
-        ChannelActorState::query()->updateOrCreate(
+        SpaceActorState::query()->updateOrCreate(
             [
-                'channel_id' => $channel->id,
+                'space_id' => $space->id,
                 'actorable_type' => $actor->getMorphClass(),
                 'actorable_id' => $actor->getKey(),
             ],
             [
                 'thread_id' => $thread->id,
-                'status' => ChannelActorState::StatusActive,
+                'status' => SpaceActorState::StatusActive,
             ],
         );
     }

@@ -2,45 +2,45 @@
 
 namespace App\Ai\Support;
 
-use App\Models\Server\Channel;
 use App\Models\Server\Post;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadRelation;
 
 class ThreadContextResolver
 {
-    public function resolveChannel(Thread $thread): ?Channel
+    public function resolveSpace(Thread $thread): ?Space
     {
         $threadable = $thread->threadable;
 
-        if ($threadable instanceof Channel) {
+        if ($threadable instanceof Space) {
             return $threadable;
         }
 
         if ($threadable instanceof Post) {
             $postable = $threadable->postable;
 
-            if ($postable instanceof Channel) {
+            if ($postable instanceof Space) {
                 return $postable;
             }
 
-            $relatedChannel = $threadable->relatedOne(Channel::class);
+            $relatedSpace = $threadable->relatedOne(Space::class);
 
-            if ($relatedChannel instanceof Channel) {
-                return $relatedChannel;
+            if ($relatedSpace instanceof Space) {
+                return $relatedSpace;
             }
         }
 
-        $channelRelation = ThreadRelation::query()
+        $spaceRelation = ThreadRelation::query()
             ->where('thread_id', $thread->id)
-            ->where('relationable_type', (new Channel)->getMorphClass())
+            ->where('relationable_type', (new Space)->getMorphClass())
             ->latest('id')
             ->first();
 
-        if (! $channelRelation) {
+        if (! $spaceRelation) {
             return null;
         }
 
-        return Channel::query()->find($channelRelation->relationable_id);
+        return Space::query()->find($spaceRelation->relationable_id);
     }
 }

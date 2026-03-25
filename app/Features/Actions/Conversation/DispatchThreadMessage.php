@@ -4,8 +4,8 @@ namespace App\Features\Actions\Conversation;
 
 use App\Ai\Storage\ConversationPersistenceResolver;
 use App\Ai\Support\Knowledge\MessageAttachmentStoreIngestor;
-use App\Models\Server\Channel;
 use App\Models\Server\Message;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 
@@ -18,7 +18,7 @@ class DispatchThreadMessage
 
     public function execute(ThreadMessageEntry $entry): Message
     {
-        if ($entry->authorizeActor && ! $this->canActorWrite($entry->channel, $entry->thread, $entry->actor)) {
+        if ($entry->authorizeActor && ! $this->canActorWrite($entry->space, $entry->thread, $entry->actor)) {
             abort(403);
         }
 
@@ -49,17 +49,17 @@ class DispatchThreadMessage
         return $message;
     }
 
-    protected function canActorWrite(?Channel $channel, Thread $thread, ?User $actor): bool
+    protected function canActorWrite(?Space $space, Thread $thread, ?User $actor): bool
     {
-        if (! $channel || ! $actor) {
+        if (! $space || ! $actor) {
             return false;
         }
 
-        if (! $channel->conversationThreadIds()->contains($thread->getKey())) {
+        if (! $space->conversationThreadIds()->contains($thread->getKey())) {
             return false;
         }
 
-        return $channel->hasActor($actor);
+        return $space->hasActor($actor);
     }
 
     /**

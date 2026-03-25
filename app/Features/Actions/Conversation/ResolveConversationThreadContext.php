@@ -2,74 +2,74 @@
 
 namespace App\Features\Actions\Conversation;
 
-use App\Models\Server\Channel;
-use App\Models\Server\ChannelRelation;
+use App\Models\Server\Space;
+use App\Models\Server\SpaceRelation;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadRelation;
 use Illuminate\Database\Eloquent\Model;
 
 class ResolveConversationThreadContext
 {
-    public function execute(string $threadUuid, mixed $channelUuid = null): array
+    public function execute(string $threadUuid, mixed $spaceUuid = null): array
     {
         $thread = Thread::query()
             ->where('uuid', $threadUuid)
             ->firstOrFail();
 
-        return [$this->resolveThreadChannel($thread, $channelUuid), $thread->id];
+        return [$this->resolveThreadSpace($thread, $spaceUuid), $thread->id];
     }
 
-    protected function resolveThreadChannel(Thread $thread, mixed $channelUuid): Channel
+    protected function resolveThreadSpace(Thread $thread, mixed $spaceUuid): Space
     {
-        if (is_string($channelUuid) && $channelUuid !== '') {
-            $channel = Channel::query()
-                ->where('uuid', $channelUuid)
+        if (is_string($spaceUuid) && $spaceUuid !== '') {
+            $space = Space::query()
+                ->where('uuid', $spaceUuid)
                 ->firstOrFail();
 
-            if (! $channel->conversationThreadIds()->contains($thread->getKey())) {
-                abort(404, 'The selected thread does not belong to this channel.');
+            if (! $space->conversationThreadIds()->contains($thread->getKey())) {
+                abort(404, 'The selected thread does not belong to this space.');
             }
 
-            return $channel;
+            return $space;
         }
 
         $threadable = $thread->threadable;
 
-        if ($threadable instanceof Channel) {
+        if ($threadable instanceof Space) {
             return $threadable;
         }
 
         $threadMorphClass = $thread->getMorphClass();
-        $relatedChannelId = ChannelRelation::query()
+        $relatedSpaceId = SpaceRelation::query()
             ->where('relationable_type', $threadMorphClass)
             ->where('relationable_id', $thread->getKey())
-            ->value('channel_id');
+            ->value('space_id');
 
-        if (is_int($relatedChannelId) && $relatedChannelId > 0) {
-            return Channel::query()->findOrFail($relatedChannelId);
+        if (is_int($relatedSpaceId) && $relatedSpaceId > 0) {
+            return Space::query()->findOrFail($relatedSpaceId);
         }
 
-        $channelMorphClass = (new Channel)->getMorphClass();
-        $threadRelationChannelId = ThreadRelation::query()
+        $spaceMorphClass = (new Space)->getMorphClass();
+        $threadRelationSpaceId = ThreadRelation::query()
             ->where('thread_id', $thread->getKey())
-            ->where('relationable_type', $channelMorphClass)
+            ->where('relationable_type', $spaceMorphClass)
             ->value('relationable_id');
 
-        if (is_int($threadRelationChannelId) && $threadRelationChannelId > 0) {
-            return Channel::query()->findOrFail($threadRelationChannelId);
+        if (is_int($threadRelationSpaceId) && $threadRelationSpaceId > 0) {
+            return Space::query()->findOrFail($threadRelationSpaceId);
         }
 
         if ($threadable instanceof Model) {
-            $threadableChannelId = ChannelRelation::query()
+            $threadableSpaceId = SpaceRelation::query()
                 ->where('relationable_type', $threadable->getMorphClass())
                 ->where('relationable_id', $threadable->getKey())
-                ->value('channel_id');
+                ->value('space_id');
 
-            if (is_int($threadableChannelId) && $threadableChannelId > 0) {
-                return Channel::query()->findOrFail($threadableChannelId);
+            if (is_int($threadableSpaceId) && $threadableSpaceId > 0) {
+                return Space::query()->findOrFail($threadableSpaceId);
             }
         }
 
-        abort(422, 'A channel id is required for this thread context.');
+        abort(422, 'A space id is required for this thread context.');
     }
 }

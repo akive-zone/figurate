@@ -2,7 +2,7 @@
 
 namespace App\Policies\Server;
 
-use App\Models\Server\Channel;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Figurate\FulfillmentManager\Models\Request as ServiceRequest;
@@ -25,7 +25,7 @@ class ThreadPolicy
         $threadable = $thread->threadable;
 
         if (! $threadable instanceof ServiceRequest) {
-            if ($threadable instanceof Channel) {
+            if ($threadable instanceof Space) {
                 return $threadable->hasActor($user);
             }
 
@@ -51,7 +51,7 @@ class ThreadPolicy
         $threadable = $thread->threadable;
 
         if (! $threadable instanceof ServiceRequest) {
-            if ($threadable instanceof Channel) {
+            if ($threadable instanceof Space) {
                 return $threadable->hasActor($user);
             }
 

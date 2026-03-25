@@ -3,10 +3,10 @@
 namespace Tests\Feature;
 
 use App\Ai\Storage\ConversationPersistenceResolver;
-use App\Models\Server\Channel;
-use App\Models\Server\ChannelActorState;
 use App\Models\Server\Inbox;
 use App\Models\Server\Message;
+use App\Models\Server\Space;
+use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadEvent;
@@ -29,29 +29,29 @@ class ThreadMessageNotificationDispatchTest extends TestCase
         $robot = User::factory()->create([
             'type' => User::TypeRobot,
         ]);
-        $channel = Channel::query()->create([
+        $space = Space::query()->create([
             'status' => 'open',
         ]);
-        $thread = $channel->threads()->create([
+        $thread = $space->threads()->create([
             'purpose' => Thread::PurposeMain,
             'title' => 'Coordination Thread',
             'phase' => 'coordination',
             'status' => 'open',
         ]);
 
-        ChannelActorState::query()->create([
-            'channel_id' => $channel->id,
+        SpaceActorState::query()->create([
+            'space_id' => $space->id,
             'thread_id' => null,
             'actorable_type' => $sender->getMorphClass(),
             'actorable_id' => $sender->id,
-            'status' => ChannelActorState::StatusActive,
+            'status' => SpaceActorState::StatusActive,
         ]);
-        ChannelActorState::query()->create([
-            'channel_id' => $channel->id,
+        SpaceActorState::query()->create([
+            'space_id' => $space->id,
             'thread_id' => null,
             'actorable_type' => $recipient->getMorphClass(),
             'actorable_id' => $recipient->id,
-            'status' => ChannelActorState::StatusActive,
+            'status' => SpaceActorState::StatusActive,
         ]);
 
         $thread->actors()->create([
@@ -82,7 +82,7 @@ class ThreadMessageNotificationDispatchTest extends TestCase
         Sanctum::actingAs($sender, [TokenAbility::Compose->value]);
 
         $response = $this->postJson('/api/conversations', [
-            'channel' => $channel->uuid,
+            'space' => $space->uuid,
             'thread' => $thread->uuid,
             'content' => [
                 'text' => 'Please confirm the arrival time.',
@@ -129,11 +129,11 @@ class ThreadMessageNotificationDispatchTest extends TestCase
 
         $this->assertNotNull($event);
         $this->assertSame(ThreadEvent::KindOrchestration, $event->kind);
-        $this->assertSame('notification.channel.coordination', $event->operation);
+        $this->assertSame('notification.space.coordination', $event->operation);
         $this->assertSame($robotActor->id, $event->thread_actor_id);
         $this->assertSame($robot->id, data_get($event->payload, 'recipient_user_id'));
         $this->assertSame($robot->uuid, data_get($event->payload, 'recipient_user_uuid'));
-        $this->assertSame($channel->uuid, data_get($event->payload, 'channel_uuid'));
+        $this->assertSame($space->uuid, data_get($event->payload, 'space_uuid'));
         $this->assertSame('peer_message', data_get($event->payload, 'source'));
     }
 
@@ -143,29 +143,29 @@ class ThreadMessageNotificationDispatchTest extends TestCase
         $robot = User::factory()->create([
             'type' => User::TypeRobot,
         ]);
-        $channel = Channel::query()->create([
+        $space = Space::query()->create([
             'status' => 'open',
         ]);
-        $thread = $channel->threads()->create([
+        $thread = $space->threads()->create([
             'purpose' => Thread::PurposeMain,
             'title' => 'Completion Thread',
             'phase' => 'execution',
             'status' => 'open',
         ]);
 
-        ChannelActorState::query()->create([
-            'channel_id' => $channel->id,
+        SpaceActorState::query()->create([
+            'space_id' => $space->id,
             'thread_id' => null,
             'actorable_type' => $sender->getMorphClass(),
             'actorable_id' => $sender->id,
-            'status' => ChannelActorState::StatusActive,
+            'status' => SpaceActorState::StatusActive,
         ]);
-        ChannelActorState::query()->create([
-            'channel_id' => $channel->id,
+        SpaceActorState::query()->create([
+            'space_id' => $space->id,
             'thread_id' => null,
             'actorable_type' => $robot->getMorphClass(),
             'actorable_id' => $robot->id,
-            'status' => ChannelActorState::StatusActive,
+            'status' => SpaceActorState::StatusActive,
         ]);
 
         $thread->actors()->create([
@@ -188,7 +188,7 @@ class ThreadMessageNotificationDispatchTest extends TestCase
         Sanctum::actingAs($sender, [TokenAbility::Compose->value]);
 
         $response = $this->postJson('/api/conversations', [
-            'channel' => $channel->uuid,
+            'space' => $space->uuid,
             'thread' => $thread->uuid,
             'conversation_persistence' => ConversationPersistenceResolver::ThreadCompletion,
             'content' => [
@@ -220,7 +220,7 @@ class ThreadMessageNotificationDispatchTest extends TestCase
             ->first();
 
         $this->assertNotNull($event);
-        $this->assertSame('notification.channel.completion', $event->operation);
+        $this->assertSame('notification.space.completion', $event->operation);
         $this->assertSame('missing_presenter', data_get($event->payload, 'reason'));
         $this->assertSame(
             ConversationPersistenceResolver::ThreadCompletion,

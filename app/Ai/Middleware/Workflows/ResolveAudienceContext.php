@@ -3,8 +3,8 @@
 namespace App\Ai\Middleware\Workflows;
 
 use App\Ai\Support\ThreadContextResolver;
-use App\Models\Server\Channel;
 use App\Models\Server\Post;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Closure;
@@ -27,10 +27,10 @@ class ResolveAudienceContext
             return $next($prompt);
         }
 
-        $channel = $this->threadContextResolver->resolveChannel($thread);
+        $space = $this->threadContextResolver->resolveSpace($thread);
         $requestPost = $this->fulfillmentContext->resolveSubjectFromThread($thread);
         $speakerParty = $this->resolveSpeakerParty($actor, $requestPost);
-        $participantCount = $this->resolveParticipantCount($channel, $requestPost);
+        $participantCount = $this->resolveParticipantCount($space, $requestPost);
         $conversationMode = $participantCount > 2 ? 'group' : 'direct';
         $audience = $this->resolveAudience($speakerParty, $conversationMode);
 
@@ -91,12 +91,12 @@ class ResolveAudienceContext
         return 'external';
     }
 
-    protected function resolveParticipantCount(?Channel $channel, ?Post $requestPost): int
+    protected function resolveParticipantCount(?Space $space, ?Post $requestPost): int
     {
-        if ($channel) {
+        if ($space) {
             return max(
                 1,
-                (int) $channel->actorStates()
+                (int) $space->actorStates()
                     ->where('status', 'active')
                     ->where('actorable_type', (new User)->getMorphClass())
                     ->distinct('actorable_id')

@@ -3,20 +3,16 @@
 namespace App\Providers;
 
 use App\Contracts\Users\UserRepository;
-use App\Models\Server\Channel;
 use App\Models\Server\Message;
 use App\Models\Server\Post;
+use App\Models\Server\Space;
 use App\Models\Server\Store;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
-use App\Providers\Server\AuthServiceProvider;
-use App\Providers\Server\ChatServiceProvider;
-use App\Providers\Server\ControlPanelProvider;
 use App\Repositories\Users\EloquentUserRepository;
 use App\Support\Runtime\AppRuntime;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Passport\Passport;
 
@@ -61,7 +57,7 @@ class AppServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom(database_path('migrations/server'));
 
         Relation::morphMap([
-            'channel' => Channel::class,
+            'space' => Space::class,
             'message' => Message::class,
             'post' => Post::class,
             'store' => Store::class,

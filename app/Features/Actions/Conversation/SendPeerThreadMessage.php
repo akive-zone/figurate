@@ -2,8 +2,8 @@
 
 namespace App\Features\Actions\Conversation;
 
-use App\Models\Server\Channel;
 use App\Models\Server\Message;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Support\Collection;
@@ -18,7 +18,7 @@ class SendPeerThreadMessage
      * @param  Collection<int, array{path: string, original_name: string}>  $attachments
      */
     public function execute(
-        Channel $channel,
+        Space $space,
         Thread $thread,
         User $actor,
         ?string $text,
@@ -27,7 +27,7 @@ class SendPeerThreadMessage
         bool $dispatchObservers = true,
     ): Message {
         return $this->dispatchThreadMessage->execute(ThreadMessageEntry::peerMessage(
-            channel: $channel,
+            space: $space,
             thread: $thread,
             actor: $actor,
             text: $text,

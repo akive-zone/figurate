@@ -5,11 +5,11 @@ namespace Tests\Feature\A2a;
 use App\Ai\Support\A2a\A2aMethodRouter;
 use App\Ai\Support\AgentExecutor;
 use App\Models\Server\AgentTask;
-use App\Models\Server\Channel;
-use App\Models\Server\ChannelActorState;
+use App\Models\Server\Space;
+use App\Models\Server\SpaceActorState;
 use App\Models\Server\User;
 use App\TokenAbility;
-use Database\Factories\ChannelFactory;
+use Database\Factories\SpaceFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Mockery\MockInterface;
@@ -26,7 +26,7 @@ class A2aTaskApiTest extends TestCase
         });
 
         $user = $this->makeUser(User::TypeRobot);
-        $channel = $this->accessibleChannel($user);
+        $space = $this->accessibleSpace($user);
 
         Sanctum::actingAs($user, [
             TokenAbility::A2aMessageSend->value,
@@ -38,7 +38,7 @@ class A2aTaskApiTest extends TestCase
 
         $sendResponse = $router->handle('message/send', [
             'user_uuid' => $user->uuid,
-            'channel' => $channel->uuid,
+            'space' => $space->uuid,
             'content' => [
                 'text' => 'Run the A2A task.',
             ],
@@ -77,19 +77,19 @@ class A2aTaskApiTest extends TestCase
         $this->assertNotNull($task->canceled_at);
     }
 
-    protected function accessibleChannel(User $user): Channel
+    protected function accessibleSpace(User $user): Space
     {
-        $channel = ChannelFactory::new()->create();
+        $space = SpaceFactory::new()->create();
 
-        ChannelActorState::query()->create([
-            'channel_id' => $channel->id,
+        SpaceActorState::query()->create([
+            'space_id' => $space->id,
             'thread_id' => null,
             'actorable_type' => $user->getMorphClass(),
             'actorable_id' => $user->id,
-            'status' => ChannelActorState::StatusActive,
+            'status' => SpaceActorState::StatusActive,
         ]);
 
-        return $channel;
+        return $space;
     }
 
     protected function makeUser(string $type = User::TypeSubject): User

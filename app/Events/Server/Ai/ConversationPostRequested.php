@@ -2,7 +2,7 @@
 
 namespace App\Events\Server\Ai;
 
-use App\Models\Server\Channel;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -18,7 +18,7 @@ class ConversationPostRequested
      */
     public function __construct(
         public Thread $thread,
-        public Channel $channel,
+        public Space $space,
         public User $actor,
         public string $intent,
         public ?string $title = null,

@@ -7,8 +7,8 @@ use App\Http\Resources\Server\Web\ContextServers\Pages\EditContextServer;
 use App\Http\Resources\Server\Web\ContextServers\Pages\ListContextServers;
 use App\Http\Resources\Server\Web\ContextServers\Schemas\ContextServerForm;
 use App\Http\Resources\Server\Web\ContextServers\Tables\ContextServersTable;
-use App\Models\Server\Channel;
 use App\Models\Server\ContextServer;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use BackedEnum;
@@ -18,6 +18,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Collection;
 use UnitEnum;
 
 class ContextServerResource extends Resource
@@ -81,24 +82,24 @@ class ContextServerResource extends Resource
         }
 
         $actorMorphClass = $actor->getMorphClass();
-        $channelMorphClass = (new Channel)->getMorphClass();
+        $spaceMorphClass = (new Space)->getMorphClass();
         $threadMorphClass = (new Thread)->getMorphClass();
 
-        $channelIds = self::accessibleChannelIds($actor);
-        $threadIds = self::accessibleThreadIds($actor, $channelIds);
+        $spaceIds = self::accessibleSpaceIds($actor);
+        $threadIds = self::accessibleThreadIds($actor, $spaceIds);
 
-        return $query->where(function (Builder $scopedQuery) use ($actor, $actorMorphClass, $channelMorphClass, $threadMorphClass, $channelIds, $threadIds): void {
+        return $query->where(function (Builder $scopedQuery) use ($actor, $actorMorphClass, $spaceMorphClass, $threadMorphClass, $spaceIds, $threadIds): void {
             $scopedQuery->orWhere(function (Builder $userQuery) use ($actorMorphClass, $actor): void {
                 $userQuery
                     ->where('contextable_type', $actorMorphClass)
                     ->where('contextable_id', $actor->getKey());
             });
 
-            if ($channelIds !== []) {
-                $scopedQuery->orWhere(function (Builder $channelQuery) use ($channelMorphClass, $channelIds): void {
+            if ($spaceIds !== []) {
+                $scopedQuery->orWhere(function (Builder $channelQuery) use ($spaceMorphClass, $spaceIds): void {
                     $channelQuery
-                        ->where('contextable_type', $channelMorphClass)
-                        ->whereIn('contextable_id', $channelIds);
+                        ->where('contextable_type', $spaceMorphClass)
+                        ->whereIn('contextable_id', $spaceIds);
                 });
             }
 
@@ -119,7 +120,7 @@ class ContextServerResource extends Resource
     {
         return [
             (new User)->getMorphClass() => 'User',
-            (new Channel)->getMorphClass() => 'Channel',
+            (new Space)->getMorphClass() => 'Space',
             (new Thread)->getMorphClass() => 'Thread',
         ];
     }
@@ -135,7 +136,7 @@ class ContextServerResource extends Resource
         }
 
         $userMorphClass = (new User)->getMorphClass();
-        $channelMorphClass = (new Channel)->getMorphClass();
+        $spaceMorphClass = (new Space)->getMorphClass();
         $threadMorphClass = (new Thread)->getMorphClass();
 
         if ($contextType === $userMorphClass) {
@@ -144,10 +145,10 @@ class ContextServerResource extends Resource
             ];
         }
 
-        if ($contextType === $channelMorphClass) {
-            return self::accessibleChannels($actor)
+        if ($contextType === $spaceMorphClass) {
+            return self::accessibleSpaces($actor)
                 ->pluck('id')
-                ->mapWithKeys(fn (int $id): array => [$id => "Channel #{$id}"])
+                ->mapWithKeys(fn (int $id): array => [$id => "Space #{$id}"])
                 ->all();
         }
 
@@ -180,11 +181,11 @@ class ContextServerResource extends Resource
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, Channel>
+     * @return Collection<int, Space>
      */
-    protected static function accessibleChannels(User $actor): \Illuminate\Support\Collection
+    protected static function accessibleSpaces(User $actor): Collection
     {
-        return Channel::query()
+        return Space::query()
             ->whereHas('actorStates', function (Builder $query) use ($actor): void {
                 $query
                     ->where('actorable_type', $actor->getMorphClass())
@@ -194,12 +195,12 @@ class ContextServerResource extends Resource
     }
 
     /**
-     * @param  list<int>  $channelIds
+     * @param  list<int>  $spaceIds
      * @return list<int>
      */
-    protected static function accessibleChannelIds(User $actor): array
+    protected static function accessibleSpaceIds(User $actor): array
     {
-        return self::accessibleChannels($actor)
+        return self::accessibleSpaces($actor)
             ->pluck('id')
             ->map(fn (mixed $id): int => (int) $id)
             ->values()
@@ -207,17 +208,17 @@ class ContextServerResource extends Resource
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, Thread>
+     * @return Collection<int, Thread>
      */
-    protected static function accessibleThreads(User $actor): \Illuminate\Support\Collection
+    protected static function accessibleThreads(User $actor): Collection
     {
-        $channelIds = self::accessibleChannelIds($actor);
+        $spaceIds = self::accessibleSpaceIds($actor);
         $actorMorphClass = $actor->getMorphClass();
         $userMorphClass = (new User)->getMorphClass();
-        $channelMorphClass = (new Channel)->getMorphClass();
+        $spaceMorphClass = (new Space)->getMorphClass();
 
         return Thread::query()
-            ->where(function (Builder $query) use ($actorMorphClass, $actor, $userMorphClass, $channelMorphClass, $channelIds): void {
+            ->where(function (Builder $query) use ($actorMorphClass, $actor, $userMorphClass, $spaceMorphClass, $spaceIds): void {
                 $query->orWhere(function (Builder $threadActorQuery) use ($actorMorphClass, $actor): void {
                     $threadActorQuery->whereHas('actors', function (Builder $actorQuery) use ($actorMorphClass, $actor): void {
                         $actorQuery
@@ -232,11 +233,11 @@ class ContextServerResource extends Resource
                         ->where('threadable_id', $actor->getKey());
                 });
 
-                if ($channelIds !== []) {
-                    $query->orWhere(function (Builder $threadableChannelQuery) use ($channelMorphClass, $channelIds): void {
-                        $threadableChannelQuery
-                            ->where('threadable_type', $channelMorphClass)
-                            ->whereIn('threadable_id', $channelIds);
+                if ($spaceIds !== []) {
+                    $query->orWhere(function (Builder $threadableSpaceQuery) use ($spaceMorphClass, $spaceIds): void {
+                        $threadableSpaceQuery
+                            ->where('threadable_type', $spaceMorphClass)
+                            ->whereIn('threadable_id', $spaceIds);
                     });
                 }
             })
@@ -244,17 +245,17 @@ class ContextServerResource extends Resource
     }
 
     /**
-     * @param  list<int>  $channelIds
+     * @param  list<int>  $spaceIds
      * @return list<int>
      */
-    protected static function accessibleThreadIds(User $actor, array $channelIds = []): array
+    protected static function accessibleThreadIds(User $actor, array $spaceIds = []): array
     {
         $actorMorphClass = $actor->getMorphClass();
         $userMorphClass = (new User)->getMorphClass();
-        $channelMorphClass = (new Channel)->getMorphClass();
+        $spaceMorphClass = (new Space)->getMorphClass();
 
         return Thread::query()
-            ->where(function (Builder $query) use ($actorMorphClass, $actor, $userMorphClass, $channelMorphClass, $channelIds): void {
+            ->where(function (Builder $query) use ($actorMorphClass, $actor, $userMorphClass, $spaceMorphClass, $spaceIds): void {
                 $query->orWhere(function (Builder $threadActorQuery) use ($actorMorphClass, $actor): void {
                     $threadActorQuery->whereHas('actors', function (Builder $actorQuery) use ($actorMorphClass, $actor): void {
                         $actorQuery
@@ -269,11 +270,11 @@ class ContextServerResource extends Resource
                         ->where('threadable_id', $actor->getKey());
                 });
 
-                if ($channelIds !== []) {
-                    $query->orWhere(function (Builder $threadableChannelQuery) use ($channelMorphClass, $channelIds): void {
-                        $threadableChannelQuery
-                            ->where('threadable_type', $channelMorphClass)
-                            ->whereIn('threadable_id', $channelIds);
+                if ($spaceIds !== []) {
+                    $query->orWhere(function (Builder $threadableSpaceQuery) use ($spaceMorphClass, $spaceIds): void {
+                        $threadableSpaceQuery
+                            ->where('threadable_type', $spaceMorphClass)
+                            ->whereIn('threadable_id', $spaceIds);
                     });
                 }
             })

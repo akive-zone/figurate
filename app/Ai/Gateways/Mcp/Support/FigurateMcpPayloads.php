@@ -2,9 +2,9 @@
 
 namespace App\Ai\Gateways\Mcp\Support;
 
-use App\Models\Server\Channel;
 use App\Models\Server\Message;
 use App\Models\Server\Post;
+use App\Models\Server\Space;
 use App\Models\Server\Store;
 use App\Models\Server\StoreDocument;
 use App\Models\Server\Thread;
@@ -27,38 +27,38 @@ class FigurateMcpPayloads
     }
 
     /**
-     * @return Collection<int, Channel>
+     * @return Collection<int, Space>
      */
-    public function visibleChannels(User $actor, int $limit = 10): Collection
+    public function visibleSpaces(User $actor, int $limit = 10): Collection
     {
-        Gate::forUser($actor)->authorize('viewAny', Channel::class);
+        Gate::forUser($actor)->authorize('viewAny', Space::class);
 
-        return Channel::query()
+        return Space::query()
             ->latest('id')
             ->get()
-            ->filter(fn (Channel $channel): bool => Gate::forUser($actor)->allows('view', $channel))
+            ->filter(fn (Space $space): bool => Gate::forUser($actor)->allows('view', $space))
             ->take($this->clampLimit($limit))
             ->values();
     }
 
-    public function resolveChannel(User $actor, string $channelUuid): Channel
+    public function resolveSpace(User $actor, string $spaceUuid): Space
     {
-        $channel = Channel::query()
-            ->where('uuid', $channelUuid)
+        $space = Space::query()
+            ->where('uuid', $spaceUuid)
             ->firstOrFail();
 
-        Gate::forUser($actor)->authorize('view', $channel);
+        Gate::forUser($actor)->authorize('view', $space);
 
-        return $channel;
+        return $space;
     }
 
-    public function resolveUpdatableChannel(User $actor, string $channelUuid): Channel
+    public function resolveUpdatableSpace(User $actor, string $spaceUuid): Space
     {
-        $channel = $this->resolveChannel($actor, $channelUuid);
+        $space = $this->resolveSpace($actor, $spaceUuid);
 
-        Gate::forUser($actor)->authorize('update', $channel);
+        Gate::forUser($actor)->authorize('update', $space);
 
-        return $channel;
+        return $space;
     }
 
     public function resolveThread(User $actor, string $threadUuid): Thread
@@ -81,16 +81,16 @@ class FigurateMcpPayloads
         return $thread;
     }
 
-    public function mapChannel(Channel $channel): array
+    public function mapSpace(Space $space): array
     {
         return [
-            'id' => $channel->uuid,
-            'status' => $channel->status,
-            'thread_count' => $channel->conversationThreadIds()->count(),
-            'post_count' => $channel->conversationPosts()->count(),
-            'latest_message_at' => optional($channel->latestConversationMessage()?->created_at)?->toIso8601String(),
-            'created_at' => optional($channel->created_at)?->toIso8601String(),
-            'updated_at' => optional($channel->updated_at)?->toIso8601String(),
+            'id' => $space->uuid,
+            'status' => $space->status,
+            'thread_count' => $space->conversationThreadIds()->count(),
+            'post_count' => $space->conversationPosts()->count(),
+            'latest_message_at' => optional($space->latestConversationMessage()?->created_at)?->toIso8601String(),
+            'created_at' => optional($space->created_at)?->toIso8601String(),
+            'updated_at' => optional($space->updated_at)?->toIso8601String(),
         ];
     }
 
@@ -103,7 +103,7 @@ class FigurateMcpPayloads
             'phase' => $thread->phase,
             'status' => $thread->status,
             'threadable_type' => $this->resourceType($thread->threadable_type),
-            'threadable_id' => $thread->threadable instanceof Channel ? $thread->threadable->uuid : $thread->threadable_id,
+            'threadable_id' => $thread->threadable instanceof Space ? $thread->threadable->uuid : $thread->threadable_id,
             'message_count' => $thread->messages()->count(),
             'post_count' => $thread->posts()->count(),
             'created_at' => optional($thread->created_at)?->toIso8601String(),
@@ -121,7 +121,7 @@ class FigurateMcpPayloads
             'meta' => is_array($post->meta) ? $post->meta : [],
             'occurred_at' => optional($post->occurred_at)?->toIso8601String(),
             'postable_type' => $this->resourceType($post->postable_type),
-            'postable_id' => $post->postable instanceof Channel ? $post->postable->uuid : ($post->postable instanceof Thread ? $post->postable->uuid : $post->postable_id),
+            'postable_id' => $post->postable instanceof Space ? $post->postable->uuid : ($post->postable instanceof Thread ? $post->postable->uuid : $post->postable_id),
             'created_at' => optional($post->created_at)?->toIso8601String(),
         ];
     }
@@ -194,14 +194,14 @@ class FigurateMcpPayloads
     /**
      * @return list<array<string, mixed>>
      */
-    public function searchContext(User $actor, string $query, ?Channel $channel = null, ?Thread $thread = null, int $limit = 10): array
+    public function searchContext(User $actor, string $query, ?Space $space = null, ?Thread $thread = null, int $limit = 10): array
     {
         $needle = mb_strtolower(trim($query));
         abort_if($needle === '', 422, 'A non-empty query is required.');
 
         $results = [];
         $remaining = $this->clampLimit($limit);
-        $searchThreads = $thread ? collect([$thread]) : ($channel ? $channel->conversationThreads() : $this->visibleThreads($actor, $remaining));
+        $searchThreads = $thread ? collect([$thread]) : ($space ? $space->conversationThreads() : $this->visibleThreads($actor, $remaining));
 
         foreach ($searchThreads as $contextThread) {
             foreach ($contextThread->messages()->latest('id')->get() as $message) {
@@ -229,7 +229,7 @@ class FigurateMcpPayloads
 
         $posts = $thread
             ? $thread->posts()->latest('id')->get()
-            : ($channel ? $channel->conversationPosts()->sortByDesc('id')->values() : $this->visiblePosts($actor, $remaining));
+            : ($space ? $space->conversationPosts()->sortByDesc('id')->values() : $this->visiblePosts($actor, $remaining));
 
         foreach ($posts as $post) {
             if ($remaining === 0) {
@@ -260,7 +260,7 @@ class FigurateMcpPayloads
             return $results;
         }
 
-        foreach ($this->storesForScope($channel, $thread) as $store) {
+        foreach ($this->storesForScope($space, $thread) as $store) {
             foreach ($store->documents()->with('media')->latest('id')->get() as $document) {
                 if ($remaining === 0) {
                     return $results;
@@ -337,7 +337,7 @@ class FigurateMcpPayloads
                 $postable = $post->postable;
 
                 return match (true) {
-                    $postable instanceof Channel => Gate::forUser($actor)->allows('view', $postable),
+                    $postable instanceof Space => Gate::forUser($actor)->allows('view', $postable),
                     $postable instanceof Thread => Gate::forUser($actor)->allows('view', $postable),
                     default => false,
                 };
@@ -349,20 +349,20 @@ class FigurateMcpPayloads
     /**
      * @return Collection<int, Store>
      */
-    protected function storesForScope(?Channel $channel, ?Thread $thread): Collection
+    protected function storesForScope(?Space $space, ?Thread $thread): Collection
     {
         if ($thread instanceof Thread) {
             $stores = $thread->stores()->get();
 
-            if ($thread->threadable instanceof Channel) {
+            if ($thread->threadable instanceof Space) {
                 return $stores->merge($thread->threadable->stores()->get())->unique('id')->values();
             }
 
             return $stores;
         }
 
-        if ($channel instanceof Channel) {
-            return $channel->stores()->get();
+        if ($space instanceof Space) {
+            return $space->stores()->get();
         }
 
         return collect();

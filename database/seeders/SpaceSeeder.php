@@ -2,16 +2,16 @@
 
 namespace Database\Seeders;
 
-use App\Models\Server\Channel;
+use App\Models\Server\Space;
 use Illuminate\Database\Seeder;
 
-class ChannelSeeder extends Seeder
+class SpaceSeeder extends Seeder
 {
     /**
      * Run the database seeds.
      */
     public function run(): void
     {
-        Channel::factory()->count(5)->create();
+        Space::factory()->count(5)->create();
     }
 }

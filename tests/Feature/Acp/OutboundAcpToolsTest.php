@@ -6,7 +6,7 @@ use App\Ai\Tools\DelegateAcpTaskTool;
 use App\Ai\Tools\InvokeAcpAgentTool;
 use App\Ai\Tools\ListAvailableAcpAgentsTool;
 use App\Models\Server\AgentTask;
-use App\Models\Server\Channel;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadEvent;
 use App\Models\Server\User;
@@ -535,11 +535,11 @@ class OutboundAcpToolsTest extends TestCase
      */
     protected function conversationContext(): array
     {
-        $channel = Channel::factory()->create();
+        $space = Space::factory()->create();
         $actor = User::factory()->create();
         $thread = Thread::factory()->create([
-            'threadable_type' => $channel->getMorphClass(),
-            'threadable_id' => $channel->getKey(),
+            'threadable_type' => $space->getMorphClass(),
+            'threadable_id' => $space->getKey(),
             'purpose' => Thread::PurposeExecution,
             'status' => 'open',
         ]);

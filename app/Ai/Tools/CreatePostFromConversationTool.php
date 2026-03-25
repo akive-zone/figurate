@@ -3,7 +3,7 @@
 namespace App\Ai\Tools;
 
 use App\Events\Server\Ai\ConversationPostRequested;
-use App\Models\Server\Channel;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -16,7 +16,7 @@ class CreatePostFromConversationTool implements Tool
 {
     public function __construct(
         protected Thread $thread,
-        protected Channel $channel,
+        protected Space $space,
         protected User $actor,
     ) {}
 
@@ -33,8 +33,8 @@ class CreatePostFromConversationTool implements Tool
      */
     public function handle(ToolRequest $request): Stringable|string
     {
-        if (! $this->channel->hasActor($this->actor)) {
-            return $this->encodeError('Only channel members can create posts from conversation.');
+        if (! $this->space->hasActor($this->actor)) {
+            return $this->encodeError('Only space members can create posts from conversation.');
         }
 
         $intent = trim((string) ($request['intent'] ?? 'subject'));
@@ -45,7 +45,7 @@ class CreatePostFromConversationTool implements Tool
 
         $event = new ConversationPostRequested(
             thread: $this->thread,
-            channel: $this->channel,
+            space: $this->space,
             actor: $this->actor,
             intent: $intent,
             title: $this->normalizeNullableString($request['title'] ?? null),

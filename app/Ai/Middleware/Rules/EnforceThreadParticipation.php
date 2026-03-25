@@ -33,7 +33,7 @@ class EnforceThreadParticipation
         return $next($prompt->append(implode("\n", [
             'Thread participation rules:',
             $rule,
-            '- Do not infer membership across different threads/channels.',
+            '- Do not infer membership across different threads/spaces.',
         ])));
     }
 

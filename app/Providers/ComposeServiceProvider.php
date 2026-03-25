@@ -9,11 +9,11 @@ use App\Features\Actions\Conversation\ProtocolRegistry;
 use App\Features\Actions\Conversation\Protocols\ActivityPubProtocol;
 use App\Features\Actions\Conversation\Protocols\AgentPromptProtocol;
 use App\Features\Actions\Conversation\Protocols\NostrProtocol;
-use App\Models\Server\Channel;
 use App\Models\Server\Message;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
-use App\Policies\Server\ChannelPolicy;
 use App\Policies\Server\MessagePolicy;
+use App\Policies\Server\SpacePolicy;
 use App\Policies\Server\ThreadPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -38,7 +38,7 @@ class ComposeServiceProvider extends ServiceProvider
 
     public function boot(ProtocolRegistry $protocolRegistry): void
     {
-        Gate::policy(Channel::class, ChannelPolicy::class);
+        Gate::policy(Space::class, SpacePolicy::class);
         Gate::policy(Message::class, MessagePolicy::class);
         Gate::policy(Thread::class, ThreadPolicy::class);
 

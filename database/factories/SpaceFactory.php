@@ -2,18 +2,18 @@
 
 namespace Database\Factories;
 
-use App\Models\Server\Channel;
+use App\Models\Server\Space;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Server\Channel>
+ * @extends Factory<Space>
  */
-class ChannelFactory extends Factory
+class SpaceFactory extends Factory
 {
     /**
-     * @var class-string<\App\Models\Server\Channel>
+     * @var class-string<Space>
      */
-    protected $model = Channel::class;
+    protected $model = Space::class;
 
     /**
      * Define the model's default state.

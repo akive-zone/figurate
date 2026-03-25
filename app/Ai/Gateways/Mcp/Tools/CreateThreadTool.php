@@ -11,13 +11,13 @@ use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Tool;
 
-#[Description('Create a new thread inside a channel.')]
+#[Description('Create a new thread inside a space.')]
 class CreateThreadTool extends Tool
 {
     public function handle(Request $request, FigurateMcpPayloads $payloads): Response
     {
         $validated = $request->validate([
-            'channel_id' => ['required', 'string'],
+            'space_id' => ['required', 'string'],
             'title' => ['required', 'string', 'max:255'],
             'purpose' => ['nullable', 'string', 'max:50'],
             'status' => ['nullable', 'string', 'max:50'],
@@ -26,9 +26,9 @@ class CreateThreadTool extends Tool
         ]);
 
         $actor = $payloads->actor($request);
-        $channel = $payloads->resolveUpdatableChannel($actor, (string) $validated['channel_id']);
+        $space = $payloads->resolveUpdatableSpace($actor, (string) $validated['space_id']);
         $purpose = (string) ($validated['purpose'] ?? Thread::PurposeExecution);
-        $thread = $channel->threads()->create([
+        $thread = $space->threads()->create([
             'title' => (string) $validated['title'],
             'purpose' => $purpose,
             'phase' => (string) ($validated['phase'] ?? $payloads->defaultPhase($purpose)),
@@ -54,7 +54,7 @@ class CreateThreadTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'channel_id' => $schema->string()->description('The parent channel UUID.')->required(),
+            'space_id' => $schema->string()->description('The parent space UUID.')->required(),
             'title' => $schema->string()->description('The thread title.')->required(),
             'purpose' => $schema->string()->description('Optional thread purpose.')->default(Thread::PurposeExecution),
             'status' => $schema->string()->description('Optional thread status.')->default('open'),

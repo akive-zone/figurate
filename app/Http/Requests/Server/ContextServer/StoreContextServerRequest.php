@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Server\ContextServer;
 
 use App\Support\Security\UrlTrustPolicy;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -19,12 +20,12 @@ class StoreContextServerRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
-            'context_type' => ['required', 'string', 'in:user,channel,thread'],
+            'context_type' => ['required', 'string', 'in:user,space,thread'],
             'context_id' => ['nullable', 'string'],
             'server' => ['required', 'string', 'max:120'],
             'label' => ['nullable', 'string', 'max:160'],
@@ -48,7 +49,7 @@ class StoreContextServerRequest extends FormRequest
     }
 
     /**
-     * @return array<int, \Closure(\Illuminate\Validation\Validator): void>
+     * @return array<int, \Closure(Validator): void>
      */
     public function after(): array
     {

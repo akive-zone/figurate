@@ -8,8 +8,8 @@ use App\Features\Actions\Conversation\EnsureThreadPresenter;
 use App\Features\Actions\Conversation\QueuePresenterReplies;
 use App\Features\Actions\Conversation\ResolveActiveThreadPresenters;
 use App\Features\Actions\Conversation\ThreadMessageEntry;
-use App\Models\Server\Channel;
 use App\Models\Server\Message;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
@@ -37,16 +37,16 @@ class DispatchPromptOperation
      *     meta?: array<string, mixed>,
      *     actions?: array<int, array<string, mixed>>|null,
      *     errors?: array<int, array<string, mixed>>|null,
-     *     broadcast_channel_id?: string|null
+     *     broadcast_space_id?: string|null
      * }  $options
      * @return array{
      *     message: Message,
      *     presenters: Collection<int, ThreadActor>,
      *     direct: bool,
-     *     broadcast_channel_id: string
+     *     broadcast_space_id: string
      * }
      */
-    public function run(Channel $channel, Thread $thread, User $actor, string $text, array $options = []): array
+    public function run(Space $space, Thread $thread, User $actor, string $text, array $options = []): array
     {
         if (($options['ensure_membership'] ?? false) === true) {
             $this->ensureThreadMembership->execute($thread, $actor);
@@ -68,12 +68,12 @@ class DispatchPromptOperation
         $dispatchObservers = $direct
             ? (bool) ($options['dispatch_observers_when_direct'] ?? true)
             : (bool) ($options['dispatch_observers_when_agent'] ?? false);
-        $broadcastChannelId = is_string($options['broadcast_channel_id'] ?? null) && $options['broadcast_channel_id'] !== ''
-            ? $options['broadcast_channel_id']
+        $broadcastSpaceId = is_string($options['broadcast_space_id'] ?? null) && $options['broadcast_space_id'] !== ''
+            ? $options['broadcast_space_id']
             : "threads.{$thread->uuid}";
 
         $message = $this->dispatchThreadMessage->execute(ThreadMessageEntry::peerMessage(
-            channel: $channel,
+            space: $space,
             thread: $thread,
             actor: $actor,
             text: $text,
@@ -96,14 +96,14 @@ class DispatchPromptOperation
         }
 
         if (! $direct) {
-            $this->queuePresenterReplies->execute($thread, $message, $actor, $presenters, $broadcastChannelId);
+            $this->queuePresenterReplies->execute($thread, $message, $actor, $presenters, $broadcastSpaceId);
         }
 
         return [
             'message' => $message,
             'presenters' => $presenters,
             'direct' => $direct,
-            'broadcast_channel_id' => $broadcastChannelId,
+            'broadcast_space_id' => $broadcastSpaceId,
         ];
     }
 }

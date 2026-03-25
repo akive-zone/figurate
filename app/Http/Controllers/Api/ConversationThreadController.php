@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Server\Channel;
-use App\Models\Server\ChannelActorState;
+use App\Models\Server\Space;
+use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -16,22 +16,22 @@ class ConversationThreadController extends Controller
 {
     public function index(Request $request, string $conversation): JsonResponse
     {
-        $channel = Channel::query()
+        $space = Space::query()
             ->where('uuid', $conversation)
             ->firstOrFail();
 
-        Gate::authorize('view', $channel);
+        Gate::authorize('view', $space);
 
-        return response()->json($this->cursorPageForRequest($request, $channel));
+        return response()->json($this->cursorPageForRequest($request, $space));
     }
 
     public function store(Request $request, string $conversation): JsonResponse
     {
-        $channel = Channel::query()
+        $space = Space::query()
             ->where('uuid', $conversation)
             ->firstOrFail();
 
-        Gate::authorize('update', $channel);
+        Gate::authorize('update', $space);
 
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -39,7 +39,7 @@ class ConversationThreadController extends Controller
             'nature' => ['nullable', 'string', 'in:agent,human,mixed'],
         ]);
 
-        $thread = $channel->threads()->create([
+        $thread = $space->threads()->create([
             'title' => $data['title'],
             'purpose' => $data['purpose'] ?? Thread::PurposeExecution,
             'phase' => $this->defaultPhase($data['purpose'] ?? Thread::PurposeExecution),
@@ -64,7 +64,7 @@ class ConversationThreadController extends Controller
     /**
      * @return array{data: array<int, array<string, mixed>>, meta: array<string, mixed>}
      */
-    protected function cursorPageForRequest(Request $request, Channel $channel): array
+    protected function cursorPageForRequest(Request $request, Space $space): array
     {
         $actor = $request->user();
         if (! $actor instanceof User) {
@@ -78,11 +78,11 @@ class ConversationThreadController extends Controller
             ];
         }
 
-        Gate::forUser($actor)->authorize('view', $channel);
+        Gate::forUser($actor)->authorize('view', $space);
 
         $perPage = max(5, min(50, (int) $request->integer('per_page', 5)));
-        $actorState = $this->actorStateForChannel($channel, $actor);
-        $paginator = $this->recentThreadsQuery($channel, $actorState)
+        $actorState = $this->actorStateForSpace($space, $actor);
+        $paginator = $this->recentThreadsQuery($space, $actorState)
             ->cursorPaginate($perPage, ['*'], 'cursor', $request->query('cursor'));
 
         return [
@@ -98,19 +98,19 @@ class ConversationThreadController extends Controller
         ];
     }
 
-    protected function actorStateForChannel(Channel $channel, User $actor): ?ChannelActorState
+    protected function actorStateForSpace(Space $space, User $actor): ?SpaceActorState
     {
-        return $channel->actorStates()
+        return $space->actorStates()
             ->where('actorable_type', $actor->getMorphClass())
             ->where('actorable_id', $actor->id)
-            ->where('status', ChannelActorState::StatusActive)
+            ->where('status', SpaceActorState::StatusActive)
             ->latest('updated_at')
             ->first();
     }
 
-    protected function recentThreadsQuery(Channel $channel, ?ChannelActorState $actorState): Builder
+    protected function recentThreadsQuery(Space $space, ?SpaceActorState $actorState): Builder
     {
-        $threadIds = $channel->conversationThreadIds();
+        $threadIds = $space->conversationThreadIds();
         $query = Thread::query()
             ->whereIn('id', $threadIds->all())
             ->withMax('messages', 'created_at');
@@ -127,7 +127,7 @@ class ConversationThreadController extends Controller
     /**
      * @return array<string, mixed>
      */
-    protected function mapThreadListItem(Thread $thread, ?ChannelActorState $actorState): array
+    protected function mapThreadListItem(Thread $thread, ?SpaceActorState $actorState): array
     {
         return [
             'id' => $thread->uuid,

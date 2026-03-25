@@ -2,8 +2,8 @@
 
 namespace App\Features\Actions\Conversation;
 
-use App\Models\Server\Channel;
-use App\Models\Server\ChannelActorState;
+use App\Models\Server\Space;
+use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Support\Facades\Gate;
@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Gate;
 class ResolveConversationRouteThread
 {
     /**
-     * @return array{0: ?Thread, 1: ?Channel}
+     * @return array{0: ?Thread, 1: ?Space}
      */
     public function execute(string $conversation, User $actor): array
     {
@@ -22,31 +22,31 @@ class ResolveConversationRouteThread
         if ($threadRecord instanceof Thread) {
             Gate::forUser($actor)->authorize('view', $threadRecord);
 
-            $channelRecord = null;
-            if ($threadRecord->threadable instanceof Channel) {
-                $channelRecord = $threadRecord->threadable;
-                Gate::forUser($actor)->authorize('view', $channelRecord);
+            $spaceRecord = null;
+            if ($threadRecord->threadable instanceof Space) {
+                $spaceRecord = $threadRecord->threadable;
+                Gate::forUser($actor)->authorize('view', $spaceRecord);
             }
 
-            return [$threadRecord, $channelRecord];
+            return [$threadRecord, $spaceRecord];
         }
 
-        $channelRecord = Channel::query()
+        $spaceRecord = Space::query()
             ->where('uuid', $conversation)
             ->firstOrFail();
 
-        Gate::forUser($actor)->authorize('view', $channelRecord);
+        Gate::forUser($actor)->authorize('view', $spaceRecord);
 
-        $threadIds = $channelRecord->conversationThreadIds();
+        $threadIds = $spaceRecord->conversationThreadIds();
 
         if ($threadIds->isEmpty()) {
-            return [null, $channelRecord];
+            return [null, $spaceRecord];
         }
 
-        $actorStateThreadId = $channelRecord->actorStates()
+        $actorStateThreadId = $spaceRecord->actorStates()
             ->where('actorable_type', $actor->getMorphClass())
             ->where('actorable_id', $actor->id)
-            ->where('status', ChannelActorState::StatusActive)
+            ->where('status', SpaceActorState::StatusActive)
             ->value('thread_id');
 
         if (is_int($actorStateThreadId) && $actorStateThreadId > 0 && $threadIds->contains($actorStateThreadId)) {
@@ -57,7 +57,7 @@ class ResolveConversationRouteThread
             if ($activeThread instanceof Thread) {
                 Gate::forUser($actor)->authorize('view', $activeThread);
 
-                return [$activeThread, $channelRecord];
+                return [$activeThread, $spaceRecord];
             }
         }
 
@@ -71,6 +71,6 @@ class ResolveConversationRouteThread
             Gate::forUser($actor)->authorize('view', $latestThread);
         }
 
-        return [$latestThread, $channelRecord];
+        return [$latestThread, $spaceRecord];
     }
 }

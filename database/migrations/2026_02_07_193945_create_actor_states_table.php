@@ -13,14 +13,14 @@ return new class extends Migration
     {
         Schema::create('actor_states', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('channel_id');
+            $table->foreignId('space_id');
             $table->foreignId('thread_id')->nullable();
             $table->nullableMorphs('actorable');
             $table->string('status')->default('active');
             $table->timestamps();
 
-            $table->unique(['channel_id', 'actorable_type', 'actorable_id'], 'actor_states_channel_actor_unique');
-            $table->index(['channel_id', 'thread_id'], 'actor_states_channel_thread_index');
+            $table->unique(['space_id', 'actorable_type', 'actorable_id'], 'actor_states_channel_actor_unique');
+            $table->index(['space_id', 'thread_id'], 'actor_states_channel_thread_index');
             $table->index(['status'], 'actor_states_status_index');
         });
     }

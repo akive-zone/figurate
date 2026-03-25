@@ -21,15 +21,15 @@ class QueuePresenterReplies
         Message $userMessage,
         User $actor,
         Collection $presenters,
-        string $broadcastChannelId,
+        string $broadcastSpaceId,
     ): void {
-        $presenters->each(function (ThreadActor $presenter) use ($thread, $userMessage, $actor, $broadcastChannelId): void {
+        $presenters->each(function (ThreadActor $presenter) use ($thread, $userMessage, $actor, $broadcastSpaceId): void {
             $this->agentExecutor->queue(
                 thread: $thread,
                 userMessage: $userMessage,
                 user: $actor,
                 threadActor: $presenter,
-                broadcastChannelId: $broadcastChannelId,
+                broadcastSpaceId: $broadcastSpaceId,
             );
         });
     }

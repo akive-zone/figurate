@@ -3,9 +3,9 @@
 namespace Figurate\FulfillmentManager\Ai\Support;
 
 use App\Ai\Support\ThreadContextResolver;
-use App\Models\Server\Channel;
 use App\Models\Server\Post;
 use App\Models\Server\Profile;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Figurate\FulfillmentManager\Models\Order;
@@ -65,9 +65,9 @@ class FulfillmentContext
             return $threadable;
         }
 
-        $channel = $this->threadContextResolver->resolveChannel($thread);
+        $space = $this->threadContextResolver->resolveSpace($thread);
 
-        return $this->resolveSubjectFromChannel($channel);
+        return $this->resolveSubjectFromSpace($space);
     }
 
     public function resolveRequestFromThread(Thread $thread): ?Post
@@ -75,20 +75,20 @@ class FulfillmentContext
         return $this->resolveSubjectFromThread($thread);
     }
 
-    public function resolveSubjectFromChannel(?Channel $channel): ?Post
+    public function resolveSubjectFromSpace(?Space $space): ?Post
     {
-        if (! $channel) {
+        if (! $space) {
             return null;
         }
 
-        $request = $channel->primaryRequestPost();
+        $request = $space->primaryRequestPost();
 
         return $request instanceof Post ? $request : null;
     }
 
-    public function resolveRequestFromChannel(?Channel $channel): ?Post
+    public function resolveRequestFromSpace(?Space $space): ?Post
     {
-        return $this->resolveSubjectFromChannel($channel);
+        return $this->resolveSubjectFromSpace($space);
     }
 
     public function isRequester(Post $subjectPost, User $user): bool
@@ -139,9 +139,9 @@ class FulfillmentContext
             return true;
         }
 
-        $channel = $this->resolvePrimaryChannelForRequestPost($subjectPost);
+        $space = $this->resolvePrimarySpaceForRequestPost($subjectPost);
 
-        return $channel ? $channel->hasActor($user) : false;
+        return $space ? $space->hasActor($user) : false;
     }
 
     public function resolveParticipantProfile(Post $subjectPost, User $user): ?Profile
@@ -165,9 +165,9 @@ class FulfillmentContext
             return $sellerProfile;
         }
 
-        $channel = $this->resolvePrimaryChannelForRequestPost($subjectPost);
+        $space = $this->resolvePrimarySpaceForRequestPost($subjectPost);
 
-        if ($channel instanceof Channel) {
+        if ($space instanceof Space) {
             $profile = Profile::query()
                 ->where('user_id', $user->id)
                 ->where(function (Builder $query): void {
@@ -231,13 +231,13 @@ class FulfillmentContext
 
                 return $result;
             } catch (\Throwable) {
-                // fall through to channel fallback
+                // fall through to space fallback
             }
         }
 
-        $channel = $this->resolvePrimaryChannelForRequestPost($requestPost);
+        $space = $this->resolvePrimarySpaceForRequestPost($requestPost);
 
-        return $channel ? $channel->hasActor($user) : false;
+        return $space ? $space->hasActor($user) : false;
     }
 
     public function title(Post $requestPost): ?string
@@ -262,23 +262,23 @@ class FulfillmentContext
             : Post::class;
     }
 
-    protected function resolvePrimaryChannelForRequestPost(Post $requestPost): ?Channel
+    protected function resolvePrimarySpaceForRequestPost(Post $requestPost): ?Space
     {
-        if (method_exists($requestPost, 'channels')) {
+        if (method_exists($requestPost, 'spaces')) {
             try {
-                /** @var Channel|null $channel */
-                $channel = $requestPost->channels()->latest('channels.id')->first();
+                /** @var Space|null $space */
+                $space = $requestPost->spaces()->latest('spaces.id')->first();
 
-                if ($channel instanceof Channel) {
-                    return $channel;
+                if ($space instanceof Space) {
+                    return $space;
                 }
             } catch (\Throwable) {
                 // fall back to related records
             }
         }
 
-        $directChannel = $requestPost->relatedOne(Channel::class);
+        $directSpace = $requestPost->relatedOne(Space::class);
 
-        return $directChannel instanceof Channel ? $directChannel : null;
+        return $directSpace instanceof Space ? $directSpace : null;
     }
 }

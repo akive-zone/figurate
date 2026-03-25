@@ -2,8 +2,8 @@
 
 namespace App\Policies\Server;
 
-use App\Models\Server\Channel;
 use App\Models\Server\Message;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Figurate\FulfillmentManager\Models\Request;
@@ -43,7 +43,7 @@ class MessagePolicy
             return false;
         }
 
-        if ($messageable instanceof Channel) {
+        if ($messageable instanceof Space) {
             $serviceRequest = $messageable->requests()->first();
 
             if (! $serviceRequest) {
@@ -60,7 +60,7 @@ class MessagePolicy
                 return $threadable->hasParticipant($user);
             }
 
-            if ($threadable instanceof Channel) {
+            if ($threadable instanceof Space) {
                 return $threadable->hasActor($user);
             }
         }

@@ -2,8 +2,8 @@
 
 namespace App\Features\Actions\Conversation;
 
-use App\Models\Server\Channel;
-use App\Models\Server\ChannelActorState;
+use App\Models\Server\Space;
+use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
@@ -11,9 +11,9 @@ use Illuminate\Database\Eloquent\Builder;
 
 class ResolveBaseConversationThread
 {
-    public function execute(Channel $channel, User $actor, ?int $thread = null): Thread
+    public function execute(Space $space, User $actor, ?int $thread = null): Thread
     {
-        $channelThreadIds = $channel->conversationThreadIds();
+        $channelThreadIds = $space->conversationThreadIds();
 
         if ($thread !== null) {
             $thread = Thread::query()
@@ -29,14 +29,14 @@ class ResolveBaseConversationThread
             return $thread;
         }
 
-        $actorState = ChannelActorState::query()
-            ->where('channel_id', $channel->id)
+        $actorState = SpaceActorState::query()
+            ->where('space_id', $space->id)
             ->where('actorable_type', $actor->getMorphClass())
             ->where('actorable_id', $actor->getKey())
             ->first();
 
         if ($actorState?->thread_id) {
-            $thread = $this->threadsQuery($channel)
+            $thread = $this->threadsQuery($space)
                 ->where('status', 'open')
                 ->whereKey($actorState->thread_id)
                 ->first();
@@ -46,7 +46,7 @@ class ResolveBaseConversationThread
             }
         }
 
-        $thread = $this->threadsQuery($channel)
+        $thread = $this->threadsQuery($space)
             ->where('status', 'open')
             ->where('purpose', Thread::PurposeMain)
             ->orderBy('id')
@@ -56,7 +56,7 @@ class ResolveBaseConversationThread
             return $thread;
         }
 
-        $thread = $this->threadsQuery($channel)
+        $thread = $this->threadsQuery($space)
             ->where('status', 'open')
             ->latest('id')
             ->first();
@@ -65,17 +65,17 @@ class ResolveBaseConversationThread
             return $thread;
         }
 
-        return $this->createMainThread($channel);
+        return $this->createMainThread($space);
     }
 
-    protected function threadsQuery(Channel $channel): Builder
+    protected function threadsQuery(Space $space): Builder
     {
-        return Thread::query()->whereIn('id', $channel->conversationThreadIds()->all());
+        return Thread::query()->whereIn('id', $space->conversationThreadIds()->all());
     }
 
-    protected function createMainThread(Channel $channel): Thread
+    protected function createMainThread(Space $space): Thread
     {
-        $thread = $channel->threads()->create([
+        $thread = $space->threads()->create([
             'purpose' => Thread::PurposeMain,
             'title' => 'Project Main',
             'phase' => 'request_intake',

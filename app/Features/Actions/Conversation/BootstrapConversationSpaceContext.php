@@ -2,26 +2,26 @@
 
 namespace App\Features\Actions\Conversation;
 
-use App\Models\Server\Channel;
-use App\Models\Server\ChannelActorState;
+use App\Models\Server\Space;
+use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
-class BootstrapConversationChannelContext
+class BootstrapConversationSpaceContext
 {
-    public function execute(User $actor): Channel
+    public function execute(User $actor): Space
     {
-        Gate::authorize('create', Channel::class);
+        Gate::authorize('create', Space::class);
 
-        return DB::transaction(function () use ($actor): Channel {
-            $channel = Channel::query()->create([
+        return DB::transaction(function () use ($actor): Space {
+            $space = Space::query()->create([
                 'status' => 'open',
             ]);
 
-            $mainThread = $channel->threads()->create([
+            $mainThread = $space->threads()->create([
                 'purpose' => Thread::PurposeMain,
                 'title' => 'Project Main',
                 'phase' => 'request_intake',
@@ -37,19 +37,19 @@ class BootstrapConversationChannelContext
                 'config' => null,
             ]);
 
-            ChannelActorState::query()->updateOrCreate(
+            SpaceActorState::query()->updateOrCreate(
                 [
-                    'channel_id' => $channel->id,
+                    'space_id' => $space->id,
                     'actorable_type' => $actor->getMorphClass(),
                     'actorable_id' => $actor->getKey(),
                 ],
                 [
                     'thread_id' => $mainThread->id,
-                    'status' => ChannelActorState::StatusActive,
+                    'status' => SpaceActorState::StatusActive,
                 ],
             );
 
-            return $channel;
+            return $space;
         });
     }
 }

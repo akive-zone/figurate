@@ -6,9 +6,9 @@ use App\Ai\Storage\ConversationPersistenceResolver;
 use App\Ai\Support\AgentExecutor;
 use App\Features\Actions\Conversation\AgentPromptOutboundMessageSender;
 use App\Features\Actions\Conversation\Protocols\AgentPromptProtocol;
-use App\Models\Server\Channel;
 use App\Models\Server\Message;
 use App\Models\Server\Outbox;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
@@ -26,8 +26,8 @@ class AgentPromptOutboundMessageSenderTest extends TestCase
             'type' => User::TypeRobot,
         ]);
         $sender = User::factory()->create();
-        $channel = Channel::factory()->create();
-        $thread = $channel->threads()->create([
+        $space = Space::factory()->create();
+        $thread = $space->threads()->create([
             'purpose' => Thread::PurposeMain,
             'title' => 'Prompt Sender Thread',
             'phase' => 'execution',
@@ -65,7 +65,7 @@ class AgentPromptOutboundMessageSenderTest extends TestCase
                 'dispatch' => [
                     'recipient_user_id' => $recipient->id,
                     'thread_actor_id' => $presenter->id,
-                    'broadcast_channel_id' => "threads.{$thread->uuid}",
+                    'broadcast_space_id' => "threads.{$thread->uuid}",
                     'conversation_persistence' => ConversationPersistenceResolver::ThreadCompletion,
                 ],
             ],
@@ -79,14 +79,14 @@ class AgentPromptOutboundMessageSenderTest extends TestCase
                 Message $queuedMessage,
                 User $queuedUser,
                 ThreadActor $queuedPresenter,
-                string $broadcastChannelId,
+                string $broadcastSpaceId,
                 ?string $conversationPersistenceMode,
             ) use ($thread, $message, $recipient, $presenter): bool {
                 return $queuedThread->is($thread)
                     && $queuedMessage->is($message)
                     && $queuedUser->is($recipient)
                     && $queuedPresenter->is($presenter)
-                    && $broadcastChannelId === "threads.{$thread->uuid}"
+                    && $broadcastSpaceId === "threads.{$thread->uuid}"
                     && $conversationPersistenceMode === ConversationPersistenceResolver::ThreadCompletion;
             });
 

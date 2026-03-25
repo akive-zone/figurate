@@ -11,15 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('channel_relations', function (Blueprint $table) {
+        Schema::create('space_relations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('channel_id')->constrained('channels')->cascadeOnDelete();
+            $table->foreignId('space_id')->constrained('spaces')->cascadeOnDelete();
             $table->morphs('relationable');
             $table->string('type');
             $table->text('purpose')->nullable();
             $table->timestamps();
 
-            $table->unique(['channel_id', 'relationable_type', 'relationable_id'], 'channel_relations_unique');
+            $table->unique(['space_id', 'relationable_type', 'relationable_id'], 'space_relations_unique');
         });
     }
 
@@ -28,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('channel_relations');
+        Schema::dropIfExists('space_relations');
     }
 };

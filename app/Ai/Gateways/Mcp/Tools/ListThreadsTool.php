@@ -11,22 +11,22 @@ use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Tool;
 
-#[Description('List threads, optionally scoped to a channel.')]
+#[Description('List threads, optionally scoped to a space.')]
 class ListThreadsTool extends Tool
 {
     public function handle(Request $request, FigurateMcpPayloads $payloads): Response
     {
         $validated = $request->validate([
-            'channel_id' => ['nullable', 'string'],
+            'space_id' => ['nullable', 'string'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:25'],
         ]);
 
         $actor = $payloads->actor($request);
         $limit = (int) ($validated['limit'] ?? 10);
 
-        if (is_string($validated['channel_id'] ?? null)) {
-            $channel = $payloads->resolveChannel($actor, (string) $validated['channel_id']);
-            $threads = $channel->conversationThreads()
+        if (is_string($validated['space_id'] ?? null)) {
+            $space = $payloads->resolveSpace($actor, (string) $validated['space_id']);
+            $threads = $space->conversationThreads()
                 ->sortByDesc('id')
                 ->take($limit)
                 ->values();
@@ -48,7 +48,7 @@ class ListThreadsTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'channel_id' => $schema->string()->description('Optional channel UUID used to scope threads.'),
+            'space_id' => $schema->string()->description('Optional space UUID used to scope threads.'),
             'limit' => $schema->integer()->description('Maximum number of threads to return.')->default(10),
         ];
     }

@@ -7,7 +7,7 @@ use App\Features\Actions\Conversation\PersistActiveConversationThread;
 use App\Features\Actions\Conversation\RecordConversationOperationEvents;
 use App\Features\Actions\Conversation\ResolveActiveThreadPresenters;
 use App\Features\Actions\Conversation\ResolveBaseConversationThread;
-use App\Models\Server\Channel;
+use App\Models\Server\Space;
 use App\Models\Server\User;
 use App\Support\Orchestrate\OrchestrationDecision;
 use Illuminate\Support\Facades\DB;
@@ -23,21 +23,21 @@ class ResolveConversationThreadOperation
     ) {}
 
     public function run(
-        Channel $channel,
+        Space $space,
         User $actor,
         ?int $thread = null,
         ?string $message = null,
     ): OrchestrationDecision {
-        return DB::transaction(function () use ($channel, $actor, $thread, $message): OrchestrationDecision {
+        return DB::transaction(function () use ($space, $actor, $thread, $message): OrchestrationDecision {
             $actions = [];
-            $resolvedThread = $this->resolveBaseConversationThread->execute($channel, $actor, $thread);
+            $resolvedThread = $this->resolveBaseConversationThread->execute($space, $actor, $thread);
 
             if ($thread === null) {
-                [$resolvedThread, $triggerActions] = $this->applyConversationPurposeTriggers->execute($channel, $resolvedThread, $message);
+                [$resolvedThread, $triggerActions] = $this->applyConversationPurposeTriggers->execute($space, $resolvedThread, $message);
                 $actions = array_merge($actions, $triggerActions);
             }
 
-            $this->persistActiveConversationThread->execute($channel, $actor, $resolvedThread);
+            $this->persistActiveConversationThread->execute($space, $actor, $resolvedThread);
             $this->recordConversationOperationEvents->execute($resolvedThread, $actions);
 
             $primaryPresenter = $this->resolveActiveThreadPresenters->execute($resolvedThread)->first();
