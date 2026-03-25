@@ -3,42 +3,42 @@
 namespace App\Features\Actions\Conversation;
 
 use App\Models\Server\Inbox;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\User;
 
 class ProjectThreadMessageToInbox extends ProjectInbox
 {
-    public function execute(User $user, Message $message): ?Inbox
+    public function execute(User $user, Post $post): ?Inbox
     {
         return $this->project(
             $user,
-            $message,
+            $post,
             Inbox::KindThreadMessage,
-            $this->titleFor($message),
-            $this->summaryFor($message),
-            $this->sourceFor($message),
-            $this->payloadFor($message),
+            $this->titleFor($post),
+            $this->summaryFor($post),
+            $this->sourceFor($post),
+            $this->payloadFor($post),
         );
     }
 
     /**
      * @return array<string, mixed>
      */
-    protected function payloadFor(Message $message): array
+    protected function payloadFor(Post $post): array
     {
         return [
-            'message_ulid' => $message->ulid,
-            'message_type' => $message->type,
-            'senderable_type' => $message->senderable_type,
-            'senderable_id' => $message->senderable_id,
-            'has_attachments' => ! empty($message->attachments),
-            'attachments_count' => count(is_array($message->attachments) ? $message->attachments : []),
+            'message_ulid' => $post->ulid,
+            'message_type' => data_get($post->data, 'message_type', 'text'),
+            'senderable_type' => $post->senderable_type,
+            'senderable_id' => $post->senderable_id,
+            'has_attachments' => ! empty($post->attachments),
+            'attachments_count' => count(is_array($post->attachments) ? $post->attachments : []),
         ];
     }
 
-    protected function titleFor(Message $message): string
+    protected function titleFor(Post $post): string
     {
-        $source = $this->sourceFor($message);
+        $source = $this->sourceFor($post);
 
         return match (true) {
             $source === 'peer_message' => 'New message',
@@ -48,15 +48,15 @@ class ProjectThreadMessageToInbox extends ProjectInbox
         };
     }
 
-    protected function summaryFor(Message $message): ?string
+    protected function summaryFor(Post $post): ?string
     {
-        $text = is_string($message->text) ? trim($message->text) : '';
+        $text = is_string($post->text) ? trim($post->text) : '';
 
         if ($text !== '') {
             return mb_substr($text, 0, 240);
         }
 
-        $attachmentCount = count(is_array($message->attachments) ? $message->attachments : []);
+        $attachmentCount = count(is_array($post->attachments) ? $post->attachments : []);
 
         if ($attachmentCount > 0) {
             return $attachmentCount === 1 ? '1 attachment' : "{$attachmentCount} attachments";
@@ -65,9 +65,9 @@ class ProjectThreadMessageToInbox extends ProjectInbox
         return null;
     }
 
-    protected function sourceFor(Message $message): string
+    protected function sourceFor(Post $post): string
     {
-        $source = data_get($message->meta, 'source');
+        $source = data_get($post->meta, 'source');
 
         if (! is_string($source) || trim($source) === '') {
             return 'thread_message';

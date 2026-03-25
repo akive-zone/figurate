@@ -3,7 +3,7 @@
 namespace App\Features\Actions\Conversation;
 
 use App\Models\Server\Inbox;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadEvent;
 use App\Models\Server\User;
@@ -82,19 +82,19 @@ class ProjectInbox
             return $inboxable;
         }
 
-        if ($inboxable instanceof Message) {
-            if ($inboxable->relationLoaded('messageable') && $inboxable->messageable instanceof Thread) {
-                return $inboxable->messageable;
+        if ($inboxable instanceof Post) {
+            if ($inboxable->relationLoaded('postable') && $inboxable->postable instanceof Thread) {
+                return $inboxable->postable;
             }
 
             $threadMorphClass = (new Thread)->getMorphClass();
-            $messageableType = is_string($inboxable->messageable_type) ? trim($inboxable->messageable_type) : '';
+            $postableType = is_string($inboxable->postable_type) ? trim($inboxable->postable_type) : '';
 
-            if (! in_array($messageableType, [$threadMorphClass, Thread::class], true)) {
+            if (! in_array($postableType, [$threadMorphClass, Thread::class], true)) {
                 return null;
             }
 
-            return Thread::query()->find($inboxable->messageable_id);
+            return Thread::query()->find($inboxable->postable_id);
         }
 
         if ($inboxable instanceof ThreadEvent) {

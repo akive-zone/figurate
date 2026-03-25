@@ -2,7 +2,7 @@
 
 namespace App\Features\Actions\Conversation;
 
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
@@ -25,7 +25,7 @@ class SendPeerThreadMessage
         Collection $attachments,
         string $source = 'peer_message',
         bool $dispatchObservers = true,
-    ): Message {
+    ): Post {
         return $this->dispatchThreadMessage->execute(ThreadMessageEntry::peerMessage(
             space: $space,
             thread: $thread,

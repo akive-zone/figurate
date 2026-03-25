@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->uuid('uuid')->unique();
             $table->foreignId('thread_id');
-            $table->foreignId('message_id')->nullable();
+            $table->foreignId('post_id')->nullable();
             $table->foreignId('user_id')->nullable();
             $table->string('status', 40)->default('submitted');
             $table->json('remote')->nullable();

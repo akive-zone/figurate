@@ -10,16 +10,16 @@ class QueueThreadObserversForPeerMessage
 {
     public function handle(ThreadMessageStored $event): void
     {
-        $message = $event->message;
-        $messageableType = is_string($message->messageable_type) ? trim($message->messageable_type) : '';
+        $post = $event->post;
+        $postableType = is_string($post->postable_type) ? trim($post->postable_type) : '';
         $threadMorphClass = (new Thread)->getMorphClass();
 
-        if (! in_array($messageableType, [$threadMorphClass, Thread::class], true)) {
+        if (! in_array($postableType, [$threadMorphClass, Thread::class], true)) {
             return;
         }
 
-        $meta = is_array($message->meta) ? $message->meta : [];
-        if (! is_string($message->senderable_type) || $message->senderable_type === '') {
+        $meta = is_array($post->meta) ? $post->meta : [];
+        if (! is_string($post->senderable_type) || $post->senderable_type === '') {
             return;
         }
 
@@ -27,6 +27,6 @@ class QueueThreadObserversForPeerMessage
             return;
         }
 
-        ProcessThreadObservers::dispatch((int) $message->messageable_id, (int) $message->id);
+        ProcessThreadObservers::dispatch((int) $post->postable_id, (int) $post->id);
     }
 }

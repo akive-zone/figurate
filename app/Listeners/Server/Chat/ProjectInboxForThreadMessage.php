@@ -2,24 +2,15 @@
 
 namespace App\Listeners\Server\Chat;
 
+use App\Actions\Server\Chat\ProjectThreadMessageToInbox;
 use App\Events\Server\Chat\ThreadMessageStored;
-use App\Features\Actions\Conversation\ResolveThreadMessageInboxRecipients;
-use App\Notifications\Server\Chat\ThreadMessageNotification;
 
 class ProjectInboxForThreadMessage
 {
-    public function __construct(protected ResolveThreadMessageInboxRecipients $resolveThreadMessageInboxRecipients) {}
+    public function __construct(protected ProjectThreadMessageToInbox $projectThreadMessageToInbox) {}
 
     public function handle(ThreadMessageStored $event): void
     {
-        $recipients = $this->resolveThreadMessageInboxRecipients->execute($event->message);
-
-        if ($recipients->isEmpty()) {
-            return;
-        }
-
-        $recipients->each(function ($recipient) use ($event): void {
-            $recipient->notify(new ThreadMessageNotification($event->message));
-        });
+        ($this->projectThreadMessageToInbox)($event->message);
     }
 }

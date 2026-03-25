@@ -5,8 +5,8 @@ namespace App\Features\Actions\Conversation;
 use App\Features\Actions\Conversation\Contracts\OutboundMessageSender;
 use App\Features\Actions\Conversation\Protocols\ChannelProtocol;
 use App\Models\Server\Channel;
-use App\Models\Server\Message;
 use App\Models\Server\Outbox;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Support\Channels\ChannelDriverRegistry;
 
@@ -20,12 +20,12 @@ class ChannelOutboundMessageSender implements OutboundMessageSender
     public function send(Outbox $outbox): array
     {
         $thread = $this->resolveThread($outbox);
-        $message = $this->resolveMessage($outbox);
+        $post = $this->resolveMessage($outbox);
         $channel = $this->resolveChannel($outbox);
 
         if (
-            $message->messageable_type !== $thread->getMorphClass() ||
-            $message->messageable_id !== $thread->getKey()
+            $post->postable_type !== $thread->getMorphClass() ||
+            $post->postable_id !== $thread->getKey()
         ) {
             throw new \RuntimeException('Channel outbox references mismatched thread resources.');
         }
@@ -34,7 +34,7 @@ class ChannelOutboundMessageSender implements OutboundMessageSender
         $bindingConfig = is_array($binding) ? $binding : [];
         $result = $this->channelDriverRegistry
             ->resolveByChannel($channel)
-            ->send($channel, $thread, $message, $bindingConfig);
+            ->send($channel, $thread, $post, $bindingConfig);
 
         return [
             'ok' => true,
@@ -43,7 +43,7 @@ class ChannelOutboundMessageSender implements OutboundMessageSender
             'target' => $outbox->target,
             'delivery' => data_get($result, 'status', 'queued'),
             'thread_id' => $thread->id,
-            'message_id' => $message->id,
+            'post_id' => $post->id,
             'channel' => [
                 'id' => $channel->id,
                 'uuid' => $channel->uuid,
@@ -65,16 +65,16 @@ class ChannelOutboundMessageSender implements OutboundMessageSender
         return $thread;
     }
 
-    protected function resolveMessage(Outbox $outbox): Message
+    protected function resolveMessage(Outbox $outbox): Post
     {
-        $message = $outbox->relationLoaded('message') ? $outbox->message : null;
-        $message ??= $outbox->message_id ? Message::query()->find($outbox->message_id) : null;
+        $post = $outbox->relationLoaded('post') ? $outbox->post : null;
+        $post ??= $outbox->post_id ? Post::query()->find($outbox->post_id) : null;
 
-        if (! $message instanceof Message) {
-            throw new \RuntimeException('Channel outbox message could not be resolved.');
+        if (! $post instanceof Post) {
+            throw new \RuntimeException('Channel outbox post could not be resolved.');
         }
 
-        return $message;
+        return $post;
     }
 
     protected function resolveChannel(Outbox $outbox): Channel

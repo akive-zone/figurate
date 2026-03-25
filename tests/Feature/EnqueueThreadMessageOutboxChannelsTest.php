@@ -8,6 +8,7 @@ use App\Jobs\DeliverOutboxMessage;
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelRelation;
 use App\Models\Server\Outbox;
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
@@ -45,9 +46,13 @@ class EnqueueThreadMessageOutboxChannelsTest extends TestCase
             ], JSON_THROW_ON_ERROR),
         ]);
 
-        $message = $thread->messages()->create([
-            'type' => 'text',
-            'text' => 'External delivery payload',
+        $post = $thread->posts()->create([
+            'type' => Post::TypeMessage,
+            'status' => Post::StatusActive,
+            'data' => [
+                'text' => 'External delivery payload',
+                'message_type' => 'text',
+            ],
             'senderable_type' => $sender->getMorphClass(),
             'senderable_id' => $sender->id,
             'meta' => [
@@ -55,7 +60,7 @@ class EnqueueThreadMessageOutboxChannelsTest extends TestCase
             ],
         ]);
 
-        $created = app(EnqueueThreadMessageOutbox::class)->execute($message);
+        $created = app(EnqueueThreadMessageOutbox::class)->execute($post);
 
         $this->assertCount(1, $created);
         $outbox = $created->first();

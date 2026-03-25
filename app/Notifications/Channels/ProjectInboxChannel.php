@@ -3,7 +3,7 @@
 namespace App\Notifications\Channels;
 
 use App\Features\Actions\Conversation\ProjectThreadMessageToInbox;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\User;
 use Illuminate\Notifications\Notification;
 
@@ -17,12 +17,12 @@ class ProjectInboxChannel
             return;
         }
 
-        $message = $notification->toInbox($notifiable);
+        $post = $notification->toInbox($notifiable);
 
-        if (! $message instanceof Message || ! $message->exists) {
+        if (! $post instanceof Post || ! $post->exists) {
             return;
         }
 
-        $this->projectThreadMessageToInbox->execute($notifiable, $message);
+        $this->projectThreadMessageToInbox->execute($notifiable, $post);
     }
 }

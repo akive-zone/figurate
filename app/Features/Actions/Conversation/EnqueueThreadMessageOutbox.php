@@ -6,8 +6,8 @@ use App\Features\Actions\Conversation\Protocols\ChannelProtocol;
 use App\Jobs\DeliverOutboxMessage;
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelRelation;
-use App\Models\Server\Message;
 use App\Models\Server\Outbox;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
@@ -18,14 +18,14 @@ class EnqueueThreadMessageOutbox
     /**
      * @return Collection<int, Outbox>
      */
-    public function execute(Message $message): Collection
+    public function execute(Post $post): Collection
     {
-        $thread = $this->resolveThread($message);
+        $thread = $this->resolveThread($post);
         if (! $thread) {
             return collect();
         }
 
-        if (! $this->shouldFanOut($message)) {
+        if (! $this->shouldFanOut($post)) {
             return collect();
         }
 
@@ -34,7 +34,7 @@ class EnqueueThreadMessageOutbox
         foreach ($this->resolveFanoutTargets($thread) as $target) {
             $idempotencyKey = sprintf(
                 'outbound:%d:%s:%s:%s',
-                $message->id,
+                $post->id,
                 $target['protocol'],
                 $target['provider'] ?? 'default',
                 sha1($target['route_key'])
@@ -44,7 +44,7 @@ class EnqueueThreadMessageOutbox
                 ['idempotency_key' => $idempotencyKey],
                 [
                     'thread_id' => $thread->id,
-                    'message_id' => $message->id,
+                    'post_id' => $post->id,
                     'direction' => Outbox::DirectionOutbound,
                     'protocol' => $target['protocol'],
                     'provider' => $target['provider'],
@@ -54,11 +54,11 @@ class EnqueueThreadMessageOutbox
                     'available_at' => now(),
                     'payload' => [
                         'message' => [
-                            'id' => $message->id,
-                            'text' => $message->text,
-                            'source' => data_get($message->meta, 'source'),
-                            'meta' => is_array($message->meta) ? $message->meta : [],
-                            'created_at' => optional($message->created_at)?->toIso8601String(),
+                            'id' => $post->id,
+                            'text' => $post->text,
+                            'source' => data_get($post->meta, 'source'),
+                            'meta' => is_array($post->meta) ? $post->meta : [],
+                            'created_at' => optional($post->created_at)?->toIso8601String(),
                         ],
                         'delivery' => [
                             'provider' => $target['provider'],
@@ -90,21 +90,21 @@ class EnqueueThreadMessageOutbox
         return $created;
     }
 
-    protected function resolveThread(Message $message): ?Thread
+    protected function resolveThread(Post $post): ?Thread
     {
         $threadMorphClass = (new Thread)->getMorphClass();
-        $messageableType = is_string($message->messageable_type) ? trim($message->messageable_type) : '';
+        $postableType = is_string($post->postable_type) ? trim($post->postable_type) : '';
 
-        if (! in_array($messageableType, [$threadMorphClass, Thread::class], true)) {
+        if (! in_array($postableType, [$threadMorphClass, Thread::class], true)) {
             return null;
         }
 
-        return Thread::query()->find($message->messageable_id);
+        return Thread::query()->find($post->postable_id);
     }
 
-    protected function shouldFanOut(Message $message): bool
+    protected function shouldFanOut(Post $post): bool
     {
-        $source = (string) data_get($message->meta, 'source', '');
+        $source = (string) data_get($post->meta, 'source', '');
 
         return $source !== '' && ! str_ends_with($source, '_inbound');
     }

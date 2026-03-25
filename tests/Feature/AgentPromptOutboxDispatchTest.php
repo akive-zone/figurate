@@ -8,6 +8,7 @@ use App\Features\Actions\Conversation\Protocols\AgentPromptProtocol;
 use App\Jobs\DeliverOutboxMessage;
 use App\Models\Server\Inbox;
 use App\Models\Server\Outbox;
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
@@ -95,7 +96,7 @@ class AgentPromptOutboxDispatchTest extends TestCase
 
         $outbox = Outbox::query()
             ->where('thread_id', $thread->id)
-            ->where('message_id', $messageId)
+            ->where('post_id', $messageId)
             ->where('protocol', AgentPromptProtocol::Key)
             ->first();
 
@@ -116,7 +117,7 @@ class AgentPromptOutboxDispatchTest extends TestCase
 
         $event = ThreadEvent::query()
             ->where('thread_id', $thread->id)
-            ->where('message_id', $messageId)
+            ->where('post_id', $messageId)
             ->where('event_type', 'orchestration.notification.completion_requested')
             ->first();
 
@@ -148,9 +149,13 @@ class AgentPromptOutboxDispatchTest extends TestCase
             'phase' => 'execution',
             'status' => 'open',
         ]);
-        $message = $thread->messages()->create([
-            'type' => 'text',
-            'text' => 'Generate a summary.',
+        $post = $thread->posts()->create([
+            'type' => Post::TypeMessage,
+            'status' => Post::StatusActive,
+            'data' => [
+                'text' => 'Generate a summary.',
+                'message_type' => 'text',
+            ],
             'senderable_type' => $sender->getMorphClass(),
             'senderable_id' => $sender->id,
             'meta' => [
@@ -170,14 +175,14 @@ class AgentPromptOutboxDispatchTest extends TestCase
 
         $first = $action->execute(
             thread: $thread,
-            message: $message,
+            post: $post,
             recipient: $recipient,
             threadActor: $presenter,
             conversationPersistenceMode: ConversationPersistenceResolver::ThreadContinuation,
         );
         $second = $action->execute(
             thread: $thread,
-            message: $message,
+            post: $post,
             recipient: $recipient,
             threadActor: $presenter,
             conversationPersistenceMode: ConversationPersistenceResolver::ThreadContinuation,

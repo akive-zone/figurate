@@ -4,7 +4,7 @@ namespace App\Features\Actions\Conversation;
 
 use App\Ai\Storage\ConversationPersistenceResolver;
 use App\Ai\Support\Knowledge\MessageAttachmentStoreIngestor;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
@@ -16,13 +16,13 @@ class DispatchThreadMessage
         protected MessageAttachmentStoreIngestor $messageAttachmentStoreIngestor,
     ) {}
 
-    public function execute(ThreadMessageEntry $entry): Message
+    public function execute(ThreadMessageEntry $entry): Post
     {
         if ($entry->authorizeActor && ! $this->canActorWrite($entry->space, $entry->thread, $entry->actor)) {
             abort(403);
         }
 
-        $message = $this->storeThreadMessage->execute(
+        $post = $this->storeThreadMessage->execute(
             thread: $entry->thread,
             sender: $entry->actor,
             text: $entry->text,
@@ -31,22 +31,22 @@ class DispatchThreadMessage
             tag: $entry->tag,
         );
 
-        $entry->attachments->each(function (array $attachment) use ($message): void {
-            $message->addMedia($attachment['path'])
-                ->usingName(pathinfo($attachment['original_name'], PATHINFO_FILENAME))
-                ->usingFileName($attachment['original_name'])
-                ->toMediaCollection('attachments');
-        });
-
         if ($entry->attachments->isNotEmpty()) {
-            $message->syncAttachmentPayload();
+            // Post model stores attachments as inline array
+            $attachmentsPayload = $entry->attachments->map(fn (array $attachment) => [
+                'name' => pathinfo($attachment['original_name'], PATHINFO_FILENAME),
+                'file_name' => $attachment['original_name'],
+                'path' => $attachment['path'],
+            ])->all();
+
+            $post->forceFill(['attachments' => $attachmentsPayload])->save();
 
             if ($entry->actor) {
-                $this->messageAttachmentStoreIngestor->ingest($entry->thread, $message, $entry->actor);
+                $this->messageAttachmentStoreIngestor->ingest($entry->thread, $post, $entry->actor);
             }
         }
 
-        return $message;
+        return $post;
     }
 
     protected function canActorWrite(?Space $space, Thread $thread, ?User $actor): bool

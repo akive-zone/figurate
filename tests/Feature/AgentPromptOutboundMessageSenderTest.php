@@ -6,8 +6,8 @@ use App\Ai\Storage\ConversationPersistenceResolver;
 use App\Ai\Support\AgentExecutor;
 use App\Features\Actions\Conversation\AgentPromptOutboundMessageSender;
 use App\Features\Actions\Conversation\Protocols\AgentPromptProtocol;
-use App\Models\Server\Message;
 use App\Models\Server\Outbox;
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
@@ -33,9 +33,13 @@ class AgentPromptOutboundMessageSenderTest extends TestCase
             'phase' => 'execution',
             'status' => 'open',
         ]);
-        $message = $thread->messages()->create([
-            'type' => 'text',
-            'text' => 'Prepare a concise answer.',
+        $post = $thread->posts()->create([
+            'type' => Post::TypeMessage,
+            'status' => Post::StatusActive,
+            'data' => [
+                'text' => 'Prepare a concise answer.',
+                'message_type' => 'text',
+            ],
             'senderable_type' => $sender->getMorphClass(),
             'senderable_id' => $sender->id,
             'meta' => [
@@ -52,7 +56,7 @@ class AgentPromptOutboundMessageSenderTest extends TestCase
         ]);
         $outbox = Outbox::query()->create([
             'thread_id' => $thread->id,
-            'message_id' => $message->id,
+            'post_id' => $post->id,
             'direction' => Outbox::DirectionOutbound,
             'protocol' => AgentPromptProtocol::Key,
             'provider' => 'laravel-ai',
@@ -76,14 +80,14 @@ class AgentPromptOutboundMessageSenderTest extends TestCase
             ->once()
             ->withArgs(function (
                 Thread $queuedThread,
-                Message $queuedMessage,
+                Post $queuedMessage,
                 User $queuedUser,
                 ThreadActor $queuedPresenter,
                 string $broadcastSpaceId,
                 ?string $conversationPersistenceMode,
-            ) use ($thread, $message, $recipient, $presenter): bool {
+            ) use ($thread, $post, $recipient, $presenter): bool {
                 return $queuedThread->is($thread)
-                    && $queuedMessage->is($message)
+                    && $queuedMessage->is($post)
                     && $queuedUser->is($recipient)
                     && $queuedPresenter->is($presenter)
                     && $broadcastSpaceId === "threads.{$thread->uuid}"

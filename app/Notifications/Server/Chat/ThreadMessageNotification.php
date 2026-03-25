@@ -4,7 +4,7 @@ namespace App\Notifications\Server\Chat;
 
 use App\Ai\Storage\ConversationPersistenceResolver;
 use App\Models\Server\Inbox;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
@@ -16,7 +16,7 @@ class ThreadMessageNotification extends Notification
 {
     use Queueable;
 
-    public function __construct(protected Message $message) {}
+    public function __construct(protected Post $post) {}
 
     /**
      * @return array<int, class-string>
@@ -26,9 +26,9 @@ class ThreadMessageNotification extends Notification
         return (new ConversationTransportRouter)->channelsFor($notifiable, $this);
     }
 
-    public function toInbox(object $notifiable): ?Message
+    public function toInbox(object $notifiable): ?Post
     {
-        return $notifiable instanceof User ? $this->message : null;
+        return $notifiable instanceof User ? $this->post : null;
     }
 
     /**
@@ -43,7 +43,7 @@ class ThreadMessageNotification extends Notification
         return [
             'thread' => $this->resolveThread(),
             'space' => $this->resolveSpace($this->resolveThread()),
-            'message' => $this->message,
+            'message' => $this->post,
             'recipient' => $notifiable,
             'source' => $this->source(),
             'conversation_persistence' => $this->conversationPersistenceMode(),
@@ -63,7 +63,7 @@ class ThreadMessageNotification extends Notification
         return [
             'thread' => $this->resolveThread(),
             'space' => $this->resolveSpace($this->resolveThread()),
-            'message' => $this->message,
+            'message' => $this->post,
             'recipient' => $notifiable,
             'source' => $this->source(),
             'conversation_persistence' => $this->conversationPersistenceMode(),
@@ -99,7 +99,7 @@ class ThreadMessageNotification extends Notification
         $thread = $this->resolveThread();
         $space = $this->resolveSpace($thread);
         $source = $this->source();
-        $text = is_string($this->message->text) ? trim($this->message->text) : null;
+        $text = is_string($this->post->text) ? trim($this->post->text) : null;
 
         return [
             'kind' => Inbox::KindThreadMessage,
@@ -115,15 +115,15 @@ class ThreadMessageNotification extends Notification
                 'status' => $space?->status,
             ],
             'message' => [
-                'id' => $this->message->id,
-                'ulid' => $this->message->ulid,
-                'type' => $this->message->type,
+                'id' => $this->post->id,
+                'ulid' => $this->post->ulid,
+                'type' => $this->post->type,
                 'text' => $text !== '' ? $text : null,
                 'source' => $source,
                 'conversation_persistence' => $this->conversationPersistenceMode(),
-                'senderable_type' => $this->message->senderable_type,
-                'senderable_id' => $this->message->senderable_id,
-                'attachments_count' => count(is_array($this->message->attachments) ? $this->message->attachments : []),
+                'senderable_type' => $this->post->senderable_type,
+                'senderable_id' => $this->post->senderable_id,
+                'attachments_count' => count(is_array($this->post->attachments) ? $this->post->attachments : []),
             ],
             'inbox' => [
                 'id' => null,
@@ -137,18 +137,18 @@ class ThreadMessageNotification extends Notification
 
     protected function resolveThread(): ?Thread
     {
-        if ($this->message->relationLoaded('messageable') && $this->message->messageable instanceof Thread) {
-            return $this->message->messageable;
+        if ($this->post->relationLoaded('postable') && $this->post->postable instanceof Thread) {
+            return $this->post->postable;
         }
 
         $threadMorphClass = (new Thread)->getMorphClass();
-        $messageableType = is_string($this->message->messageable_type) ? trim($this->message->messageable_type) : '';
+        $postableType = is_string($this->post->postable_type) ? trim($this->post->postable_type) : '';
 
-        if (! in_array($messageableType, [$threadMorphClass, Thread::class], true)) {
+        if (! in_array($postableType, [$threadMorphClass, Thread::class], true)) {
             return null;
         }
 
-        return Thread::query()->find($this->message->messageable_id);
+        return Thread::query()->find($this->post->postable_id);
     }
 
     protected function resolveSpace(?Thread $thread): ?Space
@@ -173,7 +173,7 @@ class ThreadMessageNotification extends Notification
 
     protected function source(): string
     {
-        $source = data_get($this->message->meta, 'source');
+        $source = data_get($this->post->meta, 'source');
 
         return is_string($source) && trim($source) !== ''
             ? trim($source)
@@ -183,7 +183,7 @@ class ThreadMessageNotification extends Notification
     protected function conversationPersistenceMode(): ?string
     {
         return ConversationPersistenceResolver::normalizeMode(
-            data_get($this->message->meta, 'conversation_persistence')
+            data_get($this->post->meta, 'conversation_persistence')
         );
     }
 
@@ -203,7 +203,7 @@ class ThreadMessageNotification extends Notification
             return mb_substr($text, 0, 240);
         }
 
-        $attachmentCount = count(is_array($this->message->attachments) ? $this->message->attachments : []);
+        $attachmentCount = count(is_array($this->post->attachments) ? $this->post->attachments : []);
 
         if ($attachmentCount > 0) {
             return $attachmentCount === 1 ? '1 attachment' : "{$attachmentCount} attachments";

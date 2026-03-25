@@ -4,7 +4,6 @@ namespace App\Providers;
 
 use App\Contracts\Users\UserRepository;
 use App\Models\Server\Channel;
-use App\Models\Server\Message;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Store;
@@ -61,7 +60,6 @@ class AppServiceProvider extends ServiceProvider
 
         Relation::morphMap([
             'space' => Space::class,
-            'message' => Message::class,
             'post' => Post::class,
             'store' => Store::class,
             'thread' => Thread::class,

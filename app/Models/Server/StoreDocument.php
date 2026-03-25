@@ -2,6 +2,7 @@
 
 namespace App\Models\Server;
 
+use Database\Factories\StoreDocumentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,7 +10,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class StoreDocument extends Model
 {
-    /** @use HasFactory<\Database\Factories\StoreDocumentFactory> */
+    /** @use HasFactory<StoreDocumentFactory> */
     use HasFactory;
 
     /**
@@ -18,7 +19,7 @@ class StoreDocument extends Model
     protected $fillable = [
         'store_id',
         'media_id',
-        'message_id',
+        'post_id',
         'origin',
         'provider_file_id',
         'provider_document_id',
@@ -46,8 +47,8 @@ class StoreDocument extends Model
         return $this->belongsTo(Media::class);
     }
 
-    public function message(): BelongsTo
+    public function post(): BelongsTo
     {
-        return $this->belongsTo(Message::class);
+        return $this->belongsTo(Post::class);
     }
 }

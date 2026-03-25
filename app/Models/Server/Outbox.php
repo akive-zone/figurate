@@ -2,13 +2,14 @@
 
 namespace App\Models\Server;
 
+use Database\Factories\OutboxFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Outbox extends Model
 {
-    /** @use HasFactory<\Database\Factories\OutboxFactory> */
+    /** @use HasFactory<OutboxFactory> */
     use HasFactory;
 
     public const DirectionOutbound = 'outbound';
@@ -30,7 +31,7 @@ class Outbox extends Model
      */
     protected $fillable = [
         'thread_id',
-        'message_id',
+        'post_id',
         'direction',
         'protocol',
         'provider',
@@ -66,8 +67,8 @@ class Outbox extends Model
         return $this->belongsTo(Thread::class);
     }
 
-    public function message(): BelongsTo
+    public function post(): BelongsTo
     {
-        return $this->belongsTo(Message::class);
+        return $this->belongsTo(Post::class);
     }
 }

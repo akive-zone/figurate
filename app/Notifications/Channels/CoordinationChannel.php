@@ -3,7 +3,7 @@
 namespace App\Notifications\Channels;
 
 use App\Features\Actions\Conversation\EnqueueThreadMessageOutbox;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\User;
 use Illuminate\Notifications\Channels\DatabaseChannel;
 use Illuminate\Notifications\Notification;
@@ -29,27 +29,27 @@ class CoordinationChannel
             $this->threadCoordinationChannel->send($notifiable, $notification);
         }
 
-        $message = $this->resolveMessage($notifiable, $notification);
+        $post = $this->resolveMessage($notifiable, $notification);
 
-        if ($message instanceof Message) {
-            $this->enqueueThreadMessageOutbox->execute($message);
+        if ($post instanceof Post) {
+            $this->enqueueThreadMessageOutbox->execute($post);
         }
     }
 
-    protected function resolveMessage(object $notifiable, Notification $notification): ?Message
+    protected function resolveMessage(object $notifiable, Notification $notification): ?Post
     {
         if (method_exists($notification, 'toCoordination')) {
             $coordination = $notification->toCoordination($notifiable);
 
-            if (is_array($coordination) && ($coordination['message'] ?? null) instanceof Message) {
+            if (is_array($coordination) && ($coordination['message'] ?? null) instanceof Post) {
                 return $coordination['message'];
             }
         }
 
         if (method_exists($notification, 'toInbox')) {
-            $message = $notification->toInbox($notifiable);
+            $post = $notification->toInbox($notifiable);
 
-            return $message instanceof Message ? $message : null;
+            return $post instanceof Post ? $post : null;
         }
 
         return null;

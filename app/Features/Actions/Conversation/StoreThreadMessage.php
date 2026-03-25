@@ -3,7 +3,8 @@
 namespace App\Features\Actions\Conversation;
 
 use App\Events\Server\Chat\ThreadMessageStored;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
+use App\Models\Server\PostRelation;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 
@@ -19,19 +20,28 @@ class StoreThreadMessage
         array $meta = [],
         string $type = 'text',
         ?string $tag = null,
-    ): Message {
-        $message = $thread->messages()->create([
-            'senderable_type' => $sender?->getMorphClass(),
-            'senderable_id' => $sender?->getKey(),
-            'type' => $type,
+    ): Post {
+        $post = $thread->posts()->create([
+            'type' => Post::TypeMessage,
             'tag' => $tag,
-            'text' => $text,
-            'attachments' => null,
+            'data' => [
+                'text' => $text,
+                'message_type' => $type,
+            ],
             'meta' => $meta,
         ]);
 
-        ThreadMessageStored::dispatch($message);
+        if ($sender) {
+            PostRelation::query()->create([
+                'post_id' => $post->id,
+                'role' => 'sender',
+                'relationable_type' => $sender->getMorphClass(),
+                'relationable_id' => $sender->getKey(),
+            ]);
+        }
 
-        return $message;
+        ThreadMessageStored::dispatch($post);
+
+        return $post;
     }
 }

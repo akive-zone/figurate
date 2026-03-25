@@ -2,7 +2,7 @@
 
 namespace App\Notifications\Channels;
 
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
@@ -25,17 +25,17 @@ class ThreadCoordinationChannel
         }
 
         $thread = $coordination['thread'] ?? null;
-        $message = $coordination['message'] ?? null;
+        $post = $coordination['message'] ?? null;
         $space = $coordination['space'] ?? null;
         $source = $coordination['source'] ?? null;
 
-        if (! $thread instanceof Thread || ! $message instanceof Message) {
+        if (! $thread instanceof Thread || ! $post instanceof Post) {
             return;
         }
 
         $thread->events()->create([
             'thread_actor_id' => $this->resolveThreadActorId($thread, $notifiable),
-            'message_id' => $message->id,
+            'post_id' => $post->id,
             'event_key' => 'notification:coordination:'.$notifiable->getKey(),
             'layer' => ThreadEvent::LayerExecution,
             'kind' => ThreadEvent::KindOrchestration,
@@ -48,8 +48,8 @@ class ThreadCoordinationChannel
                 'recipient_user_id' => $notifiable->id,
                 'recipient_user_uuid' => $notifiable->uuid,
                 'recipient_user_type' => $notifiable->type,
-                'message_id' => $message->id,
-                'message_ulid' => $message->ulid,
+                'post_id' => $post->id,
+                'post_ulid' => $post->ulid,
                 'thread_uuid' => $thread->uuid,
                 'space_uuid' => $space instanceof Space ? $space->uuid : null,
                 'source' => is_string($source) && trim($source) !== '' ? trim($source) : null,

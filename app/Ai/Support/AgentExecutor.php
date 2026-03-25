@@ -9,7 +9,7 @@ use App\Ai\Support\A2a\TaskPushNotificationDispatcher;
 use App\Features\Actions\Conversation\DispatchThreadMessage;
 use App\Features\Actions\Conversation\ThreadMessageEntry;
 use App\Models\Server\AgentConversationMessage;
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadActorSession;
@@ -34,7 +34,7 @@ class AgentExecutor
 
     public function queue(
         Thread $thread,
-        Message $userMessage,
+        Post $post,
         User $user,
         ThreadActor $threadActor,
         string $broadcastSpaceId,
@@ -42,23 +42,23 @@ class AgentExecutor
     ): void {
         if (
             $threadActor->thread_id !== $thread->id ||
-            $userMessage->messageable_type !== $thread->getMorphClass() ||
-            $userMessage->messageable_id !== $thread->getKey()
+            $post->postable_type !== $thread->getMorphClass() ||
+            $post->postable_id !== $thread->getKey()
         ) {
             return;
         }
 
-        $existingAssistantMessage = $this->findAssistantReplyForThreadActor($thread, $userMessage, $threadActor);
+        $existingAssistantMessage = $this->findAssistantReplyForThreadActor($thread, $post, $threadActor);
 
         if ($existingAssistantMessage) {
             return;
         }
 
-        if ($this->isInvocationCanceled($userMessage, $threadActor)) {
+        if ($this->isInvocationCanceled($post, $threadActor)) {
             return;
         }
 
-        $content = is_string($userMessage->text) ? trim($userMessage->text) : '';
+        $content = is_string($post->text) ? trim($post->text) : '';
 
         if ($content === '') {
             return;
@@ -68,7 +68,7 @@ class AgentExecutor
         $session = $this->resolveThreadActorSession($thread, $threadActor, $userId);
         $handler = $this->resolveThreadActorHandler($threadActor, $user, $conversationPersistenceMode);
         $this->markPromptInvocationState(
-            userMessage: $userMessage,
+            userPost: $post,
             threadActor: $threadActor,
             status: 'pending',
         );
@@ -87,19 +87,19 @@ class AgentExecutor
 
             $queuedResponse->afterCommit();
             $queuedResponse
-                ->then(function (AgentResponse|StreamableAgentResponse $response) use ($thread, $userMessage, $userId, $threadActor): void {
+                ->then(function (AgentResponse|StreamableAgentResponse $response) use ($thread, $post, $userId, $threadActor): void {
                     $this->handleQueuedThreadActorReplySuccess(
                         threadId: $thread->id,
-                        userMessageId: $userMessage->id,
+                        userPostId: $post->id,
                         userId: $userId,
                         threadActorId: $threadActor->id,
                         response: $response,
                     );
                 })
-                ->catch(function (Throwable $exception) use ($thread, $userMessage, $threadActor): void {
+                ->catch(function (Throwable $exception) use ($thread, $post, $threadActor): void {
                     $this->handleQueuedThreadActorReplyFailure(
                         threadId: $thread->id,
-                        userMessageId: $userMessage->id,
+                        userPostId: $post->id,
                         threadActorId: $threadActor->id,
                         exception: $exception,
                     );
@@ -107,7 +107,7 @@ class AgentExecutor
                 });
         } catch (Throwable $exception) {
             $this->markPromptInvocationState(
-                userMessage: $userMessage,
+                userPost: $post,
                 threadActor: $threadActor,
                 status: 'failed',
                 errorMessage: $exception->getMessage(),
@@ -179,58 +179,58 @@ class AgentExecutor
 
     protected function findAssistantReplyForThreadActor(
         Thread $thread,
-        Message $userMessage,
+        Post $userPost,
         ThreadActor $threadActor
-    ): ?Message {
-        return Message::query()
-            ->where('messageable_type', $thread->getMorphClass())
-            ->where('messageable_id', $thread->getKey())
+    ): ?Post {
+        return Post::query()
+            ->where('postable_type', $thread->getMorphClass())
+            ->where('postable_id', $thread->getKey())
             ->whereNull('senderable_type')
             ->whereNull('senderable_id')
             ->where('meta->source', 'agent_response')
             ->where('meta->actor_key', $threadActor->actorName())
-            ->where('meta->in_reply_to_message_id', $userMessage->id)
+            ->where('meta->in_reply_to_message_id', $userPost->id)
             ->oldest('id')
             ->first();
     }
 
     protected function handleQueuedThreadActorReplySuccess(
         int $threadId,
-        int $userMessageId,
+        int $userPostId,
         int $userId,
         int $threadActorId,
         AgentResponse|StreamableAgentResponse $response
     ): void {
         $thread = Thread::query()->find($threadId);
-        $userMessage = Message::query()->find($userMessageId);
+        $userPost = Post::query()->find($userPostId);
         $threadActor = ThreadActor::query()->find($threadActorId);
 
-        if (! $thread || ! $userMessage || ! $threadActor) {
+        if (! $thread || ! $userPost || ! $threadActor) {
             return;
         }
 
         if (
             $threadActor->thread_id !== $thread->id ||
-            $userMessage->messageable_type !== $thread->getMorphClass() ||
-            $userMessage->messageable_id !== $thread->getKey()
+            $userPost->postable_type !== $thread->getMorphClass() ||
+            $userPost->postable_id !== $thread->getKey()
         ) {
             return;
         }
 
-        $existingAssistantMessage = $this->findAssistantReplyForThreadActor($thread, $userMessage, $threadActor);
+        $existingAssistantMessage = $this->findAssistantReplyForThreadActor($thread, $userPost, $threadActor);
 
         if ($existingAssistantMessage) {
             return;
         }
 
-        if ($this->isInvocationCanceled($userMessage, $threadActor)) {
+        if ($this->isInvocationCanceled($userPost, $threadActor)) {
             return;
         }
 
         $session = $this->resolveThreadActorSession($thread, $threadActor, $userId);
 
         $this->markPromptInvocationState(
-            userMessage: $userMessage,
+            userPost: $userPost,
             threadActor: $threadActor,
             status: 'completed',
             invocationId: $response->invocationId ?? null,
@@ -269,26 +269,26 @@ class AgentExecutor
             meta: [
                 'actor_key' => $threadActor->actorName(),
                 'conversation_id' => $response->conversationId ?? $session->conversation_id,
-                'in_reply_to_message_id' => $userMessage->id,
+                'in_reply_to_message_id' => $userPost->id,
                 'invocation_id' => $response->invocationId,
                 'a2ui' => is_array($assistantA2ui) ? $assistantA2ui : null,
             ],
             source: 'agent_response',
         ));
 
-        $this->agentTaskService->syncLocalTaskForPromptMessage($userMessage);
-        $this->linkAgentTelemetryToThreadMessages($thread, $userMessage, $assistantMessage, $threadActor, $userId, $response);
+        $this->agentTaskService->syncLocalTaskForPromptMessage($userPost);
+        $this->linkAgentTelemetryToThreadMessages($thread, $userPost, $assistantMessage, $threadActor, $userId, $response);
     }
 
     protected function markPromptInvocationState(
-        Message $userMessage,
+        Post $userPost,
         ThreadActor $threadActor,
         string $status,
         ?string $invocationId = null,
         ?string $conversationId = null,
         ?string $errorMessage = null,
     ): void {
-        $promptMeta = is_array($userMessage->meta) ? $userMessage->meta : [];
+        $promptMeta = is_array($userPost->meta) ? $userPost->meta : [];
         $invocations = is_array($promptMeta['invocations'] ?? null) ? $promptMeta['invocations'] : [];
         $actorKey = $threadActor->actorName();
 
@@ -322,14 +322,14 @@ class AgentExecutor
 
         $promptMeta['invocations'] = $invocations;
 
-        $userMessage->forceFill([
+        $userPost->forceFill([
             'meta' => $promptMeta,
         ])->save();
-        $this->agentTaskService->syncLocalTaskForPromptMessage($userMessage);
+        $this->agentTaskService->syncLocalTaskForPromptMessage($userPost);
 
         if (is_string(data_get($promptMeta, 'a2a_task_id')) && trim((string) data_get($promptMeta, 'a2a_task_id')) !== '') {
             $this->taskPushNotificationDispatcher->dispatchTaskUpdate(
-                promptMessage: $userMessage,
+                promptPost: $userPost,
                 state: $this->messageTaskService->resolveTaskState($invocations),
             );
         }
@@ -337,8 +337,8 @@ class AgentExecutor
 
     protected function linkAgentTelemetryToThreadMessages(
         Thread $thread,
-        Message $userMessage,
-        Message $assistantMessage,
+        Post $userPost,
+        Post $assistantMessage,
         ThreadActor $threadActor,
         int $userId,
         AgentResponse $response
@@ -378,7 +378,7 @@ class AgentExecutor
         $meta['thread_id'] = $thread->id;
         $meta['thread_uuid'] = $thread->uuid;
         $meta['thread_message_id'] = $assistantMessage->id;
-        $meta['in_reply_to_message_id'] = $userMessage->id;
+        $meta['in_reply_to_message_id'] = $userPost->id;
         $meta['actor_key'] = $actorKey;
 
         $telemetry->forceFill([
@@ -388,39 +388,39 @@ class AgentExecutor
 
     protected function handleQueuedThreadActorReplyFailure(
         int $threadId,
-        int $userMessageId,
+        int $userPostId,
         int $threadActorId,
         Throwable $exception
     ): void {
         $thread = Thread::query()->find($threadId);
-        $userMessage = Message::query()->find($userMessageId);
+        $userPost = Post::query()->find($userPostId);
         $threadActor = ThreadActor::query()->find($threadActorId);
 
-        if (! $thread || ! $userMessage || ! $threadActor) {
+        if (! $thread || ! $userPost || ! $threadActor) {
             return;
         }
 
         if (
             $threadActor->thread_id !== $thread->id ||
-            $userMessage->messageable_type !== $thread->getMorphClass() ||
-            $userMessage->messageable_id !== $thread->getKey()
+            $userPost->postable_type !== $thread->getMorphClass() ||
+            $userPost->postable_id !== $thread->getKey()
         ) {
             return;
         }
 
-        if ($this->isInvocationCanceled($userMessage, $threadActor)) {
+        if ($this->isInvocationCanceled($userPost, $threadActor)) {
             return;
         }
 
         $this->markPromptInvocationState(
-            userMessage: $userMessage,
+            userPost: $userPost,
             threadActor: $threadActor,
             status: 'failed',
             errorMessage: $exception->getMessage(),
         );
     }
 
-    protected function isInvocationCanceled(Message $userMessage, ThreadActor $threadActor): bool
+    protected function isInvocationCanceled(Post $userPost, ThreadActor $threadActor): bool
     {
         $actorKey = $threadActor->actorName();
 
@@ -428,7 +428,7 @@ class AgentExecutor
             $actorKey = ThreadActor::ActorRequestAgent;
         }
 
-        $status = data_get($userMessage->meta, "invocations.{$actorKey}.status");
+        $status = data_get($userPost->meta, "invocations.{$actorKey}.status");
 
         return is_string($status) && $status === 'canceled';
     }

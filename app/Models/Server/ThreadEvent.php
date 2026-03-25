@@ -3,6 +3,7 @@
 namespace App\Models\Server;
 
 use App\Models\Concerns\HasPublicUuid;
+use Database\Factories\ThreadEventFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class ThreadEvent extends Model
 {
-    /** @use HasFactory<\Database\Factories\ThreadEventFactory> */
+    /** @use HasFactory<ThreadEventFactory> */
     use HasFactory, HasPublicUuid;
 
     public const LayerExecution = 'execution';
@@ -41,7 +42,7 @@ class ThreadEvent extends Model
         'uuid',
         'thread_id',
         'thread_actor_id',
-        'message_id',
+        'post_id',
         'event_key',
         'layer',
         'kind',
@@ -67,9 +68,9 @@ class ThreadEvent extends Model
         return $this->belongsTo(Thread::class);
     }
 
-    public function message(): BelongsTo
+    public function post(): BelongsTo
     {
-        return $this->belongsTo(Message::class);
+        return $this->belongsTo(Post::class);
     }
 
     public function threadActor(): BelongsTo

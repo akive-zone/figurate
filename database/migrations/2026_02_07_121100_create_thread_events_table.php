@@ -16,7 +16,7 @@ return new class extends Migration
             $table->uuid('uuid')->unique();
             $table->foreignId('thread_id');
             $table->foreignId('thread_actor_id')->nullable();
-            $table->foreignId('message_id')->nullable();
+            $table->foreignId('post_id')->nullable();
             $table->string('event_key');
             $table->string('event_type')->nullable();
             $table->string('layer', 40)->default('execution');
@@ -30,7 +30,7 @@ return new class extends Migration
             $table->index(['thread_id', 'created_at']);
             $table->index(['thread_id', 'layer', 'kind'], 'thread_events_execution_kind_idx');
             $table->index(['thread_id', 'state'], 'thread_events_execution_state_idx');
-            $table->index(['message_id']);
+            $table->index(['post_id']);
             $table->index(['event_type', 'severity']);
         });
     }

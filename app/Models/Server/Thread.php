@@ -49,11 +49,6 @@ class Thread extends Model
         return $this->morphTo();
     }
 
-    public function messages(): MorphMany
-    {
-        return $this->morphMany(Message::class, 'messageable');
-    }
-
     public function posts(): MorphMany
     {
         return $this->morphMany(Post::class, 'postable');

@@ -2,22 +2,22 @@
 
 namespace App\Features\Actions\Conversation;
 
-use App\Models\Server\Message;
 use App\Models\Server\Outbox;
+use App\Models\Server\Post;
 
 class FindExistingInboundMessage
 {
-    public function execute(string $idempotencyKey): ?Message
+    public function execute(string $idempotencyKey): ?Post
     {
         $existingInbound = Outbox::query()
             ->where('direction', Outbox::DirectionInbound)
             ->where('idempotency_key', $idempotencyKey)
             ->first();
 
-        if (! $existingInbound?->message_id) {
+        if (! $existingInbound?->post_id) {
             return null;
         }
 
-        return Message::query()->find($existingInbound->message_id);
+        return Post::query()->find($existingInbound->post_id);
     }
 }

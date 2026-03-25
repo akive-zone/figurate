@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('outboxes', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('thread_id')->constrained('threads')->cascadeOnDelete();
-            $table->foreignId('message_id')->nullable()->constrained('messages')->nullOnDelete();
+            $table->foreignId('post_id')->nullable()->constrained('posts')->nullOnDelete();
             $table->string('direction', 20)->default('outbound');
             $table->string('protocol', 40);
             $table->string('provider', 120)->nullable();

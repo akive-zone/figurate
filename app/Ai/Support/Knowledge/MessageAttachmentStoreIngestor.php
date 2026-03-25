@@ -2,10 +2,9 @@
 
 namespace App\Ai\Support\Knowledge;
 
-use App\Models\Server\Message;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class MessageAttachmentStoreIngestor
 {
@@ -17,7 +16,7 @@ class MessageAttachmentStoreIngestor
     /**
      * @return array{store_id: int, processed: int, indexed: int, failed: int, local_only: int}
      */
-    public function ingest(Thread $thread, Message $message, User $actor): array
+    public function ingest(Thread $thread, Post $post, User $actor): array
     {
         $store = $this->storeManager->forThread($thread, $actor);
 
@@ -29,33 +28,28 @@ class MessageAttachmentStoreIngestor
             'local_only' => 0,
         ];
 
-        $message->getMedia('attachments')
-            ->each(function (Media $media) use ($thread, $store, $message, &$result): void {
-                $result['processed']++;
+        $attachments = (array) data_get($post->data, 'attachments', []);
 
-                $document = $this->documentIndexer->indexMedia(
+        foreach ($attachments as $attachment) {
+            try {
+                $document = $this->documentIndexer->indexPostAttachment(
                     store: $store,
-                    media: $media,
-                    message: $message,
-                    origin: 'message_attachment',
-                    metadata: [
-                        'thread_id' => $thread->id,
-                        'message_id' => $message->id,
-                    ],
+                    post: $post,
+                    attachment: $attachment,
+                    origin: 'thread_message',
                 );
 
                 if ($document->status === 'indexed') {
                     $result['indexed']++;
-                }
-
-                if ($document->status === 'local_only') {
+                } elseif ($document->status === 'local_only') {
                     $result['local_only']++;
                 }
-
-                if ($document->status === 'index_failed') {
-                    $result['failed']++;
-                }
-            });
+            } catch (\Throwable $exception) {
+                report($exception);
+                $result['failed']++;
+            }
+            $result['processed']++;
+        }
 
         return $result;
     }
