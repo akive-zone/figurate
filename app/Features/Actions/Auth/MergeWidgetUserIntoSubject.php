@@ -26,7 +26,7 @@ class MergeWidgetUserIntoSubject
         }
 
         DB::transaction(function () use ($widgetUser, $subjectUser): void {
-            $this->migrateRequestActors($widgetUser, $subjectUser);
+            $this->migratePostRelations($widgetUser, $subjectUser);
             $this->migrateChannelActorStates($widgetUser, $subjectUser);
             $this->migratePasskeys($widgetUser, $subjectUser);
             $this->migrateUserAgents($widgetUser, $subjectUser);
@@ -40,34 +40,38 @@ class MergeWidgetUserIntoSubject
         });
     }
 
-    protected function migrateRequestActors(User $widgetUser, User $subjectUser): void
+    protected function migratePostRelations(User $widgetUser, User $subjectUser): void
     {
-        $rows = DB::table('request_actors')
-            ->where('actor_type', $widgetUser->getMorphClass())
-            ->where('actor_id', $widgetUser->id)
+        if (! Schema::hasTable('post_relations')) {
+            return;
+        }
+
+        $rows = DB::table('post_relations')
+            ->where('relationable_type', $widgetUser->getMorphClass())
+            ->where('relationable_id', $widgetUser->id)
             ->get();
 
         foreach ($rows as $row) {
-            $alreadyExists = DB::table('request_actors')
-                ->where('request_id', $row->request_id)
-                ->where('actor_type', $subjectUser->getMorphClass())
-                ->where('actor_id', $subjectUser->id)
-                ->where('action', $row->action)
+            $alreadyExists = DB::table('post_relations')
+                ->where('post_id', $row->post_id)
+                ->where('relationable_type', $subjectUser->getMorphClass())
+                ->where('relationable_id', $subjectUser->id)
+                ->where('role', $row->role)
                 ->exists();
 
             if ($alreadyExists) {
-                DB::table('request_actors')
+                DB::table('post_relations')
                     ->where('id', $row->id)
                     ->delete();
 
                 continue;
             }
 
-            DB::table('request_actors')
+            DB::table('post_relations')
                 ->where('id', $row->id)
                 ->update([
-                    'actor_type' => $subjectUser->getMorphClass(),
-                    'actor_id' => $subjectUser->id,
+                    'relationable_type' => $subjectUser->getMorphClass(),
+                    'relationable_id' => $subjectUser->id,
                     'updated_at' => now(),
                 ]);
         }

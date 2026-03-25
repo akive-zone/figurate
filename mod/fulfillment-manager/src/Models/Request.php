@@ -5,6 +5,7 @@ namespace Figurate\FulfillmentManager\Models;
 use App\Models\Server\Channel;
 use App\Models\Server\Message;
 use App\Models\Server\Post;
+use App\Models\Server\PostRelation;
 use App\Models\Server\Profile;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
-use Illuminate\Database\QueryException;
+use Illuminate\Support\Collection;
 
 #[UseFactory(RequestFactory::class)]
 class Request extends Post
@@ -59,18 +60,14 @@ class Request extends Post
         });
     }
 
-    public function users(): MorphToMany
+    public function askers(): Builder
     {
-        return $this->morphedByMany(User::class, 'actor', 'request_actors')
-            ->withPivot(['action', 'status'])
-            ->withTimestamps();
+        return $this->relatedQuery(User::class, self::ActionAsker);
     }
 
-    public function profiles(): MorphToMany
+    public function targetProfiles(): Builder
     {
-        return $this->morphedByMany(Profile::class, 'actor', 'request_actors')
-            ->withPivot(['action', 'status'])
-            ->withTimestamps();
+        return Profile::query()->whereIn('profiles.id', $this->participantProfileIds()->all());
     }
 
     public function channels(): MorphToMany
@@ -124,32 +121,26 @@ class Request extends Post
 
     public function hasUserActor(User $user, ?string $action = null): bool
     {
-        try {
-            $query = $this->users()->whereKey($user->id);
-
-            if ($action !== null) {
-                $query->wherePivot('action', $action);
-            }
-
-            return $query->exists();
-        } catch (QueryException) {
-            return $this->hasChannelActorFallback($user, $action);
+        if ($action !== null && $action !== self::ActionAsker) {
+            return false;
         }
+
+        if ($this->askers()->whereKey($user->id)->exists()) {
+            return true;
+        }
+
+        return $this->hasChannelActorFallback($user, $action);
     }
 
     public function hasProfileActorForUser(User $user, ?string $action = null): bool
     {
-        try {
-            $query = $this->profiles()->where('profiles.user_id', $user->id);
-
-            if ($action !== null) {
-                $query->wherePivot('action', $action);
-            }
-
-            return $query->exists();
-        } catch (QueryException) {
+        if ($action !== null && $action !== self::ActionTargetProfile) {
             return false;
         }
+
+        return $this->targetProfiles()
+            ->where('profiles.user_id', $user->id)
+            ->exists();
     }
 
     public function hasParticipant(User $user): bool
@@ -167,9 +158,22 @@ class Request extends Post
 
     public function primaryRequester(): ?User
     {
-        return $this->users()
-            ->wherePivot('action', self::ActionAsker)
+        return $this->askers()->first();
+    }
+
+    public function participantProfileForUser(User $user, ?string $action = null): ?Profile
+    {
+        if ($action !== null && $action !== self::ActionTargetProfile) {
+            return null;
+        }
+
+        /** @var Profile|null $profile */
+        $profile = $this->targetProfiles()
+            ->where('profiles.user_id', $user->id)
+            ->latest('profiles.id')
             ->first();
+
+        return $profile;
     }
 
     protected function hasChannelActorFallback(User $user, ?string $action = null): bool
@@ -202,5 +206,39 @@ class Request extends Post
     public function setDescriptionAttribute(?string $value): void
     {
         $this->putPayloadValue('description', $value);
+    }
+
+    /**
+     * @return Collection<int, int>
+     */
+    protected function participantProfileIds(): Collection
+    {
+        $profileMorphClass = (new Profile)->getMorphClass();
+        $profileIds = collect();
+
+        $profileIds = $profileIds->merge(
+            $this->relatedQuery(Profile::class, self::ActionTargetProfile)
+                ->select('profiles.id')
+                ->pluck('profiles.id'),
+        );
+
+        $profileIds = $profileIds->merge(
+            PostRelation::query()
+                ->where('relationable_type', $profileMorphClass)
+                ->where('role', 'profile')
+                ->whereIn('post_id', $this->quotes()->select('posts.id'))
+                ->pluck('relationable_id'),
+        );
+
+        $sellerProfileId = $this->currentOrder()?->seller_profile_id;
+        if (is_numeric($sellerProfileId)) {
+            $profileIds->push((int) $sellerProfileId);
+        }
+
+        return $profileIds
+            ->filter(fn (mixed $value): bool => is_numeric($value))
+            ->map(fn (mixed $value): int => (int) $value)
+            ->unique()
+            ->values();
     }
 }

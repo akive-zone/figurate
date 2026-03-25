@@ -11,7 +11,6 @@ use App\Models\Server\User;
 use Figurate\FulfillmentManager\Models\Order;
 use Figurate\FulfillmentManager\Models\Quote;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\QueryException;
 
 class FulfillmentContext
 {
@@ -147,18 +146,10 @@ class FulfillmentContext
 
     public function resolveParticipantProfile(Post $subjectPost, User $user): ?Profile
     {
-        if (method_exists($subjectPost, 'profiles')) {
+        if (method_exists($subjectPost, 'participantProfileForUser')) {
             try {
-                $query = $subjectPost->profiles();
-                if (method_exists($query, 'wherePivot')) {
-                    $query->wherePivot('action', self::ParticipantTargetProfile);
-                }
-
                 /** @var Profile|null $profile */
-                $profile = $query
-                    ->where('profiles.user_id', $user->id)
-                    ->latest('profiles.id')
-                    ->first();
+                $profile = $subjectPost->participantProfileForUser($user, self::ParticipantTargetProfile);
 
                 if ($profile instanceof Profile) {
                     return $profile;
@@ -218,19 +209,16 @@ class FulfillmentContext
 
     public function attachAsker(Post $requestPost, User $actor): void
     {
-        if (! method_exists($requestPost, 'users')) {
+        if (! method_exists($requestPost, 'relatedQuery') || ! method_exists($requestPost, 'attachRelation')) {
             return;
         }
 
-        try {
-            $requestPost->users()->syncWithoutDetaching([
-                $actor->getKey() => [
-                    'action' => self::ActionAsker,
-                    'status' => 'active',
-                ],
-            ]);
-        } catch (QueryException) {
-            // request_actors may not exist in early schema states.
+        $alreadyAttached = $requestPost->relatedQuery(User::class, self::ActionAsker)
+            ->whereKey($actor->getKey())
+            ->exists();
+
+        if (! $alreadyAttached) {
+            $requestPost->attachRelation($actor, self::ActionAsker);
         }
     }
 

@@ -24,9 +24,7 @@ class RequestPolicy
             return true;
         }
 
-        return $request->profiles()
-            ->where('profiles.user_id', $user->id)
-            ->exists();
+        return $request->hasProfileActorForUser($user);
     }
 
     /**

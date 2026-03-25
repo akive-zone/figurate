@@ -33,6 +33,7 @@ class CreatePostFromConversationToolTest extends TestCase
         ])), true, flags: JSON_THROW_ON_ERROR);
 
         $thread->refresh();
+        $request = Request::query()->sole();
 
         $this->assertTrue($response['ok']);
         $this->assertTrue($response['created']);
@@ -41,6 +42,14 @@ class CreatePostFromConversationToolTest extends TestCase
         $this->assertSame('request_open', $thread->phase);
         $this->assertSame((new Post)->getMorphClass(), $thread->threadable_type);
         $this->assertSame(1, Request::query()->count());
+        $this->assertSame($actor->id, $request->primaryRequester()?->id);
+        $this->assertTrue($request->hasUserActor($actor, Request::ActionAsker));
+        $this->assertDatabaseHas('post_relations', [
+            'post_id' => $request->id,
+            'relationable_type' => $actor->getMorphClass(),
+            'relationable_id' => $actor->id,
+            'role' => Request::ActionAsker,
+        ]);
         $this->assertSame('request_created', $thread->messages()->latest('id')->value('tag'));
     }
 
