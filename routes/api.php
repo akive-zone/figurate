@@ -50,7 +50,7 @@ Route::prefix('auth')->group(function (): void {
         });
 
     Route::post('robots', [RobotUserController::class, 'store'])
-        ->middleware(['auth:sanctum,passport', EnsureTransportUser::class.':subject']);
+        ->middleware(['auth:sanctum,passport', EnsureTransportUser::class . ':subject']);
 });
 
 Route::prefix('conversations')->middleware(['auth:sanctum,passport'])->group(function (): void {
@@ -64,17 +64,16 @@ Route::prefix('conversations')->middleware(['auth:sanctum,passport'])->group(fun
 });
 
 Route::prefix('mcp')->middleware(['auth:sanctum,passport'])->group(function (): void {
+    Mcp::web('/', FigurateServer::class)
+        ->middleware([EnsureTransportUser::class, EnsureTokenAbility::class . ':mcp:use']);
+
     Route::get('/servers', [McpServerController::class, 'index'])->name('api.context-servers.index');
     Route::post('/servers', [McpServerController::class, 'store'])->name('api.context-servers.store');
     Route::patch('/servers/{server}', [McpServerController::class, 'update'])->name('api.context-servers.update');
     Route::delete('/servers/{server}', [McpServerController::class, 'destroy'])->name('api.context-servers.destroy');
-
-    Mcp::web('/mcp/figurate', FigurateServer::class)
-        ->middleware(['auth:sanctum,passport', EnsureTransportUser::class, EnsureTokenAbility::class.':mcp:use']);
-
 });
 
-Route::prefix('acp')->middleware(['auth:sanctum,passport', EnsureTransportUser::class, EnsureTokenAbility::class.':acp:use'])->group(function (): void {
+Route::prefix('acp')->middleware(['auth:sanctum,passport', EnsureTransportUser::class, EnsureTokenAbility::class . ':acp:use'])->group(function (): void {
     Route::get('/sessions', [AcpSessionController::class, 'index'])->name('api.acp.sessions.index');
     Route::post('/sessions', [AcpSessionController::class, 'store'])->name('api.acp.sessions.store');
     Route::get('/sessions/{session}', [AcpSessionController::class, 'show'])->name('api.acp.sessions.show');
