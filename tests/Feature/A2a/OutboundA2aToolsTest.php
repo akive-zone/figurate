@@ -118,7 +118,7 @@ class OutboundA2aToolsTest extends TestCase
         $this->assertSame('Plain HTTP URLs are not allowed by policy.', $response['error']);
 
         Http::assertNothingSent();
-        $this->assertDatabaseCount('agent_tasks', 0);
+        $this->assertSame(0, ThreadEvent::query()->where('event_key', 'agent_task')->count());
     }
 
     /**

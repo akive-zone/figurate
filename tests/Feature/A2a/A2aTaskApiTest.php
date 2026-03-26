@@ -4,10 +4,11 @@ namespace Tests\Feature\A2a;
 
 use App\Ai\Support\A2a\A2aMethodRouter;
 use App\Ai\Support\AgentExecutor;
-use App\Models\Server\AgentTask;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
+use App\Models\Server\ThreadEvent;
 use App\Models\Server\User;
+use App\Support\Orchestrate\TaskRecord;
 use App\TokenAbility;
 use Database\Factories\SpaceFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,7 +20,7 @@ class A2aTaskApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_persists_a2a_tasks_in_agent_tasks(): void
+    public function test_it_persists_a2a_tasks_in_thread_events(): void
     {
         $this->mock(AgentExecutor::class, function (MockInterface $mock): void {
             $mock->shouldReceive('queue')->once();
@@ -48,13 +49,16 @@ class A2aTaskApiTest extends TestCase
         $this->assertSame('submitted', data_get($sendResponse, 'result.task.status.state'));
 
         $taskId = (string) data_get($sendResponse, 'result.task.id');
-        $task = AgentTask::query()->latest('id')->firstOrFail();
+        $task = TaskRecord::fromEvent(
+            ThreadEvent::query()->where('event_key', 'agent_task')->latest('id')->firstOrFail()
+        );
+        $this->assertInstanceOf(TaskRecord::class, $task);
 
         $this->assertSame('submitted', $task->status);
-        $this->assertSame($taskId, data_get($task->last_payload, 'local.public_id'));
-        $this->assertSame('a2a', data_get($task->last_payload, 'local.protocol'));
-        $this->assertSame($user->getMorphClass(), data_get($task->last_payload, 'local.owner.subject_type'));
-        $this->assertSame((string) $user->id, (string) data_get($task->last_payload, 'local.owner.subject_id'));
+        $this->assertSame($taskId, $task->publicId);
+        $this->assertSame('a2a', $task->protocol);
+        $this->assertSame($user->getMorphClass(), data_get($task->owner, 'subject_type'));
+        $this->assertSame((string) $user->id, (string) data_get($task->owner, 'subject_id'));
 
         $getResponse = $router->handle('tasks/get', [
             'taskId' => $taskId,
@@ -72,9 +76,12 @@ class A2aTaskApiTest extends TestCase
         $this->assertSame($taskId, data_get($cancelResponse, 'result.task.id'));
         $this->assertSame('canceled', data_get($cancelResponse, 'result.task.status.state'));
 
-        $task->refresh();
+        $task = TaskRecord::fromEvent(
+            ThreadEvent::query()->where('event_key', 'agent_task')->latest('id')->firstOrFail()
+        );
+        $this->assertInstanceOf(TaskRecord::class, $task);
         $this->assertSame('canceled', $task->status);
-        $this->assertNotNull($task->canceled_at);
+        $this->assertNotNull($task->canceledAt);
     }
 
     protected function accessibleSpace(User $user): Space

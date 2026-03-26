@@ -5,15 +5,15 @@ namespace App\Support\Acp;
 use App\Features\Actions\Conversation\EnsureThreadMembership;
 use App\Features\Actions\Conversation\ResolveActiveThreadPresenters;
 use App\Features\Operations\Chat\DispatchPromptOperation;
-use App\Models\Server\AgentTask;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
-use App\Support\Orchestrate\AgentTaskService;
 use App\Support\Orchestrate\MessageTaskService;
+use App\Support\Orchestrate\TaskRecord;
+use App\Support\Orchestrate\ThreadEventTaskService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -24,7 +24,7 @@ class AcpSessionService
         protected DispatchPromptOperation $dispatchPromptOperation,
         protected EnsureThreadMembership $ensureThreadMembership,
         protected ResolveActiveThreadPresenters $resolveActiveThreadPresenters,
-        protected AgentTaskService $agentTaskService,
+        protected ThreadEventTaskService $taskService,
         protected MessageTaskService $messageTaskService,
     ) {}
 
@@ -160,7 +160,7 @@ class AcpSessionService
         $promptMessage = $dispatch['message'];
 
         $promptMeta = is_array($promptMessage->meta) ? $promptMessage->meta : [];
-        $task = $this->agentTaskService->createLocalTask(
+        $task = $this->taskService->createLocalTask(
             promptMessage: $promptMessage,
             user: $actor,
             payload: [
@@ -182,7 +182,7 @@ class AcpSessionService
             'meta' => $promptMeta,
         ])->save();
 
-        $task = $this->agentTaskService->syncLocalTask($task);
+        $task = $this->taskService->syncLocalTask($task);
 
         return $this->taskPayload($task);
     }
@@ -192,10 +192,10 @@ class AcpSessionService
      */
     public function task(User $actor, string $taskId): array
     {
-        $task = $this->agentTaskService->resolveOwnedAcpTask($actor, $taskId);
-        abort_unless($task instanceof AgentTask, 404);
+        $task = $this->taskService->resolveOwnedAcpTask($actor, $taskId);
+        abort_unless($task instanceof TaskRecord, 404);
 
-        return $this->taskPayload($this->agentTaskService->syncLocalTask($task));
+        return $this->taskPayload($this->taskService->syncLocalTask($task));
     }
 
     /**
@@ -203,8 +203,8 @@ class AcpSessionService
      */
     public function cancelTask(User $actor, string $taskId): array
     {
-        $task = $this->agentTaskService->resolveOwnedAcpTask($actor, $taskId);
-        abort_unless($task instanceof AgentTask, 404);
+        $task = $this->taskService->resolveOwnedAcpTask($actor, $taskId);
+        abort_unless($task instanceof TaskRecord, 404);
 
         $promptMessage = $task->message;
         abort_unless($promptMessage instanceof Post, 404);
@@ -214,7 +214,7 @@ class AcpSessionService
             return $this->taskPayload($task);
         }
 
-        $task = $this->agentTaskService->cancelLocalTask(
+        $task = $this->taskService->cancelLocalTask(
             task: $task,
             presenters: $this->resolveActiveThreadPresenters->execute($thread),
             canceledMetaPath: 'acp.canceled_at',
@@ -331,12 +331,12 @@ class AcpSessionService
     /**
      * @return array<string, mixed>
      */
-    protected function taskPayload(AgentTask $task): array
+    protected function taskPayload(TaskRecord $task): array
     {
         $promptMessage = $task->message;
         abort_unless($promptMessage instanceof Post, 404);
 
-        $task = $this->agentTaskService->syncLocalTask($task);
+        $task = $this->taskService->syncLocalTask($task);
         $snapshot = $this->messageTaskService->snapshot($promptMessage);
         $thread = $snapshot['thread'];
         $space = $snapshot['space'];
@@ -344,7 +344,7 @@ class AcpSessionService
         $invocations = $snapshot['invocations'];
 
         return [
-            'id' => $this->agentTaskService->publicId($task),
+            'id' => $this->taskService->publicId($task),
             'kind' => 'task',
             'state' => $task->status,
             'session_id' => $thread?->uuid,

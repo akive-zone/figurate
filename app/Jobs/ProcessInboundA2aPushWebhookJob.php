@@ -4,10 +4,11 @@ namespace App\Jobs;
 
 use App\Features\Actions\Conversation\DispatchThreadMessage;
 use App\Features\Actions\Conversation\ThreadMessageEntry;
-use App\Models\Server\AgentTask;
 use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadEvent;
+use App\Support\Orchestrate\TaskRecord;
+use App\Support\Orchestrate\ThreadEventTaskService;
 use Spatie\WebhookClient\Jobs\ProcessWebhookJob;
 
 class ProcessInboundA2aPushWebhookJob extends ProcessWebhookJob
@@ -26,7 +27,7 @@ class ProcessInboundA2aPushWebhookJob extends ProcessWebhookJob
         $link = $this->resolveLink($taskId, $remoteAgentId);
 
         if ($link) {
-            $this->updateLink($link, $state, $payload);
+            $link = $this->updateLink($link, $state, $payload);
         }
 
         $thread = $link?->thread ?? $this->resolveThreadFromPayload($payload);
@@ -102,19 +103,29 @@ class ProcessInboundA2aPushWebhookJob extends ProcessWebhookJob
         return strtolower(trim($state));
     }
 
-    protected function resolveLink(?string $taskId, ?string $remoteAgentId): ?AgentTask
+    protected function resolveLink(?string $taskId, ?string $remoteAgentId): ?TaskRecord
     {
         if ($taskId === null) {
             return null;
         }
 
-        $query = AgentTask::query()->where('remote->task_id', $taskId);
+        return $this->taskService()
+            ->latestTaskRecords()
+            ->first(function (TaskRecord $task) use ($taskId, $remoteAgentId): bool {
+                if ($task->protocol !== 'a2a' || ! $task->isRemote()) {
+                    return false;
+                }
 
-        if ($remoteAgentId !== null) {
-            $query->where('remote->agent_id', $remoteAgentId);
-        }
+                if (data_get($task->remote, 'task_id') !== $taskId) {
+                    return false;
+                }
 
-        return $query->latest('id')->first();
+                if ($remoteAgentId !== null && data_get($task->remote, 'agent_id') !== $remoteAgentId) {
+                    return false;
+                }
+
+                return true;
+            });
     }
 
     /**
@@ -138,32 +149,53 @@ class ProcessInboundA2aPushWebhookJob extends ProcessWebhookJob
     /**
      * @param  array<string, mixed>  $payload
      */
-    protected function updateLink(AgentTask $link, ?string $state, array $payload): void
+    protected function updateLink(TaskRecord $link, ?string $state, array $payload): TaskRecord
     {
-        $updates = [
-            'last_payload' => $payload,
+        $resolvedState = $state ?? $link->status;
+        $timestamps = [
+            'completed_at' => $resolvedState === 'completed' ? ($link->completedAt ?? now()->toIso8601String()) : $link->completedAt,
+            'failed_at' => $resolvedState === 'failed' ? ($link->failedAt ?? now()->toIso8601String()) : $link->failedAt,
+            'canceled_at' => $resolvedState === 'canceled' ? ($link->canceledAt ?? now()->toIso8601String()) : $link->canceledAt,
         ];
+        $thread = $link->thread ?? $this->resolveThreadFromPayload($payload);
 
-        if ($state !== null) {
-            $updates['status'] = $state;
+        if (! $thread instanceof Thread) {
+            return $link;
         }
 
-        if ($state === 'completed') {
-            $updates['completed_at'] = now();
-        } elseif ($state === 'failed') {
-            $updates['failed_at'] = now();
-        } elseif ($state === 'canceled') {
-            $updates['canceled_at'] = now();
-        }
-
-        $link->forceFill($updates)->save();
+        return $this->taskService()->recordSnapshot(
+            thread: $thread,
+            message: $link->message,
+            user: null,
+            task: [
+                'uuid' => $link->uuid,
+                'public_id' => $link->publicId,
+                'status' => $resolvedState,
+                'protocol' => $link->protocol,
+                'owner' => $link->owner,
+                'remote' => $link->remote,
+                'user_id' => $link->userId,
+                'user_uuid' => $link->userUuid,
+                'thread_id' => $link->thread?->uuid,
+                'space_id' => null,
+                'snapshot' => [
+                    'state' => $resolvedState,
+                    'updated_at' => now()->toIso8601String(),
+                ],
+                'last_payload' => $payload,
+                'timestamps' => array_filter($timestamps, fn (mixed $value): bool => $value !== null),
+            ],
+            kind: ThreadEvent::KindA2a,
+            operation: 'task.snapshot',
+            eventType: 'task.snapshot',
+        );
     }
 
     /**
      * @param  array<string, mixed>  $payload
      */
     protected function writeRemoteResponseMessage(
-        AgentTask $link,
+        TaskRecord $link,
         array $payload,
         ?string $state,
         ?string $taskId,
@@ -243,6 +275,11 @@ class ProcessInboundA2aPushWebhookJob extends ProcessWebhookJob
         $resolvedAgentId = $remoteAgentId ?? 'remote-agent';
 
         return "[A2A] {$resolvedAgentId} task {$resolvedTaskId} is {$resolvedState}.";
+    }
+
+    protected function taskService(): ThreadEventTaskService
+    {
+        return app(ThreadEventTaskService::class);
     }
 
     /**

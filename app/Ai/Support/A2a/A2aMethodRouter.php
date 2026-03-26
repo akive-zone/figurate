@@ -10,11 +10,11 @@ use App\Features\Actions\Conversation\ResolveConversationSpaceContext;
 use App\Features\Actions\Conversation\ResolveConversationThreadContext;
 use App\Features\Operations\Chat\DispatchPromptOperation;
 use App\Features\Operations\Chat\ResolveConversationThreadOperation;
-use App\Models\Server\AgentTask;
 use App\Models\Server\Post;
 use App\Models\Server\Thread;
-use App\Support\Orchestrate\AgentTaskService;
 use App\Support\Orchestrate\MessageTaskService;
+use App\Support\Orchestrate\TaskRecord;
+use App\Support\Orchestrate\ThreadEventTaskService;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
@@ -35,7 +35,7 @@ class A2aMethodRouter
         protected A2uiCatalogRegistry $a2uiCatalogRegistry,
         protected DispatchPromptOperation $dispatchPromptOperation,
         protected ResolveActiveThreadPresenters $resolveActiveThreadPresenters,
-        protected AgentTaskService $agentTaskService,
+        protected ThreadEventTaskService $taskService,
         protected MessageTaskService $messageTaskService,
         protected UserRepository $userRepository,
     ) {}
@@ -153,7 +153,7 @@ class A2aMethodRouter
             ],
         );
         $message = $dispatch['message'];
-        $task = $this->agentTaskService->createLocalTask(
+        $task = $this->taskService->createLocalTask(
             promptMessage: $message,
             user: $user,
             payload: [
@@ -207,13 +207,13 @@ class A2aMethodRouter
     protected function tasksGet(array $params): array
     {
         $taskId = $this->resolveTaskId($params);
-        $task = $this->agentTaskService->resolveOwnedA2aTask($taskId, $this->resolveAuthenticatedOwner());
+        $task = $this->taskService->resolveOwnedA2aTask($taskId, $this->resolveAuthenticatedOwner());
 
-        if (! $task instanceof AgentTask) {
+        if (! $task instanceof TaskRecord) {
             return $this->invalidParams(['task_id' => ['Task was not found.']]);
         }
 
-        $task = $this->agentTaskService->syncLocalTask($task);
+        $task = $this->taskService->syncLocalTask($task);
         $promptMessage = $task->message;
         if (! $promptMessage instanceof Post) {
             return $this->invalidParams(['task_id' => ['Task was not found.']]);
@@ -231,7 +231,7 @@ class A2aMethodRouter
 
         return [
             'result' => $this->taskPayload(
-                taskId: $this->agentTaskService->publicId($task),
+                taskId: $this->taskService->publicId($task),
                 state: $task->status,
                 context: [
                     'thread_id' => $thread?->uuid,
@@ -255,14 +255,14 @@ class A2aMethodRouter
         $limit = max(1, min(100, (int) ($params['maxItems'] ?? $params['limit'] ?? 20)));
         $userUuid = $this->trimmedString($params['user_uuid'] ?? null);
 
-        $tasks = $this->agentTaskService->listOwnedA2aTasks($this->resolveAuthenticatedOwner(), $userUuid, $limit)
-            ->map(function (AgentTask $task): array {
-                $task = $this->agentTaskService->syncLocalTask($task);
+        $tasks = $this->taskService->listOwnedA2aTasks($this->resolveAuthenticatedOwner(), $userUuid, $limit)
+            ->map(function (TaskRecord $task): array {
+                $task = $this->taskService->syncLocalTask($task);
                 $promptMessage = $task->message;
                 $thread = $task->thread;
 
                 return [
-                    'id' => $this->agentTaskService->publicId($task),
+                    'id' => $this->taskService->publicId($task),
                     'kind' => 'task',
                     'status' => [
                         'state' => $task->status,
@@ -293,9 +293,9 @@ class A2aMethodRouter
     protected function tasksCancel(array $params): array
     {
         $taskId = $this->resolveTaskId($params);
-        $task = $this->agentTaskService->resolveOwnedA2aTask($taskId, $this->resolveAuthenticatedOwner());
+        $task = $this->taskService->resolveOwnedA2aTask($taskId, $this->resolveAuthenticatedOwner());
 
-        if (! $task instanceof AgentTask) {
+        if (! $task instanceof TaskRecord) {
             return $this->invalidParams(['task_id' => ['Task was not found.']]);
         }
 
@@ -305,7 +305,7 @@ class A2aMethodRouter
         }
 
         $thread = $this->messageTaskService->resolveMessageThread($promptMessage);
-        $task = $this->agentTaskService->cancelLocalTask(
+        $task = $this->taskService->cancelLocalTask(
             task: $task,
             presenters: $thread instanceof Thread ? $this->resolveActiveThreadPresenters->execute($thread) : collect(),
             canceledMetaPath: 'a2a_canceled_at',
@@ -318,7 +318,7 @@ class A2aMethodRouter
 
         return [
             'result' => $this->taskPayload(
-                taskId: $this->agentTaskService->publicId($task),
+                taskId: $this->taskService->publicId($task),
                 state: $task->status,
                 context: [
                     'prompt_message_ulid' => $promptMessage->ulid,

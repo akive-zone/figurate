@@ -4,14 +4,16 @@ namespace App\Ai\Tools;
 
 use App\Ai\Support\A2a\OutboundAgentRegistry;
 use App\Ai\Tools\Diagnostics\EncodesToolResponse;
-use App\Models\Server\AgentTask;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadEvent;
 use App\Models\Server\User;
+use App\Support\Orchestrate\TaskRecord;
+use App\Support\Orchestrate\ThreadEventTaskService;
 use App\Support\Security\UrlTrustPolicy;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request as ToolRequest;
 use Sajya\Client\Client as JsonRpcClient;
@@ -124,9 +126,16 @@ class DelegateA2aTaskTool implements Tool
             $remote['push_config_id'] = $this->trimmedString(data_get($pushRegistration, 'config.id'));
             $remote['push_registered_at'] = now()->toIso8601String();
 
-            $link->forceFill([
-                'remote' => $remote,
-            ])->save();
+            $link = $this->persistRemoteTaskLink(
+                agentId: $agentId,
+                taskId: $taskId,
+                state: $link->status,
+                payload: [
+                    'send_response' => $sendResponse,
+                ],
+                existing: $link,
+                remoteOverrides: $remote,
+            );
         }
 
         while (now()->lt($deadlineAt)) {
@@ -150,7 +159,7 @@ class DelegateA2aTaskTool implements Tool
 
             $lastSnapshot = $snapshot;
             $state = strtolower((string) data_get($snapshot, 'result.task.status.state', ''));
-            $this->syncLinkState($link, $state, $snapshot);
+            $link = $this->syncLinkState($link, $state, $snapshot);
 
             if (in_array($state, ['completed', 'failed', 'canceled'], true)) {
                 $successful = $state === 'completed';
@@ -300,9 +309,9 @@ class DelegateA2aTaskTool implements Tool
         string $event,
         string $severity,
         ?string $errorMessage,
-        ?AgentTask $agentTask = null
+        ?TaskRecord $task = null
     ): void {
-        $threadEvent = $this->thread->events()->create([
+        $this->thread->events()->create([
             'thread_actor_id' => $this->threadActor?->id,
             'post_id' => null,
             'event_key' => 'a2a_delegate_tool',
@@ -316,13 +325,12 @@ class DelegateA2aTaskTool implements Tool
                 'agent' => $agentId,
                 'actor_id' => $this->actor->id,
                 'actor_uuid' => $this->actor->uuid,
+                'task_uuid' => $task?->uuid,
+                'task_public_id' => $task?->publicId,
+                'task_remote' => $task?->remote,
                 'error_message' => $errorMessage !== null ? mb_substr(trim($errorMessage), 0, 500) : null,
             ],
         ]);
-
-        if ($agentTask) {
-            $agentTask->threadEvents()->syncWithoutDetaching([$threadEvent->id]);
-        }
     }
 
     protected function stateForEvent(string $event): string
@@ -338,51 +346,31 @@ class DelegateA2aTaskTool implements Tool
     /**
      * @param  array<string, mixed>  $sendResponse
      */
-    protected function upsertRemoteTaskLink(string $agentId, string $taskId, array $sendResponse): ?AgentTask
+    protected function upsertRemoteTaskLink(string $agentId, string $taskId, array $sendResponse): ?TaskRecord
     {
         if ($agentId === '' || $taskId === '') {
             return null;
         }
 
-        $link = AgentTask::query()
-            ->where('remote->agent_id', $agentId)
-            ->where('remote->task_id', $taskId)
-            ->latest('id')
-            ->first();
+        $existing = $this->taskService()
+            ->latestTaskRecords()
+            ->first(function (TaskRecord $task) use ($agentId, $taskId): bool {
+                return $task->protocol === 'a2a'
+                    && $task->thread?->is($this->thread)
+                    && $task->userId === $this->actor->id
+                    && data_get($task->remote, 'agent_id') === $agentId
+                    && data_get($task->remote, 'task_id') === $taskId;
+            });
 
-        if (! $link) {
-            return AgentTask::query()->create([
-                'thread_id' => $this->thread->id,
-                'post_id' => null,
-                'user_id' => $this->actor->id,
-                'remote' => [
-                    'agent_id' => $agentId,
-                    'task_id' => $taskId,
-                    'push_config_id' => null,
-                ],
-                'status' => 'submitted',
-                'last_payload' => [
-                    'send_response' => $sendResponse,
-                ],
-            ]);
-        }
-
-        $remote = is_array($link->remote) ? $link->remote : [];
-        $remote['agent_id'] = $agentId;
-        $remote['task_id'] = $taskId;
-
-        $link->forceFill([
-            'thread_id' => $this->thread->id,
-            'post_id' => null,
-            'user_id' => $this->actor->id,
-            'remote' => $remote,
-            'status' => 'submitted',
-            'last_payload' => [
+        return $this->persistRemoteTaskLink(
+            agentId: $agentId,
+            taskId: $taskId,
+            state: 'submitted',
+            payload: [
                 'send_response' => $sendResponse,
             ],
-        ])->save();
-
-        return $link;
+            existing: $existing,
+        );
     }
 
     /**
@@ -492,26 +480,85 @@ class DelegateA2aTaskTool implements Tool
     /**
      * @param  array<string, mixed>  $snapshot
      */
-    protected function syncLinkState(?AgentTask $link, string $state, array $snapshot): void
+    protected function syncLinkState(?TaskRecord $link, string $state, array $snapshot): ?TaskRecord
     {
         if (! $link || $state === '') {
-            return;
+            return $link;
         }
 
-        $updates = [
-            'status' => $state,
-            'last_payload' => $snapshot,
+        return $this->persistRemoteTaskLink(
+            agentId: (string) data_get($link->remote, 'agent_id'),
+            taskId: (string) data_get($link->remote, 'task_id'),
+            state: $state,
+            payload: $snapshot,
+            existing: $link,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @param  array<string, mixed>|null  $remoteOverrides
+     */
+    protected function persistRemoteTaskLink(
+        string $agentId,
+        string $taskId,
+        string $state,
+        array $payload,
+        ?TaskRecord $existing = null,
+        ?array $remoteOverrides = null,
+    ): ?TaskRecord {
+        if ($agentId === '' || $taskId === '') {
+            return null;
+        }
+
+        $remote = [
+            ...(is_array($existing?->remote) ? $existing->remote : []),
+            ...(is_array($remoteOverrides) ? $remoteOverrides : []),
+            'agent_id' => $agentId,
+            'task_id' => $taskId,
         ];
 
-        if ($state === 'completed') {
-            $updates['completed_at'] = now();
-        } elseif ($state === 'failed') {
-            $updates['failed_at'] = now();
-        } elseif ($state === 'canceled') {
-            $updates['canceled_at'] = now();
-        }
+        $timestamps = [
+            'completed_at' => $state === 'completed' ? ($existing?->completedAt ?? now()->toIso8601String()) : $existing?->completedAt,
+            'failed_at' => $state === 'failed' ? ($existing?->failedAt ?? now()->toIso8601String()) : $existing?->failedAt,
+            'canceled_at' => $state === 'canceled' ? ($existing?->canceledAt ?? now()->toIso8601String()) : $existing?->canceledAt,
+        ];
 
-        $link->forceFill($updates)->save();
+        return $this->taskService()->recordSnapshot(
+            thread: $this->thread,
+            message: null,
+            user: $this->actor,
+            task: [
+                'uuid' => $existing?->uuid ?? (string) Str::uuid7(),
+                'public_id' => $existing?->publicId ?? $taskId,
+                'status' => $state,
+                'protocol' => 'a2a',
+                'owner' => [
+                    'subject_type' => $this->actor->getMorphClass(),
+                    'subject_id' => $this->actor->getKey(),
+                ],
+                'remote' => $remote,
+                'user_id' => $this->actor->id,
+                'user_uuid' => $this->actor->uuid,
+                'thread_id' => $this->thread->uuid,
+                'space_id' => null,
+                'snapshot' => [
+                    'state' => $state,
+                    'updated_at' => now()->toIso8601String(),
+                ],
+                'last_payload' => $payload,
+                'timestamps' => array_filter($timestamps, fn (mixed $value): bool => $value !== null),
+            ],
+            kind: ThreadEvent::KindA2a,
+            threadActor: $this->threadActor,
+            operation: 'task.snapshot',
+            eventType: 'task.snapshot',
+        );
+    }
+
+    protected function taskService(): ThreadEventTaskService
+    {
+        return app(ThreadEventTaskService::class);
     }
 
     protected function trimmedString(mixed $value): ?string

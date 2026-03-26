@@ -5,11 +5,11 @@ namespace Tests\Feature\Acp;
 use App\Ai\Tools\DelegateAcpTaskTool;
 use App\Ai\Tools\InvokeAcpAgentTool;
 use App\Ai\Tools\ListAvailableAcpAgentsTool;
-use App\Models\Server\AgentTask;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadEvent;
 use App\Models\Server\User;
+use App\Support\Orchestrate\TaskRecord;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Facades\Http;
@@ -384,14 +384,17 @@ class OutboundAcpToolsTest extends TestCase
         $this->assertSame('remote-task-1', $response['task_id']);
         $this->assertSame('submitted', $response['state']);
 
-        $link = AgentTask::query()->latest('id')->firstOrFail();
+        $link = TaskRecord::fromEvent(
+            ThreadEvent::query()->where('event_key', 'agent_task')->latest('id')->firstOrFail()
+        );
+        $this->assertInstanceOf(TaskRecord::class, $link);
         $this->assertSame('submitted', $link->status);
-        $this->assertSame('acp', data_get($link->remote, 'protocol'));
+        $this->assertSame('acp', $link->protocol);
         $this->assertSame('gemini', data_get($link->remote, 'agent_id'));
         $this->assertSame('remote-session-1', data_get($link->remote, 'session_id'));
         $this->assertSame('remote-task-1', data_get($link->remote, 'task_id'));
-        $this->assertSame('remote-task-1', data_get($link->last_payload, 'prompt.result.task.id'));
-        $this->assertSame('remote-session-1', data_get($link->last_payload, 'session_snapshot.result.session.id'));
+        $this->assertSame('remote-task-1', data_get($link->lastPayload, 'prompt.result.task.id'));
+        $this->assertSame('remote-session-1', data_get($link->lastPayload, 'session_snapshot.result.session.id'));
 
         Http::assertSentCount(5);
         Http::assertSent(function (HttpRequest $request): bool {

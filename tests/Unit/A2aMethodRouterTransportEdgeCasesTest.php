@@ -13,8 +13,8 @@ use App\Features\Actions\Conversation\ResolveConversationThreadContext;
 use App\Features\Operations\Chat\DispatchPromptOperation;
 use App\Features\Operations\Chat\ResolveConversationThreadOperation;
 use App\Models\Server\Post;
-use App\Support\Orchestrate\AgentTaskService;
 use App\Support\Orchestrate\MessageTaskService;
+use App\Support\Orchestrate\ThreadEventTaskService;
 use PHPUnit\Framework\TestCase;
 
 class A2aMethodRouterTransportEdgeCasesTest extends TestCase
@@ -224,7 +224,7 @@ class A2aMethodRouterTransportEdgeCasesTest extends TestCase
 
     protected function makeRouter(): A2aMethodRouter
     {
-        return new class($this->createMock(ResolveConversationThreadOperation::class), $this->createMock(ResolveConversationSpaceContext::class), $this->createMock(ResolveConversationThreadContext::class), $this->createMock(TaskPushNotificationDispatcher::class), new A2uiPayloadContract, new A2uiCatalogRegistry, $this->createMock(DispatchPromptOperation::class), $this->createMock(ResolveActiveThreadPresenters::class), new AgentTaskService(new MessageTaskService), new MessageTaskService, $this->createMock(UserRepository::class)) extends A2aMethodRouter
+        return new class($this->createMock(ResolveConversationThreadOperation::class), $this->createMock(ResolveConversationSpaceContext::class), $this->createMock(ResolveConversationThreadContext::class), $this->createMock(TaskPushNotificationDispatcher::class), new A2uiPayloadContract, new A2uiCatalogRegistry, $this->createMock(DispatchPromptOperation::class), $this->createMock(ResolveActiveThreadPresenters::class), new ThreadEventTaskService(new MessageTaskService), new MessageTaskService, $this->createMock(UserRepository::class)) extends A2aMethodRouter
         {
             /**
              * @param  array<string, mixed>  $params

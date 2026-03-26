@@ -14,8 +14,8 @@ use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadActorSession;
 use App\Models\Server\User;
-use App\Support\Orchestrate\AgentTaskService;
 use App\Support\Orchestrate\MessageTaskService;
+use App\Support\Orchestrate\ThreadEventTaskService;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Support\Facades\DB;
 use Laravel\Ai\Contracts\Agent;
@@ -28,7 +28,7 @@ class AgentExecutor
     public function __construct(
         protected DispatchThreadMessage $dispatchThreadMessage,
         protected TaskPushNotificationDispatcher $taskPushNotificationDispatcher,
-        protected AgentTaskService $agentTaskService,
+        protected ThreadEventTaskService $taskService,
         protected MessageTaskService $messageTaskService,
     ) {}
 
@@ -274,7 +274,7 @@ class AgentExecutor
             source: 'agent_response',
         ));
 
-        $this->agentTaskService->syncLocalTaskForPromptMessage($userPost);
+        $this->taskService->syncLocalTaskForPromptMessage($userPost);
         $this->linkAgentTelemetryToThreadMessages($thread, $userPost, $assistantMessage, $threadActor, $userId, $response);
     }
 
@@ -323,7 +323,7 @@ class AgentExecutor
         $userPost->forceFill([
             'meta' => $promptMeta,
         ])->save();
-        $this->agentTaskService->syncLocalTaskForPromptMessage($userPost);
+        $this->taskService->syncLocalTaskForPromptMessage($userPost);
 
         if (is_string(data_get($promptMeta, 'a2a_task_id')) && trim((string) data_get($promptMeta, 'a2a_task_id')) !== '') {
             $this->taskPushNotificationDispatcher->dispatchTaskUpdate(

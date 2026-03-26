@@ -5,12 +5,13 @@ namespace App\Ai\Tools;
 use App\Ai\Support\Acp\OutboundAcpClient;
 use App\Ai\Support\Acp\OutboundAgentRegistry;
 use App\Ai\Tools\Diagnostics\EncodesToolResponse;
-use App\Models\Server\AgentTask;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadEvent;
 use App\Models\Server\User;
+use App\Support\Orchestrate\TaskRecord;
+use App\Support\Orchestrate\ThreadEventTaskService;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Str;
 use Laravel\Ai\Contracts\Tool;
@@ -254,7 +255,7 @@ class DelegateAcpTaskTool implements Tool
             event: $state === 'completed' ? 'completed' : 'submitted',
             severity: $state === 'completed' ? 'low' : 'medium',
             errorMessage: null,
-            agentTask: $link,
+            task: $link,
         );
 
         return $this->ok([
@@ -429,13 +430,12 @@ class DelegateAcpTaskTool implements Tool
 
     protected function existingRemoteSessionId(string $agentId): ?string
     {
-        $task = AgentTask::query()
-            ->where('thread_id', $this->thread->id)
-            ->where('user_id', $this->actor->id)
-            ->latest('id')
-            ->get()
-            ->first(function (AgentTask $task) use ($agentId): bool {
-                return data_get($task->remote, 'protocol') === 'acp'
+        $task = $this->taskService()
+            ->latestTaskRecords()
+            ->first(function (TaskRecord $task) use ($agentId): bool {
+                return $task->protocol === 'acp'
+                    && $task->thread?->is($this->thread)
+                    && $task->userId === $this->actor->id
                     && data_get($task->remote, 'agent_id') === $agentId
                     && is_string(data_get($task->remote, 'session_id'))
                     && trim((string) data_get($task->remote, 'session_id')) !== '';
@@ -453,18 +453,17 @@ class DelegateAcpTaskTool implements Tool
         string $taskId,
         string $state,
         array $payload,
-    ): ?AgentTask {
+    ): ?TaskRecord {
         if ($agentId === '' || $sessionId === '' || $taskId === '') {
             return null;
         }
 
-        $link = AgentTask::query()
-            ->where('thread_id', $this->thread->id)
-            ->where('user_id', $this->actor->id)
-            ->latest('id')
-            ->get()
-            ->first(function (AgentTask $task) use ($agentId, $sessionId, $taskId): bool {
-                return data_get($task->remote, 'protocol') === 'acp'
+        $existing = $this->taskService()
+            ->latestTaskRecords()
+            ->first(function (TaskRecord $task) use ($agentId, $sessionId, $taskId): bool {
+                return $task->protocol === 'acp'
+                    && $task->thread?->is($this->thread)
+                    && $task->userId === $this->actor->id
                     && data_get($task->remote, 'agent_id') === $agentId
                     && (
                         data_get($task->remote, 'task_id') === $taskId
@@ -472,30 +471,47 @@ class DelegateAcpTaskTool implements Tool
                     );
             });
 
-        $updates = [
-            'thread_id' => $this->thread->id,
-            'post_id' => null,
-            'user_id' => $this->actor->id,
-            'remote' => [
-                'protocol' => 'acp',
-                'agent_id' => $agentId,
-                'session_id' => $sessionId,
-                'task_id' => $taskId,
-            ],
-            'status' => $state,
-            'last_payload' => $payload,
-            'completed_at' => $state === 'completed' ? now() : null,
-            'failed_at' => $state === 'failed' ? now() : null,
-            'canceled_at' => $state === 'canceled' ? now() : null,
+        $timestamps = [
+            'completed_at' => $state === 'completed' ? ($existing?->completedAt ?? now()->toIso8601String()) : $existing?->completedAt,
+            'failed_at' => $state === 'failed' ? ($existing?->failedAt ?? now()->toIso8601String()) : $existing?->failedAt,
+            'canceled_at' => $state === 'canceled' ? ($existing?->canceledAt ?? now()->toIso8601String()) : $existing?->canceledAt,
         ];
 
-        if (! $link instanceof AgentTask) {
-            return AgentTask::query()->create($updates);
-        }
-
-        $link->forceFill($updates)->save();
-
-        return $link->fresh();
+        return $this->taskService()->recordSnapshot(
+            thread: $this->thread,
+            message: null,
+            user: $this->actor,
+            task: [
+                'uuid' => $existing?->uuid ?? (string) Str::uuid7(),
+                'public_id' => $existing?->publicId ?? $taskId,
+                'status' => $state,
+                'protocol' => 'acp',
+                'owner' => [
+                    'subject_type' => $this->actor->getMorphClass(),
+                    'subject_id' => $this->actor->getKey(),
+                ],
+                'remote' => [
+                    'protocol' => 'acp',
+                    'agent_id' => $agentId,
+                    'session_id' => $sessionId,
+                    'task_id' => $taskId,
+                ],
+                'user_id' => $this->actor->id,
+                'user_uuid' => $this->actor->uuid,
+                'thread_id' => $this->thread->uuid,
+                'space_id' => null,
+                'snapshot' => [
+                    'state' => $state,
+                    'updated_at' => now()->toIso8601String(),
+                ],
+                'last_payload' => $payload,
+                'timestamps' => array_filter($timestamps, fn (mixed $value): bool => $value !== null),
+            ],
+            kind: ThreadEvent::KindAcp,
+            threadActor: $this->threadActor,
+            operation: 'task.snapshot',
+            eventType: 'task.snapshot',
+        );
     }
 
     protected function recordEvent(
@@ -503,9 +519,9 @@ class DelegateAcpTaskTool implements Tool
         string $event,
         string $severity,
         ?string $errorMessage,
-        ?AgentTask $agentTask = null,
+        ?TaskRecord $task = null,
     ): void {
-        $threadEvent = $this->thread->events()->create([
+        $this->thread->events()->create([
             'thread_actor_id' => $this->threadActor?->id,
             'post_id' => null,
             'event_key' => 'acp_delegate_tool',
@@ -519,13 +535,12 @@ class DelegateAcpTaskTool implements Tool
                 'agent' => $agentId,
                 'actor_id' => $this->actor->id,
                 'actor_uuid' => $this->actor->uuid,
+                'task_uuid' => $task?->uuid,
+                'task_public_id' => $task?->publicId,
+                'task_remote' => $task?->remote,
                 'error_message' => $errorMessage !== null ? mb_substr(trim($errorMessage), 0, 500) : null,
             ],
         ]);
-
-        if ($agentTask instanceof AgentTask) {
-            $agentTask->threadEvents()->syncWithoutDetaching([$threadEvent->id]);
-        }
     }
 
     protected function stateForEvent(string $event): string
@@ -546,5 +561,10 @@ class DelegateAcpTaskTool implements Tool
         $trimmed = trim($value);
 
         return $trimmed === '' ? null : $trimmed;
+    }
+
+    protected function taskService(): ThreadEventTaskService
+    {
+        return app(ThreadEventTaskService::class);
     }
 }

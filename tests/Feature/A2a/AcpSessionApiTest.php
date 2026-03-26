@@ -3,13 +3,14 @@
 namespace Tests\Feature\A2a;
 
 use App\Ai\Support\AgentExecutor;
-use App\Models\Server\AgentTask;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
+use App\Models\Server\ThreadEvent;
 use App\Models\Server\User;
+use App\Support\Orchestrate\TaskRecord;
 use App\TokenAbility;
 use Database\Factories\SpaceFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -110,11 +111,14 @@ class AcpSessionApiTest extends TestCase
             ->assertJsonPath('data.state', 'submitted');
 
         $taskId = (string) $promptResponse->json('data.id');
-        $task = AgentTask::query()->where('uuid', $taskId)->firstOrFail();
+        $task = TaskRecord::fromEvent(
+            ThreadEvent::query()->where('event_key', 'agent_task')->latest('id')->firstOrFail()
+        );
+        $this->assertInstanceOf(TaskRecord::class, $task);
 
         $this->assertSame('submitted', $task->status);
-        $this->assertNotNull($task->post_id);
-        $this->assertSame($user->id, $task->user_id);
+        $this->assertNotNull($task->message?->id);
+        $this->assertSame($user->id, $task->userId);
 
         $this->getJson("/api/acp/tasks/{$taskId}")
             ->assertOk()
@@ -126,9 +130,12 @@ class AcpSessionApiTest extends TestCase
             ->assertJsonPath('data.id', $taskId)
             ->assertJsonPath('data.state', 'canceled');
 
-        $task->refresh();
+        $task = TaskRecord::fromEvent(
+            ThreadEvent::query()->where('event_key', 'agent_task')->latest('id')->firstOrFail()
+        );
+        $this->assertInstanceOf(TaskRecord::class, $task);
         $this->assertSame('canceled', $task->status);
-        $this->assertNotNull($task->canceled_at);
+        $this->assertNotNull($task->canceledAt);
 
         $this->getJson("/api/acp/tasks/{$taskId}")
             ->assertOk()

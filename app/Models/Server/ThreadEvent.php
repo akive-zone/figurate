@@ -7,7 +7,6 @@ use Database\Factories\ThreadEventFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class ThreadEvent extends Model
@@ -76,17 +75,6 @@ class ThreadEvent extends Model
     public function threadActor(): BelongsTo
     {
         return $this->belongsTo(ThreadActor::class);
-    }
-
-    public function agentTasks(): BelongsToMany
-    {
-        return $this->belongsToMany(AgentTask::class, 'thread_event_agent_tasks')
-            ->withTimestamps();
-    }
-
-    public function tasks(): BelongsToMany
-    {
-        return $this->agentTasks();
     }
 
     public function inboxes(): MorphMany
