@@ -30,9 +30,6 @@ class PostFactory extends Factory
             'data' => [
                 'text' => fake()->paragraph(),
             ],
-            'attachments' => null,
-            'actions' => null,
-            'errors' => null,
             'meta' => null,
             'occurred_at' => now(),
         ];

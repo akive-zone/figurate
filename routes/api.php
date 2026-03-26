@@ -1,5 +1,6 @@
 <?php
 
+use App\Ai\Gateways\Mcp\Servers\FigurateServer;
 use App\Http\Controllers\Api\A2a\StreamController as A2aStreamController;
 use App\Http\Controllers\Api\Acp\SessionController as AcpSessionController;
 use App\Http\Controllers\Api\Acp\TaskController as AcpTaskController;
@@ -23,6 +24,7 @@ use App\Http\Procedures\A2aTasksProcedure;
 use App\Http\Procedures\A2aTasksPushNotificationConfigProcedure;
 use Illuminate\Broadcasting\BroadcastController;
 use Illuminate\Support\Facades\Route;
+use Laravel\Mcp\Facades\Mcp;
 
 Route::prefix('auth')->group(function (): void {
     Route::post('register', RegisterController::class);
@@ -66,6 +68,10 @@ Route::prefix('mcp')->middleware(['auth:sanctum,passport'])->group(function (): 
     Route::post('/servers', [McpServerController::class, 'store'])->name('api.context-servers.store');
     Route::patch('/servers/{server}', [McpServerController::class, 'update'])->name('api.context-servers.update');
     Route::delete('/servers/{server}', [McpServerController::class, 'destroy'])->name('api.context-servers.destroy');
+
+    Mcp::web('/mcp/figurate', FigurateServer::class)
+        ->middleware(['auth:sanctum,passport', EnsureTransportUser::class, EnsureTokenAbility::class.':mcp:use']);
+
 });
 
 Route::prefix('acp')->middleware(['auth:sanctum,passport', EnsureTransportUser::class, EnsureTokenAbility::class.':acp:use'])->group(function (): void {

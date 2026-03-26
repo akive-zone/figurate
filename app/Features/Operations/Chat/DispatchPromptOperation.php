@@ -84,11 +84,16 @@ class DispatchPromptOperation
         ));
 
         $updates = [];
+        $data = is_array($message->data) ? $message->data : [];
+
         if (is_array($options['actions'] ?? null) && $options['actions'] !== []) {
-            $updates['actions'] = $options['actions'];
+            $data['actions'] = array_values($options['actions']);
         }
         if (is_array($options['errors'] ?? null) && $options['errors'] !== []) {
-            $updates['errors'] = $options['errors'];
+            $data['errors'] = array_values($options['errors']);
+        }
+        if ($data !== []) {
+            $updates['data'] = $data;
         }
 
         if ($updates !== []) {

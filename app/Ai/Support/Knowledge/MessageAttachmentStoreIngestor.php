@@ -51,31 +51,6 @@ class MessageAttachmentStoreIngestor
             $result['processed']++;
         }
 
-        if ($result['processed'] > 0) {
-            return $result;
-        }
-
-        foreach ((array) $post->attachments as $attachment) {
-            try {
-                $document = $this->documentIndexer->indexPostAttachment(
-                    store: $store,
-                    post: $post,
-                    attachment: $attachment,
-                    origin: 'thread_message',
-                );
-
-                if ($document->status === 'indexed') {
-                    $result['indexed']++;
-                } elseif ($document->status === 'local_only') {
-                    $result['local_only']++;
-                }
-            } catch (\Throwable $exception) {
-                report($exception);
-                $result['failed']++;
-            }
-            $result['processed']++;
-        }
-
         return $result;
     }
 }

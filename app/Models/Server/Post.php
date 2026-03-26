@@ -58,9 +58,6 @@ class Post extends Model implements HasMedia
     {
         return [
             'data' => 'array',
-            'attachments' => 'array',
-            'actions' => 'array',
-            'errors' => 'array',
             'meta' => 'array',
             'occurred_at' => 'datetime',
         ];
@@ -70,9 +67,11 @@ class Post extends Model implements HasMedia
     {
         return Attribute::make(
             get: fn (): ?string => is_array($this->data) ? (isset($this->data['text']) ? (string) $this->data['text'] : null) : null,
-            set: fn (mixed $value): array => [
-                'data' => json_encode(array_merge(is_array($this->data) ? $this->data : [], ['text' => $value])) ?: null,
-            ],
+            set: function (mixed $value): array {
+                return [
+                    'data' => $this->withDataValue('text', $value),
+                ];
+            },
         );
     }
 
@@ -129,7 +128,7 @@ class Post extends Model implements HasMedia
         return Attribute::make(
             get: fn (): ?array => is_array($this->data) ? $this->data : null,
             set: fn (mixed $value): array => [
-                'data' => is_array($value) ? (json_encode($value) ?: null) : null,
+                'data' => $this->encodeDataPayload(is_array($value) && $value !== [] ? $value : null),
             ],
         );
     }
@@ -137,24 +136,32 @@ class Post extends Model implements HasMedia
     protected function attachments(): Attribute
     {
         return Attribute::make(
-            get: function (mixed $value, array $attributes): array {
-                $media = $this->attachmentMedia();
+            get: fn (): array => $this->attachmentMedia(),
+            set: fn (): array => [],
+        );
+    }
 
-                if ($media !== []) {
-                    return $media;
-                }
-
-                if (is_array($value)) {
-                    return $value;
-                }
-
-                $decoded = json_decode((string) ($attributes['attachments'] ?? 'null'), true);
-
-                return is_array($decoded) ? $decoded : [];
+    protected function actions(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): array => $this->dataArrayList('actions'),
+            set: function (mixed $value): array {
+                return [
+                    'data' => $this->withDataValue('actions', is_array($value) && $value !== [] ? array_values($value) : null),
+                ];
             },
-            set: fn (mixed $value): array => [
-                'attachments' => is_array($value) && $value !== [] ? json_encode($value) : null,
-            ],
+        );
+    }
+
+    protected function errors(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): array => $this->dataArrayList('errors'),
+            set: function (mixed $value): array {
+                return [
+                    'data' => $this->withDataValue('errors', is_array($value) && $value !== [] ? array_values($value) : null),
+                ];
+            },
         );
     }
 
@@ -282,6 +289,45 @@ class Post extends Model implements HasMedia
         $meta = $this->meta ?? [];
         $meta[$key] = $value;
         $this->meta = $meta;
+    }
+
+    protected function withDataValue(string $key, mixed $value): ?string
+    {
+        $data = is_array($this->data) ? $this->data : [];
+
+        if ($value === null) {
+            unset($data[$key]);
+        } else {
+            $data[$key] = $value;
+        }
+
+        return $this->encodeDataPayload($data !== [] ? $data : null);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    protected function dataArrayList(string $key): array
+    {
+        $value = data_get($this->data, $key);
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_filter($value, fn (mixed $item): bool => is_array($item)));
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $payload
+     */
+    protected function encodeDataPayload(?array $payload): ?string
+    {
+        if ($payload === null || $payload === []) {
+            return null;
+        }
+
+        return json_encode($payload) ?: null;
     }
 
     /**

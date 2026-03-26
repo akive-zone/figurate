@@ -32,9 +32,18 @@ class ApplyReceivedMessageA2uiMetadata
         }
         $meta['a2ui_actions_received_at'] = now()->toIso8601String();
 
+        $data = is_array($message->data) ? $message->data : [];
+
+        if ($a2uiActions !== []) {
+            $data['actions'] = $a2uiActions;
+        }
+
+        if ($a2uiErrors !== []) {
+            $data['errors'] = $a2uiErrors;
+        }
+
         $message->forceFill([
-            'actions' => $a2uiActions !== [] ? $a2uiActions : $message->actions,
-            'errors' => $a2uiErrors !== [] ? $a2uiErrors : $message->errors,
+            'data' => $data !== [] ? $data : null,
             'meta' => $meta,
         ])->save();
     }

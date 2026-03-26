@@ -18,11 +18,8 @@ return new class extends Migration
             $table->string('type');
             $table->string('tag')->nullable();
             $table->string('status');
-            $table->json('data')->nullable();
+            $table->jsonb('data')->nullable();
             $table->json('meta')->nullable();
-            $table->json('attachments')->nullable();
-            $table->json('actions')->nullable();
-            $table->json('errors')->nullable();
             $table->timestamp('occurred_at')->nullable();
             $table->timestamps();
             $table->softDeletes();
