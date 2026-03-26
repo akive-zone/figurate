@@ -11,6 +11,18 @@ class ThreadRelation extends Model
 {
     use HasFactory;
 
+    public const TypeRelatedTo = 'related_to';
+
+    public const TypeReferences = 'references';
+
+    public const TypeDependsOn = 'depends_on';
+
+    public const TypeBlocks = 'blocks';
+
+    public const TypeDerivedFrom = 'derived_from';
+
+    public const TypeChildOf = 'child_of';
+
     /**
      * @var list<string>
      */

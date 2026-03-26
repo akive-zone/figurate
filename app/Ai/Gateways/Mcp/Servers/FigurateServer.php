@@ -8,12 +8,14 @@ use App\Ai\Gateways\Mcp\Resources\FigurateServerGuideResource;
 use App\Ai\Gateways\Mcp\Resources\SpaceResource;
 use App\Ai\Gateways\Mcp\Resources\ThreadResource;
 use App\Ai\Gateways\Mcp\Tools\AssignThreadActorTool;
+use App\Ai\Gateways\Mcp\Tools\CreateGraphEdgeTool;
 use App\Ai\Gateways\Mcp\Tools\CreatePostTool;
 use App\Ai\Gateways\Mcp\Tools\CreateThreadTool;
 use App\Ai\Gateways\Mcp\Tools\ListPostsTool;
 use App\Ai\Gateways\Mcp\Tools\ListSpacesTool;
 use App\Ai\Gateways\Mcp\Tools\ListThreadActorsTool;
 use App\Ai\Gateways\Mcp\Tools\ListThreadsTool;
+use App\Ai\Gateways\Mcp\Tools\QueryGraphEdgesTool;
 use App\Ai\Gateways\Mcp\Tools\ReadSpaceTool;
 use App\Ai\Gateways\Mcp\Tools\ReadThreadTool;
 use App\Ai\Gateways\Mcp\Tools\SearchConversationContextTool;
@@ -36,8 +38,10 @@ class FigurateServer extends Server
         ListPostsTool::class,
         ListThreadActorsTool::class,
         SearchConversationContextTool::class,
+        QueryGraphEdgesTool::class,
         AssignThreadActorTool::class,
         TransferThreadSessionTool::class,
+        CreateGraphEdgeTool::class,
         CreateThreadTool::class,
         CreatePostTool::class,
     ];

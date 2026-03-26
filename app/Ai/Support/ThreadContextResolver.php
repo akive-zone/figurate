@@ -5,7 +5,6 @@ namespace App\Ai\Support;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
-use App\Models\Server\ThreadRelation;
 
 class ThreadContextResolver
 {
@@ -15,6 +14,12 @@ class ThreadContextResolver
 
         if ($threadable instanceof Space) {
             return $threadable;
+        }
+
+        $relatedSpace = $thread->relatedOne(Space::class);
+
+        if ($relatedSpace instanceof Space) {
+            return $relatedSpace;
         }
 
         if ($threadable instanceof Post) {
@@ -31,16 +36,6 @@ class ThreadContextResolver
             }
         }
 
-        $spaceRelation = ThreadRelation::query()
-            ->where('thread_id', $thread->id)
-            ->where('relationable_type', (new Space)->getMorphClass())
-            ->latest('id')
-            ->first();
-
-        if (! $spaceRelation) {
-            return null;
-        }
-
-        return Space::query()->find($spaceRelation->relationable_id);
+        return null;
     }
 }

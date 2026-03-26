@@ -6,9 +6,11 @@ use App\Ai\Gateways\Mcp\Prompts\PlanSpaceWorkPrompt;
 use App\Ai\Gateways\Mcp\Resources\FigurateServerGuideResource;
 use App\Ai\Gateways\Mcp\Servers\FigurateServer;
 use App\Ai\Gateways\Mcp\Tools\AssignThreadActorTool;
+use App\Ai\Gateways\Mcp\Tools\CreateGraphEdgeTool;
 use App\Ai\Gateways\Mcp\Tools\CreatePostTool;
 use App\Ai\Gateways\Mcp\Tools\CreateThreadTool;
 use App\Ai\Gateways\Mcp\Tools\ListSpacesTool;
+use App\Ai\Gateways\Mcp\Tools\QueryGraphEdgesTool;
 use App\Ai\Gateways\Mcp\Tools\ReadThreadTool;
 use App\Ai\Gateways\Mcp\Tools\SearchConversationContextTool;
 use App\Ai\Gateways\Mcp\Tools\TransferThreadSessionTool;
@@ -16,9 +18,11 @@ use App\Models\Server\AgentConversation;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
+use App\Models\Server\SpaceRelation;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadActorSession;
+use App\Models\Server\ThreadRelation;
 use App\Models\Server\User;
 use Database\Factories\SpaceFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -122,6 +126,34 @@ class FigurateMcpServerTest extends TestCase
         ]);
     }
 
+    public function test_it_creates_graph_edges_via_mcp_tools(): void
+    {
+        $user = $this->makeUser();
+        $sourceSpace = $this->accessibleSpace($user);
+        $targetSpace = $this->accessibleSpace($user);
+
+        $response = FigurateServer::actingAs($user)->tool(CreateGraphEdgeTool::class, [
+            'source_type' => 'space',
+            'source_id' => $sourceSpace->uuid,
+            'target_type' => 'space',
+            'target_id' => $targetSpace->uuid,
+            'edge_type' => SpaceRelation::TypeDependsOn,
+            'purpose' => 'Need target space as an upstream dependency.',
+        ]);
+
+        $response->assertOk()
+            ->assertSee(SpaceRelation::TypeDependsOn)
+            ->assertSee($sourceSpace->uuid)
+            ->assertSee($targetSpace->uuid);
+
+        $this->assertDatabaseHas('space_relations', [
+            'space_id' => $sourceSpace->id,
+            'relationable_type' => $targetSpace->getMorphClass(),
+            'relationable_id' => $targetSpace->id,
+            'type' => SpaceRelation::TypeDependsOn,
+        ]);
+    }
+
     public function test_it_searches_thread_context(): void
     {
         $user = $this->makeUser();
@@ -159,6 +191,55 @@ class FigurateMcpServerTest extends TestCase
         $response->assertOk()
             ->assertSee('basement drain smells bad')
             ->assertSee('Drain odor likely from trapped debris');
+    }
+
+    public function test_it_queries_graph_edges_with_depth(): void
+    {
+        $user = $this->makeUser();
+        $sourceSpace = $this->accessibleSpace($user);
+        $dependencySpace = $this->accessibleSpace($user);
+        $knowledgeSpace = $this->accessibleSpace($user);
+        $sourceThread = $sourceSpace->threads()->create([
+            'title' => 'Source thread',
+            'purpose' => Thread::PurposePlanning,
+            'phase' => 'scope_planning',
+            'status' => 'open',
+        ]);
+        $dependencyThread = $dependencySpace->threads()->create([
+            'title' => 'Dependency thread',
+            'purpose' => Thread::PurposeExecution,
+            'phase' => 'order_kickoff',
+            'status' => 'open',
+        ]);
+        $knowledgeThread = $knowledgeSpace->threads()->create([
+            'title' => 'Knowledge thread',
+            'purpose' => Thread::PurposeSupport,
+            'phase' => 'support_open',
+            'status' => 'open',
+        ]);
+
+        $sourceSpace->attachRelation($dependencySpace, SpaceRelation::TypeDependsOn, 'Depends on fulfillment context');
+        $dependencySpace->attachRelation($knowledgeSpace, SpaceRelation::TypeReferences, 'Needs supporting knowledge context');
+        $dependencyThread->attachRelation($knowledgeThread, ThreadRelation::TypeReferences, 'See related thread');
+
+        $response = FigurateServer::actingAs($user)->tool(QueryGraphEdgesTool::class, [
+            'node_type' => 'space',
+            'node_id' => $sourceSpace->uuid,
+            'direction' => 'outgoing',
+            'depth' => 3,
+        ]);
+
+        $response->assertOk()
+            ->assertSee($sourceSpace->uuid)
+            ->assertSee($dependencySpace->uuid)
+            ->assertSee($knowledgeSpace->uuid)
+            ->assertSee(ThreadRelation::TypeReferences)
+            ->assertSee('edge_count');
+
+        $this->assertEqualsCanonicalizing(
+            [$sourceThread->id, $dependencyThread->id, $knowledgeThread->id],
+            $sourceSpace->conversationThreadIds()->all(),
+        );
     }
 
     public function test_it_exposes_a_guide_resource_and_channel_planning_prompt(): void

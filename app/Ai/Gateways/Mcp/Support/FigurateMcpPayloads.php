@@ -4,12 +4,15 @@ namespace App\Ai\Gateways\Mcp\Support;
 
 use App\Models\Server\Post;
 use App\Models\Server\Space;
+use App\Models\Server\SpaceRelation;
 use App\Models\Server\Store;
 use App\Models\Server\StoreDocument;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
+use App\Models\Server\ThreadRelation;
 use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Mcp\Request;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -80,6 +83,19 @@ class FigurateMcpPayloads
         return $thread;
     }
 
+    public function resolveGraphNode(User $actor, string $nodeType, string $nodeId, bool $updatable = false): Model
+    {
+        return match ($nodeType) {
+            'space' => $updatable
+                ? $this->resolveUpdatableSpace($actor, $nodeId)
+                : $this->resolveSpace($actor, $nodeId),
+            'thread' => $updatable
+                ? $this->resolveUpdatableThread($actor, $nodeId)
+                : $this->resolveThread($actor, $nodeId),
+            default => abort(422, 'Unsupported graph node type.'),
+        };
+    }
+
     public function mapSpace(Space $space): array
     {
         return [
@@ -107,6 +123,70 @@ class FigurateMcpPayloads
             'post_count' => $thread->posts()->count(),
             'created_at' => optional($thread->created_at)?->toIso8601String(),
             'updated_at' => optional($thread->updated_at)?->toIso8601String(),
+        ];
+    }
+
+    public function mapGraphNode(Model $node): array
+    {
+        return match (true) {
+            $node instanceof Space => [
+                'type' => 'space',
+                'id' => $node->uuid,
+                'resource' => $this->mapSpace($node),
+            ],
+            $node instanceof Thread => [
+                'type' => 'thread',
+                'id' => $node->uuid,
+                'resource' => $this->mapThread($node),
+            ],
+            default => abort(422, 'Unsupported graph node model.'),
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $edge
+     * @return array<string, mixed>
+     */
+    public function mapGraphEdge(array $edge): array
+    {
+        /** @var SpaceRelation|ThreadRelation $relation */
+        $relation = $edge['relation'];
+        /** @var Model $source */
+        $source = $edge['source'];
+        /** @var Model $target */
+        $target = $edge['target'];
+
+        return [
+            'direction' => (string) $edge['direction'],
+            'depth' => (int) $edge['depth'],
+            'type' => $relation->type,
+            'purpose' => $relation->purpose,
+            'source' => $this->mapGraphNode($source),
+            'target' => $this->mapGraphNode($target),
+            'created_at' => optional($relation->created_at)?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function allowedGraphNodeTypes(): array
+    {
+        return ['space', 'thread'];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function allowedGraphEdgeTypes(): array
+    {
+        return [
+            SpaceRelation::TypeRelatedTo,
+            SpaceRelation::TypeReferences,
+            SpaceRelation::TypeDependsOn,
+            SpaceRelation::TypeBlocks,
+            SpaceRelation::TypeDerivedFrom,
+            SpaceRelation::TypeChildOf,
         ];
     }
 

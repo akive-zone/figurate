@@ -74,11 +74,11 @@ Thread usage (working design hypothesis):
 ## Log 3: 
 - Date- 13-02-2026
 
-What i am looking at is agnostic system for channel <-> post <-> thread ... where thread is sort of like a session of messages happening 
+What i am looking at is agnostic system for space <-> post <-> thread ... where thread is sort of like a session of messages happening 
 
-Channel is like the main space here ... for the users ... it contains alot of threads ... By default when a channel is opened it contains no thread 
+Space is like the main here ... for the users ... it contains alot of threads ... By default when a space is opened it contains no thread 
 
-na the active thread is based on which user is on that channel
+the active thread is based on which user is on that space
 
 the owner/member/asker user can be on a channel 
 
@@ -123,7 +123,7 @@ Observer prompting will always assume multiple observer agent can exist in a thr
 - 1. Cameo.com
 - 2. Taskrabbit.com
 - 3. Backstage.com
-- 4. handy.com
+- 4. Handy.com
 - 5. Chowdeck.com
 
 # Log 6:

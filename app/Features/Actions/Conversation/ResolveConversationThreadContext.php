@@ -39,6 +39,12 @@ class ResolveConversationThreadContext
             return $threadable;
         }
 
+        $relatedSpace = $thread->relatedOne(Space::class);
+
+        if ($relatedSpace instanceof Space) {
+            return $relatedSpace;
+        }
+
         $threadMorphClass = $thread->getMorphClass();
         $relatedSpaceId = SpaceRelation::query()
             ->where('relationable_type', $threadMorphClass)
