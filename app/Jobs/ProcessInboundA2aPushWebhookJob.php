@@ -186,8 +186,6 @@ class ProcessInboundA2aPushWebhookJob extends ProcessWebhookJob
                 'timestamps' => array_filter($timestamps, fn (mixed $value): bool => $value !== null),
             ],
             kind: ThreadEvent::KindA2a,
-            operation: 'task.snapshot',
-            eventType: 'task.snapshot',
         );
     }
 

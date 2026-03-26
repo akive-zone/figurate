@@ -388,6 +388,10 @@ class OutboundAcpToolsTest extends TestCase
             ThreadEvent::query()->where('event_key', 'agent_task')->latest('id')->firstOrFail()
         );
         $this->assertInstanceOf(TaskRecord::class, $link);
+        $this->assertSame(ThreadEvent::LayerExecution, $link->event->layer);
+        $this->assertSame(ThreadEvent::KindAcp, $link->event->kind);
+        $this->assertSame('task.snapshot', $link->event->operation);
+        $this->assertSame('submitted', $link->event->state);
         $this->assertSame('submitted', $link->status);
         $this->assertSame('acp', $link->protocol);
         $this->assertSame('gemini', data_get($link->remote, 'agent_id'));

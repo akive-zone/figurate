@@ -509,8 +509,6 @@ class DelegateAcpTaskTool implements Tool
             ],
             kind: ThreadEvent::KindAcp,
             threadActor: $this->threadActor,
-            operation: 'task.snapshot',
-            eventType: 'task.snapshot',
         );
     }
 

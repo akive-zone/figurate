@@ -68,8 +68,6 @@ class ThreadEventTaskService
             task: $task,
             kind: $this->kindForProtocol($protocol),
             threadActor: null,
-            operation: 'task.snapshot',
-            eventType: 'task.snapshot',
         );
     }
 
@@ -220,19 +218,23 @@ class ThreadEventTaskService
         array $task,
         string $kind,
         ?ThreadActor $threadActor = null,
-        string $operation = 'task.snapshot',
-        string $eventType = 'task.snapshot',
+        ?string $operation = null,
+        ?string $eventType = null,
     ): TaskRecord {
+        $resolvedState = (string) ($task['status'] ?? 'submitted');
+        $resolvedOperation = $operation ?? $this->operationForState($resolvedState);
+        $resolvedEventType = $eventType ?? $resolvedOperation;
+
         $event = $thread->events()->create([
             'thread_actor_id' => $threadActor?->id,
             'post_id' => $message?->id,
             'event_key' => 'agent_task',
             'layer' => ThreadEvent::LayerExecution,
             'kind' => $kind,
-            'operation' => $operation,
-            'state' => $task['status'] ?? 'submitted',
-            'event_type' => $eventType,
-            'severity' => $this->severityForState((string) ($task['status'] ?? 'submitted')),
+            'operation' => $resolvedOperation,
+            'state' => $resolvedState,
+            'event_type' => $resolvedEventType,
+            'severity' => $this->severityForState($resolvedState),
             'payload' => [
                 'task' => $task,
             ],
@@ -397,6 +399,7 @@ class ThreadEventTaskService
     {
         return ThreadEvent::query()
             ->where('event_key', 'agent_task')
+            ->where('layer', ThreadEvent::LayerExecution)
             ->with(['thread', 'post']);
     }
 
@@ -425,6 +428,16 @@ class ThreadEventTaskService
     protected function severityForState(string $state): string
     {
         return in_array($state, ['failed', 'canceled'], true) ? 'medium' : 'low';
+    }
+
+    protected function operationForState(string $state): string
+    {
+        return match ($state) {
+            'completed' => 'task.completed',
+            'failed' => 'task.failed',
+            'canceled' => 'task.canceled',
+            default => 'task.snapshot',
+        };
     }
 
     protected function trimmedString(mixed $value): ?string

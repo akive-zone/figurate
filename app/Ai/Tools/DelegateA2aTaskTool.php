@@ -551,8 +551,6 @@ class DelegateA2aTaskTool implements Tool
             ],
             kind: ThreadEvent::KindA2a,
             threadActor: $this->threadActor,
-            operation: 'task.snapshot',
-            eventType: 'task.snapshot',
         );
     }
 

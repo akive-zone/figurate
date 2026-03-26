@@ -49,8 +49,10 @@ class TaskRecord
         }
 
         $publicId = self::trimmedString($task['public_id'] ?? null) ?? $uuid;
-        $status = self::trimmedString($task['status'] ?? null) ?? 'submitted';
-        $protocol = self::trimmedString($task['protocol'] ?? null);
+        $status = self::trimmedString($task['status'] ?? null)
+            ?? self::trimmedString($event->state)
+            ?? 'submitted';
+        $protocol = self::trimmedString($task['protocol'] ?? null) ?? self::protocolFromKind($event->kind);
         $owner = is_array($task['owner'] ?? null) ? $task['owner'] : null;
         $remote = is_array($task['remote'] ?? null) ? $task['remote'] : null;
         $snapshot = is_array($task['snapshot'] ?? null) ? $task['snapshot'] : [];
@@ -112,5 +114,14 @@ class TaskRecord
         }
 
         return null;
+    }
+
+    protected static function protocolFromKind(?string $kind): ?string
+    {
+        return match ($kind) {
+            ThreadEvent::KindAcp => 'acp',
+            ThreadEvent::KindA2a => 'a2a',
+            default => null,
+        };
     }
 }

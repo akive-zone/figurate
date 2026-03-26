@@ -115,6 +115,10 @@ class AcpSessionApiTest extends TestCase
             ThreadEvent::query()->where('event_key', 'agent_task')->latest('id')->firstOrFail()
         );
         $this->assertInstanceOf(TaskRecord::class, $task);
+        $this->assertSame(ThreadEvent::LayerExecution, $task->event->layer);
+        $this->assertSame(ThreadEvent::KindAcp, $task->event->kind);
+        $this->assertSame('task.snapshot', $task->event->operation);
+        $this->assertSame('submitted', $task->event->state);
 
         $this->assertSame('submitted', $task->status);
         $this->assertNotNull($task->message?->id);
@@ -134,6 +138,10 @@ class AcpSessionApiTest extends TestCase
             ThreadEvent::query()->where('event_key', 'agent_task')->latest('id')->firstOrFail()
         );
         $this->assertInstanceOf(TaskRecord::class, $task);
+        $this->assertSame(ThreadEvent::LayerExecution, $task->event->layer);
+        $this->assertSame(ThreadEvent::KindAcp, $task->event->kind);
+        $this->assertSame('task.canceled', $task->event->operation);
+        $this->assertSame('canceled', $task->event->state);
         $this->assertSame('canceled', $task->status);
         $this->assertNotNull($task->canceledAt);
 
