@@ -8,9 +8,11 @@ use App\Models\Server\Channel;
 use App\Models\Server\ChannelRelation;
 use App\Models\Server\Outbox;
 use App\Models\Server\Post;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
+use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Support\Collection;
 
 class EnqueueThreadMessageOutbox
@@ -31,7 +33,7 @@ class EnqueueThreadMessageOutbox
 
         $created = collect();
 
-        foreach ($this->resolveFanoutTargets($thread) as $target) {
+        foreach ($this->resolveFanoutTargets($thread, $post) as $target) {
             $idempotencyKey = sprintf(
                 'outbound:%d:%s:%s:%s',
                 $post->id,
@@ -52,34 +54,11 @@ class EnqueueThreadMessageOutbox
                     'status' => Outbox::StatusPending,
                     'attempts' => 0,
                     'available_at' => now(),
-                    'payload' => [
-                        'message' => [
-                            'id' => $post->id,
-                            'text' => $post->text,
-                            'source' => data_get($post->meta, 'source'),
-                            'meta' => is_array($post->meta) ? $post->meta : [],
-                            'created_at' => optional($post->created_at)?->toIso8601String(),
-                        ],
-                        'delivery' => [
-                            'provider' => $target['provider'],
-                            'target' => $target['target'],
-                        ],
-                        'thread' => [
-                            'id' => $thread->id,
-                            'uuid' => $thread->uuid,
-                        ],
-                    ],
+                    'payload' => is_array($target['payload'] ?? null)
+                        ? $target['payload']
+                        : $this->defaultOutboxPayload($thread, $post, $target),
                 ],
             );
-
-            if (isset($target['channel']) && is_array($target['channel'])) {
-                $deliveryPayload = is_array($outbox->payload) ? $outbox->payload : [];
-                $deliveryPayload['delivery']['channel'] = $target['channel'];
-                $deliveryPayload['delivery']['binding'] = $target['binding'] ?? [];
-                $outbox->forceFill([
-                    'payload' => $deliveryPayload,
-                ])->save();
-            }
 
             if ($outbox->wasRecentlyCreated) {
                 DeliverOutboxMessage::dispatch($outbox->id);
@@ -115,12 +94,12 @@ class EnqueueThreadMessageOutbox
      *   provider: string|null,
      *   target: string,
      *   route_key: string,
-     *   channel?: array{uuid: string, id: int, driver: string},
-     *   binding?: array{provider_identifier: string|null, direction: string|null, status: string|null, config: array<string, mixed>}
+     *   payload: array<string, mixed>
      * }>
      */
-    protected function resolveFanoutTargets(Thread $thread): array
+    protected function resolveFanoutTargets(Thread $thread, Post $post): array
     {
+        $sender = $post->sender();
         $actorTargets = $thread->actors()
             ->whereIn('role', [ThreadActor::RoleMember, ThreadActor::RoleListener])
             ->where('status', ThreadActor::StatusActive)
@@ -181,36 +160,129 @@ class EnqueueThreadMessageOutbox
             })
             ->values();
 
-        $channelTargets = $thread->channels()
-            ->wherePivot('status', 'active')
+        $channelTargets = $thread->channelRelations()
+            ->with('channel')
+            ->where('kind', ChannelRelation::KindBind)
+            ->where('status', Channel::StatusActive)
             ->get()
-            ->map(function (Channel $channel): ?array {
-                $bindingDirection = $this->normalizedDirection(data_get($channel->pivot, 'direction'));
+            ->map(function (ChannelRelation $binding) use ($post, $sender, $thread): ?array {
+                $channel = $binding->channel;
+
+                if (! $channel instanceof Channel) {
+                    return null;
+                }
+
+                if (! in_array($channel->status, [Channel::StatusActive, null], true)) {
+                    return null;
+                }
+
+                $bindingDirection = $this->normalizedDirection($binding->direction);
+                $channelDirection = $this->normalizedDirection($channel->direction);
 
                 if (! in_array($bindingDirection, [Channel::DirectionOutbound, Channel::DirectionBidirectional], true)) {
                     return null;
                 }
 
-                $bindingData = $this->arrayValue(data_get($channel->pivot, 'data'));
+                if (! in_array($channelDirection, [Channel::DirectionOutbound, Channel::DirectionBidirectional], true)) {
+                    return null;
+                }
+
+                $bindingData = $this->arrayValue($binding->data);
+
+                if ($this->bindingTargetsSender($bindingData, $sender)) {
+                    return null;
+                }
+
                 $providerIdentifier = $this->normalizedTarget(data_get($bindingData, 'provider_identifier'));
                 $config = $this->arrayValue(data_get($bindingData, 'config'));
+                $bindingActorId = $this->normalizedScalar(data_get($bindingData, 'actor_id'));
+                $bindingActorType = $this->normalizedString(data_get($bindingData, 'actor_type'));
+                $bindingProviderKind = $this->normalizedString(data_get($bindingData, 'provider_kind'));
+                $deliveryScope = $this->normalizedString(data_get($bindingData, 'delivery_scope'));
+                $deliveryMode = $this->normalizedString(data_get($bindingData, 'delivery_mode'));
+                $address = $this->arrayValue(data_get($bindingData, 'address'));
+                $preferences = $this->arrayValue(data_get($bindingData, 'preferences'));
 
                 return [
                     'protocol' => ChannelProtocol::Key,
                     'provider' => $this->normalizedProvider($channel->driver) ?? Channel::DriverGeneric,
                     'target' => $providerIdentifier ?? $channel->uuid,
-                    'route_key' => 'channel:'.$channel->uuid.':'.($providerIdentifier ?? 'none'),
-                    'channel' => [
-                        'uuid' => $channel->uuid,
-                        'id' => $channel->id,
-                        'driver' => $channel->driver,
-                    ],
-                    'binding' => [
-                        'provider_identifier' => $providerIdentifier,
-                        'direction' => $bindingDirection,
-                        'status' => data_get($channel->pivot, 'status'),
-                        'config' => $config,
-                        'kind' => data_get($channel->pivot, 'kind', ChannelRelation::KindBind),
+                    'route_key' => 'channel_binding:'.$binding->id,
+                    'payload' => [
+                        'event' => 'thread.post.created',
+                        'occurred_at' => optional($post->occurred_at ?? $post->created_at)?->toIso8601String(),
+                        'channel' => [
+                            'id' => $channel->id,
+                            'uuid' => $channel->uuid,
+                            'driver' => $channel->driver,
+                            'name' => $channel->name,
+                            'direction' => $channelDirection,
+                            'status' => $channel->status,
+                        ],
+                        'binding' => [
+                            'id' => $binding->id,
+                            'kind' => $binding->kind,
+                            'status' => $binding->status,
+                            'direction' => $bindingDirection,
+                            'provider_identifier' => $providerIdentifier,
+                            'provider_kind' => $bindingProviderKind,
+                            'delivery_scope' => $deliveryScope,
+                            'delivery_mode' => $deliveryMode,
+                            'actor_id' => $bindingActorId,
+                            'actor_type' => $bindingActorType,
+                            'address' => $address,
+                            'preferences' => $preferences,
+                            'config' => $config,
+                            'data' => $bindingData,
+                            'meta' => is_array($binding->meta) ? $binding->meta : [],
+                        ],
+                        'thread' => [
+                            'id' => $thread->id,
+                            'uuid' => $thread->uuid,
+                            'purpose' => $thread->purpose,
+                            'title' => $thread->title,
+                            'phase' => $thread->phase,
+                            'status' => $thread->status,
+                        ],
+                        'space' => $this->spacePayload($thread),
+                        'post' => [
+                            'id' => $post->id,
+                            'ulid' => $post->ulid,
+                            'type' => $post->type,
+                            'tag' => $post->tag,
+                            'text' => $post->text,
+                            'data' => is_array($post->data) ? $post->data : [],
+                            'attachments' => $post->attachments,
+                            'meta' => is_array($post->meta) ? $post->meta : [],
+                            'created_at' => optional($post->created_at)?->toIso8601String(),
+                        ],
+                        'sender' => $this->senderPayload($sender),
+                        'recipients' => [[
+                            'actor_id' => $bindingActorId,
+                            'actor_type' => $bindingActorType,
+                            'provider_identifier' => $providerIdentifier,
+                            'provider_kind' => $bindingProviderKind,
+                            'delivery_scope' => $deliveryScope,
+                            'delivery_mode' => $deliveryMode,
+                            'address' => $address,
+                        ]],
+                        'delivery' => [
+                            'provider' => $this->normalizedProvider($channel->driver) ?? Channel::DriverGeneric,
+                            'target' => $providerIdentifier ?? $channel->uuid,
+                            'channel' => [
+                                'id' => $channel->id,
+                                'uuid' => $channel->uuid,
+                                'driver' => $channel->driver,
+                            ],
+                            'binding' => [
+                                'id' => $binding->id,
+                                'provider_identifier' => $providerIdentifier,
+                                'direction' => $bindingDirection,
+                                'status' => $binding->status,
+                                'config' => $config,
+                                'kind' => $binding->kind,
+                            ],
+                        ],
                     ],
                 ];
             })
@@ -224,6 +296,84 @@ class EnqueueThreadMessageOutbox
             ->unique(fn (array $target): string => (string) $target['route_key'])
             ->values()
             ->all();
+    }
+
+    protected function bindingTargetsSender(array $bindingData, ?EloquentModel $sender): bool
+    {
+        if (! $sender instanceof EloquentModel) {
+            return false;
+        }
+
+        $bindingActorId = $this->normalizedScalar(data_get($bindingData, 'actor_id'));
+
+        if ($bindingActorId === null || (string) $bindingActorId !== (string) $sender->getKey()) {
+            return false;
+        }
+
+        $bindingActorType = $this->normalizedString(data_get($bindingData, 'actor_type'));
+
+        return $bindingActorType === null || in_array($bindingActorType, [$sender->getMorphClass(), $sender::class], true);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    protected function spacePayload(Thread $thread): ?array
+    {
+        $threadable = $thread->relationLoaded('threadable') ? $thread->threadable : $thread->threadable()->first();
+
+        if (! $threadable instanceof Space) {
+            return null;
+        }
+
+        return [
+            'id' => $threadable->id,
+            'uuid' => $threadable->uuid,
+            'status' => $threadable->status,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    protected function senderPayload(?EloquentModel $sender): ?array
+    {
+        if (! $sender instanceof EloquentModel) {
+            return null;
+        }
+
+        return [
+            'type' => $sender->getMorphClass(),
+            'id' => $sender->getKey(),
+            'uuid' => $this->normalizedString(data_get($sender, 'uuid')),
+            'display_name' => $this->normalizedString(data_get($sender, 'name'))
+                ?? $this->normalizedString(data_get($sender, 'title')),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $target
+     * @return array<string, mixed>
+     */
+    protected function defaultOutboxPayload(Thread $thread, Post $post, array $target): array
+    {
+        return [
+            'message' => [
+                'id' => $post->id,
+                'text' => $post->text,
+                'source' => data_get($post->meta, 'source'),
+                'meta' => is_array($post->meta) ? $post->meta : [],
+                'created_at' => optional($post->created_at)?->toIso8601String(),
+            ],
+            'delivery' => [
+                'provider' => $target['provider'] ?? null,
+                'target' => $target['target'] ?? null,
+            ],
+            'thread' => [
+                'id' => $thread->id,
+                'uuid' => $thread->uuid,
+            ],
+        ];
     }
 
     protected function normalizedProtocol(mixed $value): ?string
@@ -269,6 +419,40 @@ class EnqueueThreadMessageOutbox
         }
 
         return $provider;
+    }
+
+    protected function normalizedString(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $normalized = trim($value);
+
+        return $normalized === '' ? null : $normalized;
+    }
+
+    protected function normalizedScalar(mixed $value): string|int|null
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_float($value)) {
+            return (int) $value;
+        }
+
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $normalized = trim($value);
+
+        if ($normalized === '') {
+            return null;
+        }
+
+        return ctype_digit($normalized) ? (int) $normalized : $normalized;
     }
 
     protected function normalizedDirection(mixed $value): string

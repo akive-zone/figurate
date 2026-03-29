@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature\Chat;
+namespace Tests\Feature\Conversation;
 
 use App\Ai\Support\AgentExecutor;
 use App\Jobs\ProcessThreadObservers;

@@ -25,6 +25,7 @@ class EnqueueThreadMessageOutboxChannelsTest extends TestCase
         Queue::fake();
 
         $sender = User::factory()->create();
+        $recipient = User::factory()->create();
         $space = Space::factory()->create();
         $thread = $space->threads()->create([
             'purpose' => Thread::PurposeMain,
@@ -36,14 +37,37 @@ class EnqueueThreadMessageOutboxChannelsTest extends TestCase
             'driver' => Channel::DriverGeneric,
         ]);
 
-        $thread->channels()->attach($channel->id, [
+        $thread->channelRelations()->create([
+            'channel_id' => $channel->id,
             'kind' => ChannelRelation::KindBind,
             'status' => 'active',
             'direction' => Channel::DirectionOutbound,
-            'data' => json_encode([
-                'provider_identifier' => 'gw-thread-44',
+            'data' => [
+                'actor_id' => $sender->id,
+                'actor_type' => $sender->getMorphClass(),
+                'provider_identifier' => 'internal:user:'.$sender->id,
+                'provider_kind' => 'user',
+                'delivery_scope' => 'in_app',
+                'delivery_mode' => 'realtime',
+                'address' => ['user_id' => $sender->id],
+                'config' => ['route' => 'self'],
+            ],
+        ]);
+        $recipientBinding = $thread->channelRelations()->create([
+            'channel_id' => $channel->id,
+            'kind' => ChannelRelation::KindBind,
+            'status' => 'active',
+            'direction' => Channel::DirectionOutbound,
+            'data' => [
+                'actor_id' => $recipient->id,
+                'actor_type' => $recipient->getMorphClass(),
+                'provider_identifier' => 'internal:user:'.$recipient->id,
+                'provider_kind' => 'user',
+                'delivery_scope' => 'in_app',
+                'delivery_mode' => 'realtime',
+                'address' => ['user_id' => $recipient->id],
                 'config' => ['route' => 'primary'],
-            ], JSON_THROW_ON_ERROR),
+            ],
         ]);
 
         $post = $thread->posts()->create([
@@ -53,12 +77,11 @@ class EnqueueThreadMessageOutboxChannelsTest extends TestCase
                 'text' => 'External delivery payload',
                 'message_type' => 'text',
             ],
-            'senderable_type' => $sender->getMorphClass(),
-            'senderable_id' => $sender->id,
             'meta' => [
                 'source' => 'peer_message',
             ],
         ]);
+        $post->attachRelation($sender, Post::RelationRoleSender);
 
         $created = app(EnqueueThreadMessageOutbox::class)->execute($post);
 
@@ -67,9 +90,13 @@ class EnqueueThreadMessageOutboxChannelsTest extends TestCase
         $this->assertInstanceOf(Outbox::class, $outbox);
         $this->assertSame(ChannelProtocol::Key, $outbox->protocol);
         $this->assertSame(Channel::DriverGeneric, $outbox->provider);
-        $this->assertSame('gw-thread-44', $outbox->target);
-        $this->assertSame($channel->uuid, data_get($outbox->payload, 'delivery.channel.uuid'));
-        $this->assertSame('gw-thread-44', data_get($outbox->payload, 'delivery.binding.provider_identifier'));
+        $this->assertSame('internal:user:'.$recipient->id, $outbox->target);
+        $this->assertSame('thread.post.created', data_get($outbox->payload, 'event'));
+        $this->assertSame($channel->uuid, data_get($outbox->payload, 'channel.uuid'));
+        $this->assertSame($recipientBinding->id, data_get($outbox->payload, 'binding.id'));
+        $this->assertSame('internal:user:'.$recipient->id, data_get($outbox->payload, 'binding.provider_identifier'));
+        $this->assertSame($sender->id, data_get($outbox->payload, 'sender.id'));
+        $this->assertSame($recipient->id, data_get($outbox->payload, 'recipients.0.actor_id'));
         $this->assertSame('primary', data_get($outbox->payload, 'delivery.binding.config.route'));
 
         Queue::assertPushed(DeliverOutboxMessage::class, function (DeliverOutboxMessage $job) use ($outbox): bool {

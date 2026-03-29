@@ -32,6 +32,7 @@ class ChannelOutboundMessageSender implements OutboundMessageSender
 
         $binding = data_get($outbox->payload, 'delivery.binding');
         $bindingConfig = is_array($binding) ? $binding : [];
+        $bindingConfig['outbound_payload'] = is_array($outbox->payload) ? $outbox->payload : [];
         $result = $this->channelDriverRegistry
             ->resolveByChannel($channel)
             ->send($channel, $thread, $post, $bindingConfig);
@@ -79,7 +80,8 @@ class ChannelOutboundMessageSender implements OutboundMessageSender
 
     protected function resolveChannel(Outbox $outbox): Channel
     {
-        $channelUuid = data_get($outbox->payload, 'delivery.channel.uuid');
+        $channelUuid = data_get($outbox->payload, 'channel.uuid')
+            ?? data_get($outbox->payload, 'delivery.channel.uuid');
         $channel = is_string($channelUuid)
             ? Channel::query()->where('uuid', trim($channelUuid))->first()
             : null;

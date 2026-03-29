@@ -16,6 +16,10 @@ class GenericChannelDriver implements ChannelDriver
      */
     public function send(Channel $channel, Thread $thread, Post $message, array $bindingConfig = []): array
     {
+        $outboundPayload = is_array($bindingConfig['outbound_payload'] ?? null)
+            ? $bindingConfig['outbound_payload']
+            : $this->fallbackOutboundPayload($channel, $thread, $message, $bindingConfig);
+
         return [
             'status' => 'queued',
             'provider' => $channel->driver,
@@ -23,11 +27,7 @@ class GenericChannelDriver implements ChannelDriver
             'provider_identifier' => $bindingConfig['provider_identifier'] ?? null,
             'thread_uuid' => $thread->uuid,
             'message_id' => $message->id,
-            'payload' => [
-                'text' => $message->text,
-                'channel_uuid' => $channel->uuid,
-                'meta' => data_get($message->meta, null, []),
-            ],
+            'payload' => $outboundPayload,
         ];
     }
 
@@ -62,6 +62,36 @@ class GenericChannelDriver implements ChannelDriver
             'status' => $payload['status'] ?? 'unknown',
             'occurred_at' => $payload['occurred_at'] ?? null,
             'raw' => $payload,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $bindingConfig
+     * @return array<string, mixed>
+     */
+    protected function fallbackOutboundPayload(Channel $channel, Thread $thread, Post $message, array $bindingConfig): array
+    {
+        return [
+            'event' => 'thread.post.created',
+            'occurred_at' => optional($message->occurred_at ?? $message->created_at)?->toIso8601String(),
+            'channel' => [
+                'id' => $channel->id,
+                'uuid' => $channel->uuid,
+                'driver' => $channel->driver,
+                'name' => $channel->name,
+            ],
+            'binding' => [
+                'provider_identifier' => $bindingConfig['provider_identifier'] ?? null,
+            ],
+            'thread' => [
+                'id' => $thread->id,
+                'uuid' => $thread->uuid,
+            ],
+            'post' => [
+                'id' => $message->id,
+                'ulid' => $message->ulid,
+                'text' => $message->text,
+            ],
         ];
     }
 }

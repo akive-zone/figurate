@@ -54,6 +54,31 @@ class ChannelOutboundMessageSenderTest extends TestCase
             'available_at' => now(),
             'idempotency_key' => 'channel:test',
             'payload' => [
+                'event' => 'thread.post.created',
+                'channel' => [
+                    'uuid' => $channel->uuid,
+                ],
+                'binding' => [
+                    'id' => 21,
+                    'provider_identifier' => 'provider-thread-123',
+                    'provider_kind' => 'user',
+                    'delivery_scope' => 'in_app',
+                ],
+                'thread' => [
+                    'uuid' => $thread->uuid,
+                ],
+                'post' => [
+                    'ulid' => $post->ulid,
+                    'text' => 'Send this update externally.',
+                ],
+                'sender' => [
+                    'id' => $sender->id,
+                    'type' => $sender->getMorphClass(),
+                ],
+                'recipients' => [[
+                    'actor_id' => 22,
+                    'provider_identifier' => 'provider-thread-123',
+                ]],
                 'delivery' => [
                     'channel' => [
                         'uuid' => $channel->uuid,
@@ -73,5 +98,8 @@ class ChannelOutboundMessageSenderTest extends TestCase
         $this->assertSame('queued', data_get($result, 'delivery'));
         $this->assertSame($channel->uuid, data_get($result, 'channel.uuid'));
         $this->assertSame('provider-thread-123', data_get($result, 'channel_result.provider_identifier'));
+        $this->assertSame('thread.post.created', data_get($result, 'channel_result.payload.event'));
+        $this->assertSame($sender->id, data_get($result, 'channel_result.payload.sender.id'));
+        $this->assertSame('provider-thread-123', data_get($result, 'channel_result.payload.recipients.0.provider_identifier'));
     }
 }

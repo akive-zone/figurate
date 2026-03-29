@@ -22,7 +22,6 @@ return new class extends Migration
             $table->json('meta')->nullable();
             $table->timestamps();
 
-            $table->unique(['channel_id', 'relationable_type', 'relationable_id', 'kind'], 'channel_relation_unique_kind');
             $table->index(['relationable_type', 'relationable_id', 'kind', 'status'], 'channel_relation_lookup_index');
             $table->index(['channel_id', 'kind', 'status'], 'channel_relation_channel_kind_status_index');
         });
