@@ -53,18 +53,18 @@ class HandleInertiaRequests extends Middleware
                 'index_path' => $this->runtime->isNative() ? '/chat' : '/',
                 'routes' => [
                     'index' => route('chat.index', [], false),
-                    'conversations' => $this->runtime->isNative() ? route('chat.index', [], false) : route('api.conversations.index', [], false),
+                    'conversations' => $this->runtime->isNative() ? route('chat.index', [], false) : route('api.spaces.index', [], false),
                     'conversation_show_template' => $this->runtime->isNative()
                         ? route('chat.index', [], false)
-                        : route('api.conversations.show', ['conversation' => '__CONVERSATION__'], false),
-                    'conversation_message_turns_template' => $this->runtime->isNative() || ! Route::has('api.conversations.message-turns.show')
+                        : route('api.threads.show', ['thread' => '__CONVERSATION__'], false),
+                    'conversation_message_turns_template' => $this->runtime->isNative() || ! Route::has('api.threads.posts.turns.show')
                         ? route('chat.index', [], false)
-                        : route('api.conversations.message-turns.show', ['conversation' => '__CONVERSATION__', 'message' => '__MESSAGE__'], false),
+                        : route('api.threads.posts.turns.show', ['thread' => '__CONVERSATION__', 'message' => '__MESSAGE__'], false),
                     'conversation_threads_template' => $this->runtime->isNative()
                         ? route('chat.index', [], false)
-                        : route('api.conversations.threads.index', ['conversation' => '__CONVERSATION__'], false),
-                    'conversation_store' => $this->runtime->isNative() ? route('chat.index', [], false) : route('api.conversations.store', [], false),
-                    'conversation_posts_template' => route('api.conversations.posts.index', ['conversation' => '__CONVERSATION__'], false),
+                        : route('api.spaces.threads.index', ['space' => '__CONVERSATION__'], false),
+                    'conversation_store' => $this->runtime->isNative() ? route('chat.index', [], false) : route('api.form.store', [], false),
+                    'conversation_posts_template' => route('api.spaces.posts.index', ['space' => '__CONVERSATION__'], false),
                     'create' => route('chat.create', [], false),
                     'show_template' => route('chat.show', ['space' => '__SPACE__'], false),
                     'show_thread_template' => route('chat.thread', ['space' => '__SPACE__', 'thread' => '__THREAD__'], false),

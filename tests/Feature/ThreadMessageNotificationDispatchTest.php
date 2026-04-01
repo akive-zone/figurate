@@ -67,7 +67,7 @@ class ThreadMessageNotificationDispatchTest extends TestCase
 
         Sanctum::actingAs($sender, [TokenAbility::Compose->value]);
 
-        $this->postJson('/api/conversations', [
+        $this->postJson('/api/form', [
             'channel' => $channel->uuid,
             'thread' => $thread->uuid,
             'content' => [

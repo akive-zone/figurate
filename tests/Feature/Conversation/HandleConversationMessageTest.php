@@ -37,7 +37,7 @@ class HandleConversationMessageTest extends TestCase
 
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
-        $this->postJson('/api/conversations', [
+        $this->postJson('/api/form', [
             'space' => $space->uuid,
             'thread' => $thread->uuid,
             'content' => [
@@ -74,7 +74,7 @@ class HandleConversationMessageTest extends TestCase
 
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
-        $this->postJson('/api/conversations', [
+        $this->postJson('/api/form', [
             'space' => $space->uuid,
             'thread' => $thread->uuid,
             'content' => [
@@ -110,7 +110,7 @@ class HandleConversationMessageTest extends TestCase
 
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
-        $this->postJson('/api/conversations', [
+        $this->postJson('/api/form', [
             'space' => $space->uuid,
             'thread' => $thread->uuid,
             'content' => [
@@ -130,7 +130,7 @@ class HandleConversationMessageTest extends TestCase
         Queue::assertPushed(ProcessThreadObservers::class, 1);
     }
 
-    public function test_it_returns_turns_for_a_conversation_message_from_the_dedicated_endpoint(): void
+    public function test_it_returns_turns_for_a_thread_message_from_the_dedicated_endpoint(): void
     {
         $user = $this->makeUser();
         $space = $this->accessibleSpace($user);
@@ -159,7 +159,7 @@ class HandleConversationMessageTest extends TestCase
 
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
-        $this->getJson(sprintf('/api/conversations/%s/messages/%d/turns', $space->uuid, $promptMessage->id))
+        $this->getJson(sprintf('/api/threads/%s/posts/%d/turns', $thread->uuid, $promptMessage->id))
             ->assertOk()
             ->assertJsonPath('thread', $thread->uuid)
             ->assertJsonPath('message_id', $promptMessage->id)
@@ -169,7 +169,7 @@ class HandleConversationMessageTest extends TestCase
             ->assertJsonPath('data.0.status', 'completed');
     }
 
-    public function test_it_lists_conversations_with_space_summary_keys(): void
+    public function test_it_lists_spaces_with_space_summary_keys(): void
     {
         $user = $this->makeUser();
         $space = $this->accessibleSpace($user);
@@ -183,7 +183,7 @@ class HandleConversationMessageTest extends TestCase
 
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
-        $this->getJson('/api/conversations')
+        $this->getJson('/api/spaces')
             ->assertOk()
             ->assertJsonPath('data.0.id', $space->uuid)
             ->assertJsonPath('data.0.space.id', $space->uuid)
@@ -191,7 +191,7 @@ class HandleConversationMessageTest extends TestCase
             ->assertJsonMissingPath('data.0.channel');
     }
 
-    public function test_it_returns_space_metadata_when_loading_a_space_backed_conversation(): void
+    public function test_it_returns_space_metadata_when_loading_a_thread(): void
     {
         $user = $this->makeUser();
         $space = $this->accessibleSpace($user);
@@ -208,13 +208,12 @@ class HandleConversationMessageTest extends TestCase
 
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
-        $this->getJson(sprintf('/api/conversations/%s', $space->uuid))
+        $this->getJson(sprintf('/api/threads/%s', $thread->uuid))
             ->assertOk()
-            ->assertJsonPath('conversation.id', $space->uuid)
-            ->assertJsonPath('conversation.space_id', $space->uuid)
-            ->assertJsonPath('conversation.thread_id', $thread->uuid)
+            ->assertJsonPath('space.id', $space->uuid)
+            ->assertJsonPath('thread.space_id', $space->uuid)
             ->assertJsonPath('thread.id', $thread->uuid)
-            ->assertJsonMissingPath('conversation.channel_id');
+            ->assertJsonMissingPath('space.channel_id');
     }
 
     protected function accessibleSpace(User $user): Space

@@ -2,12 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Features\Actions\Conversation\ProjectAgentTurns;
 use App\Features\Actions\Conversation\ProjectMessageExtra;
-use App\Features\Actions\Conversation\ResolveConversationRouteThread;
-use App\Features\Operations\Chat\SubmitChatMessageOperation;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Server\Chat\StoreChatRequest;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
@@ -19,101 +15,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 
-class ConversationController extends Controller
+class SpaceController extends Controller
 {
     public function __construct(
         protected ProjectMessageExtra $projectMessageExtra,
-        protected ResolveConversationRouteThread $resolveConversationRouteThread,
     ) {}
 
     public function index(Request $request): JsonResponse
     {
         return response()->json($this->cursorPageForRequest($request));
-    }
-
-    public function show(
-        Request $request,
-        string $conversation,
-        ProjectAgentTurns $projectAgentTurns,
-    ): JsonResponse {
-        /** @var User $actor */
-        $actor = $request->user();
-        [$threadRecord, $spaceRecord] = $this->resolveConversationRouteThread->execute($conversation, $actor);
-
-        if (! $threadRecord) {
-            return response()->json([
-                'data' => [],
-                'turns' => [],
-                'conversation' => [
-                    'id' => $conversation,
-                    'space_id' => $spaceRecord?->uuid,
-                    'thread_id' => null,
-                ],
-                'thread' => null,
-            ]);
-        }
-
-        $threadMessages = $threadRecord->messages()
-            ->orderBy('created_at')
-            ->get();
-
-        $messages = $threadMessages
-            ->map(function (Post $message) use ($threadRecord): array {
-                return [
-                    'kind' => 'message',
-                    'scope' => 'thread',
-                    'thread_id' => $threadRecord->uuid,
-                    'id' => $message->id,
-                    'sender_name' => null,
-                    'source' => data_get($message->meta, 'source'),
-                    'is_agent' => data_get($message->meta, 'source') === 'agent_response',
-                    'content' => $this->messageContent($message),
-                    'extra' => $this->projectMessageExtra->execute($message),
-                    'created_at' => optional($message->created_at)?->toIso8601String(),
-                ];
-            })
-            ->values()
-            ->all();
-
-        $turns = $projectAgentTurns->execute($threadRecord, $threadMessages, $actor);
-
-        return response()->json([
-            'data' => $messages,
-            'turns' => $turns,
-            'conversation' => [
-                'id' => $conversation,
-                'space_id' => $spaceRecord?->uuid,
-                'thread_id' => $threadRecord->uuid,
-            ],
-            'thread' => [
-                'id' => $threadRecord->uuid,
-                'purpose' => $threadRecord->purpose,
-                'phase' => $threadRecord->phase,
-                'status' => $threadRecord->status,
-            ],
-        ]);
-    }
-
-    public function store(
-        StoreChatRequest $request,
-        SubmitChatMessageOperation $submitChatMessageOperation,
-    ): JsonResponse {
-        /** @var User $actor */
-        $actor = $request->user();
-        $validated = $request->validated();
-        $attachments = $request->file('content.attachments', []);
-
-        $result = $submitChatMessageOperation->run([
-            'actor' => $actor,
-            'space' => $validated['space'] ?? null,
-            'thread' => $validated['thread'] ?? null,
-            'content' => is_array($validated['content'] ?? null) ? $validated['content'] : [],
-            'extra' => is_array($validated['extra'] ?? null) ? $validated['extra'] : [],
-            'attachments' => is_array($attachments) ? $attachments : [$attachments],
-            'idempotency_key' => $request->header('X-Idempotency-Key'),
-        ]);
-
-        return response()->json($result['body'], $result['status']);
     }
 
     /**
@@ -139,7 +49,7 @@ class ConversationController extends Controller
 
         return [
             'data' => collect($paginator->items())
-                ->map(fn (Space $space): array => $this->mapConversationListItem($space, $actor))
+                ->map(fn (Space $space): array => $this->mapSpaceListItem($space, $actor))
                 ->values()
                 ->all(),
             'meta' => [
@@ -168,7 +78,7 @@ class ConversationController extends Controller
     /**
      * @return array<string, mixed>
      */
-    protected function mapConversationListItem(Space $space, User $actor): array
+    protected function mapSpaceListItem(Space $space, User $actor): array
     {
         $actorState = $this->actorStateForSpace($space, $actor);
         $threadsPaginator = $this->recentThreadsQuery($space, $actorState)
@@ -196,7 +106,7 @@ class ConversationController extends Controller
 
         return [
             'id' => $space->uuid,
-            'name' => $this->inferConversationName($space, $threads, $latestMessageModel?->text),
+            'name' => $this->inferSpaceName($space, $threads, $latestMessageModel?->text),
             'space' => [
                 'id' => $space->uuid,
                 'status' => $space->status ?? 'open',
@@ -219,11 +129,8 @@ class ConversationController extends Controller
     /**
      * @param  Collection<int, Thread>  $threads
      */
-    protected function inferConversationName(
-        Space $space,
-        Collection $threads,
-        ?string $latestMessageBody
-    ): string {
+    protected function inferSpaceName(Space $space, Collection $threads, ?string $latestMessageBody): string
+    {
         $threadTitle = trim((string) ($threads->first()?->title ?? ''));
         if ($threadTitle !== '') {
             return $threadTitle;
@@ -234,7 +141,7 @@ class ConversationController extends Controller
             return mb_substr($messagePreview, 0, 60);
         }
 
-        return sprintf('Conversation %s', mb_substr($space->uuid, 0, 8));
+        return sprintf('Space %s', mb_substr($space->uuid, 0, 8));
     }
 
     protected function actorStateForSpace(Space $space, User $actor): ?SpaceActorState

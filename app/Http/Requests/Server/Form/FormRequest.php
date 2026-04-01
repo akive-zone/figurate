@@ -1,23 +1,18 @@
 <?php
 
-namespace App\Http\Requests\Server\Chat;
+namespace App\Http\Requests\Server\Form;
 
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Foundation\Http\FormRequest as BaseFormRequest;
 
-class StoreChatRequest extends FormRequest
+class FormRequest extends BaseFormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return $this->user() !== null;
     }
 
     /**
-     * Get the validation rules that apply to the request.
-     *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
@@ -114,6 +109,7 @@ class StoreChatRequest extends FormRequest
                     data_set($extra, 'a2ui.config.a2uiClientCapabilities.supportedCatalogIds', $normalizedCatalogIds);
                 }
             }
+
             $this->merge(['extra' => $extra]);
         }
     }

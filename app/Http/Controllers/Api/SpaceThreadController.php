@@ -12,26 +12,26 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
-class ConversationThreadController extends Controller
+class SpaceThreadController extends Controller
 {
-    public function index(Request $request, string $conversation): JsonResponse
+    public function index(Request $request, string $space): JsonResponse
     {
-        $space = Space::query()
-            ->where('uuid', $conversation)
+        $spaceRecord = Space::query()
+            ->where('uuid', $space)
             ->firstOrFail();
 
-        Gate::authorize('view', $space);
+        Gate::authorize('view', $spaceRecord);
 
-        return response()->json($this->cursorPageForRequest($request, $space));
+        return response()->json($this->cursorPageForRequest($request, $spaceRecord));
     }
 
-    public function store(Request $request, string $conversation): JsonResponse
+    public function store(Request $request, string $space): JsonResponse
     {
-        $space = Space::query()
-            ->where('uuid', $conversation)
+        $spaceRecord = Space::query()
+            ->where('uuid', $space)
             ->firstOrFail();
 
-        Gate::authorize('update', $space);
+        Gate::authorize('update', $spaceRecord);
 
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -39,7 +39,7 @@ class ConversationThreadController extends Controller
             'nature' => ['nullable', 'string', 'in:agent,human,mixed'],
         ]);
 
-        $thread = $space->threads()->create([
+        $thread = $spaceRecord->threads()->create([
             'title' => $data['title'],
             'purpose' => $data['purpose'] ?? Thread::PurposeExecution,
             'phase' => $this->defaultPhase($data['purpose'] ?? Thread::PurposeExecution),

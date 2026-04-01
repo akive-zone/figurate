@@ -3,29 +3,29 @@
 namespace App\Http\Controllers\Api;
 
 use App\Features\Actions\Conversation\ProjectAgentTurns;
-use App\Features\Actions\Conversation\ResolveConversationRouteThread;
 use App\Http\Controllers\Controller;
 use App\Models\Server\Post;
+use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
-class ConversationMessageTurnsController extends Controller
+class ThreadPostTurnsController extends Controller
 {
     public function __construct(
         protected ProjectAgentTurns $projectAgentTurns,
-        protected ResolveConversationRouteThread $resolveConversationRouteThread,
     ) {}
 
-    public function __invoke(Request $request, string $conversation, Post $message): JsonResponse
+    public function __invoke(Request $request, string $thread, Post $message): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
-        [$threadRecord] = $this->resolveConversationRouteThread->execute($conversation, $actor);
+        $threadRecord = Thread::query()
+            ->where('uuid', $thread)
+            ->firstOrFail();
 
-        if (! $threadRecord) {
-            abort(404, 'Thread not found.');
-        }
+        Gate::forUser($actor)->authorize('view', $threadRecord);
 
         if (
             $message->postable_type !== $threadRecord->getMorphClass()

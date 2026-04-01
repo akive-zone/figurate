@@ -10,12 +10,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 
-class ConversationPostController extends Controller
+class SpacePostController extends Controller
 {
-    public function index(string $conversation): JsonResponse
+    public function index(string $space): JsonResponse
     {
         $spaceRecord = Space::query()
-            ->where('uuid', $conversation)
+            ->where('uuid', $space)
             ->firstOrFail();
 
         Gate::authorize('view', $spaceRecord);
