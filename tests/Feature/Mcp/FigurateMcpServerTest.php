@@ -154,6 +154,54 @@ class FigurateMcpServerTest extends TestCase
         ]);
     }
 
+    public function test_it_creates_post_graph_edges_via_mcp_tools(): void
+    {
+        $user = $this->makeUser();
+        $space = $this->accessibleSpace($user);
+        $thread = $space->threads()->create([
+            'title' => 'Source thread',
+            'purpose' => Thread::PurposePlanning,
+            'phase' => 'scope_planning',
+            'status' => 'open',
+        ]);
+        $post = Post::query()->create([
+            'postable_type' => $thread->getMorphClass(),
+            'postable_id' => $thread->id,
+            'type' => Post::TypeMessage,
+            'status' => Post::StatusActive,
+            'text' => 'Attach this message to the related thread.',
+            'meta' => ['source' => 'test'],
+        ]);
+        $post->attachRelation($user, Post::RelationRoleSender);
+        $targetThread = $space->threads()->create([
+            'title' => 'Target thread',
+            'purpose' => Thread::PurposeExecution,
+            'phase' => 'order_kickoff',
+            'status' => 'open',
+        ]);
+
+        $response = FigurateServer::actingAs($user)->tool(CreateGraphEdgeTool::class, [
+            'source_type' => 'post',
+            'source_id' => $post->ulid,
+            'target_type' => 'thread',
+            'target_id' => $targetThread->uuid,
+            'edge_type' => ThreadRelation::TypeReferences,
+            'purpose' => 'This purpose is not stored for post-backed edges.',
+        ]);
+
+        $response->assertOk()
+            ->assertSee(ThreadRelation::TypeReferences)
+            ->assertSee($post->ulid)
+            ->assertSee($targetThread->uuid);
+
+        $this->assertDatabaseHas('post_relations', [
+            'post_id' => $post->id,
+            'relationable_type' => $targetThread->getMorphClass(),
+            'relationable_id' => $targetThread->id,
+            'role' => ThreadRelation::TypeReferences,
+        ]);
+    }
+
     public function test_it_searches_thread_context(): void
     {
         $user = $this->makeUser();
@@ -220,13 +268,26 @@ class FigurateMcpServerTest extends TestCase
 
         $sourceSpace->attachRelation($dependencySpace, SpaceRelation::TypeDependsOn, 'Depends on fulfillment context');
         $dependencySpace->attachRelation($knowledgeSpace, SpaceRelation::TypeReferences, 'Needs supporting knowledge context');
+        $dependencySpace->attachRelation($dependencyThread, SpaceRelation::TypeReferences, 'Tracks execution work');
         $dependencyThread->attachRelation($knowledgeThread, ThreadRelation::TypeReferences, 'See related thread');
+
+        $knowledgePost = Post::query()->create([
+            'postable_type' => $knowledgeThread->getMorphClass(),
+            'postable_id' => $knowledgeThread->id,
+            'type' => 'summary.snapshot',
+            'status' => Post::StatusActive,
+            'payload' => ['body' => 'Supporting knowledge artifact'],
+            'meta' => ['source' => 'test'],
+            'occurred_at' => now(),
+        ]);
+        $knowledgePost->attachRelation($user, Post::RelationRoleSender);
+        $knowledgeThread->attachRelation($knowledgePost, ThreadRelation::TypeDerivedFrom, 'Derived artifact');
 
         $response = FigurateServer::actingAs($user)->tool(QueryGraphEdgesTool::class, [
             'node_type' => 'space',
             'node_id' => $sourceSpace->uuid,
             'direction' => 'outgoing',
-            'depth' => 3,
+            'depth' => 4,
         ]);
 
         $response->assertOk()
@@ -234,6 +295,7 @@ class FigurateMcpServerTest extends TestCase
             ->assertSee($dependencySpace->uuid)
             ->assertSee($knowledgeSpace->uuid)
             ->assertSee(ThreadRelation::TypeReferences)
+            ->assertSee($knowledgePost->ulid)
             ->assertSee('edge_count');
 
         $this->assertEqualsCanonicalizing(

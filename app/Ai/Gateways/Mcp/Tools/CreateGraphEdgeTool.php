@@ -9,15 +9,15 @@ use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Tool;
 
-#[Description('Create a typed graph edge between spaces and threads.')]
+#[Description('Create a typed graph edge between spaces, threads, and posts.')]
 class CreateGraphEdgeTool extends Tool
 {
     public function handle(Request $request, FigurateMcpPayloads $payloads): Response
     {
         $validated = $request->validate([
-            'source_type' => ['required', 'string', 'in:space,thread'],
+            'source_type' => ['required', 'string', 'in:space,thread,post'],
             'source_id' => ['required', 'string'],
-            'target_type' => ['required', 'string', 'in:space,thread'],
+            'target_type' => ['required', 'string', 'in:space,thread,post'],
             'target_id' => ['required', 'string'],
             'edge_type' => ['required', 'string', 'in:related_to,references,depends_on,blocks,derived_from,child_of'],
             'purpose' => ['nullable', 'string', 'max:1000'],
@@ -59,10 +59,10 @@ class CreateGraphEdgeTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'source_type' => $schema->string()->description('The source node type.')->enum('space', 'thread')->required(),
-            'source_id' => $schema->string()->description('The source node UUID.')->required(),
-            'target_type' => $schema->string()->description('The target node type.')->enum('space', 'thread')->required(),
-            'target_id' => $schema->string()->description('The target node UUID.')->required(),
+            'source_type' => $schema->string()->description('The source node type.')->enum('space', 'thread', 'post')->required(),
+            'source_id' => $schema->string()->description('The source node public ID.')->required(),
+            'target_type' => $schema->string()->description('The target node type.')->enum('space', 'thread', 'post')->required(),
+            'target_id' => $schema->string()->description('The target node public ID.')->required(),
             'edge_type' => $schema->string()->description('The typed edge label.')->enum(
                 'related_to',
                 'references',

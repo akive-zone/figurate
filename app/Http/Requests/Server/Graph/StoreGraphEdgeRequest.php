@@ -18,10 +18,10 @@ class StoreGraphEdgeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'source_type' => ['required', 'string', 'in:space,thread'],
-            'source_id' => ['required', 'uuid'],
-            'target_type' => ['required', 'string', 'in:space,thread'],
-            'target_id' => ['required', 'uuid'],
+            'source_type' => ['required', 'string', 'in:space,thread,post'],
+            'source_id' => ['required', 'string'],
+            'target_type' => ['required', 'string', 'in:space,thread,post'],
+            'target_id' => ['required', 'string'],
             'edge_type' => ['required', 'string', 'in:related_to,references,depends_on,blocks,derived_from,child_of'],
             'purpose' => ['nullable', 'string', 'max:1000'],
         ];
@@ -33,8 +33,8 @@ class StoreGraphEdgeRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'source_type.in' => 'The source type must be either space or thread.',
-            'target_type.in' => 'The target type must be either space or thread.',
+            'source_type.in' => 'The source type must be space, thread, or post.',
+            'target_type.in' => 'The target type must be space, thread, or post.',
             'edge_type.in' => 'The edge type is not supported.',
         ];
     }

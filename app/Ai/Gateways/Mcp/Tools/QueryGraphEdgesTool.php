@@ -10,7 +10,7 @@ use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Tool;
 
-#[Description('Query graph edges connected to a space or thread, with optional traversal depth.')]
+#[Description('Query graph edges connected to a space, thread, or post, with optional traversal depth.')]
 class QueryGraphEdgesTool extends Tool
 {
     public function __construct(protected GraphEdgeExplorer $graphEdgeExplorer) {}
@@ -18,11 +18,11 @@ class QueryGraphEdgesTool extends Tool
     public function handle(Request $request, FigurateMcpPayloads $payloads): Response
     {
         $validated = $request->validate([
-            'node_type' => ['required', 'string', 'in:space,thread'],
+            'node_type' => ['required', 'string', 'in:space,thread,post'],
             'node_id' => ['required', 'string'],
             'direction' => ['nullable', 'string', 'in:outgoing,incoming,both'],
             'edge_type' => ['nullable', 'string', 'in:related_to,references,depends_on,blocks,derived_from,child_of'],
-            'target_type' => ['nullable', 'string', 'in:space,thread'],
+            'target_type' => ['nullable', 'string', 'in:space,thread,post'],
             'depth' => ['nullable', 'integer', 'min:1', 'max:5'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
@@ -72,8 +72,8 @@ class QueryGraphEdgesTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'node_type' => $schema->string()->description('The root node type.')->enum('space', 'thread')->required(),
-            'node_id' => $schema->string()->description('The root node UUID.')->required(),
+            'node_type' => $schema->string()->description('The root node type.')->enum('space', 'thread', 'post')->required(),
+            'node_id' => $schema->string()->description('The root node public ID.')->required(),
             'direction' => $schema->string()->description('Which edges to traverse relative to the root.')->enum('outgoing', 'incoming', 'both')->default('outgoing'),
             'edge_type' => $schema->string()->description('Optional edge type filter.')->enum(
                 'related_to',
@@ -83,7 +83,7 @@ class QueryGraphEdgesTool extends Tool
                 'derived_from',
                 'child_of',
             ),
-            'target_type' => $schema->string()->description('Optional target node type filter.')->enum('space', 'thread'),
+            'target_type' => $schema->string()->description('Optional target node type filter.')->enum('space', 'thread', 'post'),
             'depth' => $schema->integer()->description('Traversal depth from the root node.')->default(1),
             'limit' => $schema->integer()->description('Maximum number of edges to return.')->default(25),
         ];

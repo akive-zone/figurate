@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -24,6 +25,8 @@ class Post extends Model implements HasMedia
     use HasFactory, HasUlids, InteractsWithMedia, SoftDeletes;
 
     public const TypeMessage = 'message';
+
+    public const RelationRoleContext = 'context';
 
     public const RelationRoleSender = 'sender';
 
@@ -231,13 +234,58 @@ class Post extends Model implements HasMedia
         return $query->whereDoesntHave('senderRelation');
     }
 
-    public function attachRelation(EloquentModel $model, string $role = 'context'): PostRelation
+    public function attachRelation(EloquentModel $model, string $role = self::RelationRoleContext): PostRelation
     {
         return $this->relations()->create([
             'relationable_type' => $model->getMorphClass(),
             'relationable_id' => $model->getKey(),
             'role' => $role,
         ]);
+    }
+
+    /**
+     * @return Collection<int, SpaceRelation>
+     */
+    public function inboundSpaceRelations(?string $type = null): Collection
+    {
+        $query = SpaceRelation::query()
+            ->whereMorphedTo('relationable', $this);
+
+        if ($type !== null) {
+            $query->where('type', $type);
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * @return Collection<int, ThreadRelation>
+     */
+    public function inboundThreadRelations(?string $type = null): Collection
+    {
+        $query = ThreadRelation::query()
+            ->whereMorphedTo('relationable', $this);
+
+        if ($type !== null) {
+            $query->where('type', $type);
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * @return Collection<int, PostRelation>
+     */
+    public function inboundPostRelations(?string $role = null): Collection
+    {
+        $query = PostRelation::query()
+            ->whereMorphedTo('relationable', $this);
+
+        if ($role !== null) {
+            $query->where('role', $role);
+        }
+
+        return $query->get();
     }
 
     /**
@@ -266,6 +314,30 @@ class Post extends Model implements HasMedia
     public function relatedOne(string $modelClass, ?string $role = null): ?EloquentModel
     {
         return $this->relatedQuery($modelClass, $role)->first();
+    }
+
+    /**
+     * @return Collection<int, Space>
+     */
+    public function relatedSpaces(?string $role = null): Collection
+    {
+        return $this->relatedQuery(Space::class, $role)->get();
+    }
+
+    /**
+     * @return Collection<int, Thread>
+     */
+    public function relatedThreads(?string $role = null): Collection
+    {
+        return $this->relatedQuery(Thread::class, $role)->get();
+    }
+
+    /**
+     * @return Collection<int, self>
+     */
+    public function relatedPosts(?string $role = null): Collection
+    {
+        return $this->relatedQuery(self::class, $role)->get();
     }
 
     public function sender(): ?EloquentModel

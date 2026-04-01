@@ -168,6 +168,21 @@ class Thread extends Model
     }
 
     /**
+     * @return Collection<int, PostRelation>
+     */
+    public function inboundPostRelations(?string $role = null): Collection
+    {
+        $query = PostRelation::query()
+            ->whereMorphedTo('relationable', $this);
+
+        if ($role !== null) {
+            $query->where('role', $role);
+        }
+
+        return $query->get();
+    }
+
+    /**
      * @return Collection<int, Space>
      */
     public function relatedSpaces(?string $type = null): Collection
@@ -181,6 +196,14 @@ class Thread extends Model
     public function relatedThreads(?string $type = null): Collection
     {
         return $this->relatedQuery(self::class, $type)->get();
+    }
+
+    /**
+     * @return Collection<int, Post>
+     */
+    public function relatedPosts(?string $type = null): Collection
+    {
+        return $this->relatedQuery(Post::class, $type)->get();
     }
 
     /**

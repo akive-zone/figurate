@@ -18,11 +18,11 @@ class QueryGraphEdgesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'node_type' => ['required', 'string', 'in:space,thread'],
-            'node_id' => ['required', 'uuid'],
+            'node_type' => ['required', 'string', 'in:space,thread,post'],
+            'node_id' => ['required', 'string'],
             'direction' => ['nullable', 'string', 'in:outgoing,incoming,both'],
             'edge_type' => ['nullable', 'string', 'in:related_to,references,depends_on,blocks,derived_from,child_of'],
-            'target_type' => ['nullable', 'string', 'in:space,thread'],
+            'target_type' => ['nullable', 'string', 'in:space,thread,post'],
             'depth' => ['nullable', 'integer', 'min:1', 'max:5'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
         ];
@@ -34,10 +34,10 @@ class QueryGraphEdgesRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'node_type.in' => 'The node type must be either space or thread.',
+            'node_type.in' => 'The node type must be space, thread, or post.',
             'direction.in' => 'The direction must be outgoing, incoming, or both.',
             'edge_type.in' => 'The edge type is not supported.',
-            'target_type.in' => 'The target type must be either space or thread.',
+            'target_type.in' => 'The target type must be space, thread, or post.',
         ];
     }
 }

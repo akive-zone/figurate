@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Graph\QueryGraphEdgesRequest;
 use App\Http\Requests\Server\Graph\StoreGraphEdgeRequest;
+use App\Models\Server\Post;
+use App\Models\Server\PostRelation;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceRelation;
 use App\Models\Server\Thread;
@@ -102,11 +104,12 @@ class GraphEdgeController extends Controller
         ], 201);
     }
 
-    protected function resolveNode(User $actor, string $type, string $uuid, bool $forUpdate = false): Model
+    protected function resolveNode(User $actor, string $type, string $nodeId, bool $forUpdate = false): Model
     {
         return match ($type) {
-            'space' => $this->resolveSpace($actor, $uuid, $forUpdate),
-            'thread' => $this->resolveThread($actor, $uuid, $forUpdate),
+            'space' => $this->resolveSpace($actor, $nodeId, $forUpdate),
+            'thread' => $this->resolveThread($actor, $nodeId, $forUpdate),
+            'post' => $this->resolvePost($actor, $nodeId, $forUpdate),
             default => abort(422, 'Unsupported graph node type.'),
         };
     }
@@ -133,13 +136,24 @@ class GraphEdgeController extends Controller
         return $thread;
     }
 
+    protected function resolvePost(User $actor, string $ulid, bool $forUpdate = false): Post
+    {
+        $post = Post::query()
+            ->where('ulid', $ulid)
+            ->firstOrFail();
+
+        Gate::forUser($actor)->authorize($forUpdate ? 'update' : 'view', $post);
+
+        return $post;
+    }
+
     /**
      * @param  array<string, mixed>  $edge
      * @return array<string, mixed>
      */
     protected function mapEdge(array $edge): array
     {
-        /** @var SpaceRelation|ThreadRelation $relation */
+        /** @var SpaceRelation|ThreadRelation|PostRelation $relation */
         $relation = $edge['relation'];
         /** @var Model $source */
         $source = $edge['source'];
@@ -149,8 +163,8 @@ class GraphEdgeController extends Controller
         return [
             'direction' => (string) $edge['direction'],
             'depth' => (int) $edge['depth'],
-            'type' => $relation->type,
-            'purpose' => $relation->purpose,
+            'type' => $relation instanceof PostRelation ? $relation->role : $relation->type,
+            'purpose' => $relation instanceof PostRelation ? null : $relation->purpose,
             'source' => $this->mapNode($source),
             'target' => $this->mapNode($target),
             'created_at' => optional($relation->created_at)?->toIso8601String(),
@@ -177,6 +191,19 @@ class GraphEdgeController extends Controller
                 'purpose' => $node->purpose,
                 'phase' => $node->phase,
                 'status' => $node->status,
+            ],
+            $node instanceof Post => [
+                'type' => 'post',
+                'id' => $node->ulid,
+                'post_type' => $node->type,
+                'status' => $node->status,
+                'postable_type' => $node->postable instanceof Space
+                    ? 'space'
+                    : ($node->postable instanceof Thread ? 'thread' : $node->postable_type),
+                'postable_id' => $node->postable instanceof Space
+                    ? $node->postable->uuid
+                    : ($node->postable instanceof Thread ? $node->postable->uuid : $node->postable_id),
+                'occurred_at' => optional($node->occurred_at)?->toIso8601String(),
             ],
             default => abort(422, 'Unsupported graph node model.'),
         };

@@ -2,6 +2,8 @@
 
 namespace App\Support\Graph;
 
+use App\Models\Server\Post;
+use App\Models\Server\PostRelation;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceRelation;
 use App\Models\Server\Thread;
@@ -123,6 +125,7 @@ class GraphEdgeExplorer
         $query = match (true) {
             $node instanceof Space => $node->relations(),
             $node instanceof Thread => $node->relations(),
+            $node instanceof Post => $node->relations(),
             default => null,
         };
 
@@ -131,16 +134,18 @@ class GraphEdgeExplorer
         }
 
         if ($edgeType !== null) {
-            $query->where('type', $edgeType);
+            $column = $node instanceof Post ? 'role' : 'type';
+
+            $query->where($column, $edgeType);
         }
 
         return $query
             ->with('relationable')
             ->get()
-            ->filter(function (SpaceRelation|ThreadRelation $relation) use ($targetType): bool {
+            ->filter(function (SpaceRelation|ThreadRelation|PostRelation $relation) use ($targetType): bool {
                 return $this->matchesTargetType($relation->relationable, $targetType);
             })
-            ->map(function (SpaceRelation|ThreadRelation $relation) use ($node, $depth): array {
+            ->map(function (SpaceRelation|ThreadRelation|PostRelation $relation) use ($node, $depth): array {
                 /** @var Model $target */
                 $target = $relation->relationable;
 
@@ -166,18 +171,14 @@ class GraphEdgeExplorer
         int $depth,
     ): Collection {
         return $this->incomingRelationsForNode($node, $edgeType)
-            ->filter(function (SpaceRelation|ThreadRelation $relation) use ($targetType): bool {
-                $source = $relation instanceof SpaceRelation
-                    ? $relation->space
-                    : $relation->thread;
+            ->filter(function (SpaceRelation|ThreadRelation|PostRelation $relation) use ($targetType): bool {
+                $source = $this->sourceNodeForRelation($relation);
 
                 return $source instanceof Model && $this->matchesTargetType($source, $targetType);
             })
-            ->map(function (SpaceRelation|ThreadRelation $relation) use ($node, $depth): array {
+            ->map(function (SpaceRelation|ThreadRelation|PostRelation $relation) use ($node, $depth): array {
                 /** @var Model $source */
-                $source = $relation instanceof SpaceRelation
-                    ? $relation->space
-                    : $relation->thread;
+                $source = $this->sourceNodeForRelation($relation);
 
                 return $this->makeEdgePayload(
                     relation: $relation,
@@ -192,25 +193,41 @@ class GraphEdgeExplorer
     }
 
     /**
-     * @return Collection<int, SpaceRelation|ThreadRelation>
+     * @return Collection<int, SpaceRelation|ThreadRelation|PostRelation>
      */
     protected function incomingRelationsForNode(Model $node, ?string $edgeType): Collection
     {
         $spaceRelations = match (true) {
             $node instanceof Space => $node->inboundSpaceRelations($edgeType),
             $node instanceof Thread => $node->inboundSpaceRelations($edgeType),
+            $node instanceof Post => $node->inboundSpaceRelations($edgeType),
             default => collect(),
         };
 
         $threadRelations = match (true) {
             $node instanceof Space => $node->inboundThreadRelations($edgeType),
             $node instanceof Thread => $node->inboundThreadRelations($edgeType),
+            $node instanceof Post => $node->inboundThreadRelations($edgeType),
+            default => collect(),
+        };
+
+        $postRelations = match (true) {
+            $node instanceof Space => $node->inboundPostRelations($edgeType),
+            $node instanceof Thread => $node->inboundPostRelations($edgeType),
+            $node instanceof Post => $node->inboundPostRelations($edgeType),
             default => collect(),
         };
 
         return $spaceRelations
             ->merge($threadRelations)
-            ->loadMissing(['space', 'thread']);
+            ->merge($postRelations)
+            ->each(function (SpaceRelation|ThreadRelation|PostRelation $relation): void {
+                match (true) {
+                    $relation instanceof SpaceRelation => $relation->loadMissing('space'),
+                    $relation instanceof ThreadRelation => $relation->loadMissing('thread'),
+                    $relation instanceof PostRelation => $relation->loadMissing('post'),
+                };
+            });
     }
 
     protected function matchesTargetType(?Model $model, ?string $targetType): bool
@@ -220,12 +237,13 @@ class GraphEdgeExplorer
         }
 
         if ($targetType === null || $targetType === '') {
-            return $model instanceof Space || $model instanceof Thread;
+            return $model instanceof Space || $model instanceof Thread || $model instanceof Post;
         }
 
         return match ($targetType) {
             'space' => $model instanceof Space,
             'thread' => $model instanceof Thread,
+            'post' => $model instanceof Post,
             default => false,
         };
     }
@@ -234,7 +252,7 @@ class GraphEdgeExplorer
      * @return array<string, mixed>
      */
     protected function makeEdgePayload(
-        SpaceRelation|ThreadRelation $relation,
+        SpaceRelation|ThreadRelation|PostRelation $relation,
         Model $source,
         Model $target,
         Model $adjacent,
@@ -245,7 +263,7 @@ class GraphEdgeExplorer
             'edge_key' => sprintf(
                 '%s:%s:%s:%s:%s',
                 $this->nodeKey($source),
-                $relation->type,
+                $this->relationType($relation),
                 $this->nodeKey($target),
                 $direction,
                 $depth,
@@ -257,6 +275,21 @@ class GraphEdgeExplorer
             'direction' => $direction,
             'depth' => $depth,
         ];
+    }
+
+    protected function relationType(SpaceRelation|ThreadRelation|PostRelation $relation): string
+    {
+        return $relation instanceof PostRelation ? (string) $relation->role : (string) $relation->type;
+    }
+
+    protected function sourceNodeForRelation(SpaceRelation|ThreadRelation|PostRelation $relation): ?Model
+    {
+        return match (true) {
+            $relation instanceof SpaceRelation => $relation->space,
+            $relation instanceof ThreadRelation => $relation->thread,
+            $relation instanceof PostRelation => $relation->post,
+            default => null,
+        };
     }
 
     protected function nodeKey(Model $model): string

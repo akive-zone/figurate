@@ -3,6 +3,7 @@
 namespace App\Ai\Gateways\Mcp\Support;
 
 use App\Models\Server\Post;
+use App\Models\Server\PostRelation;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceRelation;
 use App\Models\Server\Store;
@@ -92,8 +93,31 @@ class FigurateMcpPayloads
             'thread' => $updatable
                 ? $this->resolveUpdatableThread($actor, $nodeId)
                 : $this->resolveThread($actor, $nodeId),
+            'post' => $updatable
+                ? $this->resolveUpdatablePost($actor, $nodeId)
+                : $this->resolvePost($actor, $nodeId),
             default => abort(422, 'Unsupported graph node type.'),
         };
+    }
+
+    public function resolvePost(User $actor, string $postUlid): Post
+    {
+        $post = Post::query()
+            ->where('ulid', $postUlid)
+            ->firstOrFail();
+
+        Gate::forUser($actor)->authorize('view', $post);
+
+        return $post;
+    }
+
+    public function resolveUpdatablePost(User $actor, string $postUlid): Post
+    {
+        $post = $this->resolvePost($actor, $postUlid);
+
+        Gate::forUser($actor)->authorize('update', $post);
+
+        return $post;
     }
 
     public function mapSpace(Space $space): array
@@ -139,6 +163,11 @@ class FigurateMcpPayloads
                 'id' => $node->uuid,
                 'resource' => $this->mapThread($node),
             ],
+            $node instanceof Post => [
+                'type' => 'post',
+                'id' => $node->ulid,
+                'resource' => $this->mapPost($node),
+            ],
             default => abort(422, 'Unsupported graph node model.'),
         };
     }
@@ -149,7 +178,7 @@ class FigurateMcpPayloads
      */
     public function mapGraphEdge(array $edge): array
     {
-        /** @var SpaceRelation|ThreadRelation $relation */
+        /** @var SpaceRelation|ThreadRelation|PostRelation $relation */
         $relation = $edge['relation'];
         /** @var Model $source */
         $source = $edge['source'];
@@ -159,8 +188,8 @@ class FigurateMcpPayloads
         return [
             'direction' => (string) $edge['direction'],
             'depth' => (int) $edge['depth'],
-            'type' => $relation->type,
-            'purpose' => $relation->purpose,
+            'type' => $relation instanceof PostRelation ? $relation->role : $relation->type,
+            'purpose' => $relation instanceof PostRelation ? null : $relation->purpose,
             'source' => $this->mapGraphNode($source),
             'target' => $this->mapGraphNode($target),
             'created_at' => optional($relation->created_at)?->toIso8601String(),
@@ -172,7 +201,7 @@ class FigurateMcpPayloads
      */
     public function allowedGraphNodeTypes(): array
     {
-        return ['space', 'thread'];
+        return ['space', 'thread', 'post'];
     }
 
     /**
