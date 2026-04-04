@@ -37,6 +37,9 @@ class ContextServerRegistry
             'credentials' => [
                 'headers' => $headers,
             ],
+            'config' => [
+                'protocol' => Channel::ProtocolMcp,
+            ],
         ]);
     }
 }

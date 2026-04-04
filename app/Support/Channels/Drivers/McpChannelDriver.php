@@ -21,6 +21,11 @@ class McpChannelDriver extends GenericChannelDriver
         return ['http', 'websocket'];
     }
 
+    public function supportedProtocols(): array
+    {
+        return [Channel::ProtocolMcp];
+    }
+
     public function capabilities(?Channel $channel = null): array
     {
         return ['context.read', 'tool.call'];

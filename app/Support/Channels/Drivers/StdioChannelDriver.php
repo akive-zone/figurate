@@ -16,6 +16,15 @@ class StdioChannelDriver extends GenericChannelDriver
         return ['stdio'];
     }
 
+    public function supportedProtocols(): array
+    {
+        return [
+            Channel::ProtocolMcp,
+            Channel::ProtocolA2a,
+            Channel::ProtocolAcp,
+        ];
+    }
+
     public function capabilities(?Channel $channel = null): array
     {
         return ['post.send', 'post.receive', 'event.stream', 'receipt.receive'];

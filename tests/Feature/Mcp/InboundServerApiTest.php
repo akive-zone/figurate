@@ -22,7 +22,7 @@ class InboundServerApiTest extends TestCase
         $response = $this->postJson(route('api.channels.store'), [
             'owner_type' => 'user',
             'owner_id' => 'me',
-            'driver' => 'webhook',
+            'system' => 'webhook',
             'name' => 'inbound-webhook',
             'label' => 'Inbound Webhook',
             'transport' => 'webhook',

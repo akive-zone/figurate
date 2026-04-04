@@ -7,6 +7,7 @@ use App\Models\Server\Channel;
 use App\Models\Server\ChannelRelation;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class McpServerResolver
@@ -133,12 +134,12 @@ class McpServerResolver
             ->values();
 
         foreach ($this->credentialCandidates($thread, $user) as $credentialable) {
-            if (! method_exists($credentialable, 'contextServers')) {
+            if (! method_exists($credentialable, 'linkedChannels')) {
                 continue;
             }
 
             $serverNames = $serverNames->merge(
-                $credentialable->contextServers()
+                $this->mcpChannelsFor($credentialable)
                     ->where('enabled', true)
                     ->pluck('server')
                     ->all()
@@ -213,18 +214,28 @@ class McpServerResolver
 
     protected function findContextServerFor(Model $owner, string $server): ?Channel
     {
-        if (! method_exists($owner, 'contextServers')) {
+        if (! method_exists($owner, 'linkedChannels')) {
             return null;
         }
 
-        return $owner->contextServers()
+        return $this->mcpChannelsFor($owner)
             ->where('server', $server)
-            ->where('driver', Channel::DriverMcp)
             ->where('enabled', true)
-            ->wherePivot('status', Channel::StatusActive)
             ->orderByDesc('priority')
             ->orderByDesc('id')
             ->first();
+    }
+
+    protected function mcpChannelsFor(Model $owner)
+    {
+        return $owner->linkedChannels()
+            ->wherePivot('status', Channel::StatusActive)
+            ->where(function (Builder $builder): void {
+                $builder
+                    ->where('channels.driver', Channel::DriverMcp)
+                    ->orWhere('channels.config->protocol', Channel::ProtocolMcp)
+                    ->orWhere('channel_relations.config->protocol', Channel::ProtocolMcp);
+            });
     }
 
     protected function contextSource(Channel $contextServer): ?string

@@ -19,16 +19,16 @@ class ChannelRegistry
     {
         $this->ensureOwnerSupportsChannels($owner);
 
-        $driverKey = strtolower(trim((string) ($attributes['driver'] ?? '')));
+        $systemKey = strtolower(trim((string) ($attributes['driver'] ?? $attributes['system'] ?? '')));
         $name = trim((string) ($attributes['name'] ?? ''));
-        $driver = $this->channelDriverRegistry->resolveByDriver($driverKey);
+        $driver = $this->channelDriverRegistry->resolveBySystem($systemKey);
         $prepared = $driver->prepareForRegistration($attributes);
         $kind = $this->kindValue($prepared['kind'] ?? null);
 
-        $channel = $this->existingOwnedChannel($owner, $driverKey, $name, $kind)
+        $channel = $this->existingOwnedChannel($owner, $systemKey, $name, $kind)
             ?? Channel::query()->make();
 
-        $channel->forceFill($this->channelAttributes($prepared, $driverKey, $name))->save();
+        $channel->forceFill($this->channelAttributes($prepared, $systemKey, $name))->save();
 
         $owner->channelRelations()->updateOrCreate(
             [
@@ -76,10 +76,10 @@ class ChannelRegistry
         }
     }
 
-    protected function existingOwnedChannel(Model $owner, string $driver, string $name, string $kind): ?Channel
+    protected function existingOwnedChannel(Model $owner, string $system, string $name, string $kind): ?Channel
     {
         return Channel::query()
-            ->where('driver', $driver)
+            ->where('driver', $system)
             ->where('server', $name)
             ->whereHas('relations', function ($query) use ($owner, $kind): void {
                 $query
@@ -95,11 +95,11 @@ class ChannelRegistry
      * @param  array<string, mixed>  $attributes
      * @return array<string, mixed>
      */
-    protected function channelAttributes(array $attributes, string $driver, string $name): array
+    protected function channelAttributes(array $attributes, string $system, string $name): array
     {
         return [
             'name' => (string) ($attributes['label'] ?? $name),
-            'driver' => $driver,
+            'driver' => $system,
             'server' => $name,
             'label' => $attributes['label'] ?? null,
             'enabled' => (bool) ($attributes['enabled'] ?? true),

@@ -36,10 +36,10 @@ class UrlTrustPolicy
         $allowPrivateNetwork = $this->booleanOption($options, 'allow_private_network', $this->isDevelopmentEnvironment());
         $allowedHosts = $this->normalizeStringList($options['allowed_hosts'] ?? []);
 
-        if (! in_array($scheme, ['https', 'http'], true)) {
+        if (! in_array($scheme, ['https', 'http', 'wss', 'ws'], true)) {
             return [
                 'allowed' => false,
-                'reason' => 'Only http and https URLs are supported.',
+                'reason' => 'Only http, https, ws, and wss URLs are supported.',
             ];
         }
 
@@ -57,7 +57,7 @@ class UrlTrustPolicy
             ];
         }
 
-        if ($scheme === 'http' && ! $allowHttp) {
+        if (in_array($scheme, ['http', 'ws'], true) && ! $allowHttp) {
             return [
                 'allowed' => false,
                 'reason' => 'Plain HTTP URLs are not allowed by policy.',

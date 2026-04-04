@@ -9,35 +9,40 @@ use InvalidArgumentException;
 class ChannelDriverRegistry
 {
     /**
-     * @param  array<string, class-string<ChannelDriver>>  $drivers
+     * @param  array<string, class-string<ChannelDriver>>  $systems
      */
     public function __construct(
-        protected array $drivers = [],
+        protected array $systems = [],
     ) {
-        if ($this->drivers === []) {
-            $configuredDrivers = config('channels.drivers', []);
-            $this->drivers = is_array($configuredDrivers) ? $configuredDrivers : [];
+        if ($this->systems === []) {
+            $configuredSystems = config('channels.systems', config('channels.drivers', []));
+            $this->systems = is_array($configuredSystems) ? $configuredSystems : [];
         }
     }
 
     public function resolveByChannel(Channel $channel): ChannelDriver
     {
-        return $this->resolveByDriver((string) $channel->driver);
+        return $this->resolveBySystem((string) $channel->driver);
     }
 
     public function resolveByDriver(string $driver): ChannelDriver
     {
-        $resolvedDriver = trim($driver);
-        $driverClass = $this->drivers[$resolvedDriver] ?? null;
+        return $this->resolveBySystem($driver);
+    }
+
+    public function resolveBySystem(string $system): ChannelDriver
+    {
+        $resolvedSystem = trim($system);
+        $driverClass = $this->systems[$resolvedSystem] ?? null;
 
         if (! is_string($driverClass) || trim($driverClass) === '') {
-            throw new InvalidArgumentException("Unsupported channel driver [{$resolvedDriver}].");
+            throw new InvalidArgumentException("Unsupported channel system [{$resolvedSystem}].");
         }
 
         $instance = app($driverClass);
 
         if (! $instance instanceof ChannelDriver) {
-            throw new InvalidArgumentException("Channel driver [{$resolvedDriver}] must implement ".ChannelDriver::class.'.');
+            throw new InvalidArgumentException("Channel system [{$resolvedSystem}] must implement ".ChannelDriver::class.'.');
         }
 
         return $instance;

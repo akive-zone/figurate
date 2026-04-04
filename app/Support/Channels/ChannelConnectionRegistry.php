@@ -82,6 +82,7 @@ class ChannelConnectionRegistry
     protected function updatableConnectionAttributes(Channel $channel, array $attributes): array
     {
         $config = array_key_exists('config', $attributes)
+            || array_key_exists('protocol', $attributes)
             || array_key_exists('transport', $attributes)
             || array_key_exists('mode', $attributes)
             || array_key_exists('endpoint_url', $attributes)
@@ -112,6 +113,13 @@ class ChannelConnectionRegistry
     protected function connectionConfig(Channel $channel, array $attributes): array
     {
         $config = is_array($attributes['config'] ?? null) ? $attributes['config'] : [];
+
+        $protocol = array_key_exists('protocol', $attributes)
+            ? $this->protocolValue($channel, $attributes['protocol'])
+            : $this->protocolValue($channel, $config['protocol'] ?? null);
+        if ($protocol !== null) {
+            $config['protocol'] = $protocol;
+        }
 
         $transport = array_key_exists('transport', $attributes)
             ? $this->transportValue($channel, $attributes['transport'])
@@ -178,6 +186,30 @@ class ChannelConnectionRegistry
         return $direction !== '' ? $direction : Channel::DirectionBidirectional;
     }
 
+    protected function protocolValue(Channel $channel, mixed $value): ?string
+    {
+        $protocol = $this->stringValue($value);
+
+        if ($protocol === null) {
+            return null;
+        }
+
+        $driver = $this->channelDriverRegistry->resolveByChannel($channel);
+        $supportedProtocols = collect($driver->supportedProtocols())
+            ->filter(fn (mixed $supportedProtocol): bool => is_string($supportedProtocol) && trim($supportedProtocol) !== '')
+            ->map(fn (string $supportedProtocol): string => strtolower(trim($supportedProtocol)))
+            ->values()
+            ->all();
+
+        $normalized = strtolower($protocol);
+
+        if ($supportedProtocols !== [] && ! in_array($normalized, $supportedProtocols, true)) {
+            throw new \InvalidArgumentException("Unsupported protocol [{$normalized}] for channel system [{$channel->driver}].");
+        }
+
+        return $normalized;
+    }
+
     protected function transportValue(Channel $channel, mixed $value): ?string
     {
         $transport = $this->stringValue($value);
@@ -196,7 +228,7 @@ class ChannelConnectionRegistry
         $normalized = strtolower($transport);
 
         if ($supportedTransports !== [] && ! in_array($normalized, $supportedTransports, true)) {
-            throw new \InvalidArgumentException("Unsupported transport [{$normalized}] for channel driver [{$channel->driver}].");
+            throw new \InvalidArgumentException("Unsupported transport [{$normalized}] for channel system [{$channel->driver}].");
         }
 
         return $normalized;

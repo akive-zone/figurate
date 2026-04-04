@@ -16,6 +16,14 @@ class WebhookChannelDriver extends GenericChannelDriver
         return ['webhook', 'http'];
     }
 
+    public function supportedProtocols(): array
+    {
+        return [
+            Channel::ProtocolA2a,
+            Channel::ProtocolAcp,
+        ];
+    }
+
     public function capabilities(?Channel $channel = null): array
     {
         return ['event.receive', 'post.receive', 'receipt.receive'];

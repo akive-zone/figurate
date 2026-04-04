@@ -32,6 +32,9 @@
         "staudenmeir/eloquent-has-many-deep": "^1.7",
         "staudenmeir/eloquent-json-relations": "^1.1",
         "staudenmeir/laravel-adjacency-list": "^1.0",
+        "symfony/polyfill-php83": "^1.33",
+        "symfony/polyfill-php84": "^1.33",
+        "symfony/polyfill-php85": "^1.33",
         "wikimedia/composer-merge-plugin": "dev-master"
     },
     "require-dev": {

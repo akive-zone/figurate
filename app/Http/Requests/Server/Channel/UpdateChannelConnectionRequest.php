@@ -26,10 +26,12 @@ class UpdateChannelConnectionRequest extends FormRequest
             'kind' => ['sometimes', 'string', 'in:'.implode(',', [ChannelRelation::KindLink, ChannelRelation::KindBind])],
             'status' => ['sometimes', 'string', 'in:'.implode(',', [Channel::StatusActive, Channel::StatusPaused, Channel::StatusDisabled])],
             'direction' => ['sometimes', 'string', 'in:'.implode(',', [Channel::DirectionInbound, Channel::DirectionOutbound, Channel::DirectionBidirectional])],
+            'protocol' => ['sometimes', 'nullable', 'string', 'max:40'],
             'config' => ['sometimes', 'nullable', 'array'],
+            'config.protocol' => ['sometimes', 'nullable', 'string', 'max:40'],
             'config.transport' => ['sometimes', 'nullable', 'string', 'max:40'],
             'config.mode' => ['sometimes', 'nullable', 'string', 'max:40'],
-            'config.endpoint_url' => ['sometimes', 'nullable', 'url'],
+            'config.endpoint_url' => ['sometimes', 'nullable', 'string', 'max:2048'],
             'config.handler' => ['sometimes', 'nullable', 'string', 'max:255'],
             'config.auth_type' => ['sometimes', 'nullable', 'string', 'in:bearer,basic,header'],
             'config.credentials' => ['sometimes', 'nullable', 'array'],
@@ -55,22 +57,43 @@ class UpdateChannelConnectionRequest extends FormRequest
     {
         $transport = $this->input('transport');
         $mode = $this->input('mode');
+        $config = (array) $this->input('config', []);
 
         if (is_string($transport) && in_array(strtolower(trim($transport)), ['remote', 'local'], true) && ! is_string($mode)) {
             $mode = $transport;
             $transport = null;
         }
 
+        if (is_string($transport)) {
+            $config['transport'] = trim($transport);
+        }
+
+        if (is_string($mode)) {
+            $config['mode'] = trim($mode);
+        }
+
+        if ($this->has('protocol')) {
+            $config['protocol'] = $this->input('protocol');
+        }
+
+        if ($this->has('endpoint_url')) {
+            $config['endpoint_url'] = $this->input('endpoint_url');
+        }
+
+        if ($this->has('handler')) {
+            $config['handler'] = $this->input('handler');
+        }
+
+        if ($this->has('auth_type')) {
+            $config['auth_type'] = $this->input('auth_type');
+        }
+
+        if ($this->has('credentials')) {
+            $config['credentials'] = $this->input('credentials');
+        }
+
         $this->merge([
-            'config' => array_filter([
-                ...((array) $this->input('config', [])),
-                'transport' => is_string($transport) ? trim($transport) : null,
-                'mode' => is_string($mode) ? trim($mode) : null,
-                'endpoint_url' => $this->input('endpoint_url'),
-                'handler' => $this->input('handler'),
-                'auth_type' => $this->input('auth_type'),
-                'credentials' => $this->input('credentials'),
-            ], fn (mixed $value): bool => $value !== null),
+            'config' => array_filter($config, fn (mixed $value): bool => $value !== null),
         ]);
     }
 
@@ -83,6 +106,7 @@ class UpdateChannelConnectionRequest extends FormRequest
             function (Validator $validator): void {
                 $transport = strtolower(trim((string) $this->input('config.transport', '')));
                 $mode = strtolower(trim((string) $this->input('config.mode', '')));
+                $protocol = strtolower(trim((string) $this->input('config.protocol', '')));
                 $endpointUrl = $this->input('config.endpoint_url');
                 $handler = $this->input('config.handler');
                 $command = $this->input('config.command');
@@ -114,12 +138,21 @@ class UpdateChannelConnectionRequest extends FormRequest
                 $channel = is_numeric($channelId) ? Channel::query()->find((int) $channelId) : null;
 
                 if ($channel instanceof Channel && $transport !== '') {
-                    $supportedTransports = app(ChannelDriverRegistry::class)
-                        ->resolveByChannel($channel)
-                        ->supportedTransports();
+                    $driver = app(ChannelDriverRegistry::class)->resolveByChannel($channel);
+                    $supportedTransports = $driver->supportedTransports();
 
                     if (! in_array($transport, $supportedTransports, true)) {
-                        $validator->errors()->add('config.transport', "The selected transport is not supported for the [{$channel->driver}] channel driver.");
+                        $validator->errors()->add('config.transport', "The selected transport is not supported for the [{$channel->driver}] channel system.");
+                    }
+                }
+
+                if ($channel instanceof Channel && $protocol !== '') {
+                    $supportedProtocols = app(ChannelDriverRegistry::class)
+                        ->resolveByChannel($channel)
+                        ->supportedProtocols();
+
+                    if ($supportedProtocols !== [] && ! in_array($protocol, $supportedProtocols, true)) {
+                        $validator->errors()->add('config.protocol', "The selected protocol is not supported for the [{$channel->driver}] channel system.");
                     }
                 }
             },

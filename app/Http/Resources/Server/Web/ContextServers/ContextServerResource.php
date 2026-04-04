@@ -65,7 +65,14 @@ class ContextServerResource extends Resource
     public static function getRecordRouteBindingEloquentQuery(): Builder
     {
         return parent::getRecordRouteBindingEloquentQuery()
-            ->where('driver', Channel::DriverMcp)
+            ->where(function (Builder $query): void {
+                $query
+                    ->where('channels.driver', Channel::DriverMcp)
+                    ->orWhere('channels.config->protocol', Channel::ProtocolMcp)
+                    ->orWhereHas('relations', function (Builder $relationQuery): void {
+                        $relationQuery->where('channel_relations.config->protocol', Channel::ProtocolMcp);
+                    });
+            })
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
@@ -74,7 +81,14 @@ class ContextServerResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery()
-            ->where('driver', Channel::DriverMcp)
+            ->where(function (Builder $builder): void {
+                $builder
+                    ->where('channels.driver', Channel::DriverMcp)
+                    ->orWhere('channels.config->protocol', Channel::ProtocolMcp)
+                    ->orWhereHas('relations', function (Builder $relationQuery): void {
+                        $relationQuery->where('channel_relations.config->protocol', Channel::ProtocolMcp);
+                    });
+            })
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);

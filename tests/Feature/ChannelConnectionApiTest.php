@@ -54,7 +54,41 @@ class ChannelConnectionApiTest extends TestCase
         $this->assertSame(ChannelRelation::KindLink, $connection->kind);
     }
 
-    public function test_it_rejects_stdio_connections_for_mcp_channels(): void
+    public function test_it_creates_a_websocket_connection_for_an_a2a_protocol(): void
+    {
+        $user = User::factory()->create();
+        $channel = Channel::factory()->create([
+            'driver' => 'websocket',
+            'server' => 'agent-socket',
+        ]);
+
+        Sanctum::actingAs($user, [TokenAbility::Compose->value]);
+
+        $response = $this->postJson(route('api.channels.connections.store', ['channel' => $channel->id]), [
+            'owner_type' => 'user',
+            'owner_id' => 'me',
+            'direction' => Channel::DirectionBidirectional,
+            'protocol' => Channel::ProtocolA2a,
+            'transport' => 'websocket',
+            'config' => [
+                'endpoint_url' => 'wss://agents.example/socket',
+            ],
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.channel.driver', 'websocket')
+            ->assertJsonPath('data.channel.system', 'websocket')
+            ->assertJsonPath('data.protocol', Channel::ProtocolA2a)
+            ->assertJsonPath('data.transport', 'websocket');
+
+        $connection = $user->channelRelations()->where('channel_id', $channel->id)->first();
+
+        $this->assertInstanceOf(ChannelRelation::class, $connection);
+        $this->assertSame(Channel::ProtocolA2a, data_get($connection->config, 'protocol'));
+        $this->assertSame('websocket', data_get($connection->config, 'transport'));
+    }
+
+    public function test_it_rejects_acp_connections_for_mcp_channels(): void
     {
         $user = User::factory()->create();
         $channel = Channel::factory()->create([
@@ -67,15 +101,16 @@ class ChannelConnectionApiTest extends TestCase
         $response = $this->postJson(route('api.channels.connections.store', ['channel' => $channel->id]), [
             'owner_type' => 'user',
             'owner_id' => 'me',
-            'transport' => 'stdio',
+            'protocol' => Channel::ProtocolAcp,
+            'transport' => 'http',
             'config' => [
-                'command' => 'node',
+                'endpoint_url' => 'https://agents.example/mcp',
             ],
         ]);
 
         $response->assertStatus(422)
             ->assertInvalid([
-                'config.transport' => 'The selected transport is not supported for the [mcp] channel driver.',
+                'config.protocol' => 'The selected protocol is not supported for the [mcp] channel system.',
             ]);
     }
 }

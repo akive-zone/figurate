@@ -18,6 +18,11 @@ interface ChannelDriver
     /**
      * @return list<string>
      */
+    public function supportedProtocols(): array;
+
+    /**
+     * @return list<string>
+     */
     public function capabilities(?Channel $channel = null): array;
 
     /**

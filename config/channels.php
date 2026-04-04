@@ -11,13 +11,24 @@ use App\Support\Channels\Drivers\WebsocketChannelDriver;
 return [
     /*
     |--------------------------------------------------------------------------
-    | Channel Drivers
+    | Channel Systems
     |--------------------------------------------------------------------------
     |
-    | Channels define how traffic exits and enters this system, including
-    | message delivery and MCP context transport endpoints.
+    | Channels define the carrier or system that traffic uses to enter and
+    | leave this application. Protocol semantics such as MCP, A2A, and ACP
+    | are configured per connection.
     |
     */
+    'systems' => [
+        Channel::DriverGeneric => GenericChannelDriver::class,
+        Channel::DriverMcp => McpChannelDriver::class,
+        Channel::DriverStdio => StdioChannelDriver::class,
+        'webhook' => WebhookChannelDriver::class,
+        'websocket' => WebsocketChannelDriver::class,
+        'nostr' => NostrChannelDriver::class,
+        'activitypub' => WebhookChannelDriver::class,
+    ],
+
     'drivers' => [
         Channel::DriverGeneric => GenericChannelDriver::class,
         Channel::DriverMcp => McpChannelDriver::class,

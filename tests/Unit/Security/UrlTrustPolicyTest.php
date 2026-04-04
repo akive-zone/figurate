@@ -16,6 +16,18 @@ class UrlTrustPolicyTest extends TestCase
         $this->assertTrue($result['allowed']);
     }
 
+    public function test_it_allows_secure_websocket_urls(): void
+    {
+        $policy = app(UrlTrustPolicy::class);
+
+        $result = $policy->authorize('wss://tools.example.com/socket', [
+            'allow_http' => false,
+            'allow_private_network' => false,
+        ]);
+
+        $this->assertTrue($result['allowed']);
+    }
+
     public function test_it_rejects_plain_http_when_policy_disallows_it(): void
     {
         $policy = app(UrlTrustPolicy::class);

@@ -24,6 +24,7 @@ class StoreChannelRequest extends FormRequest
         return [
             'owner_type' => ['required', 'string', 'in:user,space,thread'],
             'owner_id' => ['nullable', 'string'],
+            'system' => ['nullable', 'string', 'max:40'],
             'driver' => ['required', 'string', 'max:40'],
             'name' => ['required', 'string', 'max:120'],
             'label' => ['nullable', 'string', 'max:160'],
@@ -33,7 +34,7 @@ class StoreChannelRequest extends FormRequest
             'transport' => ['nullable', 'string', 'max:40'],
             'status' => ['nullable', 'string', 'in:'.implode(',', [Channel::StatusActive, Channel::StatusPaused, Channel::StatusDisabled])],
             'direction' => ['nullable', 'string', 'in:'.implode(',', [Channel::DirectionInbound, Channel::DirectionOutbound, Channel::DirectionBidirectional])],
-            'endpoint_url' => ['nullable', 'url'],
+            'endpoint_url' => ['nullable', 'string', 'max:2048'],
             'handler' => ['nullable', 'string', 'max:255'],
             'allowed_tools' => ['nullable', 'array'],
             'allowed_tools.*' => ['string', 'max:120'],
@@ -57,7 +58,7 @@ class StoreChannelRequest extends FormRequest
         $ownerType = $this->input('owner_type', $this->input('context_type'));
         $ownerId = $this->input('owner_id', $this->input('context_id'));
         $name = $this->input('name', $this->input('server'));
-        $driver = $this->input('driver');
+        $driver = $this->input('driver', $this->input('system'));
 
         if (! is_string($driver) || trim($driver) === '') {
             $driver = $this->has('server') ? Channel::DriverMcp : $driver;
@@ -67,6 +68,7 @@ class StoreChannelRequest extends FormRequest
             'owner_type' => $ownerType,
             'owner_id' => $ownerId,
             'name' => $name,
+            'system' => $driver,
             'driver' => $driver,
         ]);
     }

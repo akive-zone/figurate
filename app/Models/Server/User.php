@@ -4,6 +4,7 @@ namespace App\Models\Server;
 
 use App\Models\Concerns\HasPublicUuid;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
@@ -68,7 +69,12 @@ class User extends Authenticatable implements HasPasskeys
     public function contextServers(): MorphToMany
     {
         return $this->linkedChannels()
-            ->where('driver', Channel::DriverMcp)
+            ->where(function (Builder $query): void {
+                $query
+                    ->where('channels.driver', Channel::DriverMcp)
+                    ->orWhere('channels.config->protocol', Channel::ProtocolMcp)
+                    ->orWhere('channel_relations.config->protocol', Channel::ProtocolMcp);
+            })
             ->withPivot(['id', 'kind', 'status', 'direction', 'config', 'data', 'meta']);
     }
 

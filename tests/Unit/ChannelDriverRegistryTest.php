@@ -23,12 +23,12 @@ class ChannelDriverRegistryTest extends TestCase
         $this->assertInstanceOf(GenericChannelDriver::class, $resolved);
     }
 
-    public function test_it_throws_for_unsupported_drivers(): void
+    public function test_it_throws_for_unsupported_systems(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Unsupported channel driver [unsupported].');
+        $this->expectExceptionMessage('Unsupported channel system [unsupported].');
 
-        app(ChannelDriverRegistry::class)->resolveByDriver('unsupported');
+        app(ChannelDriverRegistry::class)->resolveBySystem('unsupported');
     }
 
     public function test_it_resolves_the_mcp_channel_driver(): void
@@ -51,5 +51,20 @@ class ChannelDriverRegistryTest extends TestCase
         $resolved = app(ChannelDriverRegistry::class)->resolveByChannel($channel);
 
         $this->assertInstanceOf(StdioChannelDriver::class, $resolved);
+    }
+
+    public function test_it_exposes_protocol_support_for_websocket_channels(): void
+    {
+        $channel = new Channel([
+            'driver' => 'websocket',
+        ]);
+
+        $resolved = app(ChannelDriverRegistry::class)->resolveByChannel($channel);
+
+        $this->assertSame([
+            Channel::ProtocolMcp,
+            Channel::ProtocolA2a,
+            Channel::ProtocolAcp,
+        ], $resolved->supportedProtocols());
     }
 }

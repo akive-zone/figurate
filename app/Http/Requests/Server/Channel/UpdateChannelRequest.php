@@ -30,7 +30,7 @@ class UpdateChannelRequest extends FormRequest
             'transport' => ['sometimes', 'string', 'max:40'],
             'status' => ['sometimes', 'string', 'in:'.implode(',', [Channel::StatusActive, Channel::StatusPaused, Channel::StatusDisabled])],
             'direction' => ['sometimes', 'string', 'in:'.implode(',', [Channel::DirectionInbound, Channel::DirectionOutbound, Channel::DirectionBidirectional])],
-            'endpoint_url' => ['sometimes', 'nullable', 'url'],
+            'endpoint_url' => ['sometimes', 'nullable', 'string', 'max:2048'],
             'handler' => ['sometimes', 'nullable', 'string', 'max:255'],
             'allowed_tools' => ['sometimes', 'nullable', 'array'],
             'allowed_tools.*' => ['string', 'max:120'],

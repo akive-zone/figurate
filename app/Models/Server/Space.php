@@ -91,7 +91,12 @@ class Space extends Model
     public function contextServers(): MorphToMany
     {
         return $this->linkedChannels()
-            ->where('driver', Channel::DriverMcp)
+            ->where(function (Builder $query): void {
+                $query
+                    ->where('channels.driver', Channel::DriverMcp)
+                    ->orWhere('channels.config->protocol', Channel::ProtocolMcp)
+                    ->orWhere('channel_relations.config->protocol', Channel::ProtocolMcp);
+            })
             ->withPivot(['id', 'kind', 'status', 'direction', 'config', 'data', 'meta']);
     }
 

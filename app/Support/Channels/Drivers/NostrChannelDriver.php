@@ -16,6 +16,14 @@ class NostrChannelDriver extends GenericChannelDriver
         return ['relay', 'websocket'];
     }
 
+    public function supportedProtocols(): array
+    {
+        return [
+            Channel::ProtocolA2a,
+            Channel::ProtocolAcp,
+        ];
+    }
+
     public function capabilities(?Channel $channel = null): array
     {
         return ['post.send', 'post.receive', 'event.receive'];

@@ -165,6 +165,7 @@ class ChannelConnectionController extends Controller
     {
         $owner = $connection->relationable;
         $config = is_array($connection->config) ? $connection->config : [];
+        $protocol = is_string($config['protocol'] ?? null) ? trim((string) $config['protocol']) : null;
         $transport = is_string($config['transport'] ?? null) ? trim((string) $config['transport']) : null;
         $mode = is_string($config['mode'] ?? null) ? trim((string) $config['mode']) : null;
         $endpointUrl = is_string($config['endpoint_url'] ?? null) ? trim((string) $config['endpoint_url']) : null;
@@ -178,6 +179,7 @@ class ChannelConnectionController extends Controller
                 'id' => $channel->id,
                 'uuid' => $channel->uuid,
                 'driver' => $channel->driver,
+                'system' => $channel->driver,
                 'name' => $channel->server,
                 'label' => $channel->label,
             ],
@@ -188,6 +190,7 @@ class ChannelConnectionController extends Controller
             'kind' => $connection->kind,
             'status' => $connection->status,
             'direction' => $connection->direction,
+            'protocol' => $protocol,
             'transport' => $transport,
             'mode' => $mode,
             'endpoint_url' => $endpointUrl,

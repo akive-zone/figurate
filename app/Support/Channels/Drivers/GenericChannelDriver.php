@@ -20,6 +20,15 @@ class GenericChannelDriver implements ChannelDriver
         return ['http', 'webhook', 'websocket', 'webrtc', 'relay', 'stdio'];
     }
 
+    public function supportedProtocols(): array
+    {
+        return [
+            Channel::ProtocolMcp,
+            Channel::ProtocolA2a,
+            Channel::ProtocolAcp,
+        ];
+    }
+
     public function capabilities(?Channel $channel = null): array
     {
         return ['post.send', 'post.receive', 'receipt.receive'];

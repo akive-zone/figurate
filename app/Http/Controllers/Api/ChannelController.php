@@ -29,12 +29,13 @@ class ChannelController extends Controller
 
         $ownerType = $this->ownerTypeFromRequest($request);
         $ownerId = $request->query('owner_id', $request->query('context_id'));
-        $driver = $this->trimmedString($request->query('driver'));
+        $system = $this->trimmedString($request->query('system'))
+            ?? $this->trimmedString($request->query('driver'));
         $kind = $this->trimmedString($request->query('kind'));
         $query = Channel::query()->latest('id');
 
-        if ($driver !== null) {
-            $query->where('driver', $driver);
+        if ($system !== null) {
+            $query->where('driver', $system);
         }
 
         if ($ownerType !== null) {
@@ -238,6 +239,7 @@ class ChannelController extends Controller
             'server' => $channel->server,
             'label' => $channel->label,
             'driver' => $channel->driver,
+            'system' => $channel->driver,
             'capabilities' => $driver->capabilities($channel),
             'enabled' => (bool) $channel->enabled,
             'priority' => $channel->priority,
