@@ -4,9 +4,10 @@ use App\Http\Controllers\Api\Auth\LoginController;
 use App\Http\Controllers\Api\Auth\LogoutController;
 use App\Http\Controllers\Api\Auth\PasskeyController;
 use App\Http\Controllers\Api\Auth\RegisterController;
+use App\Http\Controllers\Api\ChannelConnectionController;
+use App\Http\Controllers\Api\ChannelController;
 use App\Http\Controllers\Api\FormController;
 use App\Http\Controllers\Api\GraphEdgeController;
-use App\Http\Controllers\Api\Mcp\ServerController as McpServerController;
 use App\Http\Controllers\Api\RobotUserController;
 use App\Http\Controllers\Api\SpaceController;
 use App\Http\Controllers\Api\SpacePostController;
@@ -66,8 +67,12 @@ Route::prefix('threads')->middleware(['auth:sanctum,passport'])->group(function 
 });
 
 Route::prefix('channels')->middleware(['auth:sanctum,passport'])->group(function (): void {
-    Route::get('/', [McpServerController::class, 'index'])->name('api.context-servers.index');
-    Route::post('/', [McpServerController::class, 'store'])->name('api.context-servers.store');
-    Route::patch('/{channel}', [McpServerController::class, 'update'])->name('api.context-servers.update');
-    Route::delete('/{channel}', [McpServerController::class, 'destroy'])->name('api.context-servers.destroy');
+    Route::get('/', [ChannelController::class, 'index'])->name('api.channels.index');
+    Route::post('/', [ChannelController::class, 'store'])->name('api.channels.store');
+    Route::patch('/{channel}', [ChannelController::class, 'update'])->name('api.channels.update');
+    Route::delete('/{channel}', [ChannelController::class, 'destroy'])->name('api.channels.destroy');
+    Route::get('/{channel}/connections', [ChannelConnectionController::class, 'index'])->name('api.channels.connections.index');
+    Route::post('/{channel}/connections', [ChannelConnectionController::class, 'store'])->name('api.channels.connections.store');
+    Route::patch('/{channel}/connections/{connection}', [ChannelConnectionController::class, 'update'])->name('api.channels.connections.update');
+    Route::delete('/{channel}/connections/{connection}', [ChannelConnectionController::class, 'destroy'])->name('api.channels.connections.destroy');
 });

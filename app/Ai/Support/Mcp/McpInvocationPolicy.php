@@ -30,9 +30,21 @@ class McpInvocationPolicy
 
         $transport = is_string($context['transport'] ?? null)
             ? strtolower((string) $context['transport'])
+            : 'http';
+        $mode = is_string($context['mode'] ?? null)
+            ? strtolower((string) $context['mode'])
             : 'remote';
 
-        if ($transport === 'remote') {
+        if ($mode === 'local' || $transport === 'local') {
+            $handler = $context['handler'] ?? null;
+            if (! is_string($handler) || trim($handler) === '') {
+                return [
+                    'allowed' => false,
+                    'reason' => 'MCP handler is not configured for this local server.',
+                    'context' => $context,
+                ];
+            }
+        } else {
             $endpointUrl = $context['endpoint_url'] ?? null;
             if (! is_string($endpointUrl) || trim($endpointUrl) === '') {
                 return [
@@ -51,15 +63,6 @@ class McpInvocationPolicy
                 return [
                     'allowed' => false,
                     'reason' => (string) ($trust['reason'] ?? 'MCP endpoint URL is not allowed by policy.'),
-                    'context' => $context,
-                ];
-            }
-        } else {
-            $handler = $context['handler'] ?? null;
-            if (! is_string($handler) || trim($handler) === '') {
-                return [
-                    'allowed' => false,
-                    'reason' => 'MCP handler is not configured for this local server.',
                     'context' => $context,
                 ];
             }

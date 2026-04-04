@@ -90,10 +90,16 @@ class Space extends Model
 
     public function contextServers(): MorphToMany
     {
+        return $this->linkedChannels()
+            ->where('driver', Channel::DriverMcp)
+            ->withPivot(['id', 'kind', 'status', 'direction', 'config', 'data', 'meta']);
+    }
+
+    public function linkedChannels(): MorphToMany
+    {
         return $this->morphToMany(Channel::class, 'relationable', 'channel_relations', 'relationable_id', 'channel_id')
             ->wherePivot('kind', ChannelRelation::KindLink)
-            ->where('driver', Channel::DriverMcp)
-            ->withPivot(['kind', 'status', 'direction', 'data', 'meta'])
+            ->withPivot(['id', 'kind', 'status', 'direction', 'config', 'data', 'meta'])
             ->withTimestamps();
     }
 

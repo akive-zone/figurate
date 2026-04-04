@@ -8,6 +8,30 @@ use App\Models\Server\Thread;
 
 interface ChannelDriver
 {
+    public function key(): string;
+
+    /**
+     * @return list<string>
+     */
+    public function supportedTransports(): array;
+
+    /**
+     * @return list<string>
+     */
+    public function capabilities(?Channel $channel = null): array;
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    public function prepareForRegistration(array $attributes): array;
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    public function prepareForUpdate(Channel $channel, array $attributes): array;
+
     /**
      * @param  array<string, mixed>  $bindingConfig
      * @return array<string, mixed>

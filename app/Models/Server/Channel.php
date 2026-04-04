@@ -31,6 +31,8 @@ class Channel extends Model
 
     public const DriverMcp = 'mcp';
 
+    public const DriverStdio = 'stdio';
+
     /**
      * @var list<string>
      */
@@ -75,14 +77,21 @@ class Channel extends Model
         return $this->hasMany(ChannelRelation::class, 'channel_id');
     }
 
+    public function connections(): HasMany
+    {
+        return $this->relations();
+    }
+
     public function threads(): MorphToMany
     {
         return $this->morphedByMany(Thread::class, 'relationable', 'channel_relations', 'channel_id', 'relationable_id')
             ->wherePivot('kind', ChannelRelation::KindBind)
             ->withPivot([
+                'id',
                 'kind',
                 'status',
                 'direction',
+                'config',
                 'data',
                 'meta',
             ])

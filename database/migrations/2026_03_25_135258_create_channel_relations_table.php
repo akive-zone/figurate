@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -18,7 +17,8 @@ return new class extends Migration
             $table->string('kind')->default('bind');
             $table->string('status')->default('active');
             $table->string('direction')->default('bidirectional');
-            $table->json('data')->nullable();
+            $table->jsonb('config')->nullable();
+            $table->jsonb('data')->nullable();
             $table->json('meta')->nullable();
             $table->timestamps();
 

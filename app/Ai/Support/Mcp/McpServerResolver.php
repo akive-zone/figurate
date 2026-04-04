@@ -20,8 +20,10 @@ class McpServerResolver
      *     enabled: bool,
      *     server: string,
      *     transport: string,
+     *     mode: ?string,
      *     endpoint_url: ?string,
      *     handler: ?string,
+     *     config: array<string, mixed>,
      *     default_timeout_ms: int,
      *     max_timeout_ms: int,
      *     tools: list<string>,
@@ -38,12 +40,14 @@ class McpServerResolver
             'enabled' => $this->isEnabled(),
             'server' => $server,
             'transport' => $this->stringValue(
-                $serverDefaults['transport'] ?? 'remote',
-            ) ?? 'remote',
+                $serverDefaults['transport'] ?? 'http',
+            ) ?? 'http',
+            'mode' => $this->stringValue($serverDefaults['mode'] ?? 'remote'),
             'endpoint_url' => $this->stringValue($serverDefaults['endpoint_url'] ?? null),
             'handler' => $this->stringValue(
                 $serverDefaults['handler'] ?? config('services.mcp.default_handler'),
             ),
+            'config' => is_array($serverDefaults['config'] ?? null) ? $serverDefaults['config'] : [],
             'default_timeout_ms' => $this->intValue(
                 $serverDefaults['default_timeout_ms'] ?? $this->defaultTimeout(),
                 $this->defaultTimeout(),
@@ -64,23 +68,37 @@ class McpServerResolver
             return $resolved;
         }
 
+        $contextConnection = $this->resolveContextConnection($contextServer);
         $resolved['context_server_id'] = $contextServer->id;
         $resolved['context_source'] = $this->contextSource($contextServer);
 
         $contextMeta = is_array($contextServer->meta) ? $contextServer->meta : [];
-        $transport = $this->stringValue($contextServer->transport ?? null);
+        $connectionConfig = is_array($contextConnection?->config ?? null) ? $contextConnection->config : [];
+        $transport = $this->stringValue($connectionConfig['transport'] ?? $contextServer->transport ?? null);
         if ($transport !== null) {
             $resolved['transport'] = strtolower($transport);
         }
 
-        $endpointUrl = $this->stringValue($contextServer->endpoint_url ?? null);
+        $mode = $this->stringValue($connectionConfig['mode'] ?? $contextMeta['mode'] ?? null);
+        if ($mode !== null) {
+            $resolved['mode'] = strtolower($mode);
+        }
+
+        $endpointUrl = $this->stringValue($connectionConfig['endpoint_url'] ?? $contextServer->endpoint_url ?? null);
         if ($endpointUrl !== null) {
             $resolved['endpoint_url'] = $endpointUrl;
         }
 
-        $handler = $this->stringValue($contextMeta['handler'] ?? null);
+        $handler = $this->stringValue($connectionConfig['handler'] ?? $contextMeta['handler'] ?? $contextServer->handler ?? null);
         if ($handler !== null) {
             $resolved['handler'] = $handler;
+        }
+
+        $mergedConfig = $connectionConfig !== []
+            ? $connectionConfig
+            : (is_array($contextServer->config ?? null) ? $contextServer->config : []);
+        if ($mergedConfig !== []) {
+            $resolved['config'] = array_merge($resolved['config'], $mergedConfig);
         }
 
         $allowedTools = $this->normalizeStringList($contextServer->allowed_tools ?? []);
@@ -203,6 +221,7 @@ class McpServerResolver
             ->where('server', $server)
             ->where('driver', Channel::DriverMcp)
             ->where('enabled', true)
+            ->wherePivot('status', Channel::StatusActive)
             ->orderByDesc('priority')
             ->orderByDesc('id')
             ->first();
@@ -267,9 +286,15 @@ class McpServerResolver
     protected function headersFromContextServer(Channel $contextServer): array
     {
         $headers = [];
-        $credentials = is_array($contextServer->credentials) ? $contextServer->credentials : [];
+        $contextConnection = $this->resolveContextConnection($contextServer);
+        $connectionConfig = is_array($contextConnection?->config ?? null) ? $contextConnection->config : [];
+        $credentials = is_array($connectionConfig['credentials'] ?? null)
+            ? $connectionConfig['credentials']
+            : (is_array($contextServer->credentials) ? $contextServer->credentials : []);
 
-        $authType = is_string($contextServer->auth_type) ? strtolower(trim($contextServer->auth_type)) : '';
+        $authType = is_string($connectionConfig['auth_type'] ?? null)
+            ? strtolower(trim((string) $connectionConfig['auth_type']))
+            : (is_string($contextServer->auth_type) ? strtolower(trim($contextServer->auth_type)) : '');
 
         if ($authType === 'bearer') {
             $token = is_string($credentials['token'] ?? null) ? trim($credentials['token']) : '';
@@ -299,6 +324,17 @@ class McpServerResolver
         $extraHeaders = $this->normalizeHeaders($credentials['headers'] ?? []);
 
         return array_merge($headers, $extraHeaders);
+    }
+
+    protected function resolveContextConnection(Channel $contextServer): ?ChannelRelation
+    {
+        $connectionId = data_get($contextServer, 'pivot.id');
+
+        if (! is_numeric($connectionId)) {
+            return null;
+        }
+
+        return ChannelRelation::query()->find((int) $connectionId);
     }
 
     protected function intValue(mixed $value, int $default): int

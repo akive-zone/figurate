@@ -10,6 +10,31 @@ use Illuminate\Support\Str;
 
 class GenericChannelDriver implements ChannelDriver
 {
+    public function key(): string
+    {
+        return Channel::DriverGeneric;
+    }
+
+    public function supportedTransports(): array
+    {
+        return ['http', 'webhook', 'websocket', 'webrtc', 'relay', 'stdio'];
+    }
+
+    public function capabilities(?Channel $channel = null): array
+    {
+        return ['post.send', 'post.receive', 'receipt.receive'];
+    }
+
+    public function prepareForRegistration(array $attributes): array
+    {
+        return $this->normalizeRegistrationAttributes($attributes);
+    }
+
+    public function prepareForUpdate(Channel $channel, array $attributes): array
+    {
+        return $this->normalizeUpdateAttributes($attributes);
+    }
+
     /**
      * @param  array<string, mixed>  $bindingConfig
      * @return array<string, mixed>
@@ -93,5 +118,41 @@ class GenericChannelDriver implements ChannelDriver
                 'text' => $message->text,
             ],
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    protected function normalizeRegistrationAttributes(array $attributes): array
+    {
+        $transport = strtolower(trim((string) ($attributes['transport'] ?? 'remote')));
+        $direction = strtolower(trim((string) ($attributes['direction'] ?? Channel::DirectionBidirectional)));
+
+        return array_merge($attributes, [
+            'transport' => $transport !== '' ? $transport : 'remote',
+            'direction' => $direction !== '' ? $direction : Channel::DirectionBidirectional,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    protected function normalizeUpdateAttributes(array $attributes): array
+    {
+        $normalized = $attributes;
+
+        if (array_key_exists('transport', $normalized)) {
+            $transport = strtolower(trim((string) $normalized['transport']));
+            $normalized['transport'] = $transport !== '' ? $transport : 'remote';
+        }
+
+        if (array_key_exists('direction', $normalized)) {
+            $direction = strtolower(trim((string) $normalized['direction']));
+            $normalized['direction'] = $direction !== '' ? $direction : Channel::DirectionBidirectional;
+        }
+
+        return $normalized;
     }
 }

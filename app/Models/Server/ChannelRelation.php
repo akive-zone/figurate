@@ -22,6 +22,7 @@ class ChannelRelation extends Model
         'kind',
         'status',
         'direction',
+        'config',
         'data',
         'meta',
     ];
@@ -32,6 +33,7 @@ class ChannelRelation extends Model
     protected function casts(): array
     {
         return [
+            'config' => 'array',
             'data' => 'array',
             'meta' => 'array',
         ];

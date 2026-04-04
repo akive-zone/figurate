@@ -14,6 +14,33 @@ class InboundServerApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_it_creates_a_webhook_channel_via_the_generic_channel_api(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user, [TokenAbility::Compose->value]);
+
+        $response = $this->postJson(route('api.channels.store'), [
+            'owner_type' => 'user',
+            'owner_id' => 'me',
+            'driver' => 'webhook',
+            'name' => 'inbound-webhook',
+            'label' => 'Inbound Webhook',
+            'transport' => 'webhook',
+            'endpoint_url' => 'https://hooks.example/inbound',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.driver', 'webhook')
+            ->assertJsonPath('data.name', 'inbound-webhook')
+            ->assertJsonPath('data.owner.type', 'user');
+
+        $this->assertDatabaseHas('channels', [
+            'driver' => 'webhook',
+            'server' => 'inbound-webhook',
+            'transport' => 'webhook',
+        ]);
+    }
+
     public function test_it_rejects_untrusted_remote_context_server_urls_on_create(): void
     {
         config()->set('services.mcp.trust', [
@@ -23,7 +50,7 @@ class InboundServerApiTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
-        $response = $this->postJson(route('api.context-servers.store'), [
+        $response = $this->postJson(route('api.channels.store'), [
             'context_type' => 'user',
             'context_id' => 'me',
             'server' => 'planner',
@@ -67,7 +94,7 @@ class InboundServerApiTest extends TestCase
             'meta' => [],
         ]);
 
-        $response = $this->patchJson(route('api.context-servers.update', ['server' => $contextServer->id]), [
+        $response = $this->patchJson(route('api.channels.update', ['channel' => $contextServer->id]), [
             'endpoint_url' => 'http://127.0.0.1:3000/mcp',
         ]);
 

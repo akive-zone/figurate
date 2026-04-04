@@ -27,9 +27,23 @@ class McpServerClient
     ): array {
         $transport = is_string($context['transport'] ?? null)
             ? strtolower((string) $context['transport'])
+            : 'http';
+        $mode = is_string($context['mode'] ?? null)
+            ? strtolower((string) $context['mode'])
             : 'remote';
 
-        if ($transport === 'remote') {
+        if ($mode === 'local' || $transport === 'local') {
+            return $this->callLocal(
+                server: $server,
+                tool: $tool,
+                arguments: $arguments,
+                context: $context,
+                idempotencyKey: $idempotencyKey,
+                timeoutMs: $timeoutMs,
+            );
+        }
+
+        if (in_array($transport, ['http', 'websocket', 'remote'], true)) {
             return $this->callRemote(
                 server: $server,
                 tool: $tool,
@@ -40,14 +54,14 @@ class McpServerClient
             );
         }
 
-        return $this->callLocal(
-            server: $server,
-            tool: $tool,
-            arguments: $arguments,
-            context: $context,
-            idempotencyKey: $idempotencyKey,
-            timeoutMs: $timeoutMs,
-        );
+        return [
+            'ok' => false,
+            'error_code' => 'unsupported_transport',
+            'error_message' => "Unsupported MCP transport [{$transport}].",
+            'status' => 500,
+            'data' => null,
+            'latency_ms' => null,
+        ];
     }
 
     /**
