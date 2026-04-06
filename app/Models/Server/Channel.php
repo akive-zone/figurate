@@ -109,6 +109,11 @@ class Channel extends Model
         return $this->relations();
     }
 
+    public function routes(): HasMany
+    {
+        return $this->hasMany(ChannelRoute::class);
+    }
+
     public function threads(): MorphToMany
     {
         return $this->morphedByMany(Thread::class, 'relationable', 'channel_relations', 'channel_id', 'relationable_id')

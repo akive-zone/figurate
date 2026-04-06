@@ -83,6 +83,11 @@ class User extends Authenticatable implements HasPasskeys
         return $this->morphMany(ChannelRelation::class, 'relationable');
     }
 
+    public function channelAddresses(): MorphMany
+    {
+        return $this->morphMany(ChannelAddress::class, 'addressable');
+    }
+
     public function linkedChannels(): MorphToMany
     {
         return $this->morphToMany(Channel::class, 'relationable', 'channel_relations', 'relationable_id', 'channel_id')

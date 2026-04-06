@@ -88,6 +88,11 @@ class Space extends Model
         return $this->morphMany(ChannelRelation::class, 'relationable');
     }
 
+    public function channelAddresses(): MorphMany
+    {
+        return $this->morphMany(ChannelAddress::class, 'addressable');
+    }
+
     public function contextServers(): MorphToMany
     {
         return $this->linkedChannels()
