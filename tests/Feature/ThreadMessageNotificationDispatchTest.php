@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\Server\Channel;
-use App\Models\Server\ChannelActorState;
+use App\Models\Server\Space;
+use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
@@ -22,30 +22,19 @@ class ThreadMessageNotificationDispatchTest extends TestCase
     {
         $sender = User::factory()->create();
         $recipient = User::factory()->create();
-        $channel = Channel::query()->create([
-            'driver' => Channel::DriverGeneric,
-            'status' => 'open',
+        $space = Space::factory()->create();
+        SpaceActorState::query()->create([
+            'space_id' => $space->id,
+            'thread_id' => null,
+            'actorable_type' => $sender->getMorphClass(),
+            'actorable_id' => $sender->id,
+            'status' => SpaceActorState::StatusActive,
         ]);
-        $thread = $channel->threads()->create([
+        $thread = $space->threads()->create([
             'purpose' => Thread::PurposeMain,
             'title' => 'Coordination Thread',
             'phase' => 'coordination',
             'status' => 'open',
-        ]);
-
-        ChannelActorState::query()->create([
-            'channel_id' => $channel->id,
-            'thread_id' => null,
-            'actorable_type' => $sender->getMorphClass(),
-            'actorable_id' => $sender->id,
-            'status' => ChannelActorState::StatusActive,
-        ]);
-        ChannelActorState::query()->create([
-            'channel_id' => $channel->id,
-            'thread_id' => null,
-            'actorable_type' => $recipient->getMorphClass(),
-            'actorable_id' => $recipient->id,
-            'status' => ChannelActorState::StatusActive,
         ]);
 
         $thread->actors()->create([
@@ -68,7 +57,6 @@ class ThreadMessageNotificationDispatchTest extends TestCase
         Sanctum::actingAs($sender, [TokenAbility::Compose->value]);
 
         $this->postJson('/api/form', [
-            'channel' => $channel->uuid,
             'thread' => $thread->uuid,
             'content' => [
                 'text' => 'Please confirm the arrival time.',
@@ -90,7 +78,7 @@ class ThreadMessageNotificationDispatchTest extends TestCase
 
         $payload = json_decode((string) $notification->data, true);
 
-        $this->assertSame($channel->uuid, data_get($payload, 'channel.id'));
+        $this->assertSame($space->uuid, data_get($payload, 'space.id'));
         $this->assertSame($thread->uuid, data_get($payload, 'thread.id'));
         $this->assertSame('peer_message', data_get($payload, 'message.source'));
         $this->assertSame('New message', data_get($payload, 'inbox.title'));

@@ -2,8 +2,8 @@
 
 namespace App\Ai\Tools;
 
+use App\Ai\Support\Acp\AcpRegistry;
 use App\Ai\Support\Acp\OutboundAcpClient;
-use App\Ai\Support\Acp\OutboundAgentRegistry;
 use App\Ai\Tools\Diagnostics\EncodesToolResponse;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
@@ -26,19 +26,19 @@ class DelegateAcpTaskTool implements Tool
         protected Thread $thread,
         protected User $actor,
         protected ?ThreadActor $threadActor = null,
-        protected OutboundAgentRegistry $registry = new OutboundAgentRegistry,
+        protected AcpRegistry $registry = new AcpRegistry,
         protected OutboundAcpClient $client = new OutboundAcpClient,
     ) {}
 
     public function description(): Stringable|string
     {
-        return 'Delegate work to an allowlisted outbound ACP agent by initializing, opening or reusing a session, and prompting it.';
+        return 'Delegate work to a registered ACP agent by initializing, opening or reusing a session, and prompting it.';
     }
 
     public function handle(ToolRequest $request): Stringable|string
     {
-        if (! $this->registry->enabled()) {
-            return $this->error('Outbound ACP calls are disabled.');
+        if (! $this->registry->enabled($this->thread, $this->actor)) {
+            return $this->error('No ACP channels are registered for this context.');
         }
 
         $agentId = trim((string) ($request['agent'] ?? ''));
@@ -48,7 +48,7 @@ class DelegateAcpTaskTool implements Tool
             return $this->error('Both agent and message are required.');
         }
 
-        $agent = $this->registry->find($agentId);
+        $agent = $this->registry->find($agentId, $this->thread, $this->actor);
 
         if (! is_array($agent)) {
             return $this->error('Unknown remote ACP agent.');
@@ -294,7 +294,7 @@ class DelegateAcpTaskTool implements Tool
      */
     protected function initializePayload(array $agent): array
     {
-        $client = $this->registry->client();
+        $client = $this->registry->client($agent);
 
         return [
             'client' => array_filter([

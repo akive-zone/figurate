@@ -2,8 +2,8 @@
 
 namespace App\Ai\Tools;
 
+use App\Ai\Support\Acp\AcpRegistry;
 use App\Ai\Support\Acp\OutboundAcpClient;
-use App\Ai\Support\Acp\OutboundAgentRegistry;
 use App\Ai\Tools\Diagnostics\EncodesToolResponse;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
@@ -22,19 +22,19 @@ class InvokeAcpAgentTool implements Tool
         protected Thread $thread,
         protected User $actor,
         protected ?ThreadActor $threadActor = null,
-        protected OutboundAgentRegistry $registry = new OutboundAgentRegistry,
+        protected AcpRegistry $registry = new AcpRegistry,
         protected OutboundAcpClient $client = new OutboundAcpClient,
     ) {}
 
     public function description(): Stringable|string
     {
-        return 'Invoke an allowlisted outbound ACP agent over JSON-RPC and return the normalized response.';
+        return 'Invoke a registered ACP agent over its configured connection and return the normalized response.';
     }
 
     public function handle(ToolRequest $request): Stringable|string
     {
-        if (! $this->registry->enabled()) {
-            return $this->error('Outbound ACP calls are disabled.');
+        if (! $this->registry->enabled($this->thread, $this->actor)) {
+            return $this->error('No ACP channels are registered for this context.');
         }
 
         $agentId = trim((string) ($request['agent'] ?? ''));
@@ -53,7 +53,7 @@ class InvokeAcpAgentTool implements Tool
             return $this->error('params must be a JSON object.');
         }
 
-        $agent = $this->registry->find($agentId);
+        $agent = $this->registry->find($agentId, $this->thread, $this->actor);
 
         if (! is_array($agent)) {
             return $this->error('Unknown remote ACP agent.');

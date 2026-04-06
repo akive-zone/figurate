@@ -50,7 +50,7 @@ class CreatePostFromConversationToolTest extends TestCase
             'relationable_id' => $actor->id,
             'role' => Request::ActionAsker,
         ]);
-        $this->assertSame('request_created', $thread->messages()->latest('id')->value('tag'));
+        $this->assertSame('request_created', $thread->posts()->latest('id')->value('tag'));
     }
 
     public function test_it_creates_an_execution_post_through_the_domain_listener(): void
@@ -81,7 +81,7 @@ class CreatePostFromConversationToolTest extends TestCase
         $this->assertSame('order.created', $response['post_type']);
         $this->assertSame('order_active', $thread->phase);
         $this->assertSame(1, Order::query()->count());
-        $this->assertSame('order_post_created', $thread->messages()->latest('id')->value('tag'));
+        $this->assertSame('order_post_created', $thread->posts()->latest('id')->value('tag'));
     }
 
     /**

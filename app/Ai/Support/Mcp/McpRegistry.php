@@ -10,7 +10,7 @@ use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
-class McpServerResolver
+class McpRegistry
 {
     public function __construct(
         protected ThreadContextResolver $threadContextResolver = new ThreadContextResolver,
@@ -35,30 +35,21 @@ class McpServerResolver
      */
     public function resolve(string $server, ?Thread $thread = null, ?User $user = null): array
     {
-        $serverDefaults = $this->serverDefaults($server);
+        $defaultTimeout = $this->defaultTimeout();
+        $maxTimeout = $this->maxTimeout();
 
         $resolved = [
-            'enabled' => $this->isEnabled(),
+            'enabled' => false,
             'server' => $server,
-            'transport' => $this->stringValue(
-                $serverDefaults['transport'] ?? 'http',
-            ) ?? 'http',
-            'mode' => $this->stringValue($serverDefaults['mode'] ?? 'remote'),
-            'endpoint_url' => $this->stringValue($serverDefaults['endpoint_url'] ?? null),
-            'handler' => $this->stringValue(
-                $serverDefaults['handler'] ?? config('services.mcp.default_handler'),
-            ),
-            'config' => is_array($serverDefaults['config'] ?? null) ? $serverDefaults['config'] : [],
-            'default_timeout_ms' => $this->intValue(
-                $serverDefaults['default_timeout_ms'] ?? $this->defaultTimeout(),
-                $this->defaultTimeout(),
-            ),
-            'max_timeout_ms' => $this->intValue(
-                $serverDefaults['max_timeout_ms'] ?? $this->maxTimeout(),
-                $this->maxTimeout(),
-            ),
-            'tools' => $this->normalizeStringList($serverDefaults['tools'] ?? []),
-            'headers' => $this->normalizeHeaders($serverDefaults['headers'] ?? []),
+            'transport' => 'http',
+            'mode' => 'remote',
+            'endpoint_url' => null,
+            'handler' => $this->stringValue(config('services.mcp.default_handler')),
+            'config' => [],
+            'default_timeout_ms' => $defaultTimeout,
+            'max_timeout_ms' => $maxTimeout,
+            'tools' => [],
+            'headers' => [],
             'context_source' => null,
             'context_server_id' => null,
         ];
@@ -68,6 +59,8 @@ class McpServerResolver
         if (! $contextServer) {
             return $resolved;
         }
+
+        $resolved['enabled'] = true;
 
         $contextConnection = $this->resolveContextConnection($contextServer);
         $resolved['context_server_id'] = $contextServer->id;
@@ -116,22 +109,11 @@ class McpServerResolver
     }
 
     /**
-     * @return array<string, mixed>
-     */
-    protected function serverDefaults(string $server): array
-    {
-        $servicesDefaults = config("services.mcp.servers.{$server}", []);
-
-        return is_array($servicesDefaults) ? $servicesDefaults : [];
-    }
-
-    /**
      * @return list<array<string, mixed>>
      */
     public function available(?Thread $thread = null, ?User $user = null): array
     {
-        $serverNames = collect(array_keys((array) config('services.mcp.servers', [])))
-            ->values();
+        $serverNames = collect();
 
         foreach ($this->credentialCandidates($thread, $user) as $credentialable) {
             if (! method_exists($credentialable, 'linkedChannels')) {
@@ -141,6 +123,7 @@ class McpServerResolver
             $serverNames = $serverNames->merge(
                 $this->mcpChannelsFor($credentialable)
                     ->where('enabled', true)
+                    ->whereNotNull('server')
                     ->pluck('server')
                     ->all()
             );
@@ -154,11 +137,9 @@ class McpServerResolver
             ->all();
     }
 
-    protected function isEnabled(): bool
+    public function enabled(?Thread $thread = null, ?User $user = null): bool
     {
-        return (bool) (
-            config('services.mcp.enabled', false)
-        );
+        return $this->available($thread, $user) !== [];
     }
 
     protected function defaultTimeout(): int

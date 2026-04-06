@@ -2,7 +2,7 @@
 
 namespace App\Ai\Tools;
 
-use App\Ai\Support\A2a\OutboundAgentRegistry;
+use App\Ai\Support\A2a\A2aRegistry;
 use App\Ai\Tools\Diagnostics\EncodesToolResponse;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
@@ -28,7 +28,7 @@ class DelegateA2aTaskTool implements Tool
         protected Thread $thread,
         protected User $actor,
         protected ?ThreadActor $threadActor = null,
-        protected OutboundAgentRegistry $registry = new OutboundAgentRegistry,
+        protected A2aRegistry $registry = new A2aRegistry,
         protected UrlTrustPolicy $urlTrustPolicy = new UrlTrustPolicy,
     ) {}
 
@@ -39,7 +39,7 @@ class DelegateA2aTaskTool implements Tool
 
     public function handle(ToolRequest $request): Stringable|string
     {
-        if (! $this->registry->enabled()) {
+        if (! $this->registry->enabled($this->thread, $this->actor)) {
             return $this->error('Outbound A2A calls are disabled.');
         }
 
@@ -58,7 +58,7 @@ class DelegateA2aTaskTool implements Tool
             return $this->error('task_params must be a JSON object.');
         }
 
-        $agent = $this->registry->find($agentId);
+        $agent = $this->registry->find($agentId, $this->thread, $this->actor);
 
         if (! is_array($agent)) {
             return $this->error('Unknown remote A2A agent.');

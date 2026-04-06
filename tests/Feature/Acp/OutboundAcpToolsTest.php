@@ -5,6 +5,8 @@ namespace Tests\Feature\Acp;
 use App\Ai\Tools\DelegateAcpTaskTool;
 use App\Ai\Tools\InvokeAcpAgentTool;
 use App\Ai\Tools\ListAvailableAcpAgentsTool;
+use App\Models\Server\Channel;
+use App\Models\Server\ChannelRelation;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadEvent;
@@ -22,26 +24,26 @@ class OutboundAcpToolsTest extends TestCase
 
     public function test_it_lists_available_outbound_acp_agents(): void
     {
-        config()->set('acp.outbound.enabled', true);
-        config()->set('acp.outbound.agents', [
-            'gemini' => [
-                'label' => 'Gemini CLI Bridge',
-                'endpoint' => 'https://acp.example/rpc',
-                'transport' => 'jsonrpc-http',
-                'auth_type' => 'bearer',
+        [$thread, $actor] = $this->conversationContext();
+        $this->registerAcpAgentConnection($thread, 'gemini', [
+            'label' => 'Gemini CLI Bridge',
+            'transport' => 'http',
+            'endpoint_url' => 'https://acp.example/rpc',
+            'auth_type' => 'bearer',
+            'credentials' => [
                 'token' => 'secret-token',
                 'headers' => [
                     'X-ACP-Agent' => 'gemini',
                 ],
-                'allowed_methods' => [
-                    'initialize',
-                    'session/new',
-                    'session/prompt',
-                ],
+            ],
+            'allowed_methods' => [
+                'initialize',
+                'session/new',
+                'session/prompt',
             ],
         ]);
 
-        $tool = new ListAvailableAcpAgentsTool;
+        $tool = new ListAvailableAcpAgentsTool($thread, $actor);
         $response = json_decode($tool->handle(new ToolRequest([
             'include_headers' => true,
         ])), true, flags: JSON_THROW_ON_ERROR);
@@ -57,17 +59,6 @@ class OutboundAcpToolsTest extends TestCase
 
     public function test_it_invokes_an_outbound_acp_agent_and_records_an_event(): void
     {
-        config()->set('acp.outbound.enabled', true);
-        config()->set('acp.outbound.agents', [
-            'opencode' => [
-                'label' => 'OpenCode Bridge',
-                'endpoint' => 'https://acp.example/rpc',
-                'allowed_methods' => [
-                    'session/new',
-                ],
-            ],
-        ]);
-
         Http::preventStrayRequests();
         Http::fake([
             'https://acp.example/rpc' => Http::response([
@@ -82,6 +73,14 @@ class OutboundAcpToolsTest extends TestCase
         ]);
 
         [$thread, $actor] = $this->conversationContext();
+        $this->registerAcpAgentConnection($thread, 'opencode', [
+            'label' => 'OpenCode Bridge',
+            'transport' => 'http',
+            'endpoint_url' => 'https://acp.example/rpc',
+            'allowed_methods' => [
+                'session/new',
+            ],
+        ]);
         $tool = new InvokeAcpAgentTool($thread, $actor);
         $response = json_decode($tool->handle(new ToolRequest([
             'agent' => 'opencode',
@@ -110,19 +109,6 @@ class OutboundAcpToolsTest extends TestCase
 
     public function test_it_invokes_an_outbound_acp_gateway_agent(): void
     {
-        config()->set('acp.outbound.enabled', true);
-        config()->set('acp.outbound.agents', [
-            'opencode' => [
-                'label' => 'OpenCode Gateway',
-                'endpoint' => 'http://127.0.0.1:4319/rpc',
-                'transport' => 'acp-gateway-http',
-                'gateway_agent' => 'opencode',
-                'allowed_methods' => [
-                    'session/new',
-                ],
-            ],
-        ]);
-
         Http::preventStrayRequests();
         Http::fake([
             'http://127.0.0.1:4319/rpc' => Http::response([
@@ -137,6 +123,15 @@ class OutboundAcpToolsTest extends TestCase
         ]);
 
         [$thread, $actor] = $this->conversationContext();
+        $this->registerAcpAgentConnection($thread, 'opencode', [
+            'label' => 'OpenCode Gateway',
+            'transport' => 'http',
+            'endpoint_url' => 'http://127.0.0.1:4319/rpc',
+            'gateway_agent' => 'opencode',
+            'allowed_methods' => [
+                'session/new',
+            ],
+        ]);
         $tool = new InvokeAcpAgentTool($thread, $actor);
         $response = json_decode($tool->handle(new ToolRequest([
             'agent' => 'opencode',
@@ -161,49 +156,6 @@ class OutboundAcpToolsTest extends TestCase
 
     public function test_it_builds_opencode_compatible_payloads(): void
     {
-        config()->set('acp.outbound.enabled', true);
-        config()->set('acp.outbound.client', [
-            'id' => 'figurate',
-            'name' => 'Figurate',
-            'version' => '0.1.0',
-            'capabilities' => [],
-        ]);
-        config()->set('acp.outbound.agents', [
-            'opencode' => [
-                'label' => 'OpenCode Gateway',
-                'endpoint' => 'http://127.0.0.1:4319/rpc',
-                'transport' => 'acp-gateway-http',
-                'gateway_agent' => 'opencode',
-                'allowed_methods' => [
-                    'initialize',
-                    'session/new',
-                    'session/load',
-                    'session/prompt',
-                ],
-                'initialize_payload' => [
-                    'protocolVersion' => 1,
-                ],
-                'session' => [
-                    'reuse' => 'thread',
-                    'create_method' => 'session/new',
-                    'load_method' => 'session/load',
-                    'prompt_method' => 'session/prompt',
-                    'id_argument' => 'sessionId',
-                    'prompt_argument' => 'prompt',
-                    'prompt_mode' => 'content_blocks',
-                    'load_after_prompt' => true,
-                    'create_params' => [
-                        'cwd' => base_path(),
-                        'mcpServers' => [],
-                    ],
-                    'load_params' => [
-                        'cwd' => base_path(),
-                        'mcpServers' => [],
-                    ],
-                ],
-            ],
-        ]);
-
         Http::preventStrayRequests();
         Http::fake(function (HttpRequest $request) {
             return match ($request['method']) {
@@ -240,6 +192,45 @@ class OutboundAcpToolsTest extends TestCase
         });
 
         [$thread, $actor] = $this->conversationContext();
+        $this->registerAcpAgentConnection($thread, 'opencode', [
+            'label' => 'OpenCode Gateway',
+            'transport' => 'http',
+            'endpoint_url' => 'http://127.0.0.1:4319/rpc',
+            'gateway_agent' => 'opencode',
+            'allowed_methods' => [
+                'initialize',
+                'session/new',
+                'session/load',
+                'session/prompt',
+            ],
+            'client' => [
+                'id' => 'figurate',
+                'name' => 'Figurate',
+                'version' => '0.1.0',
+                'capabilities' => [],
+            ],
+            'initialize_payload' => [
+                'protocolVersion' => 1,
+            ],
+            'session' => [
+                'reuse' => 'thread',
+                'create_method' => 'session/new',
+                'load_method' => 'session/load',
+                'prompt_method' => 'session/prompt',
+                'id_argument' => 'sessionId',
+                'prompt_argument' => 'prompt',
+                'prompt_mode' => 'content_blocks',
+                'load_after_prompt' => true,
+                'create_params' => [
+                    'cwd' => base_path(),
+                    'mcpServers' => [],
+                ],
+                'load_params' => [
+                    'cwd' => base_path(),
+                    'mcpServers' => [],
+                ],
+            ],
+        ]);
         $tool = new DelegateAcpTaskTool($thread, $actor);
         $response = json_decode($tool->handle(new ToolRequest([
             'agent' => 'opencode',
@@ -273,41 +264,6 @@ class OutboundAcpToolsTest extends TestCase
 
     public function test_it_delegates_to_an_outbound_acp_agent_and_persists_the_remote_task_link(): void
     {
-        config()->set('acp.outbound.enabled', true);
-        config()->set('acp.outbound.client', [
-            'id' => 'figurate',
-            'name' => 'Figurate',
-            'version' => '0.1.0',
-            'capabilities' => [
-                'streaming' => false,
-            ],
-        ]);
-        config()->set('acp.outbound.agents', [
-            'gemini' => [
-                'label' => 'Gemini CLI Bridge',
-                'endpoint' => 'https://acp.example/rpc',
-                'allowed_methods' => [
-                    'initialize',
-                    'authenticate',
-                    'session/new',
-                    'session/load',
-                    'session/prompt',
-                ],
-                'authenticate_payload' => [
-                    'token' => 'bridge-token',
-                ],
-                'session' => [
-                    'reuse' => 'thread',
-                    'create_method' => 'session/new',
-                    'load_method' => 'session/load',
-                    'prompt_method' => 'session/prompt',
-                    'id_argument' => 'session_id',
-                    'prompt_argument' => 'prompt',
-                    'load_after_prompt' => true,
-                ],
-            ],
-        ]);
-
         Http::preventStrayRequests();
         Http::fake(function (HttpRequest $request) {
             return match ($request['method']) {
@@ -372,6 +328,38 @@ class OutboundAcpToolsTest extends TestCase
         });
 
         [$thread, $actor] = $this->conversationContext();
+        $this->registerAcpAgentConnection($thread, 'gemini', [
+            'label' => 'Gemini CLI Bridge',
+            'transport' => 'http',
+            'endpoint_url' => 'https://acp.example/rpc',
+            'allowed_methods' => [
+                'initialize',
+                'authenticate',
+                'session/new',
+                'session/load',
+                'session/prompt',
+            ],
+            'client' => [
+                'id' => 'figurate',
+                'name' => 'Figurate',
+                'version' => '0.1.0',
+                'capabilities' => [
+                    'streaming' => false,
+                ],
+            ],
+            'authenticate_payload' => [
+                'token' => 'bridge-token',
+            ],
+            'session' => [
+                'reuse' => 'thread',
+                'create_method' => 'session/new',
+                'load_method' => 'session/load',
+                'prompt_method' => 'session/prompt',
+                'id_argument' => 'session_id',
+                'prompt_argument' => 'prompt',
+                'load_after_prompt' => true,
+            ],
+        ]);
         $tool = new DelegateAcpTaskTool($thread, $actor);
         $response = json_decode($tool->handle(new ToolRequest([
             'agent' => 'gemini',
@@ -415,26 +403,6 @@ class OutboundAcpToolsTest extends TestCase
 
     public function test_it_reuses_the_existing_remote_acp_session_for_the_same_thread(): void
     {
-        config()->set('acp.outbound.enabled', true);
-        config()->set('acp.outbound.agents', [
-            'codex' => [
-                'label' => 'Codex Bridge',
-                'endpoint' => 'https://acp.example/rpc',
-                'allowed_methods' => [
-                    'initialize',
-                    'session/new',
-                    'session/load',
-                    'session/prompt',
-                ],
-                'session' => [
-                    'reuse' => 'thread',
-                    'create_method' => 'session/new',
-                    'load_method' => 'session/load',
-                    'prompt_method' => 'session/prompt',
-                ],
-            ],
-        ]);
-
         Http::preventStrayRequests();
         Http::fake(function (HttpRequest $request) {
             return match ($request['method']) {
@@ -474,6 +442,23 @@ class OutboundAcpToolsTest extends TestCase
         });
 
         [$thread, $actor] = $this->conversationContext();
+        $this->registerAcpAgentConnection($thread, 'codex', [
+            'label' => 'Codex Bridge',
+            'transport' => 'http',
+            'endpoint_url' => 'https://acp.example/rpc',
+            'allowed_methods' => [
+                'initialize',
+                'session/new',
+                'session/load',
+                'session/prompt',
+            ],
+            'session' => [
+                'reuse' => 'thread',
+                'create_method' => 'session/new',
+                'load_method' => 'session/load',
+                'prompt_method' => 'session/prompt',
+            ],
+        ]);
         $tool = new DelegateAcpTaskTool($thread, $actor);
 
         json_decode($tool->handle(new ToolRequest([
@@ -552,5 +537,41 @@ class OutboundAcpToolsTest extends TestCase
         ]);
 
         return [$thread, $actor];
+    }
+
+    /**
+     * @param  array<string, mixed>  $config
+     */
+    protected function registerAcpAgentConnection(Thread $thread, string $agentId, array $config = []): void
+    {
+        $channel = Channel::factory()->create([
+            'driver' => Channel::DriverGeneric,
+            'server' => $agentId,
+            'name' => $config['label'] ?? ucfirst($agentId).' ACP',
+            'label' => $config['label'] ?? ucfirst($agentId).' ACP',
+            'enabled' => true,
+            'status' => Channel::StatusActive,
+            'transport' => null,
+            'endpoint_url' => null,
+            'auth_type' => null,
+            'credentials' => [],
+            'config' => [],
+            'meta' => [],
+        ]);
+
+        $thread->channelRelations()->create([
+            'channel_id' => $channel->id,
+            'kind' => ChannelRelation::KindLink,
+            'status' => Channel::StatusActive,
+            'direction' => Channel::DirectionOutbound,
+            'config' => [
+                'protocol' => Channel::ProtocolAcp,
+                ...$config,
+            ],
+            'data' => [
+                'agent_id' => $agentId,
+            ],
+            'meta' => [],
+        ]);
     }
 }

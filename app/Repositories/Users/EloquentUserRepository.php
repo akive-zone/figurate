@@ -34,6 +34,17 @@ class EloquentUserRepository implements UserRepository
         return User::query()->where('email', $email)->first();
     }
 
+    public function findByIdentity(string $provider, string $providerSubject): ?User
+    {
+        return User::query()
+            ->whereHas('identities', function ($query) use ($provider, $providerSubject): void {
+                $query
+                    ->where('provider', $provider)
+                    ->where('provider_subject', $providerSubject);
+            })
+            ->first();
+    }
+
     public function create(array $attributes): User
     {
         return SanctumUser::query()->create($attributes);

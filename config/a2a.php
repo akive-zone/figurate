@@ -61,7 +61,6 @@ return [
         ],
     ],
     'outbound' => [
-        'enabled' => (bool) env('A2A_OUTBOUND_ENABLED', true),
         'default_timeout_seconds' => (int) env('A2A_OUTBOUND_TIMEOUT_SECONDS', 15),
         'trust' => [
             'allow_http' => env('A2A_OUTBOUND_ALLOW_HTTP'),
@@ -85,34 +84,6 @@ return [
                     explode(',', (string) env('A2A_OUTBOUND_PUSH_ALLOWED_HOSTS', ''))
                 ))),
             ],
-        ],
-        'agents' => [
-            // 'planner' => [
-            //     'label' => 'Planning Agent',
-            //     'endpoint' => env('A2A_REMOTE_PLANNER_ENDPOINT'),
-            //     'auth_type' => 'bearer',
-            //     'token' => env('A2A_REMOTE_PLANNER_TOKEN'),
-            //     'headers' => [],
-            //     'allowed_methods' => [
-            //         'message/send',
-            //         'SendMessage',
-            //         'tasks/get',
-            //         'GetTask',
-            //         'tasks/list',
-            //         'ListTasks',
-            //         'tasks/cancel',
-            //         'CancelTask',
-            //         'tasks/resubscribe',
-            //         'TaskResubscription',
-            //         'CreateTaskPushNotificationConfig',
-            //         'tasks/pushNotificationConfig/set',
-            //         'tasks/pushNotificationConfig/get',
-            //         'tasks/pushNotificationConfig/list',
-            //         'tasks/pushNotificationConfig/delete',
-            //         'message/stream',
-            //         'SendStreamingMessage',
-            //     ],
-            // ],
         ],
     ],
 ];

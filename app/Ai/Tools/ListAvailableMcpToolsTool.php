@@ -2,7 +2,7 @@
 
 namespace App\Ai\Tools;
 
-use App\Ai\Support\Mcp\McpServerResolver;
+use App\Ai\Support\Mcp\McpRegistry;
 use App\Ai\Tools\Diagnostics\EncodesToolResponse;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
@@ -18,7 +18,7 @@ class ListAvailableMcpToolsTool implements Tool
     public function __construct(
         protected Thread $thread,
         protected User $actor,
-        protected McpServerResolver $serverResolver = new McpServerResolver,
+        protected McpRegistry $serverResolver = new McpRegistry,
     ) {}
 
     public function description(): Stringable|string

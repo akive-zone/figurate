@@ -2,8 +2,10 @@
 
 namespace App\Ai\Tools;
 
-use App\Ai\Support\A2a\OutboundAgentRegistry;
+use App\Ai\Support\A2a\A2aRegistry;
 use App\Ai\Tools\Diagnostics\EncodesToolResponse;
+use App\Models\Server\Thread;
+use App\Models\Server\User;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request as ToolRequest;
@@ -14,7 +16,9 @@ class ListAvailableA2aAgentsTool implements Tool
     use EncodesToolResponse;
 
     public function __construct(
-        protected OutboundAgentRegistry $registry = new OutboundAgentRegistry,
+        protected Thread $thread,
+        protected User $actor,
+        protected A2aRegistry $registry = new A2aRegistry,
     ) {}
 
     public function description(): Stringable|string
@@ -24,7 +28,7 @@ class ListAvailableA2aAgentsTool implements Tool
 
     public function handle(ToolRequest $request): Stringable|string
     {
-        if (! $this->registry->enabled()) {
+        if (! $this->registry->enabled($this->thread, $this->actor)) {
             return $this->ok([
                 'enabled' => false,
                 'count' => 0,
@@ -33,8 +37,8 @@ class ListAvailableA2aAgentsTool implements Tool
         }
 
         $includeHeaders = (bool) ($request['include_headers'] ?? false);
-        $allAgents = $this->registry->agents();
-        $agents = collect($this->registry->trustedAgents())
+        $allAgents = $this->registry->agents($this->thread, $this->actor);
+        $agents = collect($this->registry->trustedAgents($this->thread, $this->actor))
             ->map(function (array $agent) use ($includeHeaders): array {
                 $payload = [
                     'id' => $agent['id'],

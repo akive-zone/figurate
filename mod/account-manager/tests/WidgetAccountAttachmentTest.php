@@ -3,14 +3,15 @@
 namespace Figurate\AccountManager\Tests;
 
 use App\Models\Server\AgentConversation;
-use App\Models\Server\AgentTask;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadActorSession;
+use App\Models\Server\ThreadEvent;
 use App\Models\Server\User;
 use App\Models\Server\UserAgent;
+use App\Support\Orchestrate\TaskRecord;
 use Figurate\AccountManager\Models\Account;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -222,11 +223,24 @@ class WidgetAccountAttachmentTest extends TestCase
             'model' => 'gpt-test',
         ]);
 
-        $task = AgentTask::query()->create([
-            'uuid' => (string) fake()->uuid(),
+        $taskEvent = ThreadEvent::query()->create([
             'thread_id' => $thread->id,
-            'user_id' => $widgetUser->id,
-            'status' => 'submitted',
+            'thread_actor_id' => $threadActor->id,
+            'post_id' => null,
+            'event_key' => 'agent_task',
+            'layer' => ThreadEvent::LayerExecution,
+            'kind' => ThreadEvent::KindAcp,
+            'operation' => 'task.snapshot',
+            'state' => 'submitted',
+            'payload' => [
+                'task' => [
+                    'uuid' => (string) fake()->uuid(),
+                    'public_id' => (string) fake()->uuid(),
+                    'status' => 'submitted',
+                    'user_id' => $widgetUser->id,
+                    'user_uuid' => $widgetUser->uuid,
+                ],
+            ],
         ]);
 
         $response = $this->withHeader('X-Widget-User-ID', (string) $widgetUser->uuid)
@@ -255,11 +269,13 @@ class WidgetAccountAttachmentTest extends TestCase
         $thread->refresh();
         $conversation->refresh();
         $session->refresh();
-        $task->refresh();
+        $taskEvent->refresh();
+        $task = TaskRecord::fromEvent($taskEvent);
 
         $this->assertSame($widgetUser->id, $conversation->user_id);
         $this->assertSame($widgetUser->id, $session->user_id);
-        $this->assertSame($widgetUser->id, $task->user_id);
+        $this->assertInstanceOf(TaskRecord::class, $task);
+        $this->assertSame($widgetUser->id, $task->userId);
         $this->assertTrue($space->hasActor($widgetUser));
         $this->assertDatabaseHas('thread_actors', [
             'id' => $threadActor->id,

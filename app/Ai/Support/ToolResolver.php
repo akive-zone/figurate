@@ -2,7 +2,10 @@
 
 namespace App\Ai\Support;
 
+use App\Ai\Support\A2a\A2aRegistry;
+use App\Ai\Support\Acp\AcpRegistry;
 use App\Ai\Support\Knowledge\KnowledgeSearchStoreResolver;
+use App\Ai\Support\Mcp\McpRegistry;
 use App\Ai\Tools\AutoModeSelectorTool;
 use App\Ai\Tools\ContextBudgetTool;
 use App\Ai\Tools\ConversationAuditTool;
@@ -40,6 +43,9 @@ class ToolResolver
 {
     public function __construct(
         protected KnowledgeSearchStoreResolver $knowledgeSearchStoreResolver = new KnowledgeSearchStoreResolver,
+        protected AcpRegistry $acpRegistry = new AcpRegistry,
+        protected A2aRegistry $a2aRegistry = new A2aRegistry,
+        protected McpRegistry $mcpRegistry = new McpRegistry,
     ) {}
 
     /**
@@ -107,7 +113,7 @@ class ToolResolver
      */
     protected function mcpTools(Thread $thread, User $user, ?ThreadActor $threadActor = null): array
     {
-        if (! ((bool) config('services.mcp.enabled', false))) {
+        if (! $this->mcpRegistry->enabled($thread, $user)) {
             return [];
         }
 
@@ -122,12 +128,12 @@ class ToolResolver
      */
     protected function acpTools(Thread $thread, User $user, ?ThreadActor $threadActor = null): array
     {
-        if (! ((bool) config('acp.outbound.enabled', false))) {
+        if (! $this->acpRegistry->enabled($thread, $user)) {
             return [];
         }
 
         return [
-            new ListAvailableAcpAgentsTool,
+            new ListAvailableAcpAgentsTool($thread, $user),
             new InvokeAcpAgentTool($thread, $user, $threadActor),
             new DelegateAcpTaskTool($thread, $user, $threadActor),
         ];
@@ -138,12 +144,12 @@ class ToolResolver
      */
     protected function a2aTools(Thread $thread, User $user, ?ThreadActor $threadActor = null): array
     {
-        if (! ((bool) config('a2a.outbound.enabled', false))) {
+        if (! $this->a2aRegistry->enabled($thread, $user)) {
             return [];
         }
 
         return [
-            new ListAvailableA2aAgentsTool,
+            new ListAvailableA2aAgentsTool($thread, $user),
             new InvokeA2aAgentTool($thread, $user, $threadActor),
             new DelegateA2aTaskTool($thread, $user, $threadActor),
         ];

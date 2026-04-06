@@ -9,7 +9,7 @@ use App\Support\Security\UrlTrustPolicy;
 class McpInvocationPolicy
 {
     public function __construct(
-        protected McpServerResolver $serverResolver = new McpServerResolver,
+        protected McpRegistry $serverResolver = new McpRegistry,
         protected UrlTrustPolicy $urlTrustPolicy = new UrlTrustPolicy,
     ) {}
 

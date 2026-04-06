@@ -3,6 +3,7 @@
 namespace App\Models\Server;
 
 use Database\Factories\PostFactory;
+use Illuminate\Container\Container;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -25,6 +26,8 @@ class Post extends Model implements HasMedia
     use HasFactory, HasUlids, InteractsWithMedia, SoftDeletes;
 
     public const TypeMessage = 'message';
+
+    public const TypeSystem = 'system';
 
     public const RelationRoleContext = 'context';
 
@@ -100,7 +103,7 @@ class Post extends Model implements HasMedia
                     return $this->senderRelation?->relationable_type;
                 }
 
-                if (self::getConnectionResolver() === null) {
+                if (! $this->canQuerySenderRelation()) {
                     return null;
                 }
 
@@ -117,7 +120,7 @@ class Post extends Model implements HasMedia
                     return $this->senderRelation?->relationable_id;
                 }
 
-                if (self::getConnectionResolver() === null) {
+                if (! $this->canQuerySenderRelation()) {
                     return null;
                 }
 
@@ -241,6 +244,19 @@ class Post extends Model implements HasMedia
             'relationable_id' => $model->getKey(),
             'role' => $role,
         ]);
+    }
+
+    protected function canQuerySenderRelation(): bool
+    {
+        if (self::getConnectionResolver() === null) {
+            return false;
+        }
+
+        $container = Container::getInstance();
+
+        return $container instanceof Container
+            && $container->bound('config')
+            && $container->bound('db');
     }
 
     /**

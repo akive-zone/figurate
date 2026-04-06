@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "fff4f2c03b9a2583f3534c46f0a76c0a",
+    "content-hash": "0476d83ae35f1806aeb54dc46ad64817",
     "packages": [
         {
             "name": "api-platform/documentation",
@@ -7108,6 +7108,525 @@
                 "source": "https://github.com/phpstan/phpdoc-parser/tree/2.3.2"
             },
             "time": "2026-01-25T14:56:51+00:00"
+        },
+        {
+            "name": "phrity/comparison",
+            "version": "1.4.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/sirn-se/phrity-comparison.git",
+                "reference": "cf80abb822537eeaaeb4142157cd667ca6372a13"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/sirn-se/phrity-comparison/zipball/cf80abb822537eeaaeb4142157cd667ca6372a13",
+                "reference": "cf80abb822537eeaaeb4142157cd667ca6372a13",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.0",
+                "phpunit/phpunit": "^10.0 || ^11.0 || ^12.0",
+                "robiningelbrecht/phpunit-coverage-tools": "^1.9",
+                "squizlabs/php_codesniffer": "^3.5 || ^4.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Phrity\\Comparison\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Sören Jensen",
+                    "email": "sirn@sirn.se",
+                    "homepage": "https://phrity.sirn.se"
+                }
+            ],
+            "description": "Interfaces and helper trait for comparing objects. Comparator for sort and filter applications.",
+            "homepage": "https://phrity.sirn.se/comparison",
+            "keywords": [
+                "comparable",
+                "comparator",
+                "comparison",
+                "equalable",
+                "filter",
+                "sort"
+            ],
+            "support": {
+                "issues": "https://github.com/sirn-se/phrity-comparison/issues",
+                "source": "https://github.com/sirn-se/phrity-comparison/tree/1.4.1"
+            },
+            "time": "2025-12-05T07:38:30+00:00"
+        },
+        {
+            "name": "phrity/http",
+            "version": "1.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/sirn-se/phrity-http.git",
+                "reference": "1e7eee67359287b94aae2b7d40b730d5f5394943"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/sirn-se/phrity-http/zipball/1e7eee67359287b94aae2b7d40b730d5f5394943",
+                "reference": "1e7eee67359287b94aae2b7d40b730d5f5394943",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1",
+                "psr/http-factory": "^1.0",
+                "psr/http-message": "^1.1 || ^2.0"
+            },
+            "require-dev": {
+                "guzzlehttp/psr7": "^2.0",
+                "phpstan/phpstan": "^2.0",
+                "phpunit/phpunit": "^10.0 || ^11.0 || ^12.0",
+                "robiningelbrecht/phpunit-coverage-tools": "^1.9",
+                "squizlabs/php_codesniffer": "^3.5 || ^4.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Phrity\\Http\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Sören Jensen",
+                    "email": "sirn@sirn.se",
+                    "homepage": "https://phrity.sirn.se"
+                }
+            ],
+            "description": "Utilities and interfaces for handling HTTP.",
+            "homepage": "https://phrity.sirn.se/http",
+            "keywords": [
+                "HTTP Factories",
+                "HTTP Serializer",
+                "http",
+                "psr-17",
+                "psr-7"
+            ],
+            "support": {
+                "issues": "https://github.com/sirn-se/phrity-http/issues",
+                "source": "https://github.com/sirn-se/phrity-http/tree/1.1.0"
+            },
+            "time": "2025-12-22T20:22:29+00:00"
+        },
+        {
+            "name": "phrity/net-stream",
+            "version": "2.4.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/sirn-se/phrity-net-stream.git",
+                "reference": "a0726a8dddf11a4cd3a9e45d17e145d78e948f43"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/sirn-se/phrity-net-stream/zipball/a0726a8dddf11a4cd3a9e45d17e145d78e948f43",
+                "reference": "a0726a8dddf11a4cd3a9e45d17e145d78e948f43",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1",
+                "phrity/util-errorhandler": "^1.1",
+                "phrity/util-interpolator": "^1.1",
+                "psr/http-factory": "^1.0",
+                "psr/http-message": "^1.1 || ^2.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.0",
+                "phpunit/phpunit": "^10.0 || ^11.0 || ^12.0 || ^13.0",
+                "phrity/net-uri": "^2.0",
+                "robiningelbrecht/phpunit-coverage-tools": "^1.9",
+                "squizlabs/php_codesniffer": "^4.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Phrity\\Net\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Sören Jensen",
+                    "email": "sirn@sirn.se",
+                    "homepage": "https://phrity.sirn.se"
+                }
+            ],
+            "description": "Socket stream classes implementing PSR-7 Stream and PSR-17 StreamFactory",
+            "homepage": "https://phrity.sirn.se/net-stream",
+            "keywords": [
+                "Socket",
+                "client",
+                "psr-17",
+                "psr-7",
+                "server",
+                "stream",
+                "stream factory"
+            ],
+            "support": {
+                "issues": "https://github.com/sirn-se/phrity-net-stream/issues",
+                "source": "https://github.com/sirn-se/phrity-net-stream/tree/2.4.0"
+            },
+            "time": "2026-03-25T18:16:40+00:00"
+        },
+        {
+            "name": "phrity/net-uri",
+            "version": "2.2.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/sirn-se/phrity-net-uri.git",
+                "reference": "0737de026b75177ae302ac9fdbbd0ffc2610f3b8"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/sirn-se/phrity-net-uri/zipball/0737de026b75177ae302ac9fdbbd0ffc2610f3b8",
+                "reference": "0737de026b75177ae302ac9fdbbd0ffc2610f3b8",
+                "shasum": ""
+            },
+            "require": {
+                "ext-mbstring": "*",
+                "php": "^8.1",
+                "phrity/comparison": "^1.0",
+                "psr/http-factory": "^1.0",
+                "psr/http-message": "^1.1 | ^2.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.0",
+                "phpunit/phpunit": "^10.0 || ^11.0 || ^12.0",
+                "phrity/util-errorhandler": "^1.1",
+                "robiningelbrecht/phpunit-coverage-tools": "^1.9",
+                "squizlabs/php_codesniffer": "^3.5 || ^4.0"
+            },
+            "suggest": {
+                "ext-intl": "Enables IDN conversion for non-ASCII domains"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Phrity\\Net\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Sören Jensen",
+                    "email": "sirn@sirn.se",
+                    "homepage": "https://phrity.sirn.se"
+                }
+            ],
+            "description": "PSR-7 Uri and PSR-17 UriFactory implementation",
+            "homepage": "https://phrity.sirn.se/net-uri",
+            "keywords": [
+                "psr-17",
+                "psr-7",
+                "uri",
+                "uri factory"
+            ],
+            "support": {
+                "issues": "https://github.com/sirn-se/phrity-net-uri/issues",
+                "source": "https://github.com/sirn-se/phrity-net-uri/tree/2.2.1"
+            },
+            "time": "2025-12-05T10:39:22+00:00"
+        },
+        {
+            "name": "phrity/util-accessor",
+            "version": "1.3.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/sirn-se/phrity-util-accessor.git",
+                "reference": "e9741da6b532fa2da7f627fce60fa77f00f6e354"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/sirn-se/phrity-util-accessor/zipball/e9741da6b532fa2da7f627fce60fa77f00f6e354",
+                "reference": "e9741da6b532fa2da7f627fce60fa77f00f6e354",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1",
+                "phrity/util-transformer": "^1.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.0",
+                "phpunit/phpunit": "^10.0 || ^11.0 || ^12.0",
+                "robiningelbrecht/phpunit-coverage-tools": "^1.9",
+                "squizlabs/php_codesniffer": "^3.5 || ^4.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Phrity\\Util\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Sören Jensen",
+                    "email": "sirn@sirn.se",
+                    "homepage": "https://phrity.sirn.se"
+                }
+            ],
+            "description": "Utility to handle access to a data set by using access paths. Similar to and partly compatible with xpath and json-pointer.",
+            "homepage": "https://phrity.sirn.se/util-accessor",
+            "keywords": [
+                "accessor"
+            ],
+            "support": {
+                "issues": "https://github.com/sirn-se/phrity-util-accessor/issues",
+                "source": "https://github.com/sirn-se/phrity-util-accessor/tree/1.3.1"
+            },
+            "time": "2025-12-05T21:18:15+00:00"
+        },
+        {
+            "name": "phrity/util-errorhandler",
+            "version": "1.2.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/sirn-se/phrity-util-errorhandler.git",
+                "reference": "70a669cc22db2eed6a109ec66fd95168a4332c9b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/sirn-se/phrity-util-errorhandler/zipball/70a669cc22db2eed6a109ec66fd95168a4332c9b",
+                "reference": "70a669cc22db2eed6a109ec66fd95168a4332c9b",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.0",
+                "phpunit/phpunit": "^10.0 || ^11.0 || ^12.0",
+                "robiningelbrecht/phpunit-coverage-tools": "^1.9",
+                "squizlabs/php_codesniffer": "^3.5 || ^4.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Phrity\\Util\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Sören Jensen",
+                    "email": "sirn@sirn.se",
+                    "homepage": "https://phrity.sirn.se"
+                }
+            ],
+            "description": "Inline error handler; catch and resolve errors for code block.",
+            "homepage": "https://phrity.sirn.se/util-errorhandler",
+            "keywords": [
+                "error",
+                "warning"
+            ],
+            "support": {
+                "issues": "https://github.com/sirn-se/phrity-util-errorhandler/issues",
+                "source": "https://github.com/sirn-se/phrity-util-errorhandler/tree/1.2.2"
+            },
+            "time": "2025-12-05T21:25:36+00:00"
+        },
+        {
+            "name": "phrity/util-interpolator",
+            "version": "1.1.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/sirn-se/phrity-util-interpolator.git",
+                "reference": "18b0362d2aff60984c530808333c5e64c80c3e50"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/sirn-se/phrity-util-interpolator/zipball/18b0362d2aff60984c530808333c5e64c80c3e50",
+                "reference": "18b0362d2aff60984c530808333c5e64c80c3e50",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1",
+                "phrity/util-accessor": "^1.3",
+                "phrity/util-transformer": "^1.3"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.0",
+                "phpunit/phpunit": "^10.0 || ^11.0 || ^12.0",
+                "robiningelbrecht/phpunit-coverage-tools": "^1.9",
+                "squizlabs/php_codesniffer": "^3.5 || ^4.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Phrity\\Util\\Interpolator\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Sören Jensen",
+                    "email": "sirn@sirn.se",
+                    "homepage": "https://phrity.sirn.se"
+                }
+            ],
+            "description": "Interpolator class and trait.",
+            "homepage": "https://phrity.sirn.se/util-interpolator",
+            "keywords": [
+                "interpolate",
+                "interpolator"
+            ],
+            "support": {
+                "issues": "https://github.com/sirn-se/phrity-util-interpolator/issues",
+                "source": "https://github.com/sirn-se/phrity-util-interpolator/tree/1.1.1"
+            },
+            "time": "2025-12-05T21:35:25+00:00"
+        },
+        {
+            "name": "phrity/util-transformer",
+            "version": "1.3.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/sirn-se/phrity-util-transformer.git",
+                "reference": "3fd4d7fa4077deafe5130c4b9ee8146b5488abe3"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/sirn-se/phrity-util-transformer/zipball/3fd4d7fa4077deafe5130c4b9ee8146b5488abe3",
+                "reference": "3fd4d7fa4077deafe5130c4b9ee8146b5488abe3",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.0",
+                "phpunit/phpunit": "^10.0 || ^11.0 || ^12.0",
+                "robiningelbrecht/phpunit-coverage-tools": "^1.9",
+                "squizlabs/php_codesniffer": "^3.5 || ^4.0",
+                "symfony/property-access": "^6.0 || ^7.0 || ^8.0",
+                "symfony/serializer": "^6.0 || ^7.0 || ^8.0",
+                "symfony/translation-contracts": "^3.0",
+                "symfony/uid": "^6.0 || ^7.0 || ^8.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Phrity\\Util\\Transformer\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Sören Jensen",
+                    "email": "sirn@sirn.se",
+                    "homepage": "https://phrity.sirn.se"
+                }
+            ],
+            "description": "Type transformers, normalizers and resolvers.",
+            "homepage": "https://phrity.sirn.se/util-transformer",
+            "keywords": [
+                "normalizer",
+                "resolver",
+                "transformer",
+                "type"
+            ],
+            "support": {
+                "issues": "https://github.com/sirn-se/phrity-util-transformer/issues",
+                "source": "https://github.com/sirn-se/phrity-util-transformer/tree/1.3.1"
+            },
+            "time": "2025-12-05T22:07:04+00:00"
+        },
+        {
+            "name": "phrity/websocket",
+            "version": "3.6.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/sirn-se/websocket-php.git",
+                "reference": "b9816ed2b4a10c8c42bd0b6398044ab506869756"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/sirn-se/websocket-php/zipball/b9816ed2b4a10c8c42bd0b6398044ab506869756",
+                "reference": "b9816ed2b4a10c8c42bd0b6398044ab506869756",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1",
+                "phrity/http": "^1.0",
+                "phrity/net-stream": "^2.3",
+                "phrity/net-uri": "^2.1",
+                "psr/http-message": "^1.1 | ^2.0",
+                "psr/log": "^1.0 || ^2.0 || ^3.0"
+            },
+            "require-dev": {
+                "guzzlehttp/psr7": "^2.0",
+                "phpstan/phpstan": "^2.0",
+                "phpunit/phpunit": "^10.0 || ^11.0 || ^12.0",
+                "phrity/logger-console": "^1.0",
+                "phrity/net-mock": "^2.3",
+                "phrity/util-errorhandler": "^1.1",
+                "robiningelbrecht/phpunit-coverage-tools": "^1.9",
+                "squizlabs/php_codesniffer": "^3.5 || ^4.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "WebSocket\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "ISC"
+            ],
+            "authors": [
+                {
+                    "name": "Fredrik Liljegren"
+                },
+                {
+                    "name": "Sören Jensen",
+                    "email": "sirn@sirn.se",
+                    "homepage": "https://phrity.sirn.se"
+                }
+            ],
+            "description": "WebSocket client and server",
+            "homepage": "https://phrity.sirn.se/websocket",
+            "keywords": [
+                "client",
+                "server",
+                "websocket"
+            ],
+            "support": {
+                "issues": "https://github.com/sirn-se/websocket-php/issues",
+                "source": "https://github.com/sirn-se/websocket-php/tree/3.6.2"
+            },
+            "time": "2025-12-21T09:58:16+00:00"
         },
         {
             "name": "pragmarx/google2fa",

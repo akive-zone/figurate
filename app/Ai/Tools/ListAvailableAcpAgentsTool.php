@@ -2,8 +2,10 @@
 
 namespace App\Ai\Tools;
 
-use App\Ai\Support\Acp\OutboundAgentRegistry;
+use App\Ai\Support\Acp\AcpRegistry;
 use App\Ai\Tools\Diagnostics\EncodesToolResponse;
+use App\Models\Server\Thread;
+use App\Models\Server\User;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request as ToolRequest;
@@ -14,17 +16,19 @@ class ListAvailableAcpAgentsTool implements Tool
     use EncodesToolResponse;
 
     public function __construct(
-        protected OutboundAgentRegistry $registry = new OutboundAgentRegistry,
+        protected ?Thread $thread = null,
+        protected ?User $actor = null,
+        protected AcpRegistry $registry = new AcpRegistry,
     ) {}
 
     public function description(): Stringable|string
     {
-        return 'List allowlisted outbound ACP agents that can be used by this assistant.';
+        return 'List registered ACP agents available through the current thread, space, or user channels.';
     }
 
     public function handle(ToolRequest $request): Stringable|string
     {
-        if (! $this->registry->enabled()) {
+        if (! $this->registry->enabled($this->thread, $this->actor)) {
             return $this->ok([
                 'enabled' => false,
                 'count' => 0,
@@ -33,7 +37,7 @@ class ListAvailableAcpAgentsTool implements Tool
         }
 
         $includeHeaders = (bool) ($request['include_headers'] ?? false);
-        $agents = collect($this->registry->agents())
+        $agents = collect($this->registry->agents($this->thread, $this->actor))
             ->map(function (array $agent) use ($includeHeaders): array {
                 $payload = [
                     'id' => $agent['id'],

@@ -16,6 +16,8 @@ interface UserRepository
 
     public function findByEmail(string $email): ?User;
 
+    public function findByIdentity(string $provider, string $providerSubject): ?User;
+
     /**
      * @param  array<string, mixed>  $attributes
      */

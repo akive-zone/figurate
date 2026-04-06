@@ -52,7 +52,6 @@ return [
     ],
 
     'mcp' => [
-        'enabled' => (bool) env('MCP_ENABLED', false),
         'default_handler' => env('MCP_DEFAULT_HANDLER'),
         'default_timeout_ms' => (int) env('MCP_TIMEOUT_MS', 8000),
         'max_timeout_ms' => (int) env('MCP_MAX_TIMEOUT_MS', 30000),
@@ -63,15 +62,6 @@ return [
                 static fn (string $host): string => trim($host),
                 explode(',', (string) env('MCP_ALLOWED_HOSTS', ''))
             ))),
-        ],
-        'servers' => [
-            // 'knowledge' => [
-            //     'transport' => 'remote', // remote | local
-            //     'endpoint_url' => env('MCP_KNOWLEDGE_ENDPOINT'),
-            //     'handler' => App\Ai\Support\Mcp\Handlers\YourKnowledgeServerHandler::class, // for local
-            //     'tools' => ['search', 'read'],
-            //     'headers' => [],
-            // ],
         ],
     ],
 ];
