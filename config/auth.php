@@ -17,7 +17,7 @@ return [
     */
 
     'defaults' => [
-        'guard' => env('AUTH_GUARD', 'web'),
+        'guard' => env('AUTH_GUARD', 'cookie'),
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
     ],
 
@@ -39,7 +39,7 @@ return [
     */
 
     'guards' => [
-        'web' => [
+        'cookie' => [
             'driver' => 'session',
             'provider' => 'cookie_users',
         ],
