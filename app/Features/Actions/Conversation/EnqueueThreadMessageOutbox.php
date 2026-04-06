@@ -205,7 +205,7 @@ class EnqueueThreadMessageOutbox
 
                 return [
                     'protocol' => ChannelProtocol::Key,
-                    'provider' => $this->normalizedProvider($channel->driver) ?? Channel::DriverGeneric,
+                    'provider' => $this->normalizedProvider($channel->driver) ?? Channel::ProtocolGeneric,
                     'target' => $providerIdentifier ?? $channel->uuid,
                     'route_key' => 'channel_binding:'.$binding->id,
                     'payload' => [
@@ -267,7 +267,7 @@ class EnqueueThreadMessageOutbox
                             'address' => $address,
                         ]],
                         'delivery' => [
-                            'provider' => $this->normalizedProvider($channel->driver) ?? Channel::DriverGeneric,
+                            'provider' => $this->normalizedProvider($channel->driver) ?? Channel::ProtocolGeneric,
                             'target' => $providerIdentifier ?? $channel->uuid,
                             'channel' => [
                                 'id' => $channel->id,

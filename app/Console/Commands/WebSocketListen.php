@@ -162,7 +162,6 @@ class WebSocketListen extends Command
         if ($channels->isEmpty()) {
             $this->warn('No WebSocket channels found that require listening.');
             $this->info('Channels must have:');
-            $this->info('  - protocol = "generic" (or legacy websocket driver)');
             $this->info('  - transport = "websocket"');
             $this->info('  - endpoint_url configured');
             $this->info('  - enabled = true');
@@ -276,11 +275,7 @@ class WebSocketListen extends Command
     {
         return Channel::query()
             ->where('enabled', true)
-            ->where(function ($query): void {
-                $query
-                    ->where('driver', Channel::TransportWebsocket)
-                    ->orWhere('transport', Channel::TransportWebsocket);
-            })
+            ->where('transport', Channel::TransportWebsocket)
             ->whereNotNull('endpoint_url')
             ->whereIn('direction', [Channel::DirectionInbound, Channel::DirectionBidirectional])
             ->orderBy('priority', 'desc')

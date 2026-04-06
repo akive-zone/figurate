@@ -34,7 +34,7 @@ class EnqueueThreadMessageOutboxChannelsTest extends TestCase
             'status' => 'open',
         ]);
         $channel = Channel::factory()->create([
-            'driver' => Channel::DriverGeneric,
+            'driver' => Channel::ProtocolGeneric,
         ]);
 
         $thread->channelRelations()->create([
@@ -89,7 +89,7 @@ class EnqueueThreadMessageOutboxChannelsTest extends TestCase
         $outbox = $created->first();
         $this->assertInstanceOf(Outbox::class, $outbox);
         $this->assertSame(ChannelProtocol::Key, $outbox->protocol);
-        $this->assertSame(Channel::DriverGeneric, $outbox->provider);
+        $this->assertSame(Channel::ProtocolGeneric, $outbox->provider);
         $this->assertSame('internal:user:'.$recipient->id, $outbox->target);
         $this->assertSame('thread.post.created', data_get($outbox->payload, 'event'));
         $this->assertSame($channel->uuid, data_get($outbox->payload, 'channel.uuid'));

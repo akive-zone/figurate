@@ -24,7 +24,7 @@ class ChannelFactory extends Factory
     {
         return [
             'name' => fake()->company().' Channel',
-            'driver' => Channel::DriverGeneric,
+            'driver' => Channel::ProtocolGeneric,
             'status' => Channel::StatusActive,
             'direction' => Channel::DirectionBidirectional,
             'endpoint_url' => fake()->url(),

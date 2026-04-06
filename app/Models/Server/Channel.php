@@ -47,25 +47,11 @@ class Channel extends Model
 
     public const TransportStdio = 'stdio';
 
-    public const DriverGeneric = 'generic';
+    public const HealthHealthy = 'healthy';
 
-    public const DriverMcp = 'mcp';
+    public const HealthUnhealthy = 'unhealthy';
 
-    public const DriverA2a = 'a2a';
-
-    public const DriverAcp = 'acp';
-
-    public const DriverStdio = self::TransportStdio;
-
-    public const SystemGeneric = self::DriverGeneric;
-
-    public const SystemMcp = self::DriverMcp;
-
-    public const SystemA2a = self::DriverA2a;
-
-    public const SystemAcp = self::DriverAcp;
-
-    public const SystemStdio = self::DriverStdio;
+    public const HealthUnknown = 'unknown';
 
     /**
      * @var list<string>
@@ -88,6 +74,10 @@ class Channel extends Model
         'credentials',
         'config',
         'meta',
+        'last_connected_at',
+        'last_message_at',
+        'health_status',
+        'metrics',
     ];
 
     /**
@@ -103,6 +93,9 @@ class Channel extends Model
             'credentials' => 'encrypted:array',
             'config' => 'array',
             'meta' => 'array',
+            'last_connected_at' => 'datetime',
+            'last_message_at' => 'datetime',
+            'metrics' => 'array',
         ];
     }
 
@@ -182,5 +175,97 @@ class Channel extends Model
             self::ProtocolA2a,
             self::ProtocolAcp,
         ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function supportedTransports(): array
+    {
+        return [
+            self::TransportHttp,
+            self::TransportWebhook,
+            self::TransportWebsocket,
+            self::TransportWebrtc,
+            self::TransportRelay,
+            self::TransportStdio,
+        ];
+    }
+
+    /**
+     * Mark channel as connected
+     */
+    public function markConnected(): void
+    {
+        $this->update([
+            'last_connected_at' => now(),
+            'health_status' => self::HealthHealthy,
+        ]);
+    }
+
+    /**
+     * Mark channel as disconnected
+     */
+    public function markDisconnected(): void
+    {
+        $this->update([
+            'health_status' => self::HealthUnhealthy,
+        ]);
+    }
+
+    /**
+     * Record message activity
+     */
+    public function recordMessageActivity(): void
+    {
+        $this->update([
+            'last_message_at' => now(),
+            'health_status' => self::HealthHealthy,
+        ]);
+
+        $this->incrementMetric('message_count');
+    }
+
+    /**
+     * Record error
+     */
+    public function recordError(): void
+    {
+        $this->incrementMetric('error_count');
+
+        // Mark as unhealthy if too many errors
+        $metrics = is_array($this->metrics) ? $this->metrics : [];
+        $errorCount = $metrics['error_count'] ?? 0;
+
+        if ($errorCount >= 5) {
+            $this->update(['health_status' => self::HealthUnhealthy]);
+        }
+    }
+
+    /**
+     * Increment a metric counter
+     */
+    protected function incrementMetric(string $key, int $amount = 1): void
+    {
+        $metrics = is_array($this->metrics) ? $this->metrics : [];
+        $metrics[$key] = ($metrics[$key] ?? 0) + $amount;
+
+        $this->update(['metrics' => $metrics]);
+    }
+
+    /**
+     * Check if channel is healthy
+     */
+    public function isHealthy(): bool
+    {
+        return $this->health_status === self::HealthHealthy;
+    }
+
+    /**
+     * Check if channel is unhealthy
+     */
+    public function isUnhealthy(): bool
+    {
+        return $this->health_status === self::HealthUnhealthy;
     }
 }

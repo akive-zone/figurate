@@ -160,7 +160,7 @@ class AcpRegistry
                 $channelConfig = is_array($channel->config) ? $channel->config : [];
                 $protocol = $this->stringOrNull($connectionConfig['protocol'] ?? $channelConfig['protocol'] ?? null);
 
-                return $channel->driver === Channel::DriverAcp || $protocol === Channel::ProtocolAcp;
+                return $channel->driver === Channel::ProtocolAcp || $protocol === Channel::ProtocolAcp;
             })
             ->sortByDesc(fn (ChannelRelation $connection): int => (((int) ($connection->channel?->priority ?? 0)) * 1000000) + (int) $connection->id)
             ->values();

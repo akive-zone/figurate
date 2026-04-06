@@ -89,7 +89,7 @@ class ChannelConnectionApiTest extends TestCase
     {
         $user = User::factory()->create();
         $channel = Channel::factory()->create([
-            'driver' => Channel::DriverMcp,
+            'driver' => Channel::ProtocolMcp,
             'server' => 'filesystem',
         ]);
 
@@ -115,7 +115,7 @@ class ChannelConnectionApiTest extends TestCase
     {
         $user = User::factory()->create();
         $channel = Channel::factory()->create([
-            'driver' => Channel::DriverA2a,
+            'driver' => Channel::ProtocolA2a,
             'server' => 'planner',
         ]);
 
@@ -133,7 +133,7 @@ class ChannelConnectionApiTest extends TestCase
         ]);
 
         $response->assertCreated()
-            ->assertJsonPath('data.channel.protocol', Channel::DriverA2a)
+            ->assertJsonPath('data.channel.protocol', Channel::ProtocolA2a)
             ->assertJsonPath('data.transport', 'websocket');
 
         $connection = $user->channelRelations()->where('channel_id', $channel->id)->first();

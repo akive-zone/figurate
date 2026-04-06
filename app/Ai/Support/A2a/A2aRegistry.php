@@ -175,7 +175,7 @@ class A2aRegistry
                 $channelConfig = is_array($channel->config) ? $channel->config : [];
                 $protocol = $this->stringOrNull($connectionConfig['protocol'] ?? $channelConfig['protocol'] ?? null);
 
-                return $channel->driver === Channel::DriverA2a || $protocol === Channel::ProtocolA2a;
+                return $channel->driver === Channel::ProtocolA2a || $protocol === Channel::ProtocolA2a;
             })
             ->sortByDesc(fn (ChannelRelation $connection): int => (((int) ($connection->channel?->priority ?? 0)) * 1000000) + (int) $connection->id)
             ->values();

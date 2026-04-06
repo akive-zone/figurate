@@ -67,7 +67,7 @@ class ContextServerResource extends Resource
         return parent::getRecordRouteBindingEloquentQuery()
             ->where(function (Builder $query): void {
                 $query
-                    ->where('channels.driver', Channel::DriverMcp)
+                    ->where('channels.driver', Channel::ProtocolMcp)
                     ->orWhere('channels.config->protocol', Channel::ProtocolMcp)
                     ->orWhereHas('relations', function (Builder $relationQuery): void {
                         $relationQuery->where('channel_relations.config->protocol', Channel::ProtocolMcp);
@@ -83,7 +83,7 @@ class ContextServerResource extends Resource
         $query = parent::getEloquentQuery()
             ->where(function (Builder $builder): void {
                 $builder
-                    ->where('channels.driver', Channel::DriverMcp)
+                    ->where('channels.driver', Channel::ProtocolMcp)
                     ->orWhere('channels.config->protocol', Channel::ProtocolMcp)
                     ->orWhereHas('relations', function (Builder $relationQuery): void {
                         $relationQuery->where('channel_relations.config->protocol', Channel::ProtocolMcp);

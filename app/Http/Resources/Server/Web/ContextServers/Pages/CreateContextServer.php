@@ -42,7 +42,7 @@ class CreateContextServer extends CreateRecord
         $this->selectedContextId = is_numeric($data['channelable_id'] ?? null) ? (int) $data['channelable_id'] : null;
 
         unset($data['channelable_type'], $data['channelable_id']);
-        $data['driver'] = Channel::DriverMcp;
+        $data['driver'] = Channel::ProtocolMcp;
         $data['name'] = ($data['label'] ?? null) ?: ($data['server'] ?? null);
 
         return $data;

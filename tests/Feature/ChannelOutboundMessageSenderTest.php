@@ -40,14 +40,14 @@ class ChannelOutboundMessageSenderTest extends TestCase
         ]);
         $post->attachRelation($sender, Post::RelationRoleSender);
         $channel = Channel::factory()->create([
-            'driver' => Channel::DriverGeneric,
+            'driver' => Channel::ProtocolGeneric,
         ]);
         $outbox = Outbox::query()->create([
             'thread_id' => $thread->id,
             'post_id' => $post->id,
             'direction' => Outbox::DirectionOutbound,
             'protocol' => ChannelProtocol::Key,
-            'provider' => Channel::DriverGeneric,
+            'provider' => Channel::ProtocolGeneric,
             'target' => 'provider-thread-123',
             'status' => Outbox::StatusPending,
             'attempts' => 0,
@@ -94,8 +94,8 @@ class ChannelOutboundMessageSenderTest extends TestCase
 
         $this->assertTrue((bool) data_get($result, 'ok'));
         $this->assertSame(ChannelProtocol::Key, data_get($result, 'protocol'));
-        $this->assertSame(Channel::DriverGeneric, data_get($result, 'provider'));
-        $this->assertSame('queued', data_get($result, 'delivery'));
+        $this->assertSame(Channel::ProtocolGeneric, data_get($result, 'provider'));
+        $this->assertSame('dispatched', data_get($result, 'delivery'));
         $this->assertSame($channel->uuid, data_get($result, 'channel.uuid'));
         $this->assertSame('provider-thread-123', data_get($result, 'channel_result.provider_identifier'));
         $this->assertSame('thread.post.created', data_get($result, 'channel_result.payload.event'));

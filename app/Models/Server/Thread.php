@@ -257,7 +257,7 @@ class Thread extends Model
         return $this->linkedChannels()
             ->where(function (Builder $query): void {
                 $query
-                    ->where('channels.driver', Channel::DriverMcp)
+                    ->where('channels.driver', Channel::ProtocolMcp)
                     ->orWhere('channels.config->protocol', Channel::ProtocolMcp)
                     ->orWhere('channel_relations.config->protocol', Channel::ProtocolMcp);
             })
