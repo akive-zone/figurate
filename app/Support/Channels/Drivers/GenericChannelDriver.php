@@ -6,6 +6,7 @@ use App\Contracts\Channels\ChannelDriver;
 use App\Models\Server\Channel;
 use App\Models\Server\Post;
 use App\Models\Server\Thread;
+use App\Support\Channels\Transports\WebhookTransport;
 use Illuminate\Support\Str;
 
 class GenericChannelDriver implements ChannelDriver
@@ -50,6 +51,12 @@ class GenericChannelDriver implements ChannelDriver
      */
     public function send(Channel $channel, Thread $thread, Post $message, array $bindingConfig = []): array
     {
+        $transport = $this->resolveTransport($channel, $bindingConfig);
+
+        if (in_array($transport, ['http', 'webhook'], true)) {
+            return $this->sendViaHttp($channel, $thread, $message, $bindingConfig);
+        }
+
         $outboundPayload = is_array($bindingConfig['outbound_payload'] ?? null)
             ? $bindingConfig['outbound_payload']
             : $this->fallbackOutboundPayload($channel, $thread, $message, $bindingConfig);
@@ -62,7 +69,36 @@ class GenericChannelDriver implements ChannelDriver
             'thread_uuid' => $thread->uuid,
             'message_id' => $message->id,
             'payload' => $outboundPayload,
+            'transport' => $transport,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $bindingConfig
+     * @return array<string, mixed>
+     */
+    protected function sendViaHttp(Channel $channel, Thread $thread, Post $message, array $bindingConfig): array
+    {
+        $transport = app(WebhookTransport::class);
+
+        return $transport->deliver($channel, $thread, $message, $bindingConfig);
+    }
+
+    protected function resolveTransport(Channel $channel, array $bindingConfig): string
+    {
+        $bindingTransport = data_get($bindingConfig, 'delivery.binding.config.transport')
+            ?? data_get($bindingConfig, 'config.transport')
+            ?? data_get($bindingConfig, 'transport');
+
+        if (is_string($bindingTransport) && trim($bindingTransport) !== '') {
+            return strtolower(trim($bindingTransport));
+        }
+
+        if (is_string($channel->transport) && trim($channel->transport) !== '') {
+            return strtolower(trim($channel->transport));
+        }
+
+        return 'remote';
     }
 
     /**
