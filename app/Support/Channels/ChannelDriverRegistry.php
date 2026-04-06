@@ -9,42 +9,62 @@ use InvalidArgumentException;
 class ChannelDriverRegistry
 {
     /**
-     * @param  array<string, class-string<ChannelDriver>>  $systems
+     * @param  array<string, class-string<ChannelDriver>>  $protocols
      */
     public function __construct(
-        protected array $systems = [],
+        protected array $protocols = [],
     ) {
-        if ($this->systems === []) {
-            $configuredSystems = config('channels.systems', config('channels.drivers', []));
-            $this->systems = is_array($configuredSystems) ? $configuredSystems : [];
+        if ($this->protocols === []) {
+            $configuredProtocols = config('channels.protocols', []);
+            $this->protocols = is_array($configuredProtocols) ? $configuredProtocols : [];
         }
     }
 
     public function resolveByChannel(Channel $channel): ChannelDriver
     {
-        return $this->resolveBySystem((string) $channel->driver);
+        return $this->resolveByProtocol($channel->protocolKey());
     }
 
     public function resolveByDriver(string $driver): ChannelDriver
     {
-        return $this->resolveBySystem($driver);
+        return $this->resolveByProtocol($driver);
     }
 
     public function resolveBySystem(string $system): ChannelDriver
     {
-        $resolvedSystem = trim($system);
-        $driverClass = $this->systems[$resolvedSystem] ?? null;
+        return $this->resolveByProtocol($system);
+    }
+
+    public function resolveByProtocol(string $protocol): ChannelDriver
+    {
+        $resolvedProtocol = $this->normalizeProtocol($protocol);
+        $driverClass = $this->protocols[$resolvedProtocol] ?? null;
 
         if (! is_string($driverClass) || trim($driverClass) === '') {
-            throw new InvalidArgumentException("Unsupported channel system [{$resolvedSystem}].");
+            throw new InvalidArgumentException("Unsupported channel protocol [{$resolvedProtocol}].");
         }
 
         $instance = app($driverClass);
 
         if (! $instance instanceof ChannelDriver) {
-            throw new InvalidArgumentException("Channel system [{$resolvedSystem}] must implement ".ChannelDriver::class.'.');
+            throw new InvalidArgumentException("Channel protocol [{$resolvedProtocol}] must implement ".ChannelDriver::class.'.');
         }
 
         return $instance;
+    }
+
+    protected function normalizeProtocol(string $protocol): string
+    {
+        $normalized = strtolower(trim($protocol));
+
+        if ($normalized === '') {
+            return Channel::ProtocolGeneric;
+        }
+
+        if (in_array($normalized, Channel::supportedProtocols(), true)) {
+            return $normalized;
+        }
+
+        return $normalized;
     }
 }

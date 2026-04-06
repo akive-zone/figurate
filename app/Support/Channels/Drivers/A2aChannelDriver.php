@@ -8,7 +8,12 @@ class A2aChannelDriver extends GenericChannelDriver
 {
     public function key(): string
     {
-        return Channel::DriverA2a;
+        return Channel::ProtocolA2a;
+    }
+
+    public function supportedTransports(): array
+    {
+        return [Channel::TransportHttp, Channel::TransportWebsocket, Channel::TransportStdio];
     }
 
     public function supportedProtocols(): array

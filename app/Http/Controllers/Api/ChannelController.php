@@ -29,13 +29,14 @@ class ChannelController extends Controller
 
         $ownerType = $this->ownerTypeFromRequest($request);
         $ownerId = $request->query('owner_id', $request->query('context_id'));
-        $system = $this->trimmedString($request->query('system'))
+        $protocol = $this->trimmedString($request->query('protocol'))
+            ?? $this->trimmedString($request->query('system'))
             ?? $this->trimmedString($request->query('driver'));
         $kind = $this->trimmedString($request->query('kind'));
         $query = Channel::query()->latest('id');
 
-        if ($system !== null) {
-            $query->where('driver', $system);
+        if ($protocol !== null) {
+            $query->where('driver', $protocol);
         }
 
         if ($ownerType !== null) {
@@ -238,12 +239,13 @@ class ChannelController extends Controller
             'name' => $channel->server,
             'server' => $channel->server,
             'label' => $channel->label,
-            'driver' => $channel->driver,
-            'system' => $channel->driver,
+            'protocol' => $channel->protocolKey(),
+            'driver' => $channel->protocolKey(),
+            'system' => $channel->protocolKey(),
             'capabilities' => $driver->capabilities($channel),
             'enabled' => (bool) $channel->enabled,
             'priority' => $channel->priority,
-            'transport' => $channel->transport,
+            'transport' => $channel->transportKey(),
             'status' => $channel->status,
             'direction' => $relation?->direction ?? $channel->direction,
             'kind' => $relation?->kind,

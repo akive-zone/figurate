@@ -24,8 +24,9 @@ class StoreChannelRequest extends FormRequest
         return [
             'owner_type' => ['required', 'string', 'in:user,space,thread'],
             'owner_id' => ['nullable', 'string'],
+            'protocol' => ['nullable', 'string', 'max:40'],
             'system' => ['nullable', 'string', 'max:40'],
-            'driver' => ['required', 'string', 'max:40'],
+            'driver' => ['nullable', 'string', 'max:40'],
             'name' => ['required', 'string', 'max:120'],
             'label' => ['nullable', 'string', 'max:160'],
             'kind' => ['nullable', 'string', 'in:'.implode(',', [ChannelRelation::KindLink, ChannelRelation::KindBind])],
@@ -58,18 +59,25 @@ class StoreChannelRequest extends FormRequest
         $ownerType = $this->input('owner_type', $this->input('context_type'));
         $ownerId = $this->input('owner_id', $this->input('context_id'));
         $name = $this->input('name', $this->input('server'));
-        $driver = $this->input('driver', $this->input('system'));
+        $protocol = $this->input('protocol', $this->input('driver', $this->input('system')));
+        $transport = $this->input('transport');
 
-        if (! is_string($driver) || trim($driver) === '') {
-            $driver = $this->has('server') ? Channel::DriverMcp : $driver;
+        if (! is_string($protocol) || trim($protocol) === '') {
+            $protocol = $this->has('server') ? Channel::ProtocolMcp : $protocol;
+        }
+
+        if (is_string($protocol)) {
+            $protocol = strtolower(trim($protocol));
         }
 
         $this->merge([
             'owner_type' => $ownerType,
             'owner_id' => $ownerId,
             'name' => $name,
-            'system' => $driver,
-            'driver' => $driver,
+            'protocol' => $protocol,
+            'system' => $protocol,
+            'driver' => $protocol,
+            'transport' => $transport,
         ]);
     }
 

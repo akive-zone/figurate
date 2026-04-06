@@ -191,7 +191,7 @@ class ChannelConnectionRegistry
         $protocol = $this->stringValue($value);
 
         if ($protocol === null) {
-            return null;
+            return $channel->protocolKey();
         }
 
         $driver = $this->channelDriverRegistry->resolveByChannel($channel);
@@ -204,7 +204,7 @@ class ChannelConnectionRegistry
         $normalized = strtolower($protocol);
 
         if ($supportedProtocols !== [] && ! in_array($normalized, $supportedProtocols, true)) {
-            throw new \InvalidArgumentException("Unsupported protocol [{$normalized}] for channel system [{$channel->driver}].");
+            throw new \InvalidArgumentException("Unsupported protocol [{$normalized}] for channel protocol [{$channel->protocolKey()}].");
         }
 
         return $normalized;
@@ -228,7 +228,7 @@ class ChannelConnectionRegistry
         $normalized = strtolower($transport);
 
         if ($supportedTransports !== [] && ! in_array($normalized, $supportedTransports, true)) {
-            throw new \InvalidArgumentException("Unsupported transport [{$normalized}] for channel system [{$channel->driver}].");
+            throw new \InvalidArgumentException("Unsupported transport [{$normalized}] for channel protocol [{$channel->protocolKey()}].");
         }
 
         return $normalized;

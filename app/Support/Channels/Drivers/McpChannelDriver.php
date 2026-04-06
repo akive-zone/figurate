@@ -13,12 +13,12 @@ class McpChannelDriver extends GenericChannelDriver
 
     public function key(): string
     {
-        return Channel::DriverMcp;
+        return Channel::ProtocolMcp;
     }
 
     public function supportedTransports(): array
     {
-        return ['http', 'websocket'];
+        return [Channel::TransportHttp, Channel::TransportWebsocket, Channel::TransportStdio];
     }
 
     public function supportedProtocols(): array
@@ -35,7 +35,7 @@ class McpChannelDriver extends GenericChannelDriver
     {
         return $this->prepare(
             normalized: parent::prepareForRegistration($attributes),
-            transport: (string) ($attributes['transport'] ?? 'http'),
+            transport: (string) ($attributes['transport'] ?? Channel::TransportHttp),
             mode: (string) ($attributes['mode'] ?? 'remote'),
         );
     }
@@ -43,7 +43,7 @@ class McpChannelDriver extends GenericChannelDriver
     public function prepareForUpdate(Channel $channel, array $attributes): array
     {
         $normalized = parent::prepareForUpdate($channel, $attributes);
-        $transport = (string) ($normalized['transport'] ?? $channel->transport ?? 'http');
+        $transport = (string) ($normalized['transport'] ?? $channel->transport ?? Channel::TransportHttp);
         $mode = (string) ($normalized['mode'] ?? 'remote');
 
         return $this->prepare($normalized, $transport, $mode);
@@ -62,7 +62,7 @@ class McpChannelDriver extends GenericChannelDriver
             return $normalized;
         }
 
-        if (! in_array($transport, ['remote', 'http', 'websocket'], true)) {
+        if (! in_array($transport, [Channel::TransportHttp, Channel::TransportWebsocket], true)) {
             return $normalized;
         }
 

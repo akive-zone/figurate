@@ -14,11 +14,11 @@ class ChannelConnectionApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_creates_a_stdio_connection_for_a_stdio_channel(): void
+    public function test_it_creates_a_stdio_connection_for_a_generic_channel(): void
     {
         $user = User::factory()->create();
         $channel = Channel::factory()->create([
-            'driver' => Channel::DriverStdio,
+            'driver' => Channel::ProtocolGeneric,
             'server' => 'worker-stdio',
             'label' => 'Worker Stdio',
         ]);
@@ -39,7 +39,7 @@ class ChannelConnectionApiTest extends TestCase
         ]);
 
         $response->assertCreated()
-            ->assertJsonPath('data.channel.driver', Channel::DriverStdio)
+            ->assertJsonPath('data.channel.protocol', Channel::ProtocolGeneric)
             ->assertJsonPath('data.owner.type', 'user')
             ->assertJsonPath('data.transport', 'stdio')
             ->assertJsonPath('data.mode', 'local')
@@ -58,7 +58,7 @@ class ChannelConnectionApiTest extends TestCase
     {
         $user = User::factory()->create();
         $channel = Channel::factory()->create([
-            'driver' => 'websocket',
+            'driver' => Channel::ProtocolA2a,
             'server' => 'agent-socket',
         ]);
 
@@ -68,7 +68,6 @@ class ChannelConnectionApiTest extends TestCase
             'owner_type' => 'user',
             'owner_id' => 'me',
             'direction' => Channel::DirectionBidirectional,
-            'protocol' => Channel::ProtocolA2a,
             'transport' => 'websocket',
             'config' => [
                 'endpoint_url' => 'wss://agents.example/socket',
@@ -76,15 +75,13 @@ class ChannelConnectionApiTest extends TestCase
         ]);
 
         $response->assertCreated()
-            ->assertJsonPath('data.channel.driver', 'websocket')
-            ->assertJsonPath('data.channel.system', 'websocket')
+            ->assertJsonPath('data.channel.protocol', Channel::ProtocolA2a)
             ->assertJsonPath('data.protocol', Channel::ProtocolA2a)
             ->assertJsonPath('data.transport', 'websocket');
 
         $connection = $user->channelRelations()->where('channel_id', $channel->id)->first();
 
         $this->assertInstanceOf(ChannelRelation::class, $connection);
-        $this->assertSame(Channel::ProtocolA2a, data_get($connection->config, 'protocol'));
         $this->assertSame('websocket', data_get($connection->config, 'transport'));
     }
 
@@ -110,7 +107,7 @@ class ChannelConnectionApiTest extends TestCase
 
         $response->assertStatus(422)
             ->assertInvalid([
-                'config.protocol' => 'The selected protocol is not supported for the [mcp] channel system.',
+                'config.protocol' => 'The selected protocol is not supported for the [mcp] channel protocol.',
             ]);
     }
 
@@ -136,7 +133,7 @@ class ChannelConnectionApiTest extends TestCase
         ]);
 
         $response->assertCreated()
-            ->assertJsonPath('data.channel.driver', Channel::DriverA2a)
+            ->assertJsonPath('data.channel.protocol', Channel::DriverA2a)
             ->assertJsonPath('data.transport', 'websocket');
 
         $connection = $user->channelRelations()->where('channel_id', $channel->id)->first();

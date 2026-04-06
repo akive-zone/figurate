@@ -13,21 +13,24 @@ class GenericChannelDriver implements ChannelDriver
 {
     public function key(): string
     {
-        return Channel::DriverGeneric;
+        return Channel::ProtocolGeneric;
     }
 
     public function supportedTransports(): array
     {
-        return ['http', 'webhook', 'websocket', 'webrtc', 'relay', 'stdio'];
+        return [
+            Channel::TransportHttp,
+            Channel::TransportWebhook,
+            Channel::TransportWebsocket,
+            Channel::TransportWebrtc,
+            Channel::TransportRelay,
+            Channel::TransportStdio,
+        ];
     }
 
     public function supportedProtocols(): array
     {
-        return [
-            Channel::ProtocolMcp,
-            Channel::ProtocolA2a,
-            Channel::ProtocolAcp,
-        ];
+        return [Channel::ProtocolGeneric];
     }
 
     public function capabilities(?Channel $channel = null): array
@@ -98,7 +101,7 @@ class GenericChannelDriver implements ChannelDriver
             return strtolower(trim($channel->transport));
         }
 
-        return 'remote';
+        return Channel::TransportHttp;
     }
 
     /**
@@ -171,11 +174,11 @@ class GenericChannelDriver implements ChannelDriver
      */
     protected function normalizeRegistrationAttributes(array $attributes): array
     {
-        $transport = strtolower(trim((string) ($attributes['transport'] ?? 'remote')));
+        $transport = strtolower(trim((string) ($attributes['transport'] ?? Channel::TransportHttp)));
         $direction = strtolower(trim((string) ($attributes['direction'] ?? Channel::DirectionBidirectional)));
 
         return array_merge($attributes, [
-            'transport' => $transport !== '' ? $transport : 'remote',
+            'transport' => $transport !== '' ? $transport : Channel::TransportHttp,
             'direction' => $direction !== '' ? $direction : Channel::DirectionBidirectional,
         ]);
     }
@@ -190,7 +193,7 @@ class GenericChannelDriver implements ChannelDriver
 
         if (array_key_exists('transport', $normalized)) {
             $transport = strtolower(trim((string) $normalized['transport']));
-            $normalized['transport'] = $transport !== '' ? $transport : 'remote';
+            $normalized['transport'] = $transport !== '' ? $transport : Channel::TransportHttp;
         }
 
         if (array_key_exists('direction', $normalized)) {

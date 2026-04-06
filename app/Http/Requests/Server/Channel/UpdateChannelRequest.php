@@ -22,6 +22,7 @@ class UpdateChannelRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'protocol' => ['sometimes', 'string', 'max:40'],
             'name' => ['sometimes', 'string', 'max:120'],
             'label' => ['sometimes', 'nullable', 'string', 'max:160'],
             'kind' => ['sometimes', 'string', 'in:'.implode(',', [ChannelRelation::KindLink, ChannelRelation::KindBind])],
@@ -52,9 +53,22 @@ class UpdateChannelRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $name = $this->input('name', $this->input('server'));
+        $protocol = $this->input('protocol', $this->input('driver', $this->input('system')));
+        $transport = $this->input('transport');
 
         if ($name !== null) {
             $this->merge(['name' => $name]);
+        }
+
+        if (is_string($protocol) && trim($protocol) !== '') {
+            $protocol = strtolower(trim($protocol));
+
+            $this->merge([
+                'protocol' => $protocol,
+                'driver' => $protocol,
+                'system' => $protocol,
+                'transport' => $transport,
+            ]);
         }
     }
 

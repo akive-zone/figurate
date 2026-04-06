@@ -142,7 +142,7 @@ class UpdateChannelConnectionRequest extends FormRequest
                     $supportedTransports = $driver->supportedTransports();
 
                     if (! in_array($transport, $supportedTransports, true)) {
-                        $validator->errors()->add('config.transport', "The selected transport is not supported for the [{$channel->driver}] channel system.");
+                        $validator->errors()->add('config.transport', "The selected transport is not supported for the [{$channel->protocolKey()}] channel protocol.");
                     }
                 }
 
@@ -152,7 +152,7 @@ class UpdateChannelConnectionRequest extends FormRequest
                         ->supportedProtocols();
 
                     if ($supportedProtocols !== [] && ! in_array($protocol, $supportedProtocols, true)) {
-                        $validator->errors()->add('config.protocol', "The selected protocol is not supported for the [{$channel->driver}] channel system.");
+                        $validator->errors()->add('config.protocol', "The selected protocol is not supported for the [{$channel->protocolKey()}] channel protocol.");
                     }
                 }
             },

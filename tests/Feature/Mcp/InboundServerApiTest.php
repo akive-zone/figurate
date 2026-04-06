@@ -22,22 +22,23 @@ class InboundServerApiTest extends TestCase
         $response = $this->postJson(route('api.channels.store'), [
             'owner_type' => 'user',
             'owner_id' => 'me',
-            'system' => 'webhook',
+            'protocol' => Channel::ProtocolGeneric,
             'name' => 'inbound-webhook',
             'label' => 'Inbound Webhook',
-            'transport' => 'webhook',
+            'transport' => Channel::TransportWebhook,
             'endpoint_url' => 'https://hooks.example/inbound',
         ]);
 
         $response->assertCreated()
-            ->assertJsonPath('data.driver', 'webhook')
+            ->assertJsonPath('data.protocol', Channel::ProtocolGeneric)
+            ->assertJsonPath('data.transport', Channel::TransportWebhook)
             ->assertJsonPath('data.name', 'inbound-webhook')
             ->assertJsonPath('data.owner.type', 'user');
 
         $this->assertDatabaseHas('channels', [
-            'driver' => 'webhook',
+            'driver' => Channel::ProtocolGeneric,
             'server' => 'inbound-webhook',
-            'transport' => 'webhook',
+            'transport' => Channel::TransportWebhook,
         ]);
     }
 
@@ -53,8 +54,12 @@ class InboundServerApiTest extends TestCase
         $response = $this->postJson(route('api.channels.store'), [
             'context_type' => 'user',
             'context_id' => 'me',
+            'protocol' => Channel::ProtocolMcp,
             'server' => 'planner',
-            'transport' => 'remote',
+            'transport' => Channel::TransportHttp,
+            'config' => [
+                'mode' => 'remote',
+            ],
             'endpoint_url' => 'http://127.0.0.1:3000/mcp',
             'allowed_tools' => ['search'],
         ]);
@@ -76,12 +81,12 @@ class InboundServerApiTest extends TestCase
 
         $contextServer = Channel::query()->create([
             'name' => 'Planner',
-            'driver' => Channel::DriverMcp,
+            'driver' => Channel::ProtocolMcp,
             'server' => 'planner',
             'label' => 'Planner',
             'enabled' => true,
             'priority' => 0,
-            'transport' => 'remote',
+            'transport' => Channel::TransportHttp,
             'endpoint_url' => 'https://agents.example/mcp',
             'allowed_tools' => ['search'],
         ]);

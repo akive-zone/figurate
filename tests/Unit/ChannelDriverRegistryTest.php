@@ -8,7 +8,6 @@ use App\Support\Channels\Drivers\A2aChannelDriver;
 use App\Support\Channels\Drivers\AcpChannelDriver;
 use App\Support\Channels\Drivers\GenericChannelDriver;
 use App\Support\Channels\Drivers\McpChannelDriver;
-use App\Support\Channels\Drivers\StdioChannelDriver;
 use InvalidArgumentException;
 use Tests\TestCase;
 
@@ -25,12 +24,12 @@ class ChannelDriverRegistryTest extends TestCase
         $this->assertInstanceOf(GenericChannelDriver::class, $resolved);
     }
 
-    public function test_it_throws_for_unsupported_systems(): void
+    public function test_it_throws_for_unsupported_protocols(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Unsupported channel system [unsupported].');
+        $this->expectExceptionMessage('Unsupported channel protocol [unsupported].');
 
-        app(ChannelDriverRegistry::class)->resolveBySystem('unsupported');
+        app(ChannelDriverRegistry::class)->resolveByProtocol('unsupported');
     }
 
     public function test_it_resolves_the_mcp_channel_driver(): void
@@ -44,7 +43,7 @@ class ChannelDriverRegistryTest extends TestCase
         $this->assertInstanceOf(McpChannelDriver::class, $resolved);
     }
 
-    public function test_it_resolves_the_stdio_channel_driver(): void
+    public function test_it_maps_legacy_stdio_aliases_to_the_generic_protocol_driver(): void
     {
         $channel = new Channel([
             'driver' => Channel::DriverStdio,
@@ -52,7 +51,7 @@ class ChannelDriverRegistryTest extends TestCase
 
         $resolved = app(ChannelDriverRegistry::class)->resolveByChannel($channel);
 
-        $this->assertInstanceOf(StdioChannelDriver::class, $resolved);
+        $this->assertInstanceOf(GenericChannelDriver::class, $resolved);
     }
 
     public function test_it_resolves_the_a2a_channel_driver(): void
@@ -79,18 +78,15 @@ class ChannelDriverRegistryTest extends TestCase
         $this->assertSame([Channel::ProtocolAcp], $resolved->supportedProtocols());
     }
 
-    public function test_it_exposes_protocol_support_for_websocket_channels(): void
+    public function test_it_maps_legacy_websocket_aliases_to_the_generic_protocol_driver(): void
     {
         $channel = new Channel([
-            'driver' => 'websocket',
+            'driver' => Channel::TransportWebsocket,
         ]);
 
         $resolved = app(ChannelDriverRegistry::class)->resolveByChannel($channel);
 
-        $this->assertSame([
-            Channel::ProtocolMcp,
-            Channel::ProtocolA2a,
-            Channel::ProtocolAcp,
-        ], $resolved->supportedProtocols());
+        $this->assertInstanceOf(GenericChannelDriver::class, $resolved);
+        $this->assertSame([Channel::ProtocolGeneric], $resolved->supportedProtocols());
     }
 }

@@ -545,7 +545,7 @@ class OutboundAcpToolsTest extends TestCase
     protected function registerAcpAgentConnection(Thread $thread, string $agentId, array $config = []): void
     {
         $channel = Channel::factory()->create([
-            'driver' => Channel::DriverGeneric,
+            'driver' => Channel::ProtocolAcp,
             'server' => $agentId,
             'name' => $config['label'] ?? ucfirst($agentId).' ACP',
             'label' => $config['label'] ?? ucfirst($agentId).' ACP',
@@ -564,10 +564,7 @@ class OutboundAcpToolsTest extends TestCase
             'kind' => ChannelRelation::KindLink,
             'status' => Channel::StatusActive,
             'direction' => Channel::DirectionOutbound,
-            'config' => [
-                'protocol' => Channel::ProtocolAcp,
-                ...$config,
-            ],
+            'config' => $config,
             'data' => [
                 'agent_id' => $agentId,
             ],

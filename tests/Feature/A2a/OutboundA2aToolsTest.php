@@ -167,7 +167,7 @@ class OutboundA2aToolsTest extends TestCase
     protected function registerA2aAgentConnection(Thread $thread, string $agentId, array $config = []): void
     {
         $channel = Channel::factory()->create([
-            'driver' => Channel::DriverGeneric,
+            'driver' => Channel::ProtocolA2a,
             'server' => $agentId,
             'name' => $config['label'] ?? ucfirst($agentId).' A2A',
             'label' => $config['label'] ?? ucfirst($agentId).' A2A',
@@ -186,10 +186,7 @@ class OutboundA2aToolsTest extends TestCase
             'kind' => ChannelRelation::KindLink,
             'status' => Channel::StatusActive,
             'direction' => Channel::DirectionOutbound,
-            'config' => [
-                'protocol' => Channel::ProtocolA2a,
-                ...$config,
-            ],
+            'config' => $config,
             'data' => [
                 'agent_id' => $agentId,
             ],

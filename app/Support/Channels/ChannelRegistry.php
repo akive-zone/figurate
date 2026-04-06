@@ -19,16 +19,16 @@ class ChannelRegistry
     {
         $this->ensureOwnerSupportsChannels($owner);
 
-        $systemKey = strtolower(trim((string) ($attributes['driver'] ?? $attributes['system'] ?? '')));
+        $protocolKey = strtolower(trim((string) ($attributes['protocol'] ?? $attributes['driver'] ?? $attributes['system'] ?? '')));
         $name = trim((string) ($attributes['name'] ?? ''));
-        $driver = $this->channelDriverRegistry->resolveBySystem($systemKey);
+        $driver = $this->channelDriverRegistry->resolveByProtocol($protocolKey);
         $prepared = $driver->prepareForRegistration($attributes);
         $kind = $this->kindValue($prepared['kind'] ?? null);
 
-        $channel = $this->existingOwnedChannel($owner, $systemKey, $name, $kind)
+        $channel = $this->existingOwnedChannel($owner, $protocolKey, $name, $kind)
             ?? Channel::query()->make();
 
-        $channel->forceFill($this->channelAttributes($prepared, $systemKey, $name))->save();
+        $channel->forceFill($this->channelAttributes($prepared, $protocolKey, $name))->save();
 
         $owner->channelRelations()->updateOrCreate(
             [
@@ -76,10 +76,10 @@ class ChannelRegistry
         }
     }
 
-    protected function existingOwnedChannel(Model $owner, string $system, string $name, string $kind): ?Channel
+    protected function existingOwnedChannel(Model $owner, string $protocol, string $name, string $kind): ?Channel
     {
         return Channel::query()
-            ->where('driver', $system)
+            ->where('driver', $protocol)
             ->where('server', $name)
             ->whereHas('relations', function ($query) use ($owner, $kind): void {
                 $query
@@ -95,16 +95,16 @@ class ChannelRegistry
      * @param  array<string, mixed>  $attributes
      * @return array<string, mixed>
      */
-    protected function channelAttributes(array $attributes, string $system, string $name): array
+    protected function channelAttributes(array $attributes, string $protocol, string $name): array
     {
         return [
             'name' => (string) ($attributes['label'] ?? $name),
-            'driver' => $system,
+            'driver' => $protocol,
             'server' => $name,
             'label' => $attributes['label'] ?? null,
             'enabled' => (bool) ($attributes['enabled'] ?? true),
             'priority' => (int) ($attributes['priority'] ?? 0),
-            'transport' => $attributes['transport'] ?? 'remote',
+            'transport' => $attributes['transport'] ?? null,
             'status' => $attributes['status'] ?? Channel::StatusActive,
             'direction' => $attributes['direction'] ?? Channel::DirectionBidirectional,
             'endpoint_url' => $attributes['endpoint_url'] ?? null,

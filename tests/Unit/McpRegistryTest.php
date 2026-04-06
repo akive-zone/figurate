@@ -17,7 +17,7 @@ class McpRegistryTest extends TestCase
     {
         $user = User::factory()->create();
         $channel = Channel::factory()->create([
-            'driver' => 'websocket',
+            'driver' => Channel::ProtocolMcp,
             'server' => 'filesystem',
             'transport' => 'websocket',
             'endpoint_url' => 'wss://agents.example/mcp',
@@ -30,7 +30,6 @@ class McpRegistryTest extends TestCase
             'status' => Channel::StatusActive,
             'direction' => Channel::DirectionBidirectional,
             'config' => [
-                'protocol' => Channel::ProtocolMcp,
                 'transport' => 'websocket',
                 'mode' => 'remote',
                 'endpoint_url' => 'wss://override.example/mcp',

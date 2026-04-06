@@ -8,7 +8,12 @@ class AcpChannelDriver extends GenericChannelDriver
 {
     public function key(): string
     {
-        return Channel::DriverAcp;
+        return Channel::ProtocolAcp;
+    }
+
+    public function supportedTransports(): array
+    {
+        return [Channel::TransportHttp, Channel::TransportWebsocket, Channel::TransportStdio];
     }
 
     public function supportedProtocols(): array

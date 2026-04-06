@@ -68,8 +68,8 @@ class WebSocketListen extends Command
             return self::FAILURE;
         }
 
-        if ($channel->driver !== 'websocket') {
-            $this->error("Channel must be a WebSocket channel. Found: {$channel->driver}");
+        if ($channel->transportKey() !== Channel::TransportWebsocket) {
+            $this->error('Channel must use the websocket transport.');
 
             return self::FAILURE;
         }
@@ -162,7 +162,8 @@ class WebSocketListen extends Command
         if ($channels->isEmpty()) {
             $this->warn('No WebSocket channels found that require listening.');
             $this->info('Channels must have:');
-            $this->info('  - driver = "websocket"');
+            $this->info('  - protocol = "generic" (or legacy websocket driver)');
+            $this->info('  - transport = "websocket"');
             $this->info('  - endpoint_url configured');
             $this->info('  - enabled = true');
             $this->info('  - direction = "inbound" or "bidirectional"');
@@ -274,8 +275,12 @@ class WebSocketListen extends Command
     protected function getListenableChannels()
     {
         return Channel::query()
-            ->where('driver', 'websocket')
             ->where('enabled', true)
+            ->where(function ($query): void {
+                $query
+                    ->where('driver', Channel::TransportWebsocket)
+                    ->orWhere('transport', Channel::TransportWebsocket);
+            })
             ->whereNotNull('endpoint_url')
             ->whereIn('direction', [Channel::DirectionInbound, Channel::DirectionBidirectional])
             ->orderBy('priority', 'desc')

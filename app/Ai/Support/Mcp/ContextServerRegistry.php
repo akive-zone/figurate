@@ -24,12 +24,12 @@ class ContextServerRegistry
         int $priority = 0
     ): Channel {
         return $this->channelRegistry->register($channelable, [
-            'driver' => Channel::DriverMcp,
+            'protocol' => Channel::ProtocolMcp,
             'name' => $server,
             'label' => $label,
             'enabled' => true,
             'priority' => $priority,
-            'transport' => 'remote',
+            'transport' => Channel::TransportHttp,
             'direction' => Channel::DirectionBidirectional,
             'endpoint_url' => $endpointUrl,
             'allowed_tools' => [],
@@ -38,7 +38,7 @@ class ContextServerRegistry
                 'headers' => $headers,
             ],
             'config' => [
-                'protocol' => Channel::ProtocolMcp,
+                'mode' => 'remote',
             ],
         ]);
     }

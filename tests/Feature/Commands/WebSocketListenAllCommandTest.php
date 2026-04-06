@@ -28,7 +28,8 @@ class WebSocketListenAllCommandTest extends TestCase
     {
         // Create various channels
         $inboundChannel = Channel::factory()->create([
-            'driver' => 'websocket',
+            'driver' => Channel::ProtocolGeneric,
+            'transport' => Channel::TransportWebsocket,
             'name' => 'Inbound Server',
             'direction' => Channel::DirectionInbound,
             'endpoint_url' => 'wss://inbound.example.com',
@@ -36,7 +37,8 @@ class WebSocketListenAllCommandTest extends TestCase
         ]);
 
         $bidirectionalChannel = Channel::factory()->create([
-            'driver' => 'websocket',
+            'driver' => Channel::ProtocolGeneric,
+            'transport' => Channel::TransportWebsocket,
             'name' => 'Bidirectional Server',
             'direction' => Channel::DirectionBidirectional,
             'endpoint_url' => 'wss://bidirectional.example.com',
@@ -45,7 +47,8 @@ class WebSocketListenAllCommandTest extends TestCase
 
         // This should NOT be included (outbound only)
         Channel::factory()->create([
-            'driver' => 'websocket',
+            'driver' => Channel::ProtocolGeneric,
+            'transport' => Channel::TransportWebsocket,
             'name' => 'Outbound Only',
             'direction' => Channel::DirectionOutbound,
             'endpoint_url' => 'wss://outbound.example.com',
@@ -54,7 +57,8 @@ class WebSocketListenAllCommandTest extends TestCase
 
         // This should NOT be included (disabled)
         Channel::factory()->create([
-            'driver' => 'websocket',
+            'driver' => Channel::ProtocolGeneric,
+            'transport' => Channel::TransportWebsocket,
             'direction' => Channel::DirectionInbound,
             'endpoint_url' => 'wss://disabled.example.com',
             'enabled' => false,
@@ -62,7 +66,8 @@ class WebSocketListenAllCommandTest extends TestCase
 
         // This should NOT be included (no endpoint)
         Channel::factory()->create([
-            'driver' => 'websocket',
+            'driver' => Channel::ProtocolGeneric,
+            'transport' => Channel::TransportWebsocket,
             'direction' => Channel::DirectionInbound,
             'endpoint_url' => null,
             'enabled' => true,
@@ -70,7 +75,7 @@ class WebSocketListenAllCommandTest extends TestCase
 
         // Query channels using same logic as command
         $listenable = Channel::query()
-            ->where('driver', 'websocket')
+            ->where('transport', Channel::TransportWebsocket)
             ->where('enabled', true)
             ->whereNotNull('endpoint_url')
             ->whereIn('direction', [Channel::DirectionInbound, Channel::DirectionBidirectional])
@@ -92,19 +97,21 @@ class WebSocketListenAllCommandTest extends TestCase
     public function test_single_channel_requires_websocket_driver(): void
     {
         $channel = Channel::factory()->create([
-            'driver' => 'webhook',  // Not websocket
+            'driver' => Channel::ProtocolGeneric,
+            'transport' => Channel::TransportWebhook,
             'endpoint_url' => 'https://example.com',
         ]);
 
         $this->artisan('websocket:listen', ['--channel' => $channel->uuid])
-            ->expectsOutputToContain('Channel must be a WebSocket channel')
+            ->expectsOutputToContain('Channel must use the websocket transport')
             ->assertFailed();
     }
 
     public function test_single_channel_requires_endpoint_url(): void
     {
         $channel = Channel::factory()->create([
-            'driver' => 'websocket',
+            'driver' => Channel::ProtocolGeneric,
+            'transport' => Channel::TransportWebsocket,
             'endpoint_url' => null,
         ]);
 

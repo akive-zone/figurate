@@ -27,6 +27,26 @@ class Channel extends Model
 
     public const DirectionBidirectional = 'bidirectional';
 
+    public const ProtocolGeneric = 'generic';
+
+    public const ProtocolMcp = 'mcp';
+
+    public const ProtocolA2a = 'a2a';
+
+    public const ProtocolAcp = 'acp';
+
+    public const TransportHttp = 'http';
+
+    public const TransportWebhook = 'webhook';
+
+    public const TransportWebsocket = 'websocket';
+
+    public const TransportWebrtc = 'webrtc';
+
+    public const TransportRelay = 'relay';
+
+    public const TransportStdio = 'stdio';
+
     public const DriverGeneric = 'generic';
 
     public const DriverMcp = 'mcp';
@@ -35,7 +55,7 @@ class Channel extends Model
 
     public const DriverAcp = 'acp';
 
-    public const DriverStdio = 'stdio';
+    public const DriverStdio = self::TransportStdio;
 
     public const SystemGeneric = self::DriverGeneric;
 
@@ -46,12 +66,6 @@ class Channel extends Model
     public const SystemAcp = self::DriverAcp;
 
     public const SystemStdio = self::DriverStdio;
-
-    public const ProtocolMcp = 'mcp';
-
-    public const ProtocolA2a = 'a2a';
-
-    public const ProtocolAcp = 'acp';
 
     /**
      * @var list<string>
@@ -116,5 +130,57 @@ class Channel extends Model
                 'meta',
             ])
             ->withTimestamps();
+    }
+
+    public function protocolKey(): string
+    {
+        $stored = is_string($this->driver) ? strtolower(trim($this->driver)) : '';
+
+        return match ($stored) {
+            self::ProtocolMcp,
+            self::ProtocolA2a,
+            self::ProtocolAcp,
+            self::ProtocolGeneric => $stored,
+            default => self::ProtocolGeneric,
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $connectionConfig
+     */
+    public function transportKey(array $connectionConfig = []): ?string
+    {
+        $configuredTransport = data_get($connectionConfig, 'transport');
+
+        if (is_string($configuredTransport) && trim($configuredTransport) !== '') {
+            $normalizedTransport = strtolower(trim($configuredTransport));
+
+            if (! in_array($normalizedTransport, ['remote', 'local'], true)) {
+                return $normalizedTransport;
+            }
+        }
+
+        if (is_string($this->transport) && trim($this->transport) !== '') {
+            $normalizedTransport = strtolower(trim($this->transport));
+
+            if (! in_array($normalizedTransport, ['remote', 'local'], true)) {
+                return $normalizedTransport;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function supportedProtocols(): array
+    {
+        return [
+            self::ProtocolGeneric,
+            self::ProtocolMcp,
+            self::ProtocolA2a,
+            self::ProtocolAcp,
+        ];
     }
 }
