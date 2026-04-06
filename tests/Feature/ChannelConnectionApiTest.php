@@ -113,4 +113,35 @@ class ChannelConnectionApiTest extends TestCase
                 'config.protocol' => 'The selected protocol is not supported for the [mcp] channel system.',
             ]);
     }
+
+    public function test_it_allows_a2a_connections_for_a2a_channels_without_repeating_the_protocol(): void
+    {
+        $user = User::factory()->create();
+        $channel = Channel::factory()->create([
+            'driver' => Channel::DriverA2a,
+            'server' => 'planner',
+        ]);
+
+        Sanctum::actingAs($user, [TokenAbility::Compose->value]);
+
+        $response = $this->postJson(route('api.channels.connections.store', ['channel' => $channel->id]), [
+            'owner_type' => 'user',
+            'owner_id' => 'me',
+            'direction' => Channel::DirectionOutbound,
+            'transport' => 'websocket',
+            'config' => [
+                'endpoint_url' => 'wss://agents.example/a2a',
+                'allowed_methods' => ['message/send'],
+            ],
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.channel.driver', Channel::DriverA2a)
+            ->assertJsonPath('data.transport', 'websocket');
+
+        $connection = $user->channelRelations()->where('channel_id', $channel->id)->first();
+
+        $this->assertInstanceOf(ChannelRelation::class, $connection);
+        $this->assertSame('websocket', data_get($connection->config, 'transport'));
+    }
 }

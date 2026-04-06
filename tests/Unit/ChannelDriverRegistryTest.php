@@ -4,6 +4,8 @@ namespace Tests\Unit;
 
 use App\Models\Server\Channel;
 use App\Support\Channels\ChannelDriverRegistry;
+use App\Support\Channels\Drivers\A2aChannelDriver;
+use App\Support\Channels\Drivers\AcpChannelDriver;
 use App\Support\Channels\Drivers\GenericChannelDriver;
 use App\Support\Channels\Drivers\McpChannelDriver;
 use App\Support\Channels\Drivers\StdioChannelDriver;
@@ -51,6 +53,30 @@ class ChannelDriverRegistryTest extends TestCase
         $resolved = app(ChannelDriverRegistry::class)->resolveByChannel($channel);
 
         $this->assertInstanceOf(StdioChannelDriver::class, $resolved);
+    }
+
+    public function test_it_resolves_the_a2a_channel_driver(): void
+    {
+        $channel = new Channel([
+            'driver' => Channel::DriverA2a,
+        ]);
+
+        $resolved = app(ChannelDriverRegistry::class)->resolveByChannel($channel);
+
+        $this->assertInstanceOf(A2aChannelDriver::class, $resolved);
+        $this->assertSame([Channel::ProtocolA2a], $resolved->supportedProtocols());
+    }
+
+    public function test_it_resolves_the_acp_channel_driver(): void
+    {
+        $channel = new Channel([
+            'driver' => Channel::DriverAcp,
+        ]);
+
+        $resolved = app(ChannelDriverRegistry::class)->resolveByChannel($channel);
+
+        $this->assertInstanceOf(AcpChannelDriver::class, $resolved);
+        $this->assertSame([Channel::ProtocolAcp], $resolved->supportedProtocols());
     }
 
     public function test_it_exposes_protocol_support_for_websocket_channels(): void

@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Server\Channel;
+use App\Support\Channels\Drivers\A2aChannelDriver;
+use App\Support\Channels\Drivers\AcpChannelDriver;
 use App\Support\Channels\Drivers\GenericChannelDriver;
 use App\Support\Channels\Drivers\McpChannelDriver;
 use App\Support\Channels\Drivers\NostrChannelDriver;
@@ -22,6 +24,8 @@ return [
     'systems' => [
         Channel::DriverGeneric => GenericChannelDriver::class,
         Channel::DriverMcp => McpChannelDriver::class,
+        Channel::DriverA2a => A2aChannelDriver::class,
+        Channel::DriverAcp => AcpChannelDriver::class,
         Channel::DriverStdio => StdioChannelDriver::class,
         'webhook' => WebhookChannelDriver::class,
         'websocket' => WebsocketChannelDriver::class,
@@ -32,6 +36,8 @@ return [
     'drivers' => [
         Channel::DriverGeneric => GenericChannelDriver::class,
         Channel::DriverMcp => McpChannelDriver::class,
+        Channel::DriverA2a => A2aChannelDriver::class,
+        Channel::DriverAcp => AcpChannelDriver::class,
         Channel::DriverStdio => StdioChannelDriver::class,
         'webhook' => WebhookChannelDriver::class,
         'websocket' => WebsocketChannelDriver::class,

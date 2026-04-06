@@ -31,11 +31,19 @@ class Channel extends Model
 
     public const DriverMcp = 'mcp';
 
+    public const DriverA2a = 'a2a';
+
+    public const DriverAcp = 'acp';
+
     public const DriverStdio = 'stdio';
 
     public const SystemGeneric = self::DriverGeneric;
 
     public const SystemMcp = self::DriverMcp;
+
+    public const SystemA2a = self::DriverA2a;
+
+    public const SystemAcp = self::DriverAcp;
 
     public const SystemStdio = self::DriverStdio;
 
