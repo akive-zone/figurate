@@ -6,7 +6,6 @@ use App\Features\Actions\Conversation\EnqueueThreadMessageOutbox;
 use App\Features\Actions\Conversation\Protocols\ChannelProtocol;
 use App\Jobs\DeliverOutboxMessage;
 use App\Models\Server\Channel;
-use App\Models\Server\ChannelRelation;
 use App\Models\Server\Outbox;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
@@ -14,18 +13,19 @@ use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class EnqueueThreadMessageOutboxChannelsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_enqueues_channel_outbox_records_for_active_thread_channel_bindings(): void
+    public function test_it_enqueues_channel_outbox_records_for_active_thread_channel_addresses(): void
     {
         Queue::fake();
+        Storage::fake('public');
 
         $sender = User::factory()->create();
-        $recipient = User::factory()->create();
         $space = Space::factory()->create();
         $thread = $space->threads()->create([
             'purpose' => Thread::PurposeMain,
@@ -39,35 +39,55 @@ class EnqueueThreadMessageOutboxChannelsTest extends TestCase
 
         $thread->channelRelations()->create([
             'channel_id' => $channel->id,
-            'kind' => ChannelRelation::KindBind,
+            'kind' => 'link',
             'status' => 'active',
             'direction' => Channel::DirectionOutbound,
-            'data' => [
-                'actor_id' => $sender->id,
-                'actor_type' => $sender->getMorphClass(),
-                'provider_identifier' => 'internal:user:'.$sender->id,
-                'provider_kind' => 'user',
-                'delivery_scope' => 'in_app',
-                'delivery_mode' => 'realtime',
-                'address' => ['user_id' => $sender->id],
-                'config' => ['route' => 'self'],
-            ],
+            'data' => [],
         ]);
-        $recipientBinding = $thread->channelRelations()->create([
-            'channel_id' => $channel->id,
-            'kind' => ChannelRelation::KindBind,
-            'status' => 'active',
+        $route = $channel->routes()->create([
+            'name' => 'primary',
+            'status' => Channel::StatusActive,
+            'direction' => Channel::DirectionOutbound,
+            'config' => [
+                'outbound' => [
+                    'transport' => Channel::TransportHttp,
+                    'endpoint_url' => 'https://channels.example/send',
+                ],
+            ],
+            'data' => [
+                'session' => 'default',
+            ],
+            'meta' => [],
+        ]);
+        $route->addMediaFromString(<<<'MARKDOWN'
+---
+name: waha-http-send
+description: Shape outbound WAHA HTTP payloads.
+---
+
+# WAHA HTTP Send
+
+Use chatId and text for outbound delivery.
+MARKDOWN)
+            ->usingName('waha-http-send')
+            ->usingFileName('waha-http-send.md')
+            ->withCustomProperties([
+                'skill_slug' => 'waha-http-send',
+                'description' => 'Shape outbound WAHA HTTP payloads.',
+            ])
+            ->toMediaCollection(Channel::SkillCollection, 'public');
+        $address = $route->addresses()->create([
+            'addressable_type' => $thread->getMorphClass(),
+            'addressable_id' => $thread->getKey(),
+            'provider' => 'waha',
+            'target' => '2348012345678@c.us',
+            'target_type' => 'whatsapp_chat',
+            'status' => Channel::StatusActive,
             'direction' => Channel::DirectionOutbound,
             'data' => [
-                'actor_id' => $recipient->id,
-                'actor_type' => $recipient->getMorphClass(),
-                'provider_identifier' => 'internal:user:'.$recipient->id,
-                'provider_kind' => 'user',
-                'delivery_scope' => 'in_app',
-                'delivery_mode' => 'realtime',
-                'address' => ['user_id' => $recipient->id],
-                'config' => ['route' => 'primary'],
+                'phone' => '+2348012345678',
             ],
+            'meta' => [],
         ]);
 
         $post = $thread->posts()->create([
@@ -89,15 +109,17 @@ class EnqueueThreadMessageOutboxChannelsTest extends TestCase
         $outbox = $created->first();
         $this->assertInstanceOf(Outbox::class, $outbox);
         $this->assertSame(ChannelProtocol::Key, $outbox->protocol);
-        $this->assertSame(Channel::ProtocolGeneric, $outbox->provider);
-        $this->assertSame('internal:user:'.$recipient->id, $outbox->target);
+        $this->assertSame('waha', $outbox->provider);
+        $this->assertSame('2348012345678@c.us', $outbox->target);
         $this->assertSame('thread.post.created', data_get($outbox->payload, 'event'));
         $this->assertSame($channel->uuid, data_get($outbox->payload, 'channel.uuid'));
-        $this->assertSame($recipientBinding->id, data_get($outbox->payload, 'binding.id'));
-        $this->assertSame('internal:user:'.$recipient->id, data_get($outbox->payload, 'binding.provider_identifier'));
+        $this->assertSame($route->id, data_get($outbox->payload, 'route.id'));
+        $this->assertSame($address->id, data_get($outbox->payload, 'address.id'));
+        $this->assertSame('2348012345678@c.us', data_get($outbox->payload, 'address.target'));
         $this->assertSame($sender->id, data_get($outbox->payload, 'sender.id'));
-        $this->assertSame($recipient->id, data_get($outbox->payload, 'recipients.0.actor_id'));
-        $this->assertSame('primary', data_get($outbox->payload, 'delivery.binding.config.route'));
+        $this->assertSame('2348012345678@c.us', data_get($outbox->payload, 'recipients.0.target'));
+        $this->assertSame('https://channels.example/send', data_get($outbox->payload, 'delivery.route.config.outbound.endpoint_url'));
+        $this->assertSame('waha-http-send', data_get($outbox->payload, 'delivery.skill_context.entries.0.slug'));
 
         Queue::assertPushed(DeliverOutboxMessage::class, function (DeliverOutboxMessage $job) use ($outbox): bool {
             return $job->outboxId === $outbox->id;

@@ -11,6 +11,7 @@ use App\Models\Server\ChannelRoute;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
+use App\Support\Channels\ChannelAccess;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,6 +19,10 @@ use Illuminate\Support\Facades\Gate;
 
 class ChannelAddressController extends Controller
 {
+    public function __construct(
+        protected ChannelAccess $channelAccess,
+    ) {}
+
     public function index(Request $request, int $channel, int $route): JsonResponse
     {
         /** @var User $actor */
@@ -197,19 +202,7 @@ class ChannelAddressController extends Controller
 
     protected function canManageChannel(User $actor, Channel $channel): bool
     {
-        $relation = $channel->relations()->latest('id')->first();
-        $owner = $relation?->relationable;
-
-        if (! $owner instanceof Model) {
-            return false;
-        }
-
-        return match (true) {
-            $owner instanceof User => $owner->id === $actor->id,
-            $owner instanceof Space => Gate::forUser($actor)->check('view', $owner),
-            $owner instanceof Thread => Gate::forUser($actor)->check('view', $owner),
-            default => false,
-        };
+        return $this->channelAccess->canManage($actor, $channel);
     }
 
     protected function publicIdentifier(Model $model): mixed

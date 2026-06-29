@@ -49,26 +49,26 @@ class GenericChannelDriver implements ChannelDriver
     }
 
     /**
-     * @param  array<string, mixed>  $bindingConfig
+     * @param  array<string, mixed>  $deliveryConfig
      * @return array<string, mixed>
      */
-    public function send(Channel $channel, Thread $thread, Post $message, array $bindingConfig = []): array
+    public function send(Channel $channel, Thread $thread, Post $message, array $deliveryConfig = []): array
     {
-        $transport = $this->resolveTransport($channel, $bindingConfig);
+        $transport = $this->resolveTransport($channel, $deliveryConfig);
 
         if (in_array($transport, ['http', 'webhook'], true)) {
-            return $this->sendViaHttp($channel, $thread, $message, $bindingConfig);
+            return $this->sendViaHttp($channel, $thread, $message, $deliveryConfig);
         }
 
-        $outboundPayload = is_array($bindingConfig['outbound_payload'] ?? null)
-            ? $bindingConfig['outbound_payload']
-            : $this->fallbackOutboundPayload($channel, $thread, $message, $bindingConfig);
+        $outboundPayload = is_array($deliveryConfig['outbound_payload'] ?? null)
+            ? $deliveryConfig['outbound_payload']
+            : $this->fallbackOutboundPayload($channel, $thread, $message, $deliveryConfig);
 
         return [
             'status' => 'queued',
             'provider' => $channel->driver,
             'provider_message_id' => (string) Str::uuid(),
-            'provider_identifier' => $bindingConfig['provider_identifier'] ?? null,
+            'provider_identifier' => data_get($deliveryConfig, 'address.target') ?? data_get($deliveryConfig, 'target'),
             'thread_uuid' => $thread->uuid,
             'message_id' => $message->id,
             'payload' => $outboundPayload,
@@ -77,21 +77,23 @@ class GenericChannelDriver implements ChannelDriver
     }
 
     /**
-     * @param  array<string, mixed>  $bindingConfig
+     * @param  array<string, mixed>  $deliveryConfig
      * @return array<string, mixed>
      */
-    protected function sendViaHttp(Channel $channel, Thread $thread, Post $message, array $bindingConfig): array
+    protected function sendViaHttp(Channel $channel, Thread $thread, Post $message, array $deliveryConfig): array
     {
         $transport = app(WebhookTransport::class);
 
-        return $transport->deliver($channel, $thread, $message, $bindingConfig);
+        return $transport->deliver($channel, $thread, $message, $deliveryConfig);
     }
 
-    protected function resolveTransport(Channel $channel, array $bindingConfig): string
+    protected function resolveTransport(Channel $channel, array $deliveryConfig): string
     {
-        $bindingTransport = data_get($bindingConfig, 'delivery.binding.config.transport')
-            ?? data_get($bindingConfig, 'config.transport')
-            ?? data_get($bindingConfig, 'transport');
+        $bindingTransport = data_get($deliveryConfig, 'route.config.outbound.transport')
+            ?? data_get($deliveryConfig, 'route.config.transport')
+            ?? data_get($deliveryConfig, 'config.outbound.transport')
+            ?? data_get($deliveryConfig, 'config.transport')
+            ?? data_get($deliveryConfig, 'transport');
 
         if (is_string($bindingTransport) && trim($bindingTransport) !== '') {
             return strtolower(trim($bindingTransport));
@@ -110,13 +112,27 @@ class GenericChannelDriver implements ChannelDriver
      */
     public function normalizeInbound(Channel $channel, array $payload): array
     {
+        $providerIdentifier = $payload['provider_identifier']
+            ?? $payload['chat_id']
+            ?? $payload['chatId']
+            ?? $payload['target']
+            ?? $payload['thread_id']
+            ?? $payload['threadUuid']
+            ?? null;
+
         return [
-            'provider' => $channel->driver,
+            'provider' => is_string($payload['provider'] ?? null) ? strtolower(trim((string) $payload['provider'])) : $channel->driver,
             'channel_uuid' => $channel->uuid,
-            'provider_message_id' => $payload['provider_message_id'] ?? null,
-            'provider_identifier' => $payload['provider_identifier'] ?? null,
-            'sender' => $payload['sender'] ?? null,
-            'text' => is_string($payload['text'] ?? null) ? $payload['text'] : '',
+            'provider_message_id' => $payload['provider_message_id'] ?? data_get($payload, 'message.id') ?? ($payload['id'] ?? null),
+            'provider_identifier' => is_string($providerIdentifier) ? trim($providerIdentifier) : null,
+            'target' => is_string($providerIdentifier) ? trim($providerIdentifier) : null,
+            'target_type' => is_string($payload['target_type'] ?? null) ? trim((string) $payload['target_type']) : null,
+            'sender' => $payload['sender'] ?? $payload['from'] ?? $payload['actor'] ?? null,
+            'text' => is_string($payload['text'] ?? null)
+                ? $payload['text']
+                : (is_string($payload['message'] ?? null)
+                    ? $payload['message']
+                    : (is_string($payload['content'] ?? null) ? $payload['content'] : (is_string(data_get($payload, 'message.text')) ? data_get($payload, 'message.text') : ''))),
             'raw' => $payload,
         ];
     }
@@ -139,10 +155,10 @@ class GenericChannelDriver implements ChannelDriver
     }
 
     /**
-     * @param  array<string, mixed>  $bindingConfig
+     * @param  array<string, mixed>  $deliveryConfig
      * @return array<string, mixed>
      */
-    protected function fallbackOutboundPayload(Channel $channel, Thread $thread, Post $message, array $bindingConfig): array
+    protected function fallbackOutboundPayload(Channel $channel, Thread $thread, Post $message, array $deliveryConfig): array
     {
         return [
             'event' => 'thread.post.created',
@@ -153,8 +169,8 @@ class GenericChannelDriver implements ChannelDriver
                 'driver' => $channel->driver,
                 'name' => $channel->name,
             ],
-            'binding' => [
-                'provider_identifier' => $bindingConfig['provider_identifier'] ?? null,
+            'address' => [
+                'provider_identifier' => data_get($deliveryConfig, 'address.target') ?? data_get($deliveryConfig, 'target'),
             ],
             'thread' => [
                 'id' => $thread->id,

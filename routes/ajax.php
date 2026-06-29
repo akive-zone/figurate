@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\ChannelAddressController;
 use App\Http\Controllers\Api\ChannelConnectionController;
 use App\Http\Controllers\Api\ChannelController;
 use App\Http\Controllers\Api\ChannelRouteController;
+use App\Http\Controllers\Api\ChannelSkillMediaController;
 use App\Http\Controllers\Api\FormController;
 use App\Http\Controllers\Api\GraphEdgeController;
 use App\Http\Controllers\Api\RobotUserController;
@@ -73,6 +74,7 @@ Route::prefix('channels')->middleware(['auth:sanctum,passport'])->group(function
     Route::post('/', [ChannelController::class, 'store'])->name('api.channels.store');
     Route::patch('/{channel}', [ChannelController::class, 'update'])->name('api.channels.update');
     Route::delete('/{channel}', [ChannelController::class, 'destroy'])->name('api.channels.destroy');
+    Route::post('/{channel}/skills', [ChannelSkillMediaController::class, 'storeForChannel'])->name('api.channels.skills.store');
     Route::get('/{channel}/connections', [ChannelConnectionController::class, 'index'])->name('api.channels.connections.index');
     Route::post('/{channel}/connections', [ChannelConnectionController::class, 'store'])->name('api.channels.connections.store');
     Route::patch('/{channel}/connections/{connection}', [ChannelConnectionController::class, 'update'])->name('api.channels.connections.update');
@@ -81,8 +83,10 @@ Route::prefix('channels')->middleware(['auth:sanctum,passport'])->group(function
     Route::post('/{channel}/routes', [ChannelRouteController::class, 'store'])->name('api.channels.routes.store');
     Route::patch('/{channel}/routes/{route}', [ChannelRouteController::class, 'update'])->name('api.channels.routes.update');
     Route::delete('/{channel}/routes/{route}', [ChannelRouteController::class, 'destroy'])->name('api.channels.routes.destroy');
+    Route::post('/{channel}/routes/{route}/skills', [ChannelSkillMediaController::class, 'storeForRoute'])->name('api.channels.routes.skills.store');
     Route::get('/{channel}/routes/{route}/addresses', [ChannelAddressController::class, 'index'])->name('api.channels.routes.addresses.index');
     Route::post('/{channel}/routes/{route}/addresses', [ChannelAddressController::class, 'store'])->name('api.channels.routes.addresses.store');
     Route::patch('/{channel}/routes/{route}/addresses/{address}', [ChannelAddressController::class, 'update'])->name('api.channels.routes.addresses.update');
     Route::delete('/{channel}/routes/{route}/addresses/{address}', [ChannelAddressController::class, 'destroy'])->name('api.channels.routes.addresses.destroy');
+    Route::post('/{channel}/routes/{route}/addresses/{address}/skills', [ChannelSkillMediaController::class, 'storeForAddress'])->name('api.channels.routes.addresses.skills.store');
 });

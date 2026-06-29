@@ -1,5 +1,15 @@
 <?php
 
+use App\Jobs\ProcessInboundA2aPushWebhookJob;
+use App\Jobs\ProcessInboundChannelRouteWebhookJob;
+use App\Jobs\ProcessInboundMessageWebhookJob;
+use App\Support\Webhooks\A2aPushSignatureValidator;
+use App\Support\Webhooks\ChannelRouteSignatureValidator;
+use Spatie\WebhookClient\Models\WebhookCall;
+use Spatie\WebhookClient\SignatureValidator\DefaultSignatureValidator;
+use Spatie\WebhookClient\WebhookProfile\ProcessEverythingWebhookProfile;
+use Spatie\WebhookClient\WebhookResponse\DefaultRespondsTo;
+
 return [
     'configs' => [
         [
@@ -25,23 +35,23 @@ return [
              *
              * It should implement \Spatie\WebhookClient\SignatureValidator\SignatureValidator
              */
-            'signature_validator' => \Spatie\WebhookClient\SignatureValidator\DefaultSignatureValidator::class,
+            'signature_validator' => DefaultSignatureValidator::class,
 
             /*
              * This class determines if the webhook call should be stored and processed.
              */
-            'webhook_profile' => \Spatie\WebhookClient\WebhookProfile\ProcessEverythingWebhookProfile::class,
+            'webhook_profile' => ProcessEverythingWebhookProfile::class,
 
             /*
              * This class determines the response on a valid webhook call.
              */
-            'webhook_response' => \Spatie\WebhookClient\WebhookResponse\DefaultRespondsTo::class,
+            'webhook_response' => DefaultRespondsTo::class,
 
             /*
              * The classname of the model to be used to store webhook calls. The class should
              * be equal or extend Spatie\WebhookClient\Models\WebhookCall.
              */
-            'webhook_model' => \Spatie\WebhookClient\Models\WebhookCall::class,
+            'webhook_model' => WebhookCall::class,
 
             /*
              * In this array, you can pass the headers that should be stored on
@@ -58,18 +68,29 @@ return [
              *
              * This should be set to a class that extends \Spatie\WebhookClient\Jobs\ProcessWebhookJob.
              */
-            'process_webhook_job' => '',
+            'process_webhook_job' => ProcessInboundMessageWebhookJob::class,
         ],
         [
             'name' => 'a2a_push',
             'signing_secret' => env('A2A_PUSH_INBOUND_SECRET', env('WEBHOOK_CLIENT_SECRET')),
             'signature_header_name' => 'Signature',
-            'signature_validator' => \App\Support\Webhooks\A2aPushSignatureValidator::class,
-            'webhook_profile' => \Spatie\WebhookClient\WebhookProfile\ProcessEverythingWebhookProfile::class,
-            'webhook_response' => \Spatie\WebhookClient\WebhookResponse\DefaultRespondsTo::class,
-            'webhook_model' => \Spatie\WebhookClient\Models\WebhookCall::class,
+            'signature_validator' => A2aPushSignatureValidator::class,
+            'webhook_profile' => ProcessEverythingWebhookProfile::class,
+            'webhook_response' => DefaultRespondsTo::class,
+            'webhook_model' => WebhookCall::class,
             'store_headers' => ['*'],
-            'process_webhook_job' => \App\Jobs\ProcessInboundA2aPushWebhookJob::class,
+            'process_webhook_job' => ProcessInboundA2aPushWebhookJob::class,
+        ],
+        [
+            'name' => 'channel_route_inbound',
+            'signing_secret' => env('CHANNEL_ROUTE_INBOUND_SECRET', 'channel-route-inbound'),
+            'signature_header_name' => 'X-Channel-Key',
+            'signature_validator' => ChannelRouteSignatureValidator::class,
+            'webhook_profile' => ProcessEverythingWebhookProfile::class,
+            'webhook_response' => DefaultRespondsTo::class,
+            'webhook_model' => WebhookCall::class,
+            'store_headers' => ['*'],
+            'process_webhook_job' => ProcessInboundChannelRouteWebhookJob::class,
         ],
     ],
 

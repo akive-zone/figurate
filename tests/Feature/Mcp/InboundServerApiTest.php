@@ -33,7 +33,8 @@ class InboundServerApiTest extends TestCase
             ->assertJsonPath('data.protocol', Channel::ProtocolGeneric)
             ->assertJsonPath('data.transport', Channel::TransportWebhook)
             ->assertJsonPath('data.name', 'inbound-webhook')
-            ->assertJsonPath('data.owner.type', 'user');
+            ->assertJsonPath('owner.type', 'user')
+            ->assertJsonPath('data.space.id', fn (mixed $value): bool => is_string($value) && $value !== '');
 
         $this->assertDatabaseHas('channels', [
             'driver' => Channel::ProtocolGeneric,

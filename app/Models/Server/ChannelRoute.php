@@ -7,11 +7,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
-class ChannelRoute extends Model
+class ChannelRoute extends Model implements HasMedia
 {
     /** @use HasFactory<ChannelRouteFactory> */
-    use HasFactory;
+    use HasFactory, InteractsWithMedia;
 
     /**
      * @var list<string>
@@ -47,5 +49,10 @@ class ChannelRoute extends Model
     public function addresses(): HasMany
     {
         return $this->hasMany(ChannelAddress::class);
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection(Channel::SkillCollection);
     }
 }

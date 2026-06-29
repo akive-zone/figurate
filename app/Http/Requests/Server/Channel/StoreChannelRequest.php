@@ -24,6 +24,7 @@ class StoreChannelRequest extends FormRequest
         return [
             'owner_type' => ['required', 'string', 'in:user,space,thread'],
             'owner_id' => ['nullable', 'string'],
+            'space_id' => ['nullable', 'string'],
             'protocol' => ['nullable', 'string', 'max:40'],
             'system' => ['nullable', 'string', 'max:40'],
             'driver' => ['nullable', 'string', 'max:40'],
@@ -58,6 +59,7 @@ class StoreChannelRequest extends FormRequest
     {
         $ownerType = $this->input('owner_type', $this->input('context_type'));
         $ownerId = $this->input('owner_id', $this->input('context_id'));
+        $spaceId = $this->input('space_id', $this->input('space'));
         $name = $this->input('name', $this->input('server'));
         $protocol = $this->input('protocol', $this->input('driver', $this->input('system')));
         $transport = $this->input('transport');
@@ -73,6 +75,7 @@ class StoreChannelRequest extends FormRequest
         $this->merge([
             'owner_type' => $ownerType,
             'owner_id' => $ownerId,
+            'space_id' => $spaceId,
             'name' => $name,
             'protocol' => $protocol,
             'system' => $protocol,

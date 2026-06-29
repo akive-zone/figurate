@@ -58,11 +58,20 @@ class ChannelOutboundMessageSenderTest extends TestCase
                 'channel' => [
                     'uuid' => $channel->uuid,
                 ],
-                'binding' => [
+                'route' => [
                     'id' => 21,
-                    'provider_identifier' => 'provider-thread-123',
-                    'provider_kind' => 'user',
-                    'delivery_scope' => 'in_app',
+                    'name' => 'primary',
+                    'config' => [
+                        'outbound' => [
+                            'transport' => Channel::TransportHttp,
+                            'endpoint_url' => 'https://channels.example/send',
+                        ],
+                    ],
+                ],
+                'address' => [
+                    'id' => 34,
+                    'provider' => Channel::ProtocolGeneric,
+                    'target' => 'provider-thread-123',
                 ],
                 'thread' => [
                     'uuid' => $thread->uuid,
@@ -76,15 +85,26 @@ class ChannelOutboundMessageSenderTest extends TestCase
                     'type' => $sender->getMorphClass(),
                 ],
                 'recipients' => [[
-                    'actor_id' => 22,
-                    'provider_identifier' => 'provider-thread-123',
+                    'target' => 'provider-thread-123',
                 ]],
                 'delivery' => [
+                    'provider' => Channel::ProtocolGeneric,
+                    'target' => 'provider-thread-123',
                     'channel' => [
                         'uuid' => $channel->uuid,
                     ],
-                    'binding' => [
-                        'provider_identifier' => 'provider-thread-123',
+                    'route' => [
+                        'id' => 21,
+                        'config' => [
+                            'outbound' => [
+                                'transport' => Channel::TransportHttp,
+                                'endpoint_url' => 'https://channels.example/send',
+                            ],
+                        ],
+                    ],
+                    'address' => [
+                        'id' => 34,
+                        'target' => 'provider-thread-123',
                     ],
                 ],
             ],
@@ -100,6 +120,6 @@ class ChannelOutboundMessageSenderTest extends TestCase
         $this->assertSame('provider-thread-123', data_get($result, 'channel_result.provider_identifier'));
         $this->assertSame('thread.post.created', data_get($result, 'channel_result.payload.event'));
         $this->assertSame($sender->id, data_get($result, 'channel_result.payload.sender.id'));
-        $this->assertSame('provider-thread-123', data_get($result, 'channel_result.payload.recipients.0.provider_identifier'));
+        $this->assertSame('provider-thread-123', data_get($result, 'channel_result.payload.recipients.0.target'));
     }
 }

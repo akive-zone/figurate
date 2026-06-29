@@ -9,8 +9,10 @@ use App\Models\Server\Channel;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
+use App\Support\Channels\ChannelAccess;
 use App\Support\Channels\ChannelDriverRegistry;
 use App\Support\Channels\ChannelRegistry;
+use App\Support\Channels\ChannelSpaceContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,6 +22,8 @@ class ChannelController extends Controller
 {
     public function __construct(
         protected ChannelDriverRegistry $channelDriverRegistry,
+        protected ChannelAccess $channelAccess,
+        protected ChannelSpaceContext $channelSpaceContext,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -123,12 +127,23 @@ class ChannelController extends Controller
             $actor,
         );
         $channel = $channelRegistry->register($owner, $validated);
+        $space = $this->channelSpaceContext->resolve(
+            actor: $actor,
+            channel: $channel,
+            ownerType: $ownerType,
+            owner: $owner,
+            spaceId: is_string($validated['space_id'] ?? null) ? $validated['space_id'] : null,
+        );
 
         return response()->json([
             'data' => $this->mapChannel($channel),
             'owner' => [
                 'type' => $ownerType,
                 'id' => $this->publicIdentifier($owner),
+            ],
+            'space' => [
+                'id' => $this->publicIdentifier($space),
+                'status' => $space->status,
             ],
         ], 201);
     }
@@ -207,18 +222,7 @@ class ChannelController extends Controller
 
     protected function canManageChannel(User $actor, Channel $channel): bool
     {
-        $owner = $this->resolveOwnerContext($channel);
-
-        if (! $owner instanceof Model) {
-            return false;
-        }
-
-        return match (true) {
-            $owner instanceof User => $owner->id === $actor->id,
-            $owner instanceof Space => Gate::forUser($actor)->check('view', $owner),
-            $owner instanceof Thread => Gate::forUser($actor)->check('view', $owner),
-            default => false,
-        };
+        return $this->channelAccess->canManage($actor, $channel);
     }
 
     /**
@@ -227,6 +231,7 @@ class ChannelController extends Controller
     protected function mapChannel(Channel $channel): array
     {
         $owner = $this->resolveOwnerContext($channel);
+        $space = $this->resolveSpaceContext($channel, $owner);
         $ownerType = $owner instanceof Model ? strtolower(class_basename($owner)) : null;
         $relation = $channel->relations()
             ->latest('id')
@@ -257,6 +262,10 @@ class ChannelController extends Controller
                 'type' => $ownerType,
                 'id' => $owner instanceof Model ? $this->publicIdentifier($owner) : null,
             ],
+            'space' => [
+                'id' => $space instanceof Space ? $this->publicIdentifier($space) : null,
+                'status' => $space instanceof Space ? $space->status : null,
+            ],
             'created_at' => optional($channel->created_at)?->toIso8601String(),
             'updated_at' => optional($channel->updated_at)?->toIso8601String(),
         ];
@@ -271,6 +280,29 @@ class ChannelController extends Controller
         $relationable = $ownerRelation?->relationable;
 
         return $relationable instanceof Model ? $relationable : null;
+    }
+
+    protected function resolveSpaceContext(Channel $channel, ?Model $owner = null): ?Space
+    {
+        if ($owner instanceof Space) {
+            return $owner;
+        }
+
+        if ($owner instanceof Thread) {
+            $threadable = $owner->relationLoaded('threadable') ? $owner->threadable : $owner->threadable()->first();
+
+            if ($threadable instanceof Space) {
+                return $threadable;
+            }
+        }
+
+        $spaceRelation = $channel->relations()
+            ->where('relationable_type', (new Space)->getMorphClass())
+            ->latest('id')
+            ->first();
+        $relationable = $spaceRelation?->relationable;
+
+        return $relationable instanceof Space ? $relationable : null;
     }
 
     protected function publicIdentifier(Model $model): mixed

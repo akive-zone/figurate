@@ -7,16 +7,21 @@ use App\Http\Requests\Server\Channel\StoreChannelRouteRequest;
 use App\Http\Requests\Server\Channel\UpdateChannelRouteRequest;
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelRoute;
-use App\Models\Server\Space;
-use App\Models\Server\Thread;
 use App\Models\Server\User;
-use Illuminate\Database\Eloquent\Model;
+use App\Support\Channels\ChannelAccess;
+use App\Support\Channels\ChannelRouteIngress;
+use App\Support\Channels\ChannelSkillContextResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 
 class ChannelRouteController extends Controller
 {
+    public function __construct(
+        protected ChannelAccess $channelAccess,
+        protected ChannelRouteIngress $channelRouteIngress,
+        protected ChannelSkillContextResolver $channelSkillContextResolver,
+    ) {}
+
     public function index(Request $request, int $channel): JsonResponse
     {
         /** @var User $actor */
@@ -113,6 +118,13 @@ class ChannelRouteController extends Controller
             'config' => is_array($route->config) ? $route->config : [],
             'data' => is_array($route->data) ? $route->data : [],
             'meta' => is_array($route->meta) ? $route->meta : [],
+            'skills' => $this->channelSkillContextResolver->summary($channel, $route),
+            'inbound' => $this->channelRouteIngress->descriptor($route),
+            'outbound' => [
+                'enabled' => in_array($this->normalizeDirection($route->direction), [Channel::DirectionOutbound, Channel::DirectionBidirectional], true),
+                'transport' => $this->normalizedTransport(data_get($route->config, 'outbound.transport') ?? data_get($route->config, 'transport')),
+                'endpoint_url' => $this->stringValue(data_get($route->config, 'outbound.endpoint_url') ?? data_get($route->config, 'endpoint_url')),
+            ],
             'addresses_count' => $route->addresses()->count(),
             'created_at' => optional($route->created_at)?->toIso8601String(),
             'updated_at' => optional($route->updated_at)?->toIso8601String(),
@@ -121,19 +133,7 @@ class ChannelRouteController extends Controller
 
     protected function canManageChannel(User $actor, Channel $channel): bool
     {
-        $relation = $channel->relations()->latest('id')->first();
-        $owner = $relation?->relationable;
-
-        if (! $owner instanceof Model) {
-            return false;
-        }
-
-        return match (true) {
-            $owner instanceof User => $owner->id === $actor->id,
-            $owner instanceof Space => Gate::forUser($actor)->check('view', $owner),
-            $owner instanceof Thread => Gate::forUser($actor)->check('view', $owner),
-            default => false,
-        };
+        return $this->channelAccess->canManage($actor, $channel);
     }
 
     protected function stringValue(mixed $value): ?string
@@ -145,5 +145,22 @@ class ChannelRouteController extends Controller
         $trimmed = trim($value);
 
         return $trimmed !== '' ? $trimmed : null;
+    }
+
+    protected function normalizedTransport(mixed $value): ?string
+    {
+        $transport = $this->stringValue($value);
+
+        return $transport !== null ? strtolower($transport) : null;
+    }
+
+    protected function normalizeDirection(mixed $value): string
+    {
+        $direction = $this->stringValue($value);
+        $direction = $direction !== null ? strtolower($direction) : null;
+
+        return in_array($direction, [Channel::DirectionInbound, Channel::DirectionOutbound, Channel::DirectionBidirectional], true)
+            ? $direction
+            : Channel::DirectionBidirectional;
     }
 }

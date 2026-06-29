@@ -5,18 +5,24 @@ namespace App\Features\Actions\Conversation;
 use App\Features\Actions\Conversation\Protocols\ChannelProtocol;
 use App\Jobs\DeliverOutboxMessage;
 use App\Models\Server\Channel;
-use App\Models\Server\ChannelRelation;
+use App\Models\Server\ChannelAddress;
+use App\Models\Server\ChannelRoute;
 use App\Models\Server\Outbox;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
+use App\Support\Channels\ChannelSkillContextResolver;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Support\Collection;
 
 class EnqueueThreadMessageOutbox
 {
+    public function __construct(
+        protected ChannelSkillContextResolver $channelSkillContextResolver,
+    ) {}
+
     /**
      * @return Collection<int, Outbox>
      */
@@ -160,13 +166,15 @@ class EnqueueThreadMessageOutbox
             })
             ->values();
 
-        $channelTargets = $thread->channelRelations()
-            ->with('channel')
-            ->where('kind', ChannelRelation::KindBind)
-            ->where('status', Channel::StatusActive)
-            ->get()
-            ->map(function (ChannelRelation $binding) use ($post, $sender, $thread): ?array {
-                $channel = $binding->channel;
+        $channelTargets = $this->resolveChannelAddresses($thread)
+            ->map(function (ChannelAddress $address) use ($post, $sender, $thread): ?array {
+                $route = $address->route;
+
+                if (! $route instanceof ChannelRoute) {
+                    return null;
+                }
+
+                $channel = $route->channel;
 
                 if (! $channel instanceof Channel) {
                     return null;
@@ -176,38 +184,56 @@ class EnqueueThreadMessageOutbox
                     return null;
                 }
 
-                $bindingDirection = $this->normalizedDirection($binding->direction);
-                $channelDirection = $this->normalizedDirection($channel->direction);
-
-                if (! in_array($bindingDirection, [Channel::DirectionOutbound, Channel::DirectionBidirectional], true)) {
+                if (! in_array($route->status, [Channel::StatusActive, null], true)) {
                     return null;
                 }
+
+                if (! in_array($address->status, [Channel::StatusActive, null], true)) {
+                    return null;
+                }
+
+                $channelDirection = $this->normalizedDirection($channel->direction);
+                $routeDirection = $this->normalizedDirection($route->direction);
+                $addressDirection = $this->normalizedDirection($address->direction);
 
                 if (! in_array($channelDirection, [Channel::DirectionOutbound, Channel::DirectionBidirectional], true)) {
                     return null;
                 }
 
-                $bindingData = $this->arrayValue($binding->data);
-
-                if ($this->bindingTargetsSender($bindingData, $sender)) {
+                if (! in_array($routeDirection, [Channel::DirectionOutbound, Channel::DirectionBidirectional], true)) {
                     return null;
                 }
 
-                $providerIdentifier = $this->normalizedTarget(data_get($bindingData, 'provider_identifier'));
-                $config = $this->arrayValue(data_get($bindingData, 'config'));
-                $bindingActorId = $this->normalizedScalar(data_get($bindingData, 'actor_id'));
-                $bindingActorType = $this->normalizedString(data_get($bindingData, 'actor_type'));
-                $bindingProviderKind = $this->normalizedString(data_get($bindingData, 'provider_kind'));
-                $deliveryScope = $this->normalizedString(data_get($bindingData, 'delivery_scope'));
-                $deliveryMode = $this->normalizedString(data_get($bindingData, 'delivery_mode'));
-                $address = $this->arrayValue(data_get($bindingData, 'address'));
-                $preferences = $this->arrayValue(data_get($bindingData, 'preferences'));
+                if (! in_array($addressDirection, [Channel::DirectionOutbound, Channel::DirectionBidirectional], true)) {
+                    return null;
+                }
+
+                if ($this->addressTargetsSender($address, $sender)) {
+                    return null;
+                }
+
+                $routeConfig = $this->arrayValue($route->config);
+                $routeData = $this->arrayValue($route->data);
+                $routeMeta = $this->arrayValue($route->meta);
+                $addressData = $this->arrayValue($address->data);
+                $addressMeta = $this->arrayValue($address->meta);
+                $target = $this->normalizedTarget($address->target);
+
+                if ($target === null) {
+                    return null;
+                }
+
+                $provider = $this->normalizedProvider($address->provider)
+                    ?? $this->normalizedProvider($channel->driver)
+                    ?? Channel::ProtocolGeneric;
+                $addressable = $address->addressable;
+                $skillContext = $this->channelSkillContextResolver->resolve($channel, $route, $address);
 
                 return [
                     'protocol' => ChannelProtocol::Key,
-                    'provider' => $this->normalizedProvider($channel->driver) ?? Channel::ProtocolGeneric,
-                    'target' => $providerIdentifier ?? $channel->uuid,
-                    'route_key' => 'channel_binding:'.$binding->id,
+                    'provider' => $provider,
+                    'target' => $target,
+                    'route_key' => 'channel_address:'.$address->id,
                     'payload' => [
                         'event' => 'thread.post.created',
                         'occurred_at' => optional($post->occurred_at ?? $post->created_at)?->toIso8601String(),
@@ -219,22 +245,30 @@ class EnqueueThreadMessageOutbox
                             'direction' => $channelDirection,
                             'status' => $channel->status,
                         ],
-                        'binding' => [
-                            'id' => $binding->id,
-                            'kind' => $binding->kind,
-                            'status' => $binding->status,
-                            'direction' => $bindingDirection,
-                            'provider_identifier' => $providerIdentifier,
-                            'provider_kind' => $bindingProviderKind,
-                            'delivery_scope' => $deliveryScope,
-                            'delivery_mode' => $deliveryMode,
-                            'actor_id' => $bindingActorId,
-                            'actor_type' => $bindingActorType,
-                            'address' => $address,
-                            'preferences' => $preferences,
-                            'config' => $config,
-                            'data' => $bindingData,
-                            'meta' => is_array($binding->meta) ? $binding->meta : [],
+                        'route' => [
+                            'id' => $route->id,
+                            'name' => $route->name,
+                            'label' => $route->label,
+                            'status' => $route->status,
+                            'direction' => $routeDirection,
+                            'config' => $routeConfig,
+                            'data' => $routeData,
+                            'meta' => $routeMeta,
+                        ],
+                        'address' => [
+                            'id' => $address->id,
+                            'label' => $address->label,
+                            'provider' => $provider,
+                            'target' => $target,
+                            'target_type' => $address->target_type,
+                            'status' => $address->status,
+                            'direction' => $addressDirection,
+                            'addressable' => [
+                                'type' => $addressable instanceof EloquentModel ? strtolower(class_basename($addressable)) : null,
+                                'id' => $addressable instanceof EloquentModel ? $this->publicIdentifier($addressable) : null,
+                            ],
+                            'data' => $addressData,
+                            'meta' => $addressMeta,
                         ],
                         'thread' => [
                             'id' => $thread->id,
@@ -258,30 +292,36 @@ class EnqueueThreadMessageOutbox
                         ],
                         'sender' => $this->senderPayload($sender),
                         'recipients' => [[
-                            'actor_id' => $bindingActorId,
-                            'actor_type' => $bindingActorType,
-                            'provider_identifier' => $providerIdentifier,
-                            'provider_kind' => $bindingProviderKind,
-                            'delivery_scope' => $deliveryScope,
-                            'delivery_mode' => $deliveryMode,
-                            'address' => $address,
+                            'address_id' => $address->id,
+                            'provider' => $provider,
+                            'target' => $target,
+                            'target_type' => $address->target_type,
                         ]],
                         'delivery' => [
-                            'provider' => $this->normalizedProvider($channel->driver) ?? Channel::ProtocolGeneric,
-                            'target' => $providerIdentifier ?? $channel->uuid,
+                            'provider' => $provider,
+                            'target' => $target,
                             'channel' => [
                                 'id' => $channel->id,
                                 'uuid' => $channel->uuid,
                                 'driver' => $channel->driver,
                             ],
-                            'binding' => [
-                                'id' => $binding->id,
-                                'provider_identifier' => $providerIdentifier,
-                                'direction' => $bindingDirection,
-                                'status' => $binding->status,
-                                'config' => $config,
-                                'kind' => $binding->kind,
+                            'route' => [
+                                'id' => $route->id,
+                                'name' => $route->name,
+                                'direction' => $routeDirection,
+                                'status' => $route->status,
+                                'config' => $routeConfig,
                             ],
+                            'address' => [
+                                'id' => $address->id,
+                                'direction' => $addressDirection,
+                                'status' => $address->status,
+                                'provider' => $provider,
+                                'target' => $target,
+                                'target_type' => $address->target_type,
+                                'data' => $addressData,
+                            ],
+                            'skill_context' => $skillContext,
                         ],
                     ],
                 ];
@@ -298,21 +338,20 @@ class EnqueueThreadMessageOutbox
             ->all();
     }
 
-    protected function bindingTargetsSender(array $bindingData, ?EloquentModel $sender): bool
+    protected function addressTargetsSender(ChannelAddress $address, ?EloquentModel $sender): bool
     {
         if (! $sender instanceof EloquentModel) {
             return false;
         }
 
-        $bindingActorId = $this->normalizedScalar(data_get($bindingData, 'actor_id'));
+        $addressable = $address->addressable;
 
-        if ($bindingActorId === null || (string) $bindingActorId !== (string) $sender->getKey()) {
+        if (! $addressable instanceof EloquentModel) {
             return false;
         }
 
-        $bindingActorType = $this->normalizedString(data_get($bindingData, 'actor_type'));
-
-        return $bindingActorType === null || in_array($bindingActorType, [$sender->getMorphClass(), $sender::class], true);
+        return (string) $addressable->getKey() === (string) $sender->getKey()
+            && in_array($addressable->getMorphClass(), [$sender->getMorphClass(), $sender::class], true);
     }
 
     /**
@@ -349,6 +388,33 @@ class EnqueueThreadMessageOutbox
             'display_name' => $this->normalizedString(data_get($sender, 'name'))
                 ?? $this->normalizedString(data_get($sender, 'title')),
         ];
+    }
+
+    /**
+     * @return Collection<int, ChannelAddress>
+     */
+    protected function resolveChannelAddresses(Thread $thread): Collection
+    {
+        $addresses = $thread->channelAddresses()
+            ->with(['route.channel', 'addressable'])
+            ->where('status', Channel::StatusActive)
+            ->get();
+
+        $threadable = $thread->relationLoaded('threadable') ? $thread->threadable : $thread->threadable()->first();
+
+        if ($threadable instanceof Space) {
+            $addresses = $addresses->merge(
+                $threadable->channelAddresses()
+                    ->with(['route.channel', 'addressable'])
+                    ->where('status', Channel::StatusActive)
+                    ->get()
+            );
+        }
+
+        return $addresses
+            ->filter(fn (mixed $address): bool => $address instanceof ChannelAddress)
+            ->unique(fn (ChannelAddress $address): int => $address->id)
+            ->values();
     }
 
     /**
@@ -466,6 +532,17 @@ class EnqueueThreadMessageOutbox
         return in_array($direction, [Channel::DirectionInbound, Channel::DirectionOutbound, Channel::DirectionBidirectional], true)
             ? $direction
             : Channel::DirectionBidirectional;
+    }
+
+    protected function publicIdentifier(EloquentModel $model): mixed
+    {
+        $uuid = $model->getAttribute('uuid');
+
+        if (is_string($uuid) && $uuid !== '') {
+            return $uuid;
+        }
+
+        return $model->getKey();
     }
 
     /**

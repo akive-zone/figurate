@@ -30,12 +30,12 @@ class ChannelOutboundMessageSender implements OutboundMessageSender
             throw new \RuntimeException('Channel outbox references mismatched thread resources.');
         }
 
-        $binding = data_get($outbox->payload, 'delivery.binding');
-        $bindingConfig = is_array($binding) ? $binding : [];
-        $bindingConfig['outbound_payload'] = is_array($outbox->payload) ? $outbox->payload : [];
+        $delivery = data_get($outbox->payload, 'delivery');
+        $deliveryConfig = is_array($delivery) ? $delivery : [];
+        $deliveryConfig['outbound_payload'] = is_array($outbox->payload) ? $outbox->payload : [];
         $result = $this->channelDriverRegistry
             ->resolveByChannel($channel)
-            ->send($channel, $thread, $post, $bindingConfig);
+            ->send($channel, $thread, $post, $deliveryConfig);
 
         return [
             'ok' => true,

@@ -10,16 +10,16 @@ use Spatie\WebhookServer\WebhookCall;
 class WebhookTransport
 {
     /**
-     * @param  array<string, mixed>  $bindingConfig
+     * @param  array<string, mixed>  $deliveryConfig
      * @return array<string, mixed>
      */
-    public function deliver(Channel $channel, Thread $thread, Post $message, array $bindingConfig = []): array
+    public function deliver(Channel $channel, Thread $thread, Post $message, array $deliveryConfig = []): array
     {
-        $outboundPayload = is_array($bindingConfig['outbound_payload'] ?? null)
-            ? $bindingConfig['outbound_payload']
+        $outboundPayload = is_array($deliveryConfig['outbound_payload'] ?? null)
+            ? $deliveryConfig['outbound_payload']
             : [];
 
-        $endpointUrl = $this->resolveEndpointUrl($channel, $bindingConfig);
+        $endpointUrl = $this->resolveEndpointUrl($channel, $deliveryConfig);
 
         if ($endpointUrl === null || $endpointUrl === '') {
             throw new \RuntimeException('Webhook endpoint URL is required for delivery.');
@@ -30,19 +30,19 @@ class WebhookTransport
             ->payload($outboundPayload)
             ->useTimestamp();
 
-        $headers = $this->resolveHeaders($channel, $bindingConfig);
+        $headers = $this->resolveHeaders($channel, $deliveryConfig);
         if ($headers !== []) {
             $call = $call->withHeaders($headers);
         }
 
-        $secret = $this->resolveSecret($channel, $bindingConfig);
+        $secret = $this->resolveSecret($channel, $deliveryConfig);
         if ($secret !== null && $secret !== '') {
             $call = $call->useSecret($secret);
         } else {
             $call = $call->doNotSign();
         }
 
-        $meta = $this->resolveMeta($channel, $thread, $message, $bindingConfig);
+        $meta = $this->resolveMeta($channel, $thread, $message, $deliveryConfig);
         if ($meta !== []) {
             $call = $call->meta($meta);
         }
@@ -53,7 +53,9 @@ class WebhookTransport
             'status' => 'dispatched',
             'provider' => $channel->driver,
             'provider_message_id' => $this->generateMessageId($channel, $thread, $message),
-            'provider_identifier' => $bindingConfig['provider_identifier'] ?? null,
+            'provider_identifier' => data_get($deliveryConfig, 'address.target')
+                ?? data_get($deliveryConfig, 'target')
+                ?? data_get($deliveryConfig, 'provider_identifier'),
             'thread_uuid' => $thread->uuid,
             'message_id' => $message->id,
             'endpoint_url' => $endpointUrl,
@@ -62,11 +64,13 @@ class WebhookTransport
         ];
     }
 
-    protected function resolveEndpointUrl(Channel $channel, array $bindingConfig): ?string
+    protected function resolveEndpointUrl(Channel $channel, array $deliveryConfig): ?string
     {
-        $bindingEndpoint = data_get($bindingConfig, 'delivery.binding.config.endpoint_url')
-            ?? data_get($bindingConfig, 'config.endpoint_url')
-            ?? data_get($bindingConfig, 'endpoint_url');
+        $bindingEndpoint = data_get($deliveryConfig, 'route.config.outbound.endpoint_url')
+            ?? data_get($deliveryConfig, 'route.config.endpoint_url')
+            ?? data_get($deliveryConfig, 'config.outbound.endpoint_url')
+            ?? data_get($deliveryConfig, 'config.endpoint_url')
+            ?? data_get($deliveryConfig, 'endpoint_url');
 
         if (is_string($bindingEndpoint) && trim($bindingEndpoint) !== '') {
             return trim($bindingEndpoint);
@@ -82,7 +86,7 @@ class WebhookTransport
     /**
      * @return array<string, string>
      */
-    protected function resolveHeaders(Channel $channel, array $bindingConfig): array
+    protected function resolveHeaders(Channel $channel, array $deliveryConfig): array
     {
         $channelHeaders = [];
         if (is_array($channel->credentials)) {
@@ -91,9 +95,11 @@ class WebhookTransport
                 : [];
         }
 
-        $bindingHeaders = data_get($bindingConfig, 'delivery.binding.config.credentials.headers')
-            ?? data_get($bindingConfig, 'config.credentials.headers')
-            ?? data_get($bindingConfig, 'credentials.headers')
+        $bindingHeaders = data_get($deliveryConfig, 'route.config.outbound.credentials.headers')
+            ?? data_get($deliveryConfig, 'route.config.credentials.headers')
+            ?? data_get($deliveryConfig, 'config.outbound.credentials.headers')
+            ?? data_get($deliveryConfig, 'config.credentials.headers')
+            ?? data_get($deliveryConfig, 'credentials.headers')
             ?? [];
 
         $bindingHeaders = is_array($bindingHeaders) ? $bindingHeaders : [];
@@ -104,11 +110,13 @@ class WebhookTransport
             ->all();
     }
 
-    protected function resolveSecret(Channel $channel, array $bindingConfig): ?string
+    protected function resolveSecret(Channel $channel, array $deliveryConfig): ?string
     {
-        $bindingSecret = data_get($bindingConfig, 'delivery.binding.config.credentials.secret')
-            ?? data_get($bindingConfig, 'config.credentials.secret')
-            ?? data_get($bindingConfig, 'credentials.secret');
+        $bindingSecret = data_get($deliveryConfig, 'route.config.outbound.credentials.secret')
+            ?? data_get($deliveryConfig, 'route.config.credentials.secret')
+            ?? data_get($deliveryConfig, 'config.outbound.credentials.secret')
+            ?? data_get($deliveryConfig, 'config.credentials.secret')
+            ?? data_get($deliveryConfig, 'credentials.secret');
 
         if (is_string($bindingSecret) && trim($bindingSecret) !== '') {
             return trim($bindingSecret);
@@ -127,7 +135,7 @@ class WebhookTransport
     /**
      * @return array<string, mixed>
      */
-    protected function resolveMeta(Channel $channel, Thread $thread, Post $message, array $bindingConfig): array
+    protected function resolveMeta(Channel $channel, Thread $thread, Post $message, array $deliveryConfig): array
     {
         return [
             'channel_id' => $channel->id,
@@ -136,8 +144,11 @@ class WebhookTransport
             'thread_uuid' => $thread->uuid,
             'message_id' => $message->id,
             'message_ulid' => $message->ulid,
-            'provider_identifier' => $bindingConfig['provider_identifier'] ?? null,
-            'binding_id' => data_get($bindingConfig, 'delivery.binding.id'),
+            'provider_identifier' => data_get($deliveryConfig, 'address.target')
+                ?? data_get($deliveryConfig, 'target')
+                ?? data_get($deliveryConfig, 'provider_identifier'),
+            'route_id' => data_get($deliveryConfig, 'route.id'),
+            'address_id' => data_get($deliveryConfig, 'address.id'),
         ];
     }
 
