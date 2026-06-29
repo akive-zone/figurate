@@ -151,3 +151,77 @@ From an explorer's perspective, Figurate is a dynamic project workspace organize
 ### 5. The "Thread" Navigator
 - **Branching Work:** Users can create new **Threads** for specific sub-problems (e.g., "Finding a part" vs "Main repair") while maintaining the shared context of the overall Channel.
 
+
+# Log 7:
+- Date: 29-06-2026
+
+## Fig as a Deployable Coordination Node
+
+Fig should be understood as software that can run as a node on a remote server, customer cloud, internal network, or device machine. The node sits beside existing systems instead of replacing them.
+
+It can sit on top of instant messaging, ERP, CRM, CMS, ticketing, enterprise collaboration, fulfillment marketplaces, and custom internal tools. Those systems continue to be where people and machines already work. Fig becomes the coordination layer that receives events, conversations, and system changes through channels and routes, then turns them into structured, reviewable work.
+
+### Core Positioning
+
+Fig is an operational overlay for conversations and work systems.
+
+It provides:
+
+- issue tracking for work that begins in chat, tickets, or system events
+- change review for code, content, records, orders, invoices, and workflow transitions
+- context capture across humans, agents, tools, and external systems
+- task routing between people, agents, teams, vendors, and systems
+- durable artifacts through posts, not just transient chat messages
+- agent-assisted orchestration through skills and tools
+- cross-system memory through spaces, threads, posts, graph edges, and context servers
+
+### Node Model
+
+```text
+Existing systems:
+IM / WhatsApp / Slack / Teams
+ERP / CRM / CMS
+Ticketing / Helpdesk
+Marketplace / Fulfillment app
+Internal tools / databases
+
+            -> channels / routes / webhooks / websockets / MCP / A2A / ACP
+
+Fig node:
+Spaces  -> long-lived work context
+Threads -> active sessions and workstreams
+Posts   -> durable artifacts, events, decisions, and updates
+Agents  -> reasoning, orchestration, review, and observation
+Skills  -> domain behavior and reusable capability bundles
+Tools   -> external system actions and data access
+
+            -> actions / reviews / approvals / events / synchronized updates
+
+Humans, agents, systems, workflows
+```
+
+### Example Use Cases
+
+#### Fulfillment Market
+
+A customer makes a request, such as a repair or service job. Fig collects the issue description, photos, location, urgency, budget, and timing. It can route the request through intake, quote, assessment, acknowledgement, billing, tracking, completion, and settlement.
+
+#### Ticket Resolution
+
+A support case, complaint, bug, or internal request becomes a space or thread. Agents can triage, summarize, diagnose, escalate, propose fixes, track ownership, and record resolution artifacts.
+
+#### Change Review
+
+Fig can observe pull requests, CMS edits, ERP record changes, CRM updates, procurement changes, or fulfillment state transitions. Agents can summarize the change, flag risks, request approval, and preserve the review outcome as a durable post.
+
+#### Conversation Intelligence
+
+Fig can sit above instant messaging and extract structured work from noisy conversation. A message like "please fix this invoice issue" can become a tracked work item with context, owner, state, evidence, follow-up, and resolution.
+
+#### Enterprise Collaboration Memory
+
+Existing collaboration tools remain the conversation surface. Fig becomes the work graph and agent runtime behind them, tracking what was decided, what changed, who owns the next step, which system was touched, and what evidence supports the outcome.
+
+### Product Principle
+
+Fig should not become just another chat app. Chat is one input and one surface. The core product is the work graph, coordination runtime, and agent-assisted review layer behind chat and business systems.

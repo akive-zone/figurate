@@ -467,3 +467,73 @@ Deliver an authenticated ACP session/task API and bridge runtime so external ACP
 2. ACP and A2A share consistent prompt/task orchestration primitives instead of duplicated logic: Met.
 3. ACP bridge runtime can complete the prompt lifecycle reliably against the backend: Mostly met.
 4. ACP behavior is hardened with failure-path coverage, observability, and locked client contract semantics: Not met.
+
+---
+
+## Plan Entry: Fig Node Coordination Runtime
+
+Date opened: 2026-06-29
+Current status: Open
+
+### Goal
+
+Tighten Fig into a deployable coordination node that can sit beside existing chat, ERP, CRM, CMS, ticketing, fulfillment, and enterprise collaboration systems while providing issue tracking, change review, durable work memory, and agent-assisted orchestration.
+
+### Current Direction
+
+Fig should not be treated as another chat application. Chat is a surface and input. The core runtime is the work graph and coordination layer behind existing systems:
+
+- `Space` represents long-lived work context.
+- `Thread` represents an active session or workstream.
+- `Post` represents durable artifacts, events, decisions, reviews, and updates.
+- `Channel` and `ChannelRoute` connect Fig to external systems and route inbound/outbound work.
+- Agents, skills, tools, MCP, A2A, ACP, webhooks, and WebSockets provide interoperability and orchestration.
+
+### Planned Scope
+
+1. Lock the channel/route/address model around external-system overlays:
+   - inbound messages and events,
+   - outbound updates and callbacks,
+   - route-specific addresses,
+   - route/channel/address skill context.
+2. Define the issue-tracking shape shared by fulfillment, ticket resolution, change review, and enterprise collaboration:
+   - status,
+   - owner,
+   - participants,
+   - priority,
+   - source system,
+   - linked artifacts,
+   - resolution outcome.
+3. Define change-review artifacts as first-class posts:
+   - proposed change,
+   - review summary,
+   - risk flags,
+   - approval/denial,
+   - applied/rolled-back state.
+4. Tighten channel ingress so external events can deterministically resolve:
+   - owning channel,
+   - route,
+   - address,
+   - space,
+   - thread,
+   - actor,
+   - applicable skills.
+5. Define observer-agent behavior for human and group threads:
+   - when observers are allowed,
+   - how multiple observers participate,
+   - when observation becomes a review post,
+   - how actions require approval.
+6. Add test coverage for the node-overlay contract:
+   - webhook route ingress,
+   - skill context inheritance,
+   - outbound delivery metadata,
+   - issue/change-review post shaping,
+   - authorization boundaries for external actors.
+
+### Exit Criteria
+
+1. A Fig node can be attached to an external system through channels/routes and reliably map inbound events into spaces, threads, posts, actors, and skills.
+2. Fulfillment, ticket resolution, and change review can share the same core issue/work tracking model without special-case controller flows.
+3. Human conversation, agent observation, and tool execution produce durable reviewable artifacts rather than transient-only chat turns.
+4. External-system callbacks and outbound deliveries include enough metadata to correlate work across systems.
+5. Authorization and trust boundaries are explicit for inbound routes, outbound callbacks, MCP tools, A2A/ACP clients, and observer agents.
