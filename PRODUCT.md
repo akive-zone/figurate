@@ -225,3 +225,11 @@ Existing collaboration tools remain the conversation surface. Fig becomes the wo
 ### Product Principle
 
 Fig should not become just another chat app. Chat is one input and one surface. The core product is the work graph, coordination runtime, and agent-assisted review layer behind chat and business systems.
+
+### Deployment Modes
+
+Fig has three deployment modes:
+
+- **Device Mode:** Fig runs on the user's own machine or device. Desktop uses NativePHP Desktop. Mobile uses NativePHP Mobile. This mode is for local/private context, device-bound actions, local automations, and user-specific behavior.
+- **Remote Mode:** Fig runs as a Laravel API service on a server, VPS, customer cloud, or internal network. This mode is API-first and is used through webhooks, WebSockets, MCP, A2A, ACP, and other integrations.
+- **Hybrid Mode:** A device node and remote node work together. The remote node handles shared/team/system workflow state. The device node keeps local-private context and device-scoped behavior.
