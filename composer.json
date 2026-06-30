@@ -7,7 +7,6 @@
     "require": {
         "php": "^8.2",
         "api-platform/laravel": "^4.2",
-        "filament/filament": "^4.0",
         "laravel/ai": "^0.8",
         "laravel/framework": "^12.0",
         "laravel/mcp": "^0.5.9",
@@ -16,7 +15,6 @@
         "laravel/sanctum": "^4.3",
         "laravel/socialite": "^5.24",
         "laravel/tinker": "^2.10.1",
-        "livewire/flux": "*",
         "phpdocumentor/type-resolver": "^1.7",
         "phrity/websocket": "^3.6",
         "predis/predis": "^3.4",

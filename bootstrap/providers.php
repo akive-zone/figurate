@@ -1,8 +1,11 @@
 <?php
 
+use App\Providers\AppServiceProvider;
+use App\Providers\AuthServiceProvider;
+use App\Providers\ComposeServiceProvider;
+
 return [
-    App\Providers\AppServiceProvider::class,
-    App\Providers\AuthServiceProvider::class,
-    App\Providers\ComposeServiceProvider::class,
-    App\Providers\ControlPanelProvider::class,
+    AppServiceProvider::class,
+    AuthServiceProvider::class,
+    ComposeServiceProvider::class,
 ];

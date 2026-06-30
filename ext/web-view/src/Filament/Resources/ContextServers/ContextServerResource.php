@@ -1,18 +1,18 @@
 <?php
 
-namespace App\Http\Resources\Server\Web\ContextServers;
+namespace Figurate\WebView\Filament\Resources\ContextServers;
 
-use App\Http\Resources\Server\Web\ContextServers\Pages\CreateContextServer;
-use App\Http\Resources\Server\Web\ContextServers\Pages\EditContextServer;
-use App\Http\Resources\Server\Web\ContextServers\Pages\ListContextServers;
-use App\Http\Resources\Server\Web\ContextServers\Schemas\ContextServerForm;
-use App\Http\Resources\Server\Web\ContextServers\Tables\ContextServersTable;
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelRelation;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use BackedEnum;
+use Figurate\WebView\Filament\Resources\ContextServers\Pages\CreateContextServer;
+use Figurate\WebView\Filament\Resources\ContextServers\Pages\EditContextServer;
+use Figurate\WebView\Filament\Resources\ContextServers\Pages\ListContextServers;
+use Figurate\WebView\Filament\Resources\ContextServers\Schemas\ContextServerForm;
+use Figurate\WebView\Filament\Resources\ContextServers\Tables\ContextServersTable;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Providers;
+namespace Figurate\WebView;
 
 use App\Http\Middleware\EnsurePanelUser;
 use Filament\Http\Middleware\Authenticate;
@@ -32,12 +32,7 @@ class ControlPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Amber,
             ])
-            ->discoverResources(in: app_path('Http/Resources/Server'), for: 'App\Http\Resources\Server')
-            ->discoverPages(in: app_path('View/Pages/Server'), for: 'App\View\Pages\Server')
-            // ->pages([
-            //     Dashboard::class,
-            // ])
-            ->discoverWidgets(in: app_path('View/Widgets/Server'), for: 'App\View\Widgets\Server')
+            ->discoverResources(in: __DIR__.'/Filament/Resources', for: 'Figurate\\WebView\\Filament\\Resources')
             ->widgets([
                 AccountWidget::class,
                 FilamentInfoWidget::class,

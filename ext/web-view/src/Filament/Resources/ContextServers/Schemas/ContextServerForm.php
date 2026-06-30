@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Http\Resources\Server\Web\ContextServers\Schemas;
+namespace Figurate\WebView\Filament\Resources\ContextServers\Schemas;
 
-use App\Http\Resources\Server\Web\ContextServers\ContextServerResource;
+use Figurate\WebView\Filament\Resources\ContextServers\ContextServerResource;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;

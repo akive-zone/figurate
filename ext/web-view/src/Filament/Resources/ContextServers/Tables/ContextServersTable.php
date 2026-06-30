@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Resources\Server\Web\ContextServers\Tables;
+namespace Figurate\WebView\Filament\Resources\ContextServers\Tables;
 
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;

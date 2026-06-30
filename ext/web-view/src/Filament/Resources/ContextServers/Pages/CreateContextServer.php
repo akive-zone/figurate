@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Http\Resources\Server\Web\ContextServers\Pages;
+namespace Figurate\WebView\Filament\Resources\ContextServers\Pages;
 
 use App\Contracts\Users\UserRepository;
-use App\Http\Resources\Server\Web\ContextServers\ContextServerResource;
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelRelation;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
+use Figurate\WebView\Filament\Resources\ContextServers\ContextServerResource;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
 
