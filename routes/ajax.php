@@ -11,12 +11,14 @@ use App\Http\Controllers\Api\ChannelRouteController;
 use App\Http\Controllers\Api\ChannelSkillMediaController;
 use App\Http\Controllers\Api\FormController;
 use App\Http\Controllers\Api\GraphEdgeController;
+use App\Http\Controllers\Api\PostController;
+use App\Http\Controllers\Api\PostTurnsController;
 use App\Http\Controllers\Api\RobotUserController;
 use App\Http\Controllers\Api\SpaceController;
 use App\Http\Controllers\Api\SpacePostController;
 use App\Http\Controllers\Api\SpaceThreadController;
 use App\Http\Controllers\Api\ThreadController;
-use App\Http\Controllers\Api\ThreadPostTurnsController;
+use App\Http\Controllers\Api\ThreadPostController;
 use App\Http\Middleware\EnsureTransportUser;
 use Illuminate\Broadcasting\BroadcastController;
 use Illuminate\Support\Facades\Route;
@@ -48,27 +50,6 @@ Route::prefix('auth')->group(function (): void {
         ->middleware(['auth:sanctum,passport', EnsureTransportUser::class.':subject']);
 });
 
-Route::prefix('graph')->middleware(['auth:sanctum,passport'])->group(function (): void {
-    Route::get('/edges', [GraphEdgeController::class, 'index'])->name('api.graph.edges.index');
-    Route::post('/edges', [GraphEdgeController::class, 'store'])->name('api.graph.edges.store');
-});
-
-Route::prefix('form')->middleware(['auth:sanctum,passport'])->group(function (): void {
-    Route::post('/', [FormController::class, 'store'])->name('api.form.store');
-});
-
-Route::prefix('spaces')->middleware(['auth:sanctum,passport'])->group(function (): void {
-    Route::get('/', [SpaceController::class, 'index'])->name('api.spaces.index');
-    Route::get('/{space}/posts', [SpacePostController::class, 'index'])->name('api.spaces.posts.index');
-    Route::get('/{space}/threads', [SpaceThreadController::class, 'index'])->name('api.spaces.threads.index');
-    Route::post('/{space}/threads', [SpaceThreadController::class, 'store'])->name('api.spaces.threads.store');
-});
-
-Route::prefix('threads')->middleware(['auth:sanctum,passport'])->group(function (): void {
-    Route::get('/{thread}', [ThreadController::class, 'show'])->name('api.threads.show');
-    Route::get('/{thread}/posts/{message}/turns', ThreadPostTurnsController::class)->name('api.threads.posts.turns.show');
-});
-
 Route::prefix('channels')->middleware(['auth:sanctum,passport'])->group(function (): void {
     Route::get('/', [ChannelController::class, 'index'])->name('api.channels.index');
     Route::post('/', [ChannelController::class, 'store'])->name('api.channels.store');
@@ -89,4 +70,32 @@ Route::prefix('channels')->middleware(['auth:sanctum,passport'])->group(function
     Route::patch('/{channel}/routes/{route}/addresses/{address}', [ChannelAddressController::class, 'update'])->name('api.channels.routes.addresses.update');
     Route::delete('/{channel}/routes/{route}/addresses/{address}', [ChannelAddressController::class, 'destroy'])->name('api.channels.routes.addresses.destroy');
     Route::post('/{channel}/routes/{route}/addresses/{address}/skills', [ChannelSkillMediaController::class, 'storeForAddress'])->name('api.channels.routes.addresses.skills.store');
+});
+
+Route::prefix('spaces')->middleware(['auth:sanctum,passport'])->group(function (): void {
+    Route::get('/', [SpaceController::class, 'index'])->name('api.spaces.index');
+    Route::get('/{space}/posts', [SpacePostController::class, 'index'])->name('api.spaces.posts.index');
+    Route::post('/{space}/posts', [SpacePostController::class, 'store'])->name('api.spaces.posts.store');
+    Route::get('/{space}/threads', [SpaceThreadController::class, 'index'])->name('api.spaces.threads.index');
+    Route::post('/{space}/threads', [SpaceThreadController::class, 'store'])->name('api.spaces.threads.store');
+});
+
+Route::prefix('threads')->middleware(['auth:sanctum,passport'])->group(function (): void {
+    Route::get('/{thread}', [ThreadController::class, 'show'])->name('api.threads.show');
+    Route::post('/{thread}/posts', [ThreadPostController::class, 'store'])->name('api.threads.posts.store');
+    Route::get('/{thread}/posts/{post}/turns', [PostTurnsController::class, 'index'])->name('api.threads.posts.turns.index');
+});
+
+Route::prefix('posts')->middleware(['auth:sanctum,passport'])->group(function (): void {
+    Route::get('/{post}', [PostController::class, 'show'])->name('api.posts.show');
+    Route::get('/{post}/turns', [PostTurnsController::class, 'index'])->name('api.posts.turns.index');
+});
+
+Route::prefix('graph')->middleware(['auth:sanctum,passport'])->group(function (): void {
+    Route::get('/edges', [GraphEdgeController::class, 'index'])->name('api.graph.edges.index');
+    Route::post('/edges', [GraphEdgeController::class, 'store'])->name('api.graph.edges.store');
+});
+
+Route::prefix('form')->middleware(['auth:sanctum,passport'])->group(function (): void {
+    Route::post('/', [FormController::class, 'store'])->name('api.form.store');
 });

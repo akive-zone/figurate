@@ -11,19 +11,20 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
-class ThreadPostTurnsController extends Controller
+class PostTurnsController extends Controller
 {
     public function __construct(
         protected ProjectAgentTurns $projectAgentTurns,
     ) {}
 
-    public function __invoke(Request $request, string $thread, Post $message): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
-        $threadRecord = Thread::query()
-            ->where('uuid', $thread)
-            ->firstOrFail();
+        $message = $this->resolvePost((string) $request->route('post'));
+        $threadRecord = $request->route('thread')
+            ? Thread::query()->where('uuid', (string) $request->route('thread'))->firstOrFail()
+            : $this->resolveThreadForPost($message);
 
         Gate::forUser($actor)->authorize('view', $threadRecord);
 
@@ -45,7 +46,24 @@ class ThreadPostTurnsController extends Controller
         return response()->json([
             'data' => $turns,
             'thread' => $threadRecord->uuid,
-            'message_id' => $message->id,
+            'message_id' => $message->ulid,
         ]);
+    }
+
+    protected function resolvePost(string $post): Post
+    {
+        return Post::query()
+            ->where('ulid', $post)
+            ->when(ctype_digit($post), fn ($query) => $query->orWhereKey((int) $post))
+            ->firstOrFail();
+    }
+
+    protected function resolveThreadForPost(Post $post): Thread
+    {
+        if ($post->postable instanceof Thread) {
+            return $post->postable;
+        }
+
+        abort(404, 'Message not found in a thread.');
     }
 }

@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Server\Space\StoreSpacePostRequest;
+use App\Http\Resources\Server\Api\PostResource;
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
@@ -68,6 +71,34 @@ class SpacePostController extends Controller
                 'status' => $spaceRecord->status,
             ],
         ]);
+    }
+
+    public function store(StoreSpacePostRequest $request, string $space): JsonResponse
+    {
+        $spaceRecord = Space::query()
+            ->where('uuid', $space)
+            ->firstOrFail();
+
+        Gate::authorize('update', $spaceRecord);
+
+        $validated = $request->validated();
+        $post = $spaceRecord->posts()->create([
+            'type' => $validated['type'] ?? 'context',
+            'tag' => $validated['tag'] ?? null,
+            'status' => $validated['status'] ?? Post::StatusActive,
+            'payload' => $request->postPayload(),
+            'meta' => $request->postMeta(),
+            'occurred_at' => $validated['occurred_at'] ?? now(),
+        ]);
+
+        $actor = $request->user();
+        if ($actor instanceof User) {
+            $post->attachRelation($actor, Post::RelationRoleSender);
+        }
+
+        return response()->json([
+            'data' => PostResource::make($post),
+        ], 201);
     }
 
     protected function resolveThreadNature(Collection $actors): string
