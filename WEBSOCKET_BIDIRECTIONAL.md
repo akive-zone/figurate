@@ -37,7 +37,7 @@ Figurate supports **full bidirectional WebSocket communication** using two compl
                   ↓ Broadcast         ↑ Send Messages
          ┌────────────────────────────────────┐
          │         Client Application          │
-         │  (Browser, Mobile App, etc.)        │
+         │  (Browser, Device App, etc.)        │
          │                                     │
          │  • Connect to Reverb (ws://8080)   │
          │  • Connect to Server (ws://8090)   │

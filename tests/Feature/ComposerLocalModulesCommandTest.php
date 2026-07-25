@@ -23,17 +23,17 @@ class ComposerLocalModulesCommandTest extends TestCase
 
             Artisan::call('app:plugins', [
                 'action' => 'enable',
-                'targets' => ['mobile-native', 'account-manager'],
+                'targets' => ['desktop-native', 'account-manager'],
             ]);
 
             $this->assertSame([
-                'ext/mobile-native/composer.json',
+                'ext/desktop-native/composer.json',
                 'mod/account-manager/composer.json',
             ], ComposerLocalModules::at(base_path())->enabledPackagePaths());
 
             Artisan::call('app:plugins', [
                 'action' => 'disable',
-                'targets' => ['mobile-native'],
+                'targets' => ['desktop-native'],
             ]);
 
             $this->assertSame([
@@ -60,7 +60,7 @@ class ComposerLocalModulesCommandTest extends TestCase
     "extra": {
         "merge-plugin": {
             "include": [
-                "ext/mobile-native/",
+                "ext/desktop-native/",
                 "mod/account-manager/composer.json"
             ]
         }

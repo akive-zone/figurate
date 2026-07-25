@@ -12,7 +12,7 @@ Figurate supports WebSocket communication in **two modes**: Server and Client. T
 
 ### Use Cases
 - Real-time UI updates for frontend applications
-- Mobile app push notifications
+- Device app notifications
 - Dashboard subscriptions
 - Multi-user collaboration features
 - Live chat/messaging
@@ -36,7 +36,7 @@ Figurate supports WebSocket communication in **two modes**: Server and Client. T
 ┌─────────────────────────────────────┐
 │  Connected Clients                  │
 │  • Browser (JS WebSocket)           │
-│  • Mobile App (WebSocket client)    │
+│  • Device App (WebSocket client)    │
 │  • External systems listening       │
 └─────────────────────────────────────┘
 ```

@@ -10,8 +10,7 @@
     "herd_mcp": false,
     "mcp": true,
     "packages": [
-        "filament/filament",
-        "nativephp/mobile"
+        "filament/filament"
     ],
     "sail": false
 }

@@ -157,7 +157,7 @@ From an explorer's perspective, Figurate is a dynamic project workspace organize
 
 ## Fig as a Deployable Coordination Node
 
-Fig should be understood as software that can run as a node on a remote server, customer cloud, internal network, or device machine. The node sits beside existing systems instead of replacing them.
+Fig should be understood as software that can run as a node on a remote server, customer cloud, internal network, or user device. The node sits beside existing systems instead of replacing them.
 
 It can sit on top of instant messaging, ERP, CRM, CMS, ticketing, enterprise collaboration, fulfillment marketplaces, and custom internal tools. Those systems continue to be where people and machines already work. Fig becomes the coordination layer that receives events, conversations, and system changes through channels and routes, then turns them into structured, reviewable work.
 
@@ -230,6 +230,6 @@ Fig should not become just another chat app. Chat is one input and one surface. 
 
 Fig has three deployment modes:
 
-- **Device Mode:** Fig runs on the user's own machine or device. Desktop uses NativePHP Desktop. Mobile uses NativePHP Mobile. This mode is for local/private context, device-bound actions, local automations, and user-specific behavior.
+- **Device Mode:** Fig runs on the user's device through NativePHP Desktop. This mode is for local/private context, device-bound actions, local automations, and user-specific behavior.
 - **Remote Mode:** Fig runs as a Laravel API service on a server, VPS, customer cloud, or internal network. This mode is API-first and is used through webhooks, WebSockets, MCP, A2A, ACP, and other integrations.
 - **Hybrid Mode:** A device node and remote node work together. The remote node handles shared/team/system workflow state. The device node keeps local-private context and device-scoped behavior.

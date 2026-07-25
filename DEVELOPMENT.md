@@ -3,14 +3,14 @@
 - Extension (ext)
 - Modification (mod)
 
-So we're buildin a cross platform that supports Native and Web 
+So we're building a platform that supports device and remote deployments.
 
 Using tools like
-- NativePHP
+- NativePHP Desktop
 - FilamentPHP
 - InertiaJS
 
-There are two main parts to the project that will be served inside the NativePHP app using [InertiaJS + FilamentPHP]
+There are two main parts to the project that will be served inside the device app through NativePHP Desktop using [InertiaJS + FilamentPHP]
 
 Orchestration model (product design direction, not locked policy):
 - Candidate direction is one user-facing `conversation` per request context for the asker chatbox.

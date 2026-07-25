@@ -109,7 +109,7 @@ Channel::create([
 
 **Use Cases:**
 - Real-time UI updates
-- Mobile app notifications
+- Device app notifications
 - Dashboard subscriptions
 - Multi-user collaboration
 
