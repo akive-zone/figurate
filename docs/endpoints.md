@@ -34,8 +34,6 @@ php artisan route:list --path=channel-routes
 | `POST` | `/auth/passkeys` | public | `api.passkeys.store` | Store/register a passkey. |
 | `DELETE` | `/auth/passkeys/{passkey}` | `auth:sanctum,passport` | `api.passkeys.destroy` | Delete a passkey. |
 | `POST` | `/auth/robots` | `auth:sanctum,passport`, `EnsureTransportUser:subject` | unnamed | Provision a robot/system user. |
-| `GET` | `/auth/{provider}/redirect` | public | `auth.redirect` | Start Socialite OAuth redirect flow. |
-| `GET` | `/auth/{provider}/callback` | public | `auth.callback` | Handle Socialite OAuth callback. |
 
 ## Spaces, Threads, And Posts
 

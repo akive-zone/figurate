@@ -30,12 +30,9 @@ Package passkey routes are also present:
 | `GET` | `/passkeys/authentication-options` | Spatie Passkeys | Passkey authentication options. |
 | `POST` | `/passkeys/authenticate` | Spatie Passkeys | Passkey authentication. |
 
-## Social Auth
+## External Identity Protocols
 
-| Method | Path | Auth | Purpose |
-| --- | --- | --- | --- |
-| `GET` | `/auth/{provider}/redirect` | public | Start Socialite OAuth redirect flow. |
-| `GET` | `/auth/{provider}/callback` | public | Handle Socialite OAuth callback. |
+Figurate does not ship vendor-specific social login providers. External identity integrations should use protocol adapters, such as OAuth 2.0 or OpenID Connect, while mapping the resulting subject to the generic Identity model.
 
 ## OAuth And MCP Auth
 
@@ -56,4 +53,3 @@ Passport and Laravel MCP expose OAuth routes used by interop clients:
 | `GET` | `/oauth/device/authorize` | Device authorization screen. |
 | `POST` | `/oauth/device/authorize` | Approve device authorization. |
 | `DELETE` | `/oauth/device/authorize` | Deny device authorization. |
-

@@ -27,7 +27,7 @@ The app will be accessible to all users with a basic account
 
 - person users will have access to both apps
 
-- a device user upgrades to a person / enterprise user by identity provider login with Google / Apple 
+- a device user upgrades to a person / enterprise user through a configured, protocol-based identity adapter
 
 So overview for now ... one of the usecase 
 

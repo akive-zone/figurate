@@ -89,16 +89,6 @@ const chatLatestMessageBody = (chat) => {
 };
 const showDeviceLoginPrompt = computed(() => !isNativeRuntime.value && authUser.value?.type === 'device');
 const showAccountModal = ref(false);
-const googleLoginUrl = computed(() => {
-    const value = (authRoutes.value.google_redirect ?? '').toString().trim();
-
-    return value !== '' ? value : '/auth/google/redirect';
-});
-const appleLoginUrl = computed(() => {
-    const value = (authRoutes.value.apple_redirect ?? '').toString().trim();
-
-    return value !== '' ? value : '/auth/apple/redirect';
-});
 const passkeyAuthenticationOptionsUrl = computed(() => {
     const value = (authRoutes.value.passkeys_authentication_options ?? '').toString().trim();
 
@@ -375,8 +365,6 @@ const createPasskey = async () => {
                 </p>
 
                 <div class="modal__actions" v-if="showDeviceLoginPrompt">
-                    <a :href="googleLoginUrl" class="button button--full">Continue with Google</a>
-                    <a :href="appleLoginUrl" class="link link--full">Continue with Apple</a>
                     <button type="button" class="link link--full" @click="continueWithPasskey">
                         Continue with Passkey
                     </button>

@@ -24,7 +24,7 @@ class IdentityFactory extends Factory
     public function definition(): array
     {
         return [
-            'provider' => fake()->randomElement(['google', 'apple']),
+            'provider' => fake()->randomElement(['oidc', 'oauth2']),
             'provider_subject' => fake()->unique()->uuid(),
             'payload' => [
                 'email' => fake()->safeEmail(),

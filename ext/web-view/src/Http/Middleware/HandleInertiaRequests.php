@@ -97,8 +97,6 @@ class HandleInertiaRequests extends Middleware
                         ->all()
                     : [],
                 'routes' => [
-                    'google_redirect' => route('auth.redirect', ['provider' => 'google'], false),
-                    'apple_redirect' => route('auth.redirect', ['provider' => 'apple'], false),
                     'passkeys_authentication_options' => Route::has('passkeys.authentication_options')
                         ? route('passkeys.authentication_options', [], false)
                         : null,
