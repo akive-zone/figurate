@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('user_agents', function (Blueprint $table): void {
+        Schema::create('user_clients', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('user_id');
             $table->text('user_agent')->nullable();
@@ -22,14 +22,14 @@ return new class extends Migration
             $table->timestamp('last_seen_at')->nullable();
             $table->timestamps();
 
-            $table->unique('device_identifier', 'user_agents_device_identifier_unique');
+            $table->unique('device_identifier', 'user_clients_device_identifier_unique');
 
-            $table->index(['user_id', 'last_seen_at'], 'user_agents_user_last_seen_idx');
+            $table->index(['user_id', 'last_seen_at'], 'user_clients_user_last_seen_idx');
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('user_agents');
+        Schema::dropIfExists('user_clients');
     }
 };

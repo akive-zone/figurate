@@ -274,7 +274,7 @@ Separate durable human ownership from acting runtime principals so Figurate can 
 2. User types should be actor-oriented (`robot`, `gadget`, `subject`, `system`, etc.), replacing the ambiguous `device` terminology with `gadget`.
 3. `accounts` becomes the durable human ownership layer.
 4. `account_users` should link accounts to acting users instead of embedding `account_id` directly on `users`.
-5. `user_agents` should track the concrete hardpoint and request metadata for the gadget/client/app-install/browser making requests on behalf of a given `user`.
+5. `user_clients` should track the concrete hardpoint and request metadata for the gadget/client/app-install/browser making requests on behalf of a given `user`.
 6. A gadget user that authenticates should remain a `gadget` user and be attached to an `account`, not promoted in place to `subject`.
 7. `subject` should remain reserved until there is a concrete runtime use case that is distinct from both gadget-origin actors and durable account ownership.
 8. Cross-gadget continuity should be derived from account-linked actors, while actor provenance should remain attached to the specific acting `user`.
@@ -287,14 +287,14 @@ Separate durable human ownership from acting runtime principals so Figurate can 
 4. Introducing `accounts` plus `account_users` preserves the best part of the current model:
    - same-gadget continuity can keep the same `user_id`,
    - cross-gadget continuity can be granted through shared account ownership.
-5. Treating the device as the hardpoint and the user-facing/runtime actor as the softpoint gives `user_agents` a concrete job: device/install/browser provenance belongs there instead of on the durable account layer.
+5. Treating the device as the hardpoint and the user-facing/runtime actor as the softpoint gives `user_clients` a concrete job: device/install/browser provenance belongs there instead of on the durable account layer.
 6. Keeping authenticated gadget users as gadgets avoids destructive type churn and preserves the ability to introduce `subject` later for a genuinely different runtime actor.
 7. This architecture also makes future org/workspace/tenancy evolution cleaner because durable ownership and acting principals are no longer the same axis.
 
 ### Canonical Scenario
 
 1. A person opens the app anonymously on gadget A.
-2. Figurate creates `user(type=gadget)` for that gadget and associates request provenance through `user_agents`.
+2. Figurate creates `user(type=gadget)` for that gadget and associates request provenance through `user_clients`.
 3. Anonymous work such as threads, tasks, sessions, and conversations is created under that gadget user.
 4. The person then authenticates with an account.
 5. Instead of creating a separate durable `subject` user and destructively merging all prior work into it, Figurate should:
@@ -317,7 +317,7 @@ Separate durable human ownership from acting runtime principals so Figurate can 
 3. `account_users`
    - account-to-user link table,
    - should support relationship metadata such as `gadget`, `operator`, `owner`, `is_primary`, `linked_at`, and `unlinked_at`.
-4. `user_agents`
+4. `user_clients`
    - request/gadget/client provenance for a user,
    - should track the hardpoint identity and related device metadata such as device identifier, platform, app version, user agent, and last seen time.
 
@@ -340,7 +340,7 @@ Separate durable human ownership from acting runtime principals so Figurate can 
 1. Rename `device` terminology to `gadget` across auth/runtime flows.
 2. Add `accounts`.
 3. Add `account_users`.
-4. Add `user_agents` as the hardpoint/provenance layer and move gadget lookup toward that table.
+4. Add `user_clients` as the hardpoint/provenance layer and move gadget lookup toward that table.
 5. Keep durable, resumable resources actor-scoped and derive account context through `account_users` when needed.
 6. Replace merge-on-login behavior with account attachment while keeping authenticated gadget users as gadgets.
 7. Reserve `subject` until its runtime semantics are concrete enough to justify actual promotion or dedicated flows.
@@ -351,7 +351,7 @@ Separate durable human ownership from acting runtime principals so Figurate can 
 
 1. Existing merge actions are optimized for user-to-user migration and will not remain the right abstraction once account linking replaces destructive merges.
 2. Several current auth flows still assume a `device -> person` promotion path; those assumptions will need to move to `gadget -> account attachment`, with `subject` remaining unused until explicitly needed.
-3. `user_agents` naming may still be confused with AI-agent concepts unless code/docs stay explicit about it representing client/gadget provenance.
+3. `user_clients` must remain explicitly defined as client/gadget provenance rather than a durable user or AI-agent identity.
 4. Domain services will need clear rules for deriving account continuity from actor membership instead of relying on a direct `account_id` shortcut.
 
 ### Exit Criteria
@@ -361,7 +361,7 @@ Separate durable human ownership from acting runtime principals so Figurate can 
 3. Cross-gadget continuation works through account-linked actor resolution instead of persisted account ownership on runtime resources.
 4. Request provenance remains attributable to the exact acting gadget/model/system user.
 5. Terminology and runtime rules are updated consistently from `device/person` semantics to `gadget/account` semantics where appropriate.
-6. Hardpoint/device provenance is tracked through `user_agents` instead of relying on `users` as the primary hardpoint record.
+6. Hardpoint/device provenance is tracked through `user_clients` instead of relying on `users` as the primary hardpoint record.
 
 ---
 

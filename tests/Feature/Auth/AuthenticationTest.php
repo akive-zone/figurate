@@ -4,7 +4,7 @@ namespace Tests\Feature\Auth;
 
 use App\Events\Server\Auth\SubjectAuthenticated;
 use App\Models\Server\User;
-use App\Models\Server\UserAgent;
+use App\Models\Server\UserClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
@@ -25,7 +25,7 @@ class AuthenticationTest extends TestCase
             'status' => 'active',
         ]);
 
-        UserAgent::query()->create([
+        UserClient::query()->create([
             'user_id' => $widgetUser->id,
             'kind' => 'api',
             'device_identifier' => 'machine-register-1',
@@ -48,7 +48,7 @@ class AuthenticationTest extends TestCase
                 && data_get($event->widgetUserContext, 'headers.X-Widget-User-ID') === $widgetUser->uuid;
         });
 
-        $this->assertDatabaseHas('user_agents', [
+        $this->assertDatabaseHas('user_clients', [
             'user_id' => $widgetUser->id,
             'device_identifier' => 'machine-register-1',
         ]);
@@ -78,7 +78,7 @@ class AuthenticationTest extends TestCase
             'status' => 'active',
         ]);
 
-        UserAgent::query()->create([
+        UserClient::query()->create([
             'user_id' => $widgetUser->id,
             'kind' => 'api',
             'device_identifier' => 'widget-login-1',
@@ -100,10 +100,10 @@ class AuthenticationTest extends TestCase
                 && data_get($event->widgetUserContext, 'headers.X-Widget-User-ID') === $widgetUser->uuid;
         });
 
-        $this->assertSame(1, UserAgent::query()->where('device_identifier', 'widget-login-1')->count());
+        $this->assertSame(1, UserClient::query()->where('device_identifier', 'widget-login-1')->count());
         $this->assertSame(
             $widgetUser->id,
-            UserAgent::query()->where('device_identifier', 'widget-login-1')->value('user_id'),
+            UserClient::query()->where('device_identifier', 'widget-login-1')->value('user_id'),
         );
     }
 }

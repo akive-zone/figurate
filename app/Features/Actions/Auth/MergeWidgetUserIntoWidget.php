@@ -32,7 +32,7 @@ class MergeWidgetUserIntoWidget
             $this->migrateAgentConversations($sourceWidgetUser, $targetWidgetUser);
             $this->migrateAgentConversationMessages($sourceWidgetUser, $targetWidgetUser);
             $this->migratePasskeys($sourceWidgetUser, $targetWidgetUser);
-            $this->migrateUserAgents($sourceWidgetUser, $targetWidgetUser);
+            $this->migrateUserClients($sourceWidgetUser, $targetWidgetUser);
 
             $sourceWidgetUser->forceFill([
                 'status' => 'merged',
@@ -251,13 +251,13 @@ class MergeWidgetUserIntoWidget
         }
     }
 
-    protected function migrateUserAgents(User $sourceWidgetUser, User $targetWidgetUser): void
+    protected function migrateUserClients(User $sourceWidgetUser, User $targetWidgetUser): void
     {
-        if (! Schema::hasTable('user_agents')) {
+        if (! Schema::hasTable('user_clients')) {
             return;
         }
 
-        $rows = DB::table('user_agents')
+        $rows = DB::table('user_clients')
             ->where('user_id', $sourceWidgetUser->id)
             ->get();
 
@@ -268,13 +268,13 @@ class MergeWidgetUserIntoWidget
 
             $existing = $deviceIdentifier === ''
                 ? null
-                : DB::table('user_agents')
+                : DB::table('user_clients')
                     ->where('user_id', $targetWidgetUser->id)
                     ->where('device_identifier', $deviceIdentifier)
                     ->first();
 
             if (! $existing) {
-                DB::table('user_agents')
+                DB::table('user_clients')
                     ->where('id', $row->id)
                     ->update([
                         'user_id' => $targetWidgetUser->id,
@@ -288,7 +288,7 @@ class MergeWidgetUserIntoWidget
             $targetLastSeen = $existing->last_seen_at ? strtotime((string) $existing->last_seen_at) : null;
 
             if ($sourceLastSeen !== null && ($targetLastSeen === null || $sourceLastSeen > $targetLastSeen)) {
-                DB::table('user_agents')
+                DB::table('user_clients')
                     ->where('id', $existing->id)
                     ->update([
                         'kind' => $row->kind,
@@ -303,7 +303,7 @@ class MergeWidgetUserIntoWidget
                     ]);
             }
 
-            DB::table('user_agents')
+            DB::table('user_clients')
                 ->where('id', $row->id)
                 ->delete();
         }

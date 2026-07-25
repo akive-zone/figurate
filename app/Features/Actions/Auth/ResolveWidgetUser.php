@@ -4,7 +4,7 @@ namespace App\Features\Actions\Auth;
 
 use App\Contracts\Users\UserRepository;
 use App\Models\Server\User;
-use App\Models\Server\UserAgent;
+use App\Models\Server\UserClient;
 use Illuminate\Http\Request;
 
 class ResolveWidgetUser
@@ -83,7 +83,7 @@ class ResolveWidgetUser
             return null;
         }
 
-        $user = UserAgent::query()
+        $user = UserClient::query()
             ->with('user')
             ->where('device_identifier', $deviceIdentifier)
             ->latest('id')
@@ -149,7 +149,7 @@ class ResolveWidgetUser
             return;
         }
 
-        UserAgent::query()->updateOrCreate(
+        UserClient::query()->updateOrCreate(
             ['device_identifier' => $resolvedDeviceIdentifier],
             [
                 'user_id' => $user->id,

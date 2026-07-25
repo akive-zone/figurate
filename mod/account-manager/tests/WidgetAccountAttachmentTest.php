@@ -10,7 +10,7 @@ use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadActorSession;
 use App\Models\Server\ThreadEvent;
 use App\Models\Server\User;
-use App\Models\Server\UserAgent;
+use App\Models\Server\UserClient;
 use App\Support\Orchestrate\TaskRecord;
 use Figurate\AccountManager\Models\Account;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -121,7 +121,7 @@ class WidgetAccountAttachmentTest extends TestCase
             'unlinked_at' => null,
         ]);
 
-        $this->assertDatabaseCount('user_agents', 0);
+        $this->assertDatabaseCount('user_clients', 0);
     }
 
     public function test_login_attaches_existing_widget_via_login_event(): void
@@ -294,7 +294,7 @@ class WidgetAccountAttachmentTest extends TestCase
             'status' => 'active',
         ]);
 
-        UserAgent::query()->create([
+        UserClient::query()->create([
             'user_id' => $user->id,
             'kind' => 'api',
             'device_identifier' => $deviceIdentifier,

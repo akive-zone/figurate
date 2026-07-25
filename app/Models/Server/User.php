@@ -101,9 +101,9 @@ class User extends Authenticatable implements HasPasskeys
         return $this->hasMany(Inbox::class, 'user_id');
     }
 
-    public function userAgents(): HasMany
+    public function userClients(): HasMany
     {
-        return $this->hasMany(UserAgent::class, 'user_id');
+        return $this->hasMany(UserClient::class, 'user_id');
     }
 
     public function identities(): MorphToMany
@@ -123,16 +123,16 @@ class User extends Authenticatable implements HasPasskeys
         return $this->hasMany(UserRelation::class, 'target_user_id');
     }
 
-    public function latestUserAgent(): HasOne
+    public function latestUserClient(): HasOne
     {
-        return $this->userAgents()->one()->latestOfMany('last_seen_at');
+        return $this->userClients()->one()->latestOfMany('last_seen_at');
     }
 
     public function currentDeviceIdentifier(): ?string
     {
-        if ($this->relationLoaded('userAgents')) {
-            $deviceIdentifier = $this->userAgents
-                ->sortByDesc(fn (UserAgent $userAgent): int => $userAgent->last_seen_at?->getTimestamp() ?? 0)
+        if ($this->relationLoaded('userClients')) {
+            $deviceIdentifier = $this->userClients
+                ->sortByDesc(fn (UserClient $userClient): int => $userClient->last_seen_at?->getTimestamp() ?? 0)
                 ->pluck('device_identifier')
                 ->first(fn (?string $value): bool => is_string($value) && trim($value) !== '');
 
@@ -141,7 +141,7 @@ class User extends Authenticatable implements HasPasskeys
             }
         }
 
-        $deviceIdentifier = $this->userAgents()
+        $deviceIdentifier = $this->userClients()
             ->whereNotNull('device_identifier')
             ->orderByDesc('last_seen_at')
             ->orderByDesc('id')

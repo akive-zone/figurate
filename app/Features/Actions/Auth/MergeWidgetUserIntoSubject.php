@@ -29,7 +29,7 @@ class MergeWidgetUserIntoSubject
             $this->migratePostRelations($widgetUser, $subjectUser);
             $this->migrateSpaceActorStates($widgetUser, $subjectUser);
             $this->migratePasskeys($widgetUser, $subjectUser);
-            $this->migrateUserAgents($widgetUser, $subjectUser);
+            $this->migrateUserClients($widgetUser, $subjectUser);
 
             $widgetUser->forceFill([
                 'status' => 'merged',
@@ -171,13 +171,13 @@ class MergeWidgetUserIntoSubject
         }
     }
 
-    protected function migrateUserAgents(User $widgetUser, User $subjectUser): void
+    protected function migrateUserClients(User $widgetUser, User $subjectUser): void
     {
-        if (! Schema::hasTable('user_agents')) {
+        if (! Schema::hasTable('user_clients')) {
             return;
         }
 
-        $rows = DB::table('user_agents')
+        $rows = DB::table('user_clients')
             ->where('user_id', $widgetUser->id)
             ->get();
 
@@ -188,13 +188,13 @@ class MergeWidgetUserIntoSubject
 
             $existing = $deviceIdentifier === ''
                 ? null
-                : DB::table('user_agents')
+                : DB::table('user_clients')
                     ->where('user_id', $subjectUser->id)
                     ->where('device_identifier', $deviceIdentifier)
                     ->first();
 
             if (! $existing) {
-                DB::table('user_agents')
+                DB::table('user_clients')
                     ->where('id', $row->id)
                     ->update([
                         'user_id' => $subjectUser->id,
@@ -208,7 +208,7 @@ class MergeWidgetUserIntoSubject
             $targetLastSeen = $existing->last_seen_at ? strtotime((string) $existing->last_seen_at) : null;
 
             if ($sourceLastSeen !== null && ($targetLastSeen === null || $sourceLastSeen > $targetLastSeen)) {
-                DB::table('user_agents')
+                DB::table('user_clients')
                     ->where('id', $existing->id)
                     ->update([
                         'kind' => $row->kind,
@@ -223,7 +223,7 @@ class MergeWidgetUserIntoSubject
                     ]);
             }
 
-            DB::table('user_agents')
+            DB::table('user_clients')
                 ->where('id', $row->id)
                 ->delete();
         }
