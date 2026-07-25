@@ -2,17 +2,17 @@
 
 namespace Database\Factories;
 
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
-use Figurate\FulfillmentManager\Models\Request;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Server\Thread>
+ * @extends Factory<Thread>
  */
 class ThreadFactory extends Factory
 {
     /**
-     * @var class-string<\App\Models\Server\Thread>
+     * @var class-string<Thread>
      */
     protected $model = Thread::class;
 
@@ -24,11 +24,11 @@ class ThreadFactory extends Factory
     public function definition(): array
     {
         return [
-            'threadable_type' => Request::class,
-            'threadable_id' => Request::factory(),
+            'threadable_type' => Space::class,
+            'threadable_id' => Space::factory(),
             'purpose' => Thread::PurposeMain,
             'title' => fake()->sentence(3),
-            'phase' => 'request_intake',
+            'phase' => 'conversation_open',
             'status' => 'open',
         ];
     }

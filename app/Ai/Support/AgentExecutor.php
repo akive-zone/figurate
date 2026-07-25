@@ -291,7 +291,7 @@ class AgentExecutor
         $actorKey = $threadActor->actorName();
 
         if (! is_string($actorKey) || $actorKey === '') {
-            $actorKey = ThreadActor::ActorRequestAgent;
+            $actorKey = ThreadActor::ActorCoordinator;
         }
 
         $existing = is_array($invocations[$actorKey] ?? null) ? $invocations[$actorKey] : [];
@@ -370,7 +370,7 @@ class AgentExecutor
         $actorKey = $threadActor->actorName();
 
         if (! is_string($actorKey) || $actorKey === '') {
-            $actorKey = ThreadActor::ActorRequestAgent;
+            $actorKey = ThreadActor::ActorCoordinator;
         }
 
         $meta['thread_id'] = $thread->id;
@@ -423,7 +423,7 @@ class AgentExecutor
         $actorKey = $threadActor->actorName();
 
         if (! is_string($actorKey) || $actorKey === '') {
-            $actorKey = ThreadActor::ActorRequestAgent;
+            $actorKey = ThreadActor::ActorCoordinator;
         }
 
         $status = data_get($userPost->meta, "invocations.{$actorKey}.status");

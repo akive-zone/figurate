@@ -33,7 +33,7 @@ class HandleConversationMessageTest extends TestCase
         $user = $this->makeUser();
         $space = $this->accessibleSpace($user);
         $thread = $this->makeThread($space);
-        $this->addThreadActor($thread, ThreadActor::RolePresenter, ThreadActor::ActorRequestAgent);
+        $this->addThreadActor($thread, ThreadActor::RolePresenter, ThreadActor::ActorCoordinator);
 
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
@@ -105,7 +105,7 @@ class HandleConversationMessageTest extends TestCase
         $user = $this->makeUser();
         $space = $this->accessibleSpace($user);
         $thread = $this->makeThread($space);
-        $this->addThreadActor($thread, ThreadActor::RolePresenter, ThreadActor::ActorRequestAgent);
+        $this->addThreadActor($thread, ThreadActor::RolePresenter, ThreadActor::ActorCoordinator);
         $this->addThreadActor($thread, ThreadActor::RoleObserver, ThreadActor::ActorSafetyGuard, 2);
 
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
@@ -153,7 +153,7 @@ class HandleConversationMessageTest extends TestCase
             'meta' => [
                 'source' => 'agent_response',
                 'in_reply_to_message_id' => $promptMessage->id,
-                'actor_key' => 'request_agent',
+                'actor_key' => 'coordinator_agent',
             ],
         ]);
 

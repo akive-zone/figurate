@@ -15,7 +15,7 @@ use App\Ai\Middleware\Rules\ValidateInputContract;
 use App\Ai\Middleware\Workflows\ComposeAndRouteResponse;
 use App\Ai\Middleware\Workflows\ExecuteToolsAndActions;
 use App\Ai\Middleware\Workflows\InitializeConversationContext;
-use App\Ai\Middleware\Workflows\PlanFulfillmentSteps;
+use App\Ai\Middleware\Workflows\PlanWorkflowSteps;
 use App\Ai\Middleware\Workflows\PostResponseLearning;
 use App\Ai\Middleware\Workflows\ResolveAudienceContext;
 use App\Ai\Middleware\Workflows\SelectPresenters;
@@ -91,7 +91,7 @@ class PresenterAgent implements Agent, Conversational, HasMiddleware, HasTools
             new InitializeConversationContext,
             new ResolveAudienceContext,
             new SelectPresenters,
-            new PlanFulfillmentSteps,
+            new PlanWorkflowSteps,
             new ExecuteToolsAndActions,
             new ComposeAndRouteResponse,
             new PostResponseLearning,

@@ -47,7 +47,7 @@ class AgentPromptOutboundMessageSenderTest extends TestCase
             ],
         ]);
         $presenter = $thread->actors()->create([
-            'actorable_type' => ThreadActor::ActorRequestAgent,
+            'actorable_type' => ThreadActor::ActorCoordinator,
             'actorable_id' => null,
             'role' => ThreadActor::RolePresenter,
             'status' => ThreadActor::StatusActive,
@@ -60,7 +60,7 @@ class AgentPromptOutboundMessageSenderTest extends TestCase
             'direction' => Outbox::DirectionOutbound,
             'protocol' => AgentPromptProtocol::Key,
             'provider' => 'laravel-ai',
-            'target' => ThreadActor::ActorRequestAgent,
+            'target' => ThreadActor::ActorCoordinator,
             'status' => Outbox::StatusPending,
             'attempts' => 0,
             'available_at' => now(),

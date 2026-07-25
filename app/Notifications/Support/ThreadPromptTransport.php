@@ -60,7 +60,7 @@ class ThreadPromptTransport
             return;
         }
 
-        $actorKey = $presenter->actorName() ?: ThreadActor::ActorRequestAgent;
+        $actorKey = $presenter->actorName() ?: ThreadActor::ActorCoordinator;
         $existingStatus = data_get($message->meta, "invocations.{$actorKey}.status");
 
         if (is_string($existingStatus) && trim($existingStatus) !== '') {

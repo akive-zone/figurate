@@ -35,7 +35,7 @@ class FigurateServerGuideResource extends Resource
             '5. Use `assign_thread_actor` or `transfer_thread_session` only when orchestration changes are intentional.',
             '',
             'Scope limits:',
-            '- This server does not advance fulfillment states yet.',
+            '- This server does not advance application-specific states.',
             '- Use safe thread and post mutations only.',
         ]));
     }

@@ -4,7 +4,6 @@ namespace App\Models\Server;
 
 use App\Models\Concerns\HasPublicUuid;
 use Database\Factories\SpaceFactory;
-use Figurate\FulfillmentManager\Models\Request;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -60,17 +59,6 @@ class Space extends Model
         );
     }
 
-    public function requests(): MorphToMany
-    {
-        return $this->morphedByMany(
-            Request::class,
-            'relationable',
-            'space_relations',
-            'space_id',
-            'relationable_id'
-        )->withTimestamps();
-    }
-
     public function posts(): MorphMany
     {
         return $this->morphMany(Post::class, 'postable');
@@ -118,28 +106,6 @@ class Space extends Model
         return $this->actorStates()
             ->whereMorphedTo('actor', $user)
             ->exists();
-    }
-
-    public function primaryRequest(): ?Request
-    {
-        return $this->requests()->latest('id')->first();
-    }
-
-    public function primaryRequestPost(): ?Post
-    {
-        $postMorphClass = (new Post)->getMorphClass();
-
-        return Post::query()
-            ->whereIn('id', function ($query) use ($postMorphClass): void {
-                $query->from('space_relations')
-                    ->select('relationable_id')
-                    ->where('space_id', $this->getKey())
-                    ->whereIn('relationable_type', [$postMorphClass, Post::class])
-                    ->where('type', 'request');
-            })
-            ->where('type', 'like', 'request.%')
-            ->latest('id')
-            ->first();
     }
 
     /**

@@ -12,7 +12,7 @@ class ComposeAndRouteResponse
         $policy = implode("\n", [
             'Response composition workflow (system policy):',
             '- Compose one cohesive reply for the current thread turn.',
-            '- Include concrete next action aligned to fulfillment stage.',
+            '- Include a concrete next action aligned to the current work stage.',
             '- If multiple presenters exist, avoid contradicting existing presenter outcomes.',
             '- Keep routing assumptions thread-local; do not reference external threads.',
         ]);

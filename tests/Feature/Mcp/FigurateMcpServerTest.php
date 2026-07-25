@@ -266,7 +266,7 @@ class FigurateMcpServerTest extends TestCase
             'status' => 'open',
         ]);
 
-        $sourceSpace->attachRelation($dependencySpace, SpaceRelation::TypeDependsOn, 'Depends on fulfillment context');
+        $sourceSpace->attachRelation($dependencySpace, SpaceRelation::TypeDependsOn, 'Depends on related work context');
         $dependencySpace->attachRelation($knowledgeSpace, SpaceRelation::TypeReferences, 'Needs supporting knowledge context');
         $dependencySpace->attachRelation($dependencyThread, SpaceRelation::TypeReferences, 'Tracks execution work');
         $dependencyThread->attachRelation($knowledgeThread, ThreadRelation::TypeReferences, 'See related thread');
@@ -340,16 +340,16 @@ class FigurateMcpServerTest extends TestCase
         $assignResponse = FigurateServer::actingAs($user)->tool(AssignThreadActorTool::class, [
             'thread_id' => $thread->uuid,
             'actor_type' => 'named',
-            'actor_key' => ThreadActor::ActorOrderAgent,
+            'actor_key' => ThreadActor::ActorExecutor,
             'role' => ThreadActor::RolePresenter,
             'status' => ThreadActor::StatusActive,
         ]);
 
-        $assignResponse->assertOk()->assertSee(ThreadActor::ActorOrderAgent);
+        $assignResponse->assertOk()->assertSee(ThreadActor::ActorExecutor);
 
         $threadActor = ThreadActor::query()
             ->where('thread_id', $thread->id)
-            ->where('actorable_type', ThreadActor::ActorOrderAgent)
+            ->where('actorable_type', ThreadActor::ActorExecutor)
             ->where('role', ThreadActor::RolePresenter)
             ->firstOrFail();
 

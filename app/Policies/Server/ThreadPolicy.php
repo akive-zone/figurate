@@ -5,7 +5,6 @@ namespace App\Policies\Server;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
-use Figurate\FulfillmentManager\Models\Request as ServiceRequest;
 
 class ThreadPolicy
 {
@@ -22,17 +21,17 @@ class ThreadPolicy
      */
     public function view(User $user, Thread $thread): bool
     {
-        $threadable = $thread->threadable;
-
-        if (! $threadable instanceof ServiceRequest) {
-            if ($threadable instanceof Space) {
-                return $threadable->hasActor($user);
-            }
-
-            return false;
+        if ($thread->hasActor($user)) {
+            return true;
         }
 
-        return $threadable->hasParticipant($user);
+        $threadable = $thread->threadable;
+
+        if ($threadable instanceof Space) {
+            return $threadable->hasActor($user);
+        }
+
+        return false;
     }
 
     /**
@@ -48,17 +47,17 @@ class ThreadPolicy
      */
     public function update(User $user, Thread $thread): bool
     {
-        $threadable = $thread->threadable;
-
-        if (! $threadable instanceof ServiceRequest) {
-            if ($threadable instanceof Space) {
-                return $threadable->hasActor($user);
-            }
-
-            return false;
+        if ($thread->hasActor($user)) {
+            return true;
         }
 
-        return $threadable->hasParticipant($user);
+        $threadable = $thread->threadable;
+
+        if ($threadable instanceof Space) {
+            return $threadable->hasActor($user);
+        }
+
+        return false;
     }
 
     /**

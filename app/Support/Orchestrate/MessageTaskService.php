@@ -203,7 +203,7 @@ class MessageTaskService
         $actorKey = $presenter->actorName();
 
         if (! is_string($actorKey) || $actorKey === '') {
-            return ThreadActor::ActorRequestAgent;
+            return ThreadActor::ActorCoordinator;
         }
 
         return $actorKey;

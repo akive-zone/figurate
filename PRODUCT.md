@@ -206,6 +206,8 @@ Humans, agents, systems, workflows
 
 A customer makes a request, such as a repair or service job. Fig collects the issue description, photos, location, urgency, budget, and timing. It can route the request through intake, quote, assessment, acknowledgement, billing, tracking, completion, and settlement.
 
+Fulfillment is documented as a reference scenario for testing applications built on Figurate. It is not a Figurate interface or an enabled module.
+
 #### Ticket Resolution
 
 A support case, complaint, bug, or internal request becomes a space or thread. Agents can triage, summarize, diagnose, escalate, propose fixes, track ownership, and record resolution artifacts.

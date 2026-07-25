@@ -29,7 +29,7 @@ class BootstrapConversationSpaceContext
             ]);
 
             $mainThread->actors()->create([
-                'actorable_type' => ThreadActor::ActorRequestAgent,
+                'actorable_type' => ThreadActor::ActorCoordinator,
                 'actorable_id' => null,
                 'role' => ThreadActor::RolePresenter,
                 'status' => ThreadActor::StatusActive,

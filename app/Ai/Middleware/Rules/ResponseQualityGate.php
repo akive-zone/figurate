@@ -11,7 +11,7 @@ class ResponseQualityGate
     {
         return $next($prompt->append(implode("\n", [
             'Response quality gate:',
-            '- Ensure the answer is concise, operational, and aligned to current fulfillment stage.',
+            '- Ensure the answer is concise, operational, and aligned to the current work stage.',
             '- Include one clear next step when actionable.',
             '- Avoid filler, repetition, and conflicting instructions.',
         ])));

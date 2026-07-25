@@ -11,7 +11,7 @@ class RequireEvidenceForDecisions
     {
         return $next($prompt->append(implode("\n", [
             'Decision evidence rules:',
-            '- Ground every fulfillment decision in thread context, tool output, or explicit user input.',
+            '- Ground every decision in thread context, tool output, or explicit user input.',
             '- When evidence is weak, state uncertainty and ask one focused question.',
             '- Do not claim completed operations without observable evidence.',
         ])));

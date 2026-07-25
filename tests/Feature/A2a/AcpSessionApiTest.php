@@ -45,7 +45,7 @@ class AcpSessionApiTest extends TestCase
 
         $this->assertDatabaseHas('thread_actors', [
             'thread_id' => $thread->id,
-            'actorable_type' => ThreadActor::ActorOrderAgent,
+            'actorable_type' => ThreadActor::ActorExecutor,
             'role' => ThreadActor::RolePresenter,
             'status' => ThreadActor::StatusActive,
         ]);
@@ -68,7 +68,7 @@ class AcpSessionApiTest extends TestCase
             'text' => 'Inspection complete.',
             'meta' => [
                 'source' => 'agent_response',
-                'actor_key' => ThreadActor::ActorOrderAgent,
+                'actor_key' => ThreadActor::ActorExecutor,
             ],
         ]);
 

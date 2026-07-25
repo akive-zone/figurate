@@ -254,8 +254,8 @@ class FigurateMcpPayloads
     public function allowedNamedActors(): array
     {
         return [
-            ThreadActor::ActorRequestAgent,
-            ThreadActor::ActorOrderAgent,
+            ThreadActor::ActorCoordinator,
+            ThreadActor::ActorExecutor,
             ThreadActor::ActorSafetyGuard,
             ThreadActor::ActorAssistantSuggester,
         ];

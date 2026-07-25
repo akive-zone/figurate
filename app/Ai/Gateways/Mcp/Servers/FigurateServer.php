@@ -27,7 +27,7 @@ use Laravel\Mcp\Server\Attributes\Version;
 
 #[Name('Figurate Server')]
 #[Version('0.0.1')]
-#[Instructions('Use this server to inspect and operate on Figurate chat context. It exposes spaces, threads, posts, actors, and context search. Prefer read tools first, then use create_thread or create_post for safe workflow actions. This server intentionally excludes fulfillment-state transitions for now.')]
+#[Instructions('Use this server to inspect and operate on Figurate chat context. It exposes spaces, threads, posts, actors, and context search. Prefer read tools first, then use create_thread or create_post for safe workflow actions. Application-specific state transitions remain outside the core server.')]
 class FigurateServer extends Server
 {
     protected array $tools = [

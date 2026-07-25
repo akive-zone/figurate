@@ -2,6 +2,7 @@
 
 namespace App\Models\Server;
 
+use Database\Factories\ThreadActorFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class ThreadActor extends Model
 {
-    /** @use HasFactory<\Database\Factories\ThreadActorFactory> */
+    /** @use HasFactory<ThreadActorFactory> */
     use HasFactory;
 
     public const RolePresenter = 'presenter';
@@ -25,9 +26,9 @@ class ThreadActor extends Model
 
     public const StatusPaused = 'paused';
 
-    public const ActorRequestAgent = 'request_agent';
+    public const ActorCoordinator = 'coordinator_agent';
 
-    public const ActorOrderAgent = 'order_agent';
+    public const ActorExecutor = 'executor_agent';
 
     public const ActorSafetyGuard = 'safety_guard';
 

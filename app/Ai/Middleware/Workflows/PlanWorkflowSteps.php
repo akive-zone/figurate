@@ -5,12 +5,12 @@ namespace App\Ai\Middleware\Workflows;
 use Closure;
 use Laravel\Ai\Prompts\AgentPrompt;
 
-class PlanFulfillmentSteps
+class PlanWorkflowSteps
 {
     public function handle(AgentPrompt $prompt, Closure $next): mixed
     {
         $plan = implode("\n", [
-            'Fulfillment planning workflow (system policy):',
+            'Work planning workflow (system policy):',
             '- Build a short internal plan before final response.',
             '- Plan order: analyze thread state -> decide tool needs -> execute tools -> synthesize answer.',
             '- Ask at most one targeted follow-up question when critical context is missing.',

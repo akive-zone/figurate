@@ -67,6 +67,15 @@ class Thread extends Model
         return $this->hasMany(ThreadActor::class);
     }
 
+    public function hasActor(User $user): bool
+    {
+        return $this->actors()
+            ->where('actorable_type', $user->getMorphClass())
+            ->where('actorable_id', $user->getKey())
+            ->where('status', ThreadActor::StatusActive)
+            ->exists();
+    }
+
     public function events(): HasMany
     {
         return $this->hasMany(ThreadEvent::class);

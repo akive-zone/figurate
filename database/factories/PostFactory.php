@@ -3,8 +3,8 @@
 namespace Database\Factories;
 
 use App\Models\Server\Post;
+use App\Models\Server\Space;
 use App\Models\Server\User;
-use Figurate\FulfillmentManager\Models\Request;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -23,8 +23,8 @@ class PostFactory extends Factory
     public function definition(): array
     {
         return [
-            'postable_type' => Request::class,
-            'postable_id' => Request::factory(),
+            'postable_type' => Space::class,
+            'postable_id' => Space::factory(),
             'type' => Post::TypeMessage,
             'status' => Post::StatusActive,
             'data' => [

@@ -101,8 +101,8 @@ class ApplyConversationPurposeTriggers
     protected function defaultHandlerActor(string $purpose): string
     {
         return match ($purpose) {
-            Thread::PurposeExecution, Thread::PurposeBilling => ThreadActor::ActorOrderAgent,
-            default => ThreadActor::ActorRequestAgent,
+            Thread::PurposeExecution, Thread::PurposeBilling => ThreadActor::ActorExecutor,
+            default => ThreadActor::ActorCoordinator,
         };
     }
 

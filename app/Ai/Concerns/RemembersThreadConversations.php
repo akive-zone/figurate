@@ -130,7 +130,7 @@ trait RemembersThreadConversations
             }
         }
 
-        if (property_exists($this, 'thread') && $this->thread instanceof \App\Models\Server\Thread) {
+        if (property_exists($this, 'thread') && $this->thread instanceof Thread) {
             $primaryActorKey = $this->thread->actors()
                 ->where('role', ThreadActor::RolePresenter)
                 ->where('status', ThreadActor::StatusActive)
@@ -142,7 +142,7 @@ trait RemembersThreadConversations
             }
         }
 
-        return ThreadActor::ActorRequestAgent;
+        return ThreadActor::ActorCoordinator;
     }
 
     protected function conversationPersistenceModePreference(): ?string

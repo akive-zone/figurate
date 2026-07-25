@@ -3,18 +3,16 @@
 namespace App\Ai\Middleware\Workflows;
 
 use App\Ai\Support\ThreadContextResolver;
-use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
+use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
 use Closure;
-use Figurate\FulfillmentManager\Ai\Support\FulfillmentContext;
 use Laravel\Ai\Prompts\AgentPrompt;
 
 class ResolveAudienceContext
 {
     public function __construct(
-        protected FulfillmentContext $fulfillmentContext = new FulfillmentContext,
         protected ThreadContextResolver $threadContextResolver = new ThreadContextResolver,
     ) {}
 
@@ -28,21 +26,18 @@ class ResolveAudienceContext
         }
 
         $space = $this->threadContextResolver->resolveSpace($thread);
-        $requestPost = $this->fulfillmentContext->resolveSubjectFromThread($thread);
-        $speakerParty = $this->resolveSpeakerParty($actor, $requestPost);
-        $participantCount = $this->resolveParticipantCount($space, $requestPost);
+        $participantCount = $this->resolveParticipantCount($thread, $space);
         $conversationMode = $participantCount > 2 ? 'group' : 'direct';
-        $audience = $this->resolveAudience($speakerParty, $conversationMode);
+        $audience = $conversationMode === 'group' ? 'group' : 'member';
 
         $context = implode("\n", [
             'Audience context (system policy):',
             '- Speaker role: member',
-            "- Speaker party: {$speakerParty}",
             "- Audience: {$audience}",
             "- Conversation mode: {$conversationMode}",
             "- Participant count: {$participantCount}",
             '- Adapt reply to the audience and avoid cross-party leakage.',
-            '- Keep party terms consistent: asker, worker, group.',
+            '- Keep participant terms generic unless domain context supplies specific roles.',
         ]);
 
         return $next($prompt->prepend($context));
@@ -74,24 +69,7 @@ class ResolveAudienceContext
         return $actor instanceof User ? $actor : null;
     }
 
-    protected function resolveSpeakerParty(User $actor, ?Post $requestPost): string
-    {
-        if (! $requestPost) {
-            return 'member';
-        }
-
-        if ($this->fulfillmentContext->isRequester($requestPost, $actor)) {
-            return 'asker';
-        }
-
-        if ($this->fulfillmentContext->hasParticipant($requestPost, $actor)) {
-            return 'member';
-        }
-
-        return 'external';
-    }
-
-    protected function resolveParticipantCount(?Space $space, ?Post $requestPost): int
+    protected function resolveParticipantCount(Thread $thread, ?Space $space): int
     {
         if ($space) {
             return max(
@@ -104,23 +82,13 @@ class ResolveAudienceContext
             );
         }
 
-        if ($requestPost) {
-            return 2;
-        }
-
-        return 1;
-    }
-
-    protected function resolveAudience(string $speakerParty, string $conversationMode): string
-    {
-        if ($conversationMode === 'group') {
-            return 'group';
-        }
-
-        return match ($speakerParty) {
-            'asker' => 'worker',
-            'worker' => 'asker',
-            default => 'member',
-        };
+        return max(
+            1,
+            (int) $thread->actors()
+                ->where('status', ThreadActor::StatusActive)
+                ->where('actorable_type', (new User)->getMorphClass())
+                ->distinct('actorable_id')
+                ->count('actorable_id')
+        );
     }
 }

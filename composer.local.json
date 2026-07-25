@@ -4,7 +4,6 @@
             "include": [
                 "ext/web-view/composer.json",
                 "mod/account-manager/composer.json",
-                "mod/fulfillment-manager/composer.json",
                 "mod/social-auth/composer.json",
                 "mod/multi-site/composer.json",
                 "mod/multi-space/composer.json"

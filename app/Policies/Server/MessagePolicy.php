@@ -6,7 +6,6 @@ use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
-use Figurate\FulfillmentManager\Models\Request;
 
 class MessagePolicy
 {
@@ -35,30 +34,16 @@ class MessagePolicy
 
         $messageable = $message->messageable;
 
-        if ($messageable instanceof Request) {
-            if ($messageable->hasUserActor($user)) {
-                return true;
-            }
-
-            return false;
-        }
-
         if ($messageable instanceof Space) {
-            $serviceRequest = $messageable->requests()->first();
-
-            if (! $serviceRequest) {
-                return $messageable->hasActor($user);
-            }
-
-            return $serviceRequest->hasParticipant($user);
+            return $messageable->hasActor($user);
         }
 
         if ($messageable instanceof Thread) {
-            $threadable = $messageable->threadable;
-
-            if ($threadable instanceof Request) {
-                return $threadable->hasParticipant($user);
+            if ($messageable->hasActor($user)) {
+                return true;
             }
+
+            $threadable = $messageable->threadable;
 
             if ($threadable instanceof Space) {
                 return $threadable->hasActor($user);

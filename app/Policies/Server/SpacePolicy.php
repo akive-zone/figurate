@@ -20,13 +20,7 @@ class SpacePolicy
      */
     public function view(User $user, Space $space): bool
     {
-        $serviceRequest = $space->requests()->first();
-
-        if (! $serviceRequest) {
-            return $space->hasActor($user);
-        }
-
-        return $serviceRequest->hasParticipant($user);
+        return $space->hasActor($user);
     }
 
     /**
@@ -42,13 +36,7 @@ class SpacePolicy
      */
     public function update(User $user, Space $space): bool
     {
-        $serviceRequest = $space->requests()->first();
-
-        if (! $serviceRequest) {
-            return $space->hasActor($user);
-        }
-
-        return $serviceRequest->hasParticipant($user);
+        return $space->hasActor($user);
     }
 
     /**
@@ -56,13 +44,7 @@ class SpacePolicy
      */
     public function delete(User $user, Space $space): bool
     {
-        $serviceRequest = $space->requests()->first();
-
-        if (! $serviceRequest) {
-            return $space->hasActor($user);
-        }
-
-        return $serviceRequest->hasParticipant($user);
+        return $space->hasActor($user);
     }
 
     /**

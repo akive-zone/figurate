@@ -73,7 +73,7 @@ class AgentPromptOutboxDispatchTest extends TestCase
             'config' => null,
         ]);
         $presenter = $thread->actors()->create([
-            'actorable_type' => ThreadActor::ActorRequestAgent,
+            'actorable_type' => ThreadActor::ActorCoordinator,
             'actorable_id' => null,
             'role' => ThreadActor::RolePresenter,
             'status' => ThreadActor::StatusActive,
@@ -103,7 +103,7 @@ class AgentPromptOutboxDispatchTest extends TestCase
         $this->assertNotNull($outbox);
         $this->assertSame(Outbox::DirectionOutbound, $outbox->direction);
         $this->assertSame('laravel-ai', $outbox->provider);
-        $this->assertSame(ThreadActor::ActorRequestAgent, $outbox->target);
+        $this->assertSame(ThreadActor::ActorCoordinator, $outbox->target);
         $this->assertSame(
             ConversationPersistenceResolver::ThreadCompletion,
             data_get($outbox->payload, 'dispatch.conversation_persistence'),
@@ -162,7 +162,7 @@ class AgentPromptOutboxDispatchTest extends TestCase
         ]);
         $post->attachRelation($sender, Post::RelationRoleSender);
         $presenter = $thread->actors()->create([
-            'actorable_type' => ThreadActor::ActorRequestAgent,
+            'actorable_type' => ThreadActor::ActorCoordinator,
             'actorable_id' => null,
             'role' => ThreadActor::RolePresenter,
             'status' => ThreadActor::StatusActive,

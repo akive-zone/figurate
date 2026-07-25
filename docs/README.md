@@ -8,6 +8,7 @@ These docs are grouped around the main runtime surfaces of the system.
 - [Context](./context.md): the engine of the system. Covers channels, spaces, threads, and posts.
 - [Graph](./graph.md): explicit edges between existing context nodes.
 - [Form](./form.md): generic authenticated form submission.
+- [Fulfillment Reference Scenario](./fulfillment-scenario.md): a future test case for proving an application built on Figurate.
 
 ## Endpoint Inventory
 
@@ -22,4 +23,3 @@ CRM conversation JSON -> Fig context -> agent review -> review artifact
 ```
 
 That should become a Context ingestion flow, not a Graph endpoint. Graph can link the resulting context artifacts after they exist.
-

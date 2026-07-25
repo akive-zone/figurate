@@ -22,7 +22,7 @@ class EnqueueThreadPromptOutbox
     ): Outbox {
         $resolvedConversationPersistenceMode = ConversationPersistenceResolver::normalizeMode($conversationPersistenceMode)
             ?? ConversationPersistenceResolver::ThreadContinuation;
-        $actorKey = $threadActor->actorName() ?: ThreadActor::ActorRequestAgent;
+        $actorKey = $threadActor->actorName() ?: ThreadActor::ActorCoordinator;
         $target = $threadActor->actorReference() ?: $actorKey;
         $idempotencyKey = $this->promptIdempotencyKey(
             post: $post,
