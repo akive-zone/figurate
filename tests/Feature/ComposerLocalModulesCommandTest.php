@@ -94,7 +94,7 @@ JSON
         "merge-plugin": {
             "include": [
                 "mod/account-manager/composer.json",
-                "mod/social-auth/composer.json"
+                "mod/multi-site/composer.json"
             ]
         }
     }
@@ -104,7 +104,7 @@ JSON
 
             $this->assertSame([
                 base_path('mod/account-manager/composer.json'),
-                base_path('mod/social-auth/composer.json'),
+                base_path('mod/multi-site/composer.json'),
             ], ComposerLocalModules::at(base_path())->resolvedMergePluginIncludes());
         } finally {
             if ($originalComposerLocal === null) {
