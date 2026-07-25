@@ -223,6 +223,26 @@ class AcpSessionService
         return $this->taskPayload($task);
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function cancelSession(User $actor, string $sessionUuid): ?array
+    {
+        $thread = $this->resolveThread($actor, $sessionUuid);
+        $task = $this->taskService->latestTaskRecords()
+            ->first(fn (TaskRecord $task): bool => $task->isLocal()
+                && $task->protocol === 'acp'
+                && $task->thread?->uuid === $thread->uuid
+                && $task->userId === $actor->getKey()
+                && ! in_array($task->status, ['completed', 'failed', 'canceled'], true));
+
+        if (! $task instanceof TaskRecord) {
+            return null;
+        }
+
+        return $this->cancelTask($actor, $task->uuid);
+    }
+
     protected function visibleSpacesQuery(User $actor): Builder
     {
         Gate::forUser($actor)->authorize('viewAny', Space::class);

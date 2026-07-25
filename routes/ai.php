@@ -3,6 +3,7 @@
 use App\Ai\Gateways\Mcp\Servers\FigurateServer;
 use App\Http\Controllers\Api\A2a\AgentCardController;
 use App\Http\Controllers\Api\A2a\StreamController as A2aStreamController;
+use App\Http\Controllers\Api\Acp\RpcController as AcpRpcController;
 use App\Http\Controllers\Api\Acp\SessionController as AcpSessionController;
 use App\Http\Controllers\Api\Acp\TaskController as AcpTaskController;
 use App\Http\Middleware\EnsureA2aEnabled;
@@ -26,6 +27,7 @@ Route::prefix('mcp')->middleware(['auth:sanctum,passport'])->group(function (): 
 });
 
 Route::prefix('acp')->middleware(['auth:sanctum,passport', EnsureTransportUser::class, EnsureTokenAbility::class.':acp:use'])->group(function (): void {
+    Route::post('/rpc', AcpRpcController::class)->name('api.acp.rpc');
     Route::get('/sessions', [AcpSessionController::class, 'index'])->name('api.acp.sessions.index');
     Route::post('/sessions', [AcpSessionController::class, 'store'])->name('api.acp.sessions.store');
     Route::get('/sessions/{session}', [AcpSessionController::class, 'show'])->name('api.acp.sessions.show');
