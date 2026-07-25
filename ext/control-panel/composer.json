@@ -1,0 +1,20 @@
+{
+    "name": "figurate/control-panel",
+    "type": "library",
+    "description": "Administrative control panel extension for Figurate",
+    "autoload": {
+        "psr-4": {
+            "Figurate\\ControlPanel\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Figurate\\ControlPanel\\ControlPanelServiceProvider"
+            ]
+        }
+    },
+    "require": {
+        "filament/filament": "^4.0"
+    }
+}

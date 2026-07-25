@@ -15,7 +15,6 @@
         }
     },
     "require": {
-        "filament/filament": "^4.0",
         "inertiajs/inertia-laravel": "^2.0",
         "livewire/flux": "*"
     }

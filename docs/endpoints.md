@@ -1,8 +1,10 @@
 # Endpoint Catalog
 
-This document captures the current HTTP surfaces exposed by Figurate.
+This document captures the primary product surface of Figurate: the APIs and protocols used by third-party systems and first-party clients.
 
 Laravel is configured with `apiPrefix: '/'` in `bootstrap/app.php`, so most API routes are root-relative (`/channels`, `/graph/edges`, `/spaces`) rather than `/api/...`. Routes that explicitly include `/api` are listed with that prefix.
+
+The bundled web workspace and control panel are supporting interfaces. Integrations should depend on the authenticated API and protocol contracts documented here rather than UI routes.
 
 Grouped docs:
 
@@ -169,7 +171,7 @@ This route is package/module-provided and keeps its `/api` prefix.
 
 ## Control Panel
 
-Filament control-panel routes require Filament authentication and `EnsurePanelUser`.
+The optional `control-panel` extension owns these Filament routes. They require Filament authentication and `EnsurePanelUser`.
 
 | Method | Path | Name | Purpose |
 | --- | --- | --- | --- |

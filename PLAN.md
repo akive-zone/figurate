@@ -10,7 +10,7 @@ Date opened: 2026-02-21
 Current status: Partially Completed
 
 ### Goal
-Stabilize chat orchestration and fulfillment execution around Laravel AI primitives, with clean naming and thin HTTP boundaries.
+Stabilize API-driven conversation and work orchestration around Laravel AI primitives, with clean naming, reusable services, and thin transport boundaries.
 
 ### Completed
 
@@ -144,7 +144,7 @@ Establish a usable MCP gateway for Figurate, covering both the first-party Figur
 
 ### Completed
 
-1. First-party Figurate MCP server is implemented and exposed at `/mcp/figurate`.
+1. First-party Figurate MCP server is implemented and exposed at `/mcp`.
 2. MCP web access is protected behind `EnsureDeviceUser` and `auth:sanctum`.
 3. The Figurate server publishes a concrete capability surface for channels/threads/posts/actors/context, including:
    - read/list tools,
@@ -169,7 +169,7 @@ Establish a usable MCP gateway for Figurate, covering both the first-party Figur
    - endpoint/handler presence checks exist,
    - broader trust policy and environment-aware restrictions are still open.
 2. First-party server coverage exists, but outbound resolver/client/policy coverage is still thin compared with the implemented surface.
-3. The Figurate MCP server is operational for chat-context inspection and safe workflow actions, but broader product workflow coverage is intentionally narrow and excludes fulfillment-state mutation.
+3. The Figurate MCP server is operational for context inspection and safe workflow actions, but its broader mutation contract remains intentionally narrow.
 
 ### Open Work
 
@@ -344,7 +344,7 @@ Separate durable human ownership from acting runtime principals so Figurate can 
 5. Keep durable, resumable resources actor-scoped and derive account context through `account_users` when needed.
 6. Replace merge-on-login behavior with account attachment while keeping authenticated gadget users as gadgets.
 7. Reserve `subject` until its runtime semantics are concrete enough to justify actual promotion or dedicated flows.
-8. Move passkey/social/durable human-auth bindings toward `accounts` rather than treating a `person` or `subject` user row as the durable identity.
+8. Move passkey, external identity, and durable human-auth bindings toward `accounts` rather than treating a `person` or `subject` user row as the durable identity.
 9. Keep token/runtime actor resolution user-scoped so auditability and transport checks continue to operate on the acting principal.
 
 ### Current Risks to Address
@@ -470,18 +470,18 @@ Deliver an authenticated ACP session/task API and bridge runtime so external ACP
 
 ---
 
-## Plan Entry: Fig Node Coordination Runtime
+## Plan Entry: Figurate API Coordination Runtime
 
 Date opened: 2026-06-29
 Current status: Open
 
 ### Goal
 
-Tighten Fig into a deployable coordination node that can sit beside existing chat, ERP, CRM, CMS, ticketing, fulfillment, and enterprise collaboration systems while providing issue tracking, change review, durable work memory, and agent-assisted orchestration.
+Deliver Figurate as an API-first coordination runtime that third-party chat, ERP, CRM, CMS, ticketing, automation, and enterprise systems can use for durable work context, change review, task coordination, and agent-assisted orchestration.
 
 ### Current Direction
 
-Fig should not be treated as another chat application. Chat is a surface and input. The core runtime is the work graph and coordination layer behind existing systems:
+Figurate should not be treated as another chat application. Its APIs and protocols are the product surface. Chat, the bundled web workspace, and the control panel are clients of the work graph and coordination runtime:
 
 - `Space` represents long-lived work context.
 - `Thread` represents an active session or workstream.
@@ -496,7 +496,7 @@ Fig should not be treated as another chat application. Chat is a surface and inp
    - outbound updates and callbacks,
    - route-specific addresses,
    - route/channel/address skill context.
-2. Define the issue-tracking shape shared by fulfillment, ticket resolution, change review, and enterprise collaboration:
+2. Define a domain-neutral issue-tracking shape that third-party fulfillment, ticket resolution, change review, and enterprise applications can use:
    - status,
    - owner,
    - participants,
@@ -533,7 +533,7 @@ Fig should not be treated as another chat application. Chat is a surface and inp
 ### Exit Criteria
 
 1. A Fig node can be attached to an external system through channels/routes and reliably map inbound events into spaces, threads, posts, actors, and skills.
-2. Fulfillment, ticket resolution, and change review can share the same core issue/work tracking model without special-case controller flows.
+2. Third-party fulfillment, ticket resolution, and change-review applications can share the same core issue/work tracking model without special-case controller flows.
 3. Human conversation, agent observation, and tool execution produce durable reviewable artifacts rather than transient-only chat turns.
 4. External-system callbacks and outbound deliveries include enough metadata to correlate work across systems.
 5. Authorization and trust boundaries are explicit for inbound routes, outbound callbacks, MCP tools, A2A/ACP clients, and observer agents.

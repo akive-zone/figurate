@@ -1,13 +1,12 @@
 <?php
 
-namespace Figurate\WebView;
+namespace Figurate\ControlPanel;
 
-use App\Http\Middleware\EnsurePanelUser;
+use Figurate\ControlPanel\Http\Middleware\EnsurePanelUser;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Navigation\NavigationItem;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -32,16 +31,13 @@ class ControlPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Amber,
             ])
-            ->discoverResources(in: __DIR__.'/Filament/Resources', for: 'Figurate\\WebView\\Filament\\Resources')
+            ->discoverResources(
+                in: __DIR__.'/Filament/Resources',
+                for: 'Figurate\\ControlPanel\\Filament\\Resources',
+            )
             ->widgets([
                 AccountWidget::class,
                 FilamentInfoWidget::class,
-            ])
-            ->navigationItems([
-                NavigationItem::make('Back to Chat')
-                    ->url(fn (): string => route('chat.index'))
-                    ->icon('heroicon-o-chat-bubble-left-right')
-                    ->sort(-100),
             ])
             ->middleware([
                 EncryptCookies::class,

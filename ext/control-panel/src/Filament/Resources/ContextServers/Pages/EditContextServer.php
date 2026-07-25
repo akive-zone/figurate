@@ -1,13 +1,13 @@
 <?php
 
-namespace Figurate\WebView\Filament\Resources\ContextServers\Pages;
+namespace Figurate\ControlPanel\Filament\Resources\ContextServers\Pages;
 
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelRelation;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
-use Figurate\WebView\Filament\Resources\ContextServers\ContextServerResource;
+use Figurate\ControlPanel\Filament\Resources\ContextServers\ContextServerResource;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;

@@ -1,8 +1,8 @@
 <?php
 
-namespace Figurate\WebView\Filament\Resources\ContextServers\Pages;
+namespace Figurate\ControlPanel\Filament\Resources\ContextServers\Pages;
 
-use Figurate\WebView\Filament\Resources\ContextServers\ContextServerResource;
+use Figurate\ControlPanel\Filament\Resources\ContextServers\ContextServerResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 

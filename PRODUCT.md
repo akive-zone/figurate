@@ -1,3 +1,27 @@
+## Current Product Definition
+
+Figurate is an API-first coordination platform for third-party systems.
+
+Its primary consumers are applications, agents, automation platforms, enterprise systems, and integration services. They connect through HTTP APIs, webhooks, WebSockets, MCP, A2A, and ACP to turn external conversations and events into durable, coordinated work.
+
+The canonical platform contract is:
+
+- APIs and protocols are the product surface.
+- `Space`, `Thread`, and `Post` are the core context primitives.
+- channels, routes, and addresses connect third-party systems to that context.
+- agents, skills, and tools perform orchestration, review, and action.
+- events, tasks, graph edges, inboxes, and outboxes preserve execution state and traceability.
+- the bundled web workspace, control panel, and future Device clients consume the same platform capabilities as external clients.
+
+Figurate supports two deployment targets:
+
+- **Remote:** the primary deployment, running as an API service in a customer cloud, server, VPS, or internal network.
+- **Device:** a local/private deployment of the same API-oriented runtime for device-bound context, actions, and automations.
+
+A Device deployment may connect to a Remote deployment, but this is a topology choice rather than a separate product mode. Figurate is not a mobile service, and no human-facing UI is the canonical integration boundary.
+
+---
+
 ## Log 1
 FLOW of Fullfillment:
    * Enquiry
@@ -155,15 +179,15 @@ From an explorer's perspective, Figurate is a dynamic project workspace organize
 # Log 7:
 - Date: 29-06-2026
 
-## Fig as a Deployable Coordination Node
+## Figurate as an API-First Coordination Node
 
-Fig should be understood as software that can run as a node on a remote server, customer cloud, internal network, or user device. The node sits beside existing systems instead of replacing them.
+Figurate should be understood as an API-first service that can run as a Remote or Device node. The node sits beside existing systems instead of replacing them.
 
-It can sit on top of instant messaging, ERP, CRM, CMS, ticketing, enterprise collaboration, fulfillment marketplaces, and custom internal tools. Those systems continue to be where people and machines already work. Fig becomes the coordination layer that receives events, conversations, and system changes through channels and routes, then turns them into structured, reviewable work.
+It can sit behind instant messaging, ERP, CRM, CMS, ticketing, enterprise collaboration, fulfillment marketplaces, and custom internal tools. Those systems continue to be where people and machines already work. They use Figurate's APIs and protocols to submit events, conversations, and system changes through channels and routes, which Figurate turns into structured, reviewable work.
 
 ### Core Positioning
 
-Fig is an operational overlay for conversations and work systems.
+Figurate is an API-first operational coordination layer for conversations and work systems.
 
 It provides:
 
@@ -178,16 +202,18 @@ It provides:
 ### Node Model
 
 ```text
-Existing systems:
+Third-party systems and clients:
 IM / WhatsApp / Slack / Teams
 ERP / CRM / CMS
 Ticketing / Helpdesk
 Marketplace / Fulfillment app
 Internal tools / databases
+Agent and automation platforms
 
-            -> channels / routes / webhooks / websockets / MCP / A2A / ACP
+            -> HTTP APIs / webhooks / WebSockets / MCP / A2A / ACP
 
-Fig node:
+Figurate API node:
+Channels -> integration boundaries and delivery routes
 Spaces  -> long-lived work context
 Threads -> active sessions and workstreams
 Posts   -> durable artifacts, events, decisions, and updates
@@ -197,7 +223,7 @@ Tools   -> external system actions and data access
 
             -> actions / reviews / approvals / events / synchronized updates
 
-Humans, agents, systems, workflows
+Third-party applications, humans, agents, systems, and workflows
 ```
 
 ### Example Use Cases
@@ -226,12 +252,13 @@ Existing collaboration tools remain the conversation surface. Fig becomes the wo
 
 ### Product Principle
 
-Fig should not become just another chat app. Chat is one input and one surface. The core product is the work graph, coordination runtime, and agent-assisted review layer behind chat and business systems.
+Figurate should not become just another chat app. Chat and the bundled web workspace are clients of the platform. The core product is the API contract, work graph, coordination runtime, and agent-assisted review layer behind third-party systems.
 
-### Deployment Modes
+### Deployment Targets
 
-Fig has three deployment modes:
+Figurate has two deployment targets:
 
-- **Device Mode:** Fig runs on the user's device through NativePHP Desktop. This mode is for local/private context, device-bound actions, local automations, and user-specific behavior.
-- **Remote Mode:** Fig runs as a Laravel API service on a server, VPS, customer cloud, or internal network. This mode is API-first and is used through webhooks, WebSockets, MCP, A2A, ACP, and other integrations.
-- **Hybrid Mode:** A device node and remote node work together. The remote node handles shared/team/system workflow state. The device node keeps local-private context and device-scoped behavior.
+- **Remote:** Figurate runs as a Laravel API service on a server, VPS, customer cloud, or internal network. This is the primary target for third-party integrations.
+- **Device:** Figurate runs the same API-oriented coordination capabilities on a user's device for local/private context, device-bound actions, and local automation.
+
+Device and Remote nodes may cooperate when a deployment needs both private local context and shared remote state.

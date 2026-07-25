@@ -15,10 +15,6 @@ class WebViewServiceProvider extends ServiceProvider
     public function register(): void
     {
         app(AppRuntime::class)->registerRootView('server', 'web-view::app');
-
-        if (runtime() === 'server') {
-            $this->app->register(ControlPanelProvider::class);
-        }
     }
 
     public function boot(): void

@@ -1,73 +1,50 @@
-- Application (app)
-- Configuration (config)
-- Extension (ext)
-- Modification (mod)
+# Development
 
-So we're building a platform that supports device and remote deployments.
+Figurate is developed as an API-first coordination platform for third-party systems.
 
-Using tools like
-- NativePHP Desktop
-- FilamentPHP
-- InertiaJS
+## Product Boundary
 
-There are two main parts to the project that will be served inside the device app through NativePHP Desktop using [InertiaJS + FilamentPHP]
+The stable product surface is the platform contract exposed through:
 
-Orchestration model (product design direction, not locked policy):
-- Candidate direction is one user-facing `conversation` per request context for the asker chatbox.
-- Candidate direction is many internal `threads` per request/order lifecycle to handle agent switching and phase isolation.
-- Threads can hold `agent_key`, `phase`, and `ai_conversation_id` memory.
-- The active thread may change over time (for example `RequestAgent` to `OrderAgent`) while keeping one visible chat flow for the asker.
+- HTTP APIs
+- webhooks
+- WebSockets
+- MCP
+- A2A
+- ACP
 
+The bundled Inertia workspace and Filament control panel are first-party clients and operational tools. They must consume and demonstrate the same domain capabilities available to third-party clients; they should not become a separate source of business behavior.
 
-The app will be accessible to all users with a basic account
+## Runtime Structure
 
-- users will have three types system, device and person, enterprise
+- `app`: core coordination runtime, API controllers, agents, tasks, events, and policies.
+- `config`: platform and integration configuration.
+- `mod`: enabled product modules.
+- `ext`: optional deployment or protocol extensions.
 
-- device users will have limited access to the app ... these are users that haven't authenticated (guest users)
+The core domain remains independent of any single integration:
 
-- person users will have access to both apps
+- `Space`: long-lived context.
+- `Thread`: active session or workstream.
+- `Post`: durable message, event, artifact, decision, or result.
+- `Channel`, `ChannelRoute`, and `ChannelAddress`: external-system ingress and delivery mapping.
+- `AgentTask` and `ThreadEvent`: execution state and traceability.
 
-- a device user upgrades to a person / enterprise user through a configured, protocol-based identity adapter
+## Deployment Targets
 
-So overview for now ... one of the usecase 
+- **Remote:** the primary target for third-party systems, hosted in a cloud, server, VPS, or internal network.
+- **Device:** a local/private target using the same API-oriented runtime for device-bound context and actions.
 
-Users are here to make a chat in a channel ... One of the usecase is that the user message is converted to a request and when sent out to profiles ... they can accept and it becomes an order  
+Device and Remote nodes may be connected, but clients should integrate through explicit contracts instead of relying on UI implementation details.
 
-Some users manage profiles that is created to showcase their skills ... and pick from categories of services they want to offer 
+## Development Direction
 
-profiles must be approved by admin before they can go live on the signal marketplace 
-
-
-So a typical flow of the platform
-
-- Person User / Device User comes to the signal app and searches for profiles that match their needs and then makes a request to that profile 
-
-- The profile owner gets notified of the request and can accept or reject it 
-
-- If accepted ... the profile owner makes a quote for the request ... this basically a logging of what they will do, or can do , or can do for the request 
-
-- If person user accepts the quote ... it becomes an booked order
-
-- after this stage ... billing can be done ... either full or partial payment
-
-- the profile owner now does assestment of the order ... which is optional ... if there's an assestement, the order assetment must be acknowledged by the person user before work can begin
-
-- after this stage ... billing can be done ... either full or partial payment
-
-- the person profile goes ahead to deliver the service ... online / offline 
-   - there's a place on the studio for logging (allows photo, video, audio and text uploads) ... this is where the profile owner logs their work progress
-
-- profile owner marks the order as completed 
-
-- person user gets notified of completion and can review the work done
-
-- person user can either accept the work or dispute it
-
-- after this stage ... billing can be done ...  full payment or balance payment of partial payment
-
-- if accepted ... the order is marked as fulfilled 
-
-- both parties can rate each other
+1. Define and version external API and protocol contracts.
+2. Keep controllers transport-focused and put orchestration in reusable services.
+3. Make authentication, authorization, tenancy, idempotency, and correlation explicit for machine clients.
+4. Provide reliable inbound ingestion and outbound callback delivery.
+5. Preserve every meaningful action as durable context, task state, or an auditable event.
+6. Treat domain applications such as fulfillment, ticketing, and change review as consumers of Figurate rather than built-in product identities.
 
 ## Archived Summary of Early Design Exploration (2026-02-03 to 2026-02-13)
 Archived summary from `PLAN.md` (2026-02-03 to 2026-02-13):

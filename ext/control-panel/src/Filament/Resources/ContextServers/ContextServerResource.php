@@ -1,6 +1,6 @@
 <?php
 
-namespace Figurate\WebView\Filament\Resources\ContextServers;
+namespace Figurate\ControlPanel\Filament\Resources\ContextServers;
 
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelRelation;
@@ -8,11 +8,11 @@ use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use BackedEnum;
-use Figurate\WebView\Filament\Resources\ContextServers\Pages\CreateContextServer;
-use Figurate\WebView\Filament\Resources\ContextServers\Pages\EditContextServer;
-use Figurate\WebView\Filament\Resources\ContextServers\Pages\ListContextServers;
-use Figurate\WebView\Filament\Resources\ContextServers\Schemas\ContextServerForm;
-use Figurate\WebView\Filament\Resources\ContextServers\Tables\ContextServersTable;
+use Figurate\ControlPanel\Filament\Resources\ContextServers\Pages\CreateContextServer;
+use Figurate\ControlPanel\Filament\Resources\ContextServers\Pages\EditContextServer;
+use Figurate\ControlPanel\Filament\Resources\ContextServers\Pages\ListContextServers;
+use Figurate\ControlPanel\Filament\Resources\ContextServers\Schemas\ContextServerForm;
+use Figurate\ControlPanel\Filament\Resources\ContextServers\Tables\ContextServersTable;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
