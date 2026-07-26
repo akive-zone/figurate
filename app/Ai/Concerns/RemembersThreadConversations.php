@@ -5,14 +5,13 @@ namespace App\Ai\Concerns;
 use App\Ai\Storage\ConversationPersistenceResolver;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
+use Laravel\Ai\Concerns\RemembersConversations as LaravelRemembersConversations;
 use Laravel\Ai\Contracts\ConversationStore;
 use Laravel\Ai\Models\Conversation;
 
 trait RemembersThreadConversations
 {
-    protected ?string $conversationId = null;
-
-    protected ?object $conversationUser = null;
+    use LaravelRemembersConversations;
 
     protected ?string $conversationMode = null;
 
@@ -28,7 +27,12 @@ trait RemembersThreadConversations
         return $this->conversationMode;
     }
 
-    public function forUser($user): static
+    public function forParticipant(object $participant): static
+    {
+        return $this->forUser($participant);
+    }
+
+    public function forUser(object $user): static
     {
         $shouldUseThreadConversationIds = app(ConversationPersistenceResolver::class)
             ->shouldUseThreadConversationIds($this->conversationPersistenceModePreference());
@@ -41,7 +45,7 @@ trait RemembersThreadConversations
         return $this;
     }
 
-    public function continue(string $conversationId, object $as): static
+    public function continue(string $conversationId, ?object $as = null): static
     {
         $thread = property_exists($this, 'thread') && $this->thread instanceof Thread ? $this->thread : null;
         $threadConversationId = $this->threadConversationId();

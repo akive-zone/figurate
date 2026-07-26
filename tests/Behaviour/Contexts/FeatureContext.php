@@ -2,10 +2,6 @@
 
 namespace Tests\Behaviour\Contexts;
 
-use App\Ai\Support\AgentExecutor;
-use App\Models\Server\AgentConversation;
-use App\Models\Server\AgentConversationMessage;
-use App\Models\Server\Post;
 use App\Models\Server\SanctumUser;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
@@ -21,10 +17,14 @@ use Behat\Step\Given;
 use Behat\Step\Then;
 use Behat\Step\When;
 use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
-use Mockery;
+use Laravel\Ai\AiManager;
+use Laravel\Ai\Gateway\FakeTextGateway;
+use Laravel\Ai\Gateway\OpenAi\OpenAiGateway;
+use Laravel\Ai\Providers\OpenAiProvider;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -48,6 +48,8 @@ class FeatureContext implements Context
 
     protected ?Response $response = null;
 
+    protected ?string $originalAiProvider = null;
+
     /**
      * @var array<string, mixed>
      */
@@ -57,6 +59,7 @@ class FeatureContext implements Context
     public function prepareScenario(): void
     {
         $application = $this->application();
+        $application->make('config')->set('broadcasting.default', 'null');
         $application->make(ConsoleKernel::class)->call('migrate:fresh', [
             '--force' => true,
         ]);
@@ -65,8 +68,12 @@ class FeatureContext implements Context
     #[AfterScenario]
     public function finishScenario(): void
     {
-        Mockery::close();
-        $this->application()->forgetInstance(AgentExecutor::class);
+        if ($this->originalAiProvider !== null) {
+            $this->application()->make('config')->set('ai.default', $this->originalAiProvider);
+            $this->application()->make(AiManager::class)->forgetInstance('behaviour');
+            $this->originalAiProvider = null;
+        }
+
         $this->application()->make('auth')->forgetGuards();
         $this->application()->forgetScopedInstances();
     }
@@ -140,51 +147,33 @@ class FeatureContext implements Context
         $this->memory['thread_id'] = $thread->uuid;
     }
 
-    #[Given('agent execution can be queued')]
-    public function agentExecutionCanBeQueued(): void
+    #[Given('the deterministic AI provider responds with:')]
+    public function theDeterministicAiProviderRespondsWith(PyStringNode $response): void
     {
-        $executor = Mockery::mock(AgentExecutor::class);
-        $executor->shouldReceive('queue')->once();
-        $this->application()->instance(AgentExecutor::class, $executor);
-    }
-
-    #[Given('the invocation :label completed for post :postId')]
-    public function theInvocationCompletedForPost(string $label, string $postId): void
-    {
-        $subject = $this->subject ?? throw new RuntimeException('Create an API subject before completing an invocation.');
-        $post = Post::query()
-            ->where('ulid', $this->interpolate($postId))
-            ->firstOrFail();
-        $invocationId = $label.'-'.fake()->uuid();
-        $conversation = AgentConversation::query()->create([
-            'id' => (string) fake()->uuid(),
-            'participant_type' => $subject->getMorphClass(),
-            'participant_id' => $subject->getKey(),
-            'title' => 'Contract review execution',
+        $application = $this->application();
+        $config = $application->make('config');
+        $this->originalAiProvider ??= (string) $config->get('ai.default');
+        $config->set('ai.default', 'behaviour');
+        $config->set('ai.providers.behaviour', [
+            'driver' => 'behaviour',
+            'key' => 'behaviour-test-key',
         ]);
-        $message = new AgentConversationMessage;
-        $message->forceFill([
-            'id' => (string) fake()->uuid(),
-            'conversation_id' => $conversation->getKey(),
-            'participant_type' => $subject->getMorphClass(),
-            'participant_id' => $subject->getKey(),
-            'agent' => 'contract-review-agent',
-            'role' => 'assistant',
-            'invocation_id' => $invocationId,
-            'trace_id' => $invocationId,
-            'parent_invocation_id' => null,
-            'invocable_type' => $post->getMorphClass(),
-            'invocable_id' => $post->getKey(),
-            'content' => 'Termination clause requires thirty days notice.',
-            'attachments' => '[]',
-            'tool_calls' => '[]',
-            'tool_results' => '[]',
-            'usage' => '[]',
-            'meta' => '[]',
-        ])->save();
 
-        $this->memory['invocation_id'] = $invocationId;
-        $this->memory['agent_message_id'] = $message->getKey();
+        $manager = $application->make(AiManager::class);
+        $manager->extend(
+            'behaviour',
+            function (Application $application, array $providerConfig) use ($response): OpenAiProvider {
+                $gateway = (new FakeTextGateway([$response->getRaw()]))
+                    ->preventStrayPrompts();
+
+                return (new OpenAiProvider(
+                    new OpenAiGateway($application->make(Dispatcher::class)),
+                    $providerConfig,
+                    $application->make(Dispatcher::class),
+                ))->useTextGateway($gateway);
+            },
+        );
+        $manager->forgetInstance('behaviour');
     }
 
     #[When('the client sends a :method request to :path')]
@@ -237,6 +226,21 @@ class FeatureContext implements Context
         }
     }
 
+    #[Then('the response field :field should not be empty')]
+    public function theResponseFieldShouldNotBeEmpty(string $field): void
+    {
+        $actual = data_get($this->responseData, $field);
+
+        if ($actual === null || $actual === '' || $actual === []) {
+            throw new RuntimeException(sprintf(
+                'Expected response field "%s" not to be empty, received %s in response %s.',
+                $field,
+                json_encode($actual, JSON_THROW_ON_ERROR),
+                json_encode($this->responseData, JSON_THROW_ON_ERROR),
+            ));
+        }
+    }
+
     #[Then('the response list :field should contain :expected')]
     public function theResponseListShouldContain(string $field, string $expected): void
     {
@@ -280,6 +284,45 @@ class FeatureContext implements Context
         }
 
         $this->memory[$name] = $value;
+    }
+
+    #[Then('I remember field :valueField from the response item in :listField where :matchField equals :expected as :name')]
+    public function iRememberFieldFromTheResponseItemWhereEqualsAs(
+        string $valueField,
+        string $listField,
+        string $matchField,
+        string $expected,
+        string $name,
+    ): void {
+        $items = data_get($this->responseData, $listField);
+        $expectedValue = $this->normalizeExpectedValue($this->interpolate($expected));
+
+        if (! is_array($items)) {
+            throw new RuntimeException("Response field \"{$listField}\" is not a list.");
+        }
+
+        foreach ($items as $item) {
+            if (! is_array($item) || data_get($item, $matchField) !== $expectedValue) {
+                continue;
+            }
+
+            $value = data_get($item, $valueField);
+
+            if (! is_scalar($value) && $value !== null) {
+                throw new RuntimeException("Response item field \"{$valueField}\" cannot be stored as a scalar value.");
+            }
+
+            $this->memory[$name] = $value;
+
+            return;
+        }
+
+        throw new RuntimeException(sprintf(
+            'No response item in "%s" has field "%s" equal to %s.',
+            $listField,
+            $matchField,
+            json_encode($expectedValue, JSON_THROW_ON_ERROR),
+        ));
     }
 
     /**

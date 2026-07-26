@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Ai\Storage\ConversationPersistenceResolver;
+use App\Ai\Storage\ThreadConversationStore;
 use App\Features\Actions\Chat\AgentPromptOutboundMessageSender;
 use App\Features\Actions\Chat\ChannelOutboundMessageSender;
 use App\Features\Actions\Chat\ProtocolRegistry;
@@ -15,11 +17,15 @@ use App\Policies\Server\SpacePolicy;
 use App\Policies\Server\ThreadPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Ai\Contracts\ConversationStore;
 
 class ComposeServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->singleton(ConversationStore::class, fn ($application): ThreadConversationStore => new ThreadConversationStore(
+            resolver: $application->make(ConversationPersistenceResolver::class),
+        ));
         $this->app->scoped(ProtocolRegistry::class);
         $this->app->singleton(AgentPromptOutboundMessageSender::class);
         $this->app->singleton(ChannelOutboundMessageSender::class);

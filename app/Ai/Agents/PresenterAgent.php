@@ -25,14 +25,14 @@ use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
 use Laravel\Ai\Contracts\Agent;
-use Laravel\Ai\Contracts\Conversational;
 use Laravel\Ai\Contracts\HasMiddleware;
 use Laravel\Ai\Contracts\HasTools;
+use Laravel\Ai\Contracts\RemembersConversations;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Promptable;
 use Stringable;
 
-class PresenterAgent implements Agent, Conversational, HasMiddleware, HasTools
+class PresenterAgent implements Agent, HasMiddleware, HasTools, RemembersConversations
 {
     use Promptable, RemembersThreadConversations;
 
