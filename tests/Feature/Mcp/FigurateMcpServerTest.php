@@ -53,7 +53,7 @@ class FigurateMcpServerTest extends TestCase
         $space = $this->accessibleSpace($user);
         $thread = $space->threads()->create([
             'title' => 'Repair scope',
-            'purpose' => Thread::PurposePlanning,
+            'purpose' => 'planning',
             'phase' => 'scope_planning',
             'status' => 'open',
         ]);
@@ -100,12 +100,15 @@ class FigurateMcpServerTest extends TestCase
         $createThread = FigurateServer::actingAs($user)->tool(CreateThreadTool::class, [
             'space_id' => $space->uuid,
             'title' => 'Source replacement',
-            'purpose' => Thread::PurposeExecution,
+            'purpose' => 'asset_update',
+            'phase' => 'ready_for_review',
         ]);
 
         $createThread->assertOk()->assertSee('Source replacement');
 
         $thread = Thread::query()->where('title', 'Source replacement')->firstOrFail();
+        $this->assertSame('asset_update', $thread->purpose);
+        $this->assertSame('ready_for_review', $thread->phase);
 
         $createPost = FigurateServer::actingAs($user)->tool(CreatePostTool::class, [
             'target_type' => 'thread',
@@ -160,7 +163,7 @@ class FigurateMcpServerTest extends TestCase
         $space = $this->accessibleSpace($user);
         $thread = $space->threads()->create([
             'title' => 'Source thread',
-            'purpose' => Thread::PurposePlanning,
+            'purpose' => 'planning',
             'phase' => 'scope_planning',
             'status' => 'open',
         ]);
@@ -175,7 +178,7 @@ class FigurateMcpServerTest extends TestCase
         $post->attachRelation($user, Post::RelationRoleSender);
         $targetThread = $space->threads()->create([
             'title' => 'Target thread',
-            'purpose' => Thread::PurposeExecution,
+            'purpose' => 'execution',
             'phase' => 'order_kickoff',
             'status' => 'open',
         ]);
@@ -208,7 +211,7 @@ class FigurateMcpServerTest extends TestCase
         $space = $this->accessibleSpace($user);
         $thread = $space->threads()->create([
             'title' => 'Drain issue',
-            'purpose' => Thread::PurposeSupport,
+            'purpose' => 'support',
             'phase' => 'support_open',
             'status' => 'open',
         ]);
@@ -249,19 +252,19 @@ class FigurateMcpServerTest extends TestCase
         $knowledgeSpace = $this->accessibleSpace($user);
         $sourceThread = $sourceSpace->threads()->create([
             'title' => 'Source thread',
-            'purpose' => Thread::PurposePlanning,
+            'purpose' => 'planning',
             'phase' => 'scope_planning',
             'status' => 'open',
         ]);
         $dependencyThread = $dependencySpace->threads()->create([
             'title' => 'Dependency thread',
-            'purpose' => Thread::PurposeExecution,
+            'purpose' => 'execution',
             'phase' => 'order_kickoff',
             'status' => 'open',
         ]);
         $knowledgeThread = $knowledgeSpace->threads()->create([
             'title' => 'Knowledge thread',
-            'purpose' => Thread::PurposeSupport,
+            'purpose' => 'support',
             'phase' => 'support_open',
             'status' => 'open',
         ]);
@@ -332,7 +335,7 @@ class FigurateMcpServerTest extends TestCase
         $space = $this->accessibleSpace($user);
         $thread = $space->threads()->create([
             'title' => 'Assigned work',
-            'purpose' => Thread::PurposeExecution,
+            'purpose' => 'execution',
             'phase' => 'order_kickoff',
             'status' => 'open',
         ]);
@@ -340,16 +343,16 @@ class FigurateMcpServerTest extends TestCase
         $assignResponse = FigurateServer::actingAs($user)->tool(AssignThreadActorTool::class, [
             'thread_id' => $thread->uuid,
             'actor_type' => 'named',
-            'actor_key' => ThreadActor::ActorExecutor,
+            'actor_key' => ThreadActor::ActorCoordinator,
             'role' => ThreadActor::RolePresenter,
             'status' => ThreadActor::StatusActive,
         ]);
 
-        $assignResponse->assertOk()->assertSee(ThreadActor::ActorExecutor);
+        $assignResponse->assertOk()->assertSee(ThreadActor::ActorCoordinator);
 
         $threadActor = ThreadActor::query()
             ->where('thread_id', $thread->id)
-            ->where('actorable_type', ThreadActor::ActorExecutor)
+            ->where('actorable_type', ThreadActor::ActorCoordinator)
             ->where('role', ThreadActor::RolePresenter)
             ->firstOrFail();
 

@@ -299,7 +299,7 @@ class ChannelRouteIngress
         $thread = $addressable->threads()->create([
             'purpose' => Thread::PurposeMain,
             'title' => $target !== null ? "Channel {$target}" : 'Channel Thread',
-            'phase' => 'request_intake',
+            'phase' => Thread::PhaseInitial,
             'status' => 'open',
         ]);
 

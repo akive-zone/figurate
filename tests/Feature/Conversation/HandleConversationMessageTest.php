@@ -395,6 +395,28 @@ class HandleConversationMessageTest extends TestCase
             ->assertJsonMissingPath('space.channel_id');
     }
 
+    public function test_third_parties_can_define_thread_purpose_and_phase_through_the_api(): void
+    {
+        $user = $this->makeUser();
+        $space = $this->accessibleSpace($user);
+
+        Sanctum::actingAs($user, [TokenAbility::Compose->value]);
+
+        $response = $this->postJson(sprintf('/api/spaces/%s/threads', $space->uuid), [
+            'title' => 'External workflow',
+            'purpose' => 'document_review',
+            'phase' => 'awaiting_approval',
+        ]);
+
+        $response->assertCreated();
+
+        $this->assertDatabaseHas('threads', [
+            'uuid' => $response->json('data.id'),
+            'purpose' => 'document_review',
+            'phase' => 'awaiting_approval',
+        ]);
+    }
+
     protected function accessibleSpace(User $user): Space
     {
         $space = SpaceFactory::new()->create();
@@ -415,7 +437,7 @@ class HandleConversationMessageTest extends TestCase
         return $space->threads()->create([
             'purpose' => Thread::PurposeMain,
             'title' => 'Main Request Thread',
-            'phase' => 'request_intake',
+            'phase' => Thread::PhaseInitial,
             'status' => 'open',
         ]);
     }

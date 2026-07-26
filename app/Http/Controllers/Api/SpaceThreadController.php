@@ -36,13 +36,14 @@ class SpaceThreadController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'purpose' => ['nullable', 'string', 'max:50'],
+            'phase' => ['nullable', 'string', 'max:100'],
             'nature' => ['nullable', 'string', 'in:agent,human,mixed'],
         ]);
 
         $thread = $spaceRecord->threads()->create([
             'title' => $data['title'],
-            'purpose' => $data['purpose'] ?? Thread::PurposeExecution,
-            'phase' => $this->defaultPhase($data['purpose'] ?? Thread::PurposeExecution),
+            'purpose' => $data['purpose'] ?? Thread::PurposeMain,
+            'phase' => $data['phase'] ?? Thread::PhaseInitial,
             'status' => 'open',
         ]);
 
@@ -150,18 +151,5 @@ class SpaceThreadController extends Controller
         }
 
         return null;
-    }
-
-    protected function defaultPhase(string $purpose): string
-    {
-        return match ($purpose) {
-            Thread::PurposePlanning => 'scope_planning',
-            Thread::PurposeExecution => 'order_kickoff',
-            Thread::PurposeBilling => 'billing_review',
-            Thread::PurposeDispute => 'opened',
-            Thread::PurposeSupport => 'support_open',
-            Thread::PurposeSystem => 'system_open',
-            default => 'request_intake',
-        };
     }
 }

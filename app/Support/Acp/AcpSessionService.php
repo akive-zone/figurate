@@ -59,8 +59,13 @@ class AcpSessionService
     /**
      * @return array<string, mixed>
      */
-    public function createSession(User $actor, string $spaceUuid, ?string $title = null, ?string $purpose = null): array
-    {
+    public function createSession(
+        User $actor,
+        string $spaceUuid,
+        ?string $title = null,
+        ?string $purpose = null,
+        ?string $phase = null,
+    ): array {
         $space = Space::query()
             ->where('uuid', $spaceUuid)
             ->firstOrFail();
@@ -68,18 +73,19 @@ class AcpSessionService
         Gate::forUser($actor)->authorize('update', $space);
 
         $resolvedPurpose = $this->resolvedPurpose($purpose);
-        $resolvedTitle = $this->trimmedString($title) ?? $this->defaultTitle($resolvedPurpose);
+        $resolvedPhase = $this->trimmedString($phase) ?? Thread::PhaseInitial;
+        $resolvedTitle = $this->trimmedString($title) ?? 'Thread';
 
-        $thread = DB::transaction(function () use ($actor, $space, $resolvedPurpose, $resolvedTitle): Thread {
+        $thread = DB::transaction(function () use ($actor, $space, $resolvedPurpose, $resolvedPhase, $resolvedTitle): Thread {
             $thread = $space->threads()->create([
                 'title' => $resolvedTitle,
                 'purpose' => $resolvedPurpose,
-                'phase' => $this->defaultPhase($resolvedPurpose),
+                'phase' => $resolvedPhase,
                 'status' => 'open',
             ]);
 
             $thread->actors()->create([
-                'actorable_type' => $this->defaultHandlerActor($resolvedPurpose),
+                'actorable_type' => ThreadActor::ActorCoordinator,
                 'actorable_id' => null,
                 'role' => ThreadActor::RolePresenter,
                 'status' => ThreadActor::StatusActive,
@@ -143,7 +149,7 @@ class AcpSessionService
                 'dispatch_observers_when_direct' => false,
                 'ensure_membership' => true,
                 'ensure_presenter' => true,
-                'presenter_actor_type' => $this->defaultHandlerActor($thread->purpose ?: Thread::PurposeExecution),
+                'presenter_actor_type' => ThreadActor::ActorCoordinator,
                 'meta' => [
                     'acp' => [
                         'owner' => [
@@ -384,53 +390,7 @@ class AcpSessionService
 
     protected function resolvedPurpose(?string $purpose): string
     {
-        $purpose = $this->trimmedString($purpose);
-
-        return in_array($purpose, [
-            Thread::PurposeMain,
-            Thread::PurposePlanning,
-            Thread::PurposeExecution,
-            Thread::PurposeBilling,
-            Thread::PurposeDispute,
-            Thread::PurposeSupport,
-            Thread::PurposeSystem,
-        ], true)
-            ? $purpose
-            : Thread::PurposeExecution;
-    }
-
-    protected function defaultHandlerActor(string $purpose): string
-    {
-        return match ($purpose) {
-            Thread::PurposeExecution, Thread::PurposeBilling => ThreadActor::ActorExecutor,
-            default => ThreadActor::ActorCoordinator,
-        };
-    }
-
-    protected function defaultTitle(string $purpose): string
-    {
-        return match ($purpose) {
-            Thread::PurposePlanning => 'Planning',
-            Thread::PurposeExecution => 'Execution',
-            Thread::PurposeBilling => 'Billing',
-            Thread::PurposeDispute => 'Dispute',
-            Thread::PurposeSupport => 'Support',
-            Thread::PurposeSystem => 'System',
-            default => 'Project Main',
-        };
-    }
-
-    protected function defaultPhase(string $purpose): string
-    {
-        return match ($purpose) {
-            Thread::PurposePlanning => 'scope_planning',
-            Thread::PurposeExecution => 'order_kickoff',
-            Thread::PurposeBilling => 'billing_review',
-            Thread::PurposeDispute => 'opened',
-            Thread::PurposeSupport => 'support_open',
-            Thread::PurposeSystem => 'system_open',
-            default => 'request_intake',
-        };
+        return $this->trimmedString($purpose) ?? Thread::PurposeMain;
     }
 
     protected function trimmedString(mixed $value): ?string

@@ -33,6 +33,7 @@ class SessionController extends Controller
                 spaceUuid: $request->validated('space_uuid'),
                 title: $request->validated('title'),
                 purpose: $request->validated('purpose'),
+                phase: $request->validated('phase'),
             ),
         ], 201);
     }

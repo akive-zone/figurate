@@ -59,7 +59,8 @@ class NativeAcpRpcTest extends TestCase
         $this->assertDatabaseHas('threads', [
             'uuid' => $sessionId,
             'title' => 'Native ACP Session',
-            'purpose' => Thread::PurposeExecution,
+            'purpose' => Thread::PurposeMain,
+            'phase' => Thread::PhaseInitial,
         ]);
 
         $this->rpc('session/list')

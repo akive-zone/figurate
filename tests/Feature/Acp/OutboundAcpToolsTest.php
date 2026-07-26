@@ -532,7 +532,7 @@ class OutboundAcpToolsTest extends TestCase
         $thread = Thread::factory()->create([
             'threadable_type' => $space->getMorphClass(),
             'threadable_id' => $space->getKey(),
-            'purpose' => Thread::PurposeExecution,
+            'purpose' => 'execution',
             'status' => 'open',
         ]);
 

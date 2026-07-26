@@ -118,7 +118,6 @@ class A2aMethodRouter
             space: $space,
             actor: $user,
             thread: $threadId,
-            message: $content,
         );
         $thread = $decision->thread;
 

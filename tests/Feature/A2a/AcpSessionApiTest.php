@@ -33,7 +33,8 @@ class AcpSessionApiTest extends TestCase
         $response = $this->postJson('/api/acp/sessions', [
             'space_uuid' => $space->uuid,
             'title' => 'ACP Build Session',
-            'purpose' => Thread::PurposeExecution,
+            'purpose' => 'code_review',
+            'phase' => 'checking_changes',
         ]);
 
         $response->assertCreated()
@@ -45,10 +46,12 @@ class AcpSessionApiTest extends TestCase
 
         $this->assertDatabaseHas('thread_actors', [
             'thread_id' => $thread->id,
-            'actorable_type' => ThreadActor::ActorExecutor,
+            'actorable_type' => ThreadActor::ActorCoordinator,
             'role' => ThreadActor::RolePresenter,
             'status' => ThreadActor::StatusActive,
         ]);
+        $this->assertSame('code_review', $thread->purpose);
+        $this->assertSame('checking_changes', $thread->phase);
 
         $message = Post::query()->create([
             'postable_type' => $thread->getMorphClass(),
@@ -68,7 +71,7 @@ class AcpSessionApiTest extends TestCase
             'text' => 'Inspection complete.',
             'meta' => [
                 'source' => 'agent_response',
-                'actor_key' => ThreadActor::ActorExecutor,
+                'actor_key' => ThreadActor::ActorCoordinator,
             ],
         ]);
 
@@ -97,7 +100,7 @@ class AcpSessionApiTest extends TestCase
         $sessionResponse = $this->postJson('/api/acp/sessions', [
             'space_uuid' => $space->uuid,
             'title' => 'Cancelable ACP Session',
-            'purpose' => Thread::PurposeExecution,
+            'purpose' => 'execution',
         ])->assertCreated();
 
         $sessionId = (string) $sessionResponse->json('data.id');
@@ -160,7 +163,7 @@ class AcpSessionApiTest extends TestCase
         $this->postJson('/api/acp/sessions', [
             'space_uuid' => $space->uuid,
             'title' => 'Passport ACP Session',
-            'purpose' => Thread::PurposeExecution,
+            'purpose' => 'execution',
         ])->assertCreated()
             ->assertJsonPath('data.title', 'Passport ACP Session')
             ->assertJsonPath('data.space.id', $space->uuid);

@@ -22,17 +22,7 @@ class Thread extends Model
 
     public const PurposeMain = 'main';
 
-    public const PurposePlanning = 'planning';
-
-    public const PurposeExecution = 'execution';
-
-    public const PurposeBilling = 'billing';
-
-    public const PurposeDispute = 'dispute';
-
-    public const PurposeSupport = 'support';
-
-    public const PurposeSystem = 'system';
+    public const PhaseInitial = 'initial';
 
     /**
      * @var list<string>

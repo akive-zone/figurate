@@ -28,8 +28,6 @@ class ThreadActor extends Model
 
     public const ActorCoordinator = 'coordinator_agent';
 
-    public const ActorExecutor = 'executor_agent';
-
     public const ActorSafetyGuard = 'safety_guard';
 
     public const ActorAssistantSuggester = 'assistant_suggester';

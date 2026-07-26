@@ -27,11 +27,11 @@ class CreateThreadTool extends Tool
 
         $actor = $payloads->actor($request);
         $space = $payloads->resolveUpdatableSpace($actor, (string) $validated['space_id']);
-        $purpose = (string) ($validated['purpose'] ?? Thread::PurposeExecution);
+        $purpose = (string) ($validated['purpose'] ?? Thread::PurposeMain);
         $thread = $space->threads()->create([
             'title' => (string) $validated['title'],
             'purpose' => $purpose,
-            'phase' => (string) ($validated['phase'] ?? $payloads->defaultPhase($purpose)),
+            'phase' => (string) ($validated['phase'] ?? Thread::PhaseInitial),
             'status' => (string) ($validated['status'] ?? 'open'),
         ]);
 
@@ -56,9 +56,9 @@ class CreateThreadTool extends Tool
         return [
             'space_id' => $schema->string()->description('The parent space UUID.')->required(),
             'title' => $schema->string()->description('The thread title.')->required(),
-            'purpose' => $schema->string()->description('Optional thread purpose.')->default(Thread::PurposeExecution),
+            'purpose' => $schema->string()->description('Optional caller-defined thread purpose.')->default(Thread::PurposeMain),
             'status' => $schema->string()->description('Optional thread status.')->default('open'),
-            'phase' => $schema->string()->description('Optional thread phase. Defaults from the selected purpose.'),
+            'phase' => $schema->string()->description('Optional caller-defined thread phase.')->default(Thread::PhaseInitial),
             'add_self_as_member' => $schema->boolean()->description('Whether to add the authenticated actor as an active member.')->default(true),
         ];
     }

@@ -82,7 +82,7 @@ class AssignThreadActorTool extends Tool
         return [
             'thread_id' => $schema->string()->description('The thread UUID.')->required(),
             'actor_type' => $schema->string()->description('Assign a named actor or a user.')->required(),
-            'actor_key' => $schema->string()->description('Named actor key, for example coordinator_agent or executor_agent.'),
+            'actor_key' => $schema->string()->description('Named actor key, for example coordinator_agent.'),
             'user_id' => $schema->integer()->description('User ID for a human actor assignment.'),
             'role' => $schema->string()->description('Actor role in the thread.')->required(),
             'status' => $schema->string()->description('Actor status.')->default(ThreadActor::StatusActive),

@@ -86,7 +86,6 @@ class SubmitChatMessageOperation
             space: $space,
             actor: $actor,
             thread: $thread,
-            message: $normalizedRequestContent,
         );
         $thread = $decision->thread;
 

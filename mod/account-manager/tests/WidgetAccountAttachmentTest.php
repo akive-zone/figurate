@@ -5,7 +5,6 @@ namespace Figurate\AccountManager\Tests;
 use App\Models\Server\AgentConversation;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
-use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use App\Models\Server\ThreadActorSession;
 use App\Models\Server\ThreadEvent;
@@ -193,7 +192,7 @@ class WidgetAccountAttachmentTest extends TestCase
 
         $thread = $space->threads()->create([
             'title' => 'Anonymous planning',
-            'purpose' => Thread::PurposePlanning,
+            'purpose' => 'planning',
             'phase' => 'draft',
             'status' => 'open',
         ]);

@@ -2,7 +2,6 @@
 
 namespace App\Features\Operations\Chat;
 
-use App\Features\Actions\Chat\ApplyConversationPurposeTriggers;
 use App\Features\Actions\Chat\PersistActiveConversationThread;
 use App\Features\Actions\Chat\RecordConversationOperationEvents;
 use App\Features\Actions\Chat\ResolveActiveThreadPresenters;
@@ -16,7 +15,6 @@ class ResolveConversationThreadOperation
 {
     public function __construct(
         protected ResolveBaseConversationThread $resolveBaseConversationThread,
-        protected ApplyConversationPurposeTriggers $applyConversationPurposeTriggers,
         protected PersistActiveConversationThread $persistActiveConversationThread,
         protected RecordConversationOperationEvents $recordConversationOperationEvents,
         protected ResolveActiveThreadPresenters $resolveActiveThreadPresenters,
@@ -26,16 +24,10 @@ class ResolveConversationThreadOperation
         Space $space,
         User $actor,
         ?int $thread = null,
-        ?string $message = null,
     ): OrchestrationDecision {
-        return DB::transaction(function () use ($space, $actor, $thread, $message): OrchestrationDecision {
+        return DB::transaction(function () use ($space, $actor, $thread): OrchestrationDecision {
             $actions = [];
             $resolvedThread = $this->resolveBaseConversationThread->execute($space, $actor, $thread);
-
-            if ($thread === null) {
-                [$resolvedThread, $triggerActions] = $this->applyConversationPurposeTriggers->execute($space, $resolvedThread, $message);
-                $actions = array_merge($actions, $triggerActions);
-            }
 
             $this->persistActiveConversationThread->execute($space, $actor, $resolvedThread);
             $this->recordConversationOperationEvents->execute($resolvedThread, $actions);

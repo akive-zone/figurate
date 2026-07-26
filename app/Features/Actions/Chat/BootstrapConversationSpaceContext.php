@@ -23,8 +23,8 @@ class BootstrapConversationSpaceContext
 
             $mainThread = $space->threads()->create([
                 'purpose' => Thread::PurposeMain,
-                'title' => 'Project Main',
-                'phase' => 'request_intake',
+                'title' => 'Main',
+                'phase' => Thread::PhaseInitial,
                 'status' => 'open',
             ]);
 

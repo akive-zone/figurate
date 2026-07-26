@@ -255,7 +255,6 @@ class FigurateMcpPayloads
     {
         return [
             ThreadActor::ActorCoordinator,
-            ThreadActor::ActorExecutor,
             ThreadActor::ActorSafetyGuard,
             ThreadActor::ActorAssistantSuggester,
         ];
@@ -400,19 +399,6 @@ class FigurateMcpPayloads
         }
 
         return $results;
-    }
-
-    public function defaultPhase(string $purpose): string
-    {
-        return match ($purpose) {
-            Thread::PurposePlanning => 'scope_planning',
-            Thread::PurposeExecution => 'order_kickoff',
-            Thread::PurposeBilling => 'billing_review',
-            Thread::PurposeDispute => 'opened',
-            Thread::PurposeSupport => 'support_open',
-            Thread::PurposeSystem => 'system_open',
-            default => 'request_intake',
-        };
     }
 
     protected function clampLimit(int $limit, int $min = 1, int $max = 25): int
