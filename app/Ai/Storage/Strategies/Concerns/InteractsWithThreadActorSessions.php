@@ -161,8 +161,12 @@ trait InteractsWithThreadActorSessions
         return ConversationId::toStorageId($conversationId);
     }
 
-    protected function ensureAgentConversationExists(string $storageConversationId, ?int $userId, string $title): void
-    {
+    protected function ensureAgentConversationExists(
+        string $storageConversationId,
+        ?string $participantType,
+        ?int $participantId,
+        string $title
+    ): void {
         $exists = DB::table('agent_conversations')
             ->where('id', $storageConversationId)
             ->exists();
@@ -177,13 +181,14 @@ trait InteractsWithThreadActorSessions
             return;
         }
 
-        if ($userId === null) {
+        if ($participantId === null) {
             return;
         }
 
         DB::table('agent_conversations')->insert([
             'id' => $storageConversationId,
-            'user_id' => $userId,
+            'participant_type' => $participantType,
+            'participant_id' => $participantId,
             'title' => mb_substr($title, 0, 255),
             'created_at' => now(),
             'updated_at' => now(),

@@ -241,7 +241,8 @@ class AgentExecutor
             if (! DB::table('agent_conversations')->where('id', $storageConversationId)->exists()) {
                 DB::table('agent_conversations')->insert([
                     'id' => $storageConversationId,
-                    'user_id' => $userId,
+                    'participant_type' => (new User)->getMorphClass(),
+                    'participant_id' => $userId,
                     'title' => mb_substr($response->conversationId, 0, 255),
                     'created_at' => now(),
                     'updated_at' => now(),

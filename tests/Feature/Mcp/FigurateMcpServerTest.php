@@ -356,7 +356,8 @@ class FigurateMcpServerTest extends TestCase
         $conversation = new AgentConversation;
         $conversation->forceFill([
             'id' => (string) Str::uuid(),
-            'user_id' => $user->id,
+            'participant_type' => $user->getMorphClass(),
+            'participant_id' => $user->id,
             'title' => 'Transfer source session',
         ])->save();
 

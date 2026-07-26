@@ -5,6 +5,7 @@ namespace App\Models\Server;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class AgentConversation extends Model
 {
@@ -25,7 +26,8 @@ class AgentConversation extends Model
      */
     protected $fillable = [
         'id',
-        'user_id',
+        'participant_type',
+        'participant_id',
         'title',
     ];
 
@@ -35,13 +37,18 @@ class AgentConversation extends Model
     protected function casts(): array
     {
         return [
-            'user_id' => 'integer',
+            'participant_id' => 'integer',
         ];
+    }
+
+    public function participant(): MorphTo
+    {
+        return $this->morphTo();
     }
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'participant_id');
     }
 
     public function messages(): HasMany

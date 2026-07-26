@@ -6,6 +6,7 @@ use App\Ai\Storage\ConversationPersistenceResolver;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
 use Laravel\Ai\Contracts\ConversationStore;
+use Laravel\Ai\Models\Conversation;
 
 trait RemembersThreadConversations
 {
@@ -71,7 +72,10 @@ trait RemembersThreadConversations
         $this->conversationUser = $as;
 
         $this->conversationId = ($shouldUseThreadConversationIds ? $this->threadConversationId() : null)
-            ?? resolve(ConversationStore::class)->latestConversationId($as->id);
+            ?? resolve(ConversationStore::class)->latestConversationId(
+                Conversation::participantType($as),
+                Conversation::participantKey($as),
+            );
 
         return $this;
     }

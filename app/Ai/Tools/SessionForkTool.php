@@ -41,7 +41,8 @@ class SessionForkTool implements Tool
 
         DB::table('agent_conversations')->insert([
             'id' => $newConversationId,
-            'user_id' => $this->actor->id,
+            'participant_type' => $this->actor->getMorphClass(),
+            'participant_id' => $this->actor->id,
             'title' => 'Forked conversation for thread '.$this->thread->id,
             'created_at' => now(),
             'updated_at' => now(),

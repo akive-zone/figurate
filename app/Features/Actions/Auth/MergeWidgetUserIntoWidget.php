@@ -172,9 +172,11 @@ class MergeWidgetUserIntoWidget
         }
 
         DB::table('agent_conversations')
-            ->where('user_id', $sourceWidgetUser->id)
+            ->where('participant_type', $sourceWidgetUser->getMorphClass())
+            ->where('participant_id', $sourceWidgetUser->id)
             ->update([
-                'user_id' => $targetWidgetUser->id,
+                'participant_type' => $targetWidgetUser->getMorphClass(),
+                'participant_id' => $targetWidgetUser->id,
                 'updated_at' => now(),
             ]);
     }
@@ -186,9 +188,11 @@ class MergeWidgetUserIntoWidget
         }
 
         DB::table('agent_conversation_messages')
-            ->where('user_id', $sourceWidgetUser->id)
+            ->where('participant_type', $sourceWidgetUser->getMorphClass())
+            ->where('participant_id', $sourceWidgetUser->id)
             ->update([
-                'user_id' => $targetWidgetUser->id,
+                'participant_type' => $targetWidgetUser->getMorphClass(),
+                'participant_id' => $targetWidgetUser->id,
                 'updated_at' => now(),
             ]);
     }

@@ -13,20 +13,26 @@ use Illuminate\Support\Str;
 use Laravel\Ai\Messages\Message;
 use Laravel\Ai\Prompts\AgentPrompt;
 use Laravel\Ai\Responses\AgentResponse;
+use Laravel\Ai\Responses\Data\ToolResult;
+use Laravel\Ai\Storage\DatabaseConversationStore;
 
 class ThreadContinuationPersistence implements ThreadConversationPersistence
 {
     use InteractsWithThreadActorSessions;
 
-    public function latestConversationId(string|int $userId): ?string
+    public function __construct(
+        protected DatabaseConversationStore $store,
+    ) {}
+
+    public function latestConversationId(string $participantType, string|int $participantId): ?string
     {
-        return $this->latestActiveThreadUuid($userId);
+        return $this->latestActiveThreadUuid($participantId);
     }
 
-    public function storeConversation(string|int|null $userId, string $title): string
+    public function storeConversation(?string $participantType, string|int|null $participantId, string $title): string
     {
-        if ($userId !== null) {
-            $existingConversationId = $this->latestConversationId($userId);
+        if ($participantType !== null && $participantId !== null) {
+            $existingConversationId = $this->latestConversationId($participantType, $participantId);
 
             if (is_string($existingConversationId) && $existingConversationId !== '') {
                 return $existingConversationId;
@@ -36,18 +42,22 @@ class ThreadContinuationPersistence implements ThreadConversationPersistence
         return (string) Str::uuid7();
     }
 
-    public function storeUserMessage(string $conversationId, string|int|null $userId, AgentPrompt $prompt): string
-    {
+    public function storeUserMessage(
+        string $conversationId,
+        ?string $participantType,
+        string|int|null $participantId,
+        AgentPrompt $prompt
+    ): string {
         $messageId = (string) Str::uuid7();
         [$thread, $actorKey] = $this->resolveConversationContext($conversationId, $prompt->agent::class);
 
         if (! $thread || ! $actorKey) {
-            $this->logContextMiss('storeUserMessage', $conversationId, $prompt->agent::class, $userId);
+            $this->logContextMiss('storeUserMessage', $conversationId, $prompt->agent::class, $participantId);
 
             return $messageId;
         }
 
-        $resolvedUserId = $this->resolveUserId($userId);
+        $resolvedUserId = $this->resolveUserId($participantId);
         $storageConversationId = $this->storageConversationId($conversationId);
 
         $session = $this->resolveThreadActorSession($thread, $actorKey, $resolvedUserId, create: true);
@@ -58,7 +68,12 @@ class ThreadContinuationPersistence implements ThreadConversationPersistence
             ];
 
             if ($resolvedUserId !== null) {
-                $this->ensureAgentConversationExists($storageConversationId, $resolvedUserId, $conversationId);
+                $this->ensureAgentConversationExists(
+                    $storageConversationId,
+                    $participantType,
+                    $resolvedUserId,
+                    $conversationId,
+                );
                 $payload['conversation_id'] = $storageConversationId;
             }
 
@@ -68,7 +83,7 @@ class ThreadContinuationPersistence implements ThreadConversationPersistence
                 'storeUserMessage.session',
                 $conversationId,
                 $prompt->agent::class,
-                $userId,
+                $participantId,
                 $thread->uuid,
                 $actorKey,
             );
@@ -79,13 +94,14 @@ class ThreadContinuationPersistence implements ThreadConversationPersistence
 
     public function storeAssistantMessage(
         string $conversationId,
-        string|int|null $userId,
+        ?string $participantType,
+        string|int|null $participantId,
         AgentPrompt $prompt,
         AgentResponse $response
     ): string {
         $messageId = (string) Str::uuid7();
         $storageConversationId = $this->storageConversationId($conversationId);
-        $resolvedUserId = $this->resolveUserId($userId);
+        $resolvedUserId = $this->resolveUserId($participantId);
         [$thread, $actorKey] = $this->resolveConversationContext($conversationId, $prompt->agent::class);
 
         $telemetryMeta = $this->toArrayValue($response->meta);
@@ -96,13 +112,23 @@ class ThreadContinuationPersistence implements ThreadConversationPersistence
         $telemetryMeta['thread_uuid'] = $thread?->uuid;
         $telemetryMeta['thread_id'] = $thread?->id;
 
+        if (filled($providerContentBlocks = $response->pausedProviderContentBlocks())) {
+            $telemetryMeta['provider_content_blocks'] = $providerContentBlocks;
+        }
+
         if ($resolvedUserId !== null) {
-            $this->ensureAgentConversationExists($storageConversationId, $resolvedUserId, $conversationId);
+            $this->ensureAgentConversationExists(
+                $storageConversationId,
+                $participantType,
+                $resolvedUserId,
+                $conversationId,
+            );
 
             DB::table('agent_conversation_messages')->insert([
                 'id' => $messageId,
                 'conversation_id' => $storageConversationId,
-                'user_id' => $resolvedUserId,
+                'participant_type' => $participantType,
+                'participant_id' => $resolvedUserId,
                 'agent' => $prompt->agent::class,
                 'role' => 'assistant',
                 'content' => trim((string) ($response->text ?? '')),
@@ -111,6 +137,7 @@ class ThreadContinuationPersistence implements ThreadConversationPersistence
                 'tool_results' => json_encode($this->toArrayValue($response->toolResults)),
                 'usage' => json_encode($this->toArrayValue($response->usage)),
                 'meta' => json_encode($telemetryMeta),
+                'approval_state' => $this->approvalState($response),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -123,7 +150,7 @@ class ThreadContinuationPersistence implements ThreadConversationPersistence
         }
 
         if (! $thread || ! $actorKey) {
-            $this->logContextMiss('storeAssistantMessage', $conversationId, $prompt->agent::class, $userId);
+            $this->logContextMiss('storeAssistantMessage', $conversationId, $prompt->agent::class, $participantId);
 
             return $messageId;
         }
@@ -145,7 +172,7 @@ class ThreadContinuationPersistence implements ThreadConversationPersistence
                 'storeAssistantMessage.session',
                 $conversationId,
                 $prompt->agent::class,
-                $userId,
+                $participantId,
                 $thread->uuid,
                 $actorKey,
             );
@@ -190,6 +217,36 @@ class ThreadContinuationPersistence implements ThreadConversationPersistence
                 (string) ($message->role ?? 'user'),
                 is_string($message->content) ? $message->content : '',
             ));
+    }
+
+    /**
+     * @param  array<int, ToolResult>  $toolResults
+     */
+    public function storeApprovalResults(
+        string $conversationId,
+        ?string $participantType,
+        string|int|null $participantId,
+        array $toolResults
+    ): void {
+        $this->store->storeApprovalResults(
+            $this->storageConversationId($conversationId),
+            $participantType,
+            $participantId,
+            $toolResults,
+        );
+    }
+
+    protected function approvalState(AgentResponse $response): ?string
+    {
+        if (! $response->hasPendingApprovals()) {
+            return null;
+        }
+
+        return json_encode([
+            'pending' => $response->pendingApprovals
+                ->mapWithKeys(fn ($approval): array => [$approval->id => $approval->reason])
+                ->all(),
+        ]);
     }
 
     protected function toArrayValue(mixed $value): array

@@ -4,6 +4,7 @@ namespace App\Models\Server;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class AgentConversationMessage extends Model
 {
@@ -24,8 +25,13 @@ class AgentConversationMessage extends Model
         return $this->belongsTo(AgentConversation::class, 'conversation_id', 'id');
     }
 
+    public function participant(): MorphTo
+    {
+        return $this->morphTo();
+    }
+
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'participant_id');
     }
 }
