@@ -83,6 +83,7 @@ Route::prefix('channels')->middleware(['auth:sanctum,passport'])->group(function
 
 Route::prefix('spaces')->middleware(['auth:sanctum,passport'])->group(function (): void {
     Route::get('/', [SpaceController::class, 'index'])->name('api.spaces.index');
+    Route::post('/', [SpaceController::class, 'store'])->name('api.spaces.store');
     Route::get('/{space}/posts', [SpacePostController::class, 'index'])->name('api.spaces.posts.index');
     Route::post('/{space}/posts', [SpacePostController::class, 'store'])->name('api.spaces.posts.store');
     Route::get('/{space}/threads', [SpaceThreadController::class, 'index'])->name('api.spaces.threads.index');

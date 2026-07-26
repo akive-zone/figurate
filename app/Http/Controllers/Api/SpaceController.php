@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Features\Actions\Chat\ProjectMessageExtra;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Server\Space\StoreSpaceRequest;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class SpaceController extends Controller
@@ -24,6 +26,39 @@ class SpaceController extends Controller
     public function index(Request $request): JsonResponse
     {
         return response()->json($this->cursorPageForRequest($request));
+    }
+
+    public function store(StoreSpaceRequest $request): JsonResponse
+    {
+        /** @var User $actor */
+        $actor = $request->user();
+
+        Gate::forUser($actor)->authorize('create', Space::class);
+
+        $space = DB::transaction(function () use ($actor, $request): Space {
+            $space = Space::query()->create([
+                'status' => $request->validated('status') ?? 'open',
+            ]);
+
+            SpaceActorState::query()->create([
+                'space_id' => $space->id,
+                'thread_id' => null,
+                'actorable_type' => $actor->getMorphClass(),
+                'actorable_id' => $actor->getKey(),
+                'status' => SpaceActorState::StatusActive,
+            ]);
+
+            return $space;
+        });
+
+        return response()->json([
+            'data' => [
+                'id' => $space->uuid,
+                'status' => $space->status,
+                'active_thread_id' => null,
+                'created_at' => optional($space->created_at)?->toIso8601String(),
+            ],
+        ], 201);
     }
 
     /**
