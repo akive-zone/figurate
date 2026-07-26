@@ -34,7 +34,7 @@ class SpacePostController extends Controller
                     'kind' => 'post',
                     'scope' => 'space',
                     'thread_id' => null,
-                    'id' => $post->id,
+                    'id' => $post->ulid,
                     'sender_name' => null,
                     'content' => $content,
                     'attachments' => [],

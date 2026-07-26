@@ -10,9 +10,20 @@ use Illuminate\Http\Request;
 
 class ChannelRouteIngressController extends Controller
 {
-    public function __invoke(Request $request, int $route, ChannelRouteIngress $channelRouteIngress): JsonResponse
-    {
-        $channelRoute = ChannelRoute::query()->with('channel')->findOrFail($route);
+    public function __invoke(
+        Request $request,
+        string $route,
+        ChannelRouteIngress $channelRouteIngress,
+    ): JsonResponse {
+        $channelRoute = ChannelRoute::query()
+            ->where(function ($query) use ($route): void {
+                $query->where('ulid', $route);
+
+                if (ctype_digit($route)) {
+                    $query->orWhere('channel_routes.id', (int) $route);
+                }
+            })
+            ->firstOrFail();
         $result = $channelRouteIngress->receive($channelRoute, $request);
         $post = $result['post'];
         $thread = $result['thread'];
@@ -21,11 +32,10 @@ class ChannelRouteIngressController extends Controller
         return response()->json([
             'data' => [
                 'status' => 'accepted',
-                'route_id' => $channelRoute->id,
-                'address_id' => $address->id,
+                'route_id' => $channelRoute->ulid,
+                'address_id' => $address->ulid,
                 'thread_id' => $thread->uuid,
-                'post_id' => $post->id,
-                'post_ulid' => $post->ulid,
+                'post_id' => $post->ulid,
             ],
         ], 202);
     }

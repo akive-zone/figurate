@@ -2,12 +2,15 @@
 
 namespace App\Models\Server;
 
+use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class ChannelRelation extends Model
 {
+    use HasUlids;
+
     public const KindLink = 'link';
 
     public const KindBind = 'bind';
@@ -16,6 +19,7 @@ class ChannelRelation extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'ulid',
         'channel_id',
         'relationable_type',
         'relationable_id',
@@ -26,6 +30,14 @@ class ChannelRelation extends Model
         'data',
         'meta',
     ];
+
+    /**
+     * @return list<string>
+     */
+    public function uniqueIds(): array
+    {
+        return ['ulid'];
+    }
 
     /**
      * @return array<string, string>

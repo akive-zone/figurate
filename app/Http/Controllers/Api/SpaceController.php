@@ -163,7 +163,7 @@ class SpaceController extends Controller
         $latestMessage = null;
         if ($latestMessageModel) {
             $latestMessage = [
-                'id' => $latestMessageModel->id,
+                'id' => $latestMessageModel->ulid,
                 'content' => $this->messageContent($latestMessageModel),
                 'extra' => $this->projectMessageExtra->execute($latestMessageModel),
                 'created_at' => optional($latestMessageModel->created_at)?->toIso8601String(),

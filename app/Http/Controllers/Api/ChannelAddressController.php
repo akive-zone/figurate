@@ -12,6 +12,7 @@ use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use App\Support\Channels\ChannelAccess;
+use App\Support\Channels\ChannelApiResolver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,9 +22,10 @@ class ChannelAddressController extends Controller
 {
     public function __construct(
         protected ChannelAccess $channelAccess,
+        protected ChannelApiResolver $channelApiResolver,
     ) {}
 
-    public function index(Request $request, int $channel, int $route): JsonResponse
+    public function index(Request $request, string $channel, string $route): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
@@ -41,7 +43,7 @@ class ChannelAddressController extends Controller
         ]);
     }
 
-    public function store(StoreChannelAddressRequest $request, int $channel, int $route): JsonResponse
+    public function store(StoreChannelAddressRequest $request, string $channel, string $route): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
@@ -72,12 +74,12 @@ class ChannelAddressController extends Controller
         ], 201);
     }
 
-    public function update(UpdateChannelAddressRequest $request, int $channel, int $route, int $address): JsonResponse
+    public function update(UpdateChannelAddressRequest $request, string $channel, string $route, string $address): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
         [$registeredChannel, $registeredRoute] = $this->resolveChannelRoute($channel, $route);
-        $registeredAddress = $registeredRoute->addresses()->findOrFail($address);
+        $registeredAddress = $this->channelApiResolver->address($registeredRoute, $address);
         abort_unless($this->canManageChannel($actor, $registeredChannel), 403, 'Not authorized to update this channel address.');
 
         $registeredAddress->fill($this->addressAttributes($request->validated(), update: true))->save();
@@ -87,12 +89,12 @@ class ChannelAddressController extends Controller
         ]);
     }
 
-    public function destroy(Request $request, int $channel, int $route, int $address): JsonResponse
+    public function destroy(Request $request, string $channel, string $route, string $address): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
         [$registeredChannel, $registeredRoute] = $this->resolveChannelRoute($channel, $route);
-        $registeredAddress = $registeredRoute->addresses()->findOrFail($address);
+        $registeredAddress = $this->channelApiResolver->address($registeredRoute, $address);
         abort_unless($this->canManageChannel($actor, $registeredChannel), 403, 'Not authorized to delete this channel address.');
 
         $registeredAddress->delete();
@@ -103,10 +105,10 @@ class ChannelAddressController extends Controller
     /**
      * @return array{0: Channel, 1: ChannelRoute}
      */
-    protected function resolveChannelRoute(int $channel, int $route): array
+    protected function resolveChannelRoute(string $channel, string $route): array
     {
-        $registeredChannel = Channel::query()->findOrFail($channel);
-        $registeredRoute = $registeredChannel->routes()->findOrFail($route);
+        $registeredChannel = $this->channelApiResolver->channel($channel);
+        $registeredRoute = $this->channelApiResolver->route($registeredChannel, $route);
 
         return [$registeredChannel, $registeredRoute];
     }
@@ -173,14 +175,13 @@ class ChannelAddressController extends Controller
         $addressable = $address->addressable;
 
         return [
-            'id' => $address->id,
+            'id' => $address->ulid,
             'channel' => [
-                'id' => $channel->id,
-                'uuid' => $channel->uuid,
+                'id' => $channel->uuid,
                 'protocol' => $channel->protocolKey(),
             ],
             'route' => [
-                'id' => $route->id,
+                'id' => $route->ulid,
                 'name' => $route->name,
             ],
             'addressable' => [

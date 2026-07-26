@@ -7,6 +7,7 @@ use App\Http\Requests\Server\Channel\StoreChannelSkillMediaRequest;
 use App\Models\Server\Channel;
 use App\Models\Server\User;
 use App\Support\Channels\ChannelAccess;
+use App\Support\Channels\ChannelApiResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
 use Spatie\MediaLibrary\HasMedia;
@@ -16,13 +17,14 @@ class ChannelSkillMediaController extends Controller
 {
     public function __construct(
         protected ChannelAccess $channelAccess,
+        protected ChannelApiResolver $channelApiResolver,
     ) {}
 
-    public function storeForChannel(StoreChannelSkillMediaRequest $request, int $channel): JsonResponse
+    public function storeForChannel(StoreChannelSkillMediaRequest $request, string $channel): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
-        $registeredChannel = Channel::query()->findOrFail($channel);
+        $registeredChannel = $this->channelApiResolver->channel($channel);
         abort_unless($this->canManageChannel($actor, $registeredChannel), 403, 'Not authorized to add skills to this channel.');
 
         return response()->json([
@@ -30,12 +32,12 @@ class ChannelSkillMediaController extends Controller
         ], 201);
     }
 
-    public function storeForRoute(StoreChannelSkillMediaRequest $request, int $channel, int $route): JsonResponse
+    public function storeForRoute(StoreChannelSkillMediaRequest $request, string $channel, string $route): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
-        $registeredChannel = Channel::query()->findOrFail($channel);
-        $registeredRoute = $registeredChannel->routes()->findOrFail($route);
+        $registeredChannel = $this->channelApiResolver->channel($channel);
+        $registeredRoute = $this->channelApiResolver->route($registeredChannel, $route);
         abort_unless($this->canManageChannel($actor, $registeredChannel), 403, 'Not authorized to add skills to this channel route.');
 
         return response()->json([
@@ -43,13 +45,13 @@ class ChannelSkillMediaController extends Controller
         ], 201);
     }
 
-    public function storeForAddress(StoreChannelSkillMediaRequest $request, int $channel, int $route, int $address): JsonResponse
+    public function storeForAddress(StoreChannelSkillMediaRequest $request, string $channel, string $route, string $address): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
-        $registeredChannel = Channel::query()->findOrFail($channel);
-        $registeredRoute = $registeredChannel->routes()->findOrFail($route);
-        $registeredAddress = $registeredRoute->addresses()->findOrFail($address);
+        $registeredChannel = $this->channelApiResolver->channel($channel);
+        $registeredRoute = $this->channelApiResolver->route($registeredChannel, $route);
+        $registeredAddress = $this->channelApiResolver->address($registeredRoute, $address);
         abort_unless($this->canManageChannel($actor, $registeredChannel), 403, 'Not authorized to add skills to this channel address.');
 
         return response()->json([
@@ -98,8 +100,7 @@ class ChannelSkillMediaController extends Controller
     protected function mapMedia(Media $media): array
     {
         return [
-            'id' => $media->id,
-            'uuid' => $media->uuid,
+            'id' => $media->uuid,
             'collection' => $media->collection_name,
             'name' => $media->name,
             'file_name' => $media->file_name,

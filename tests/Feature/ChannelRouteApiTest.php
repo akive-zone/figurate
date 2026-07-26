@@ -107,7 +107,7 @@ class ChannelRouteApiTest extends TestCase
         ]);
 
         $addressResponse->assertCreated()
-            ->assertJsonPath('data.route.id', $route->id)
+            ->assertJsonPath('data.route.id', $route->ulid)
             ->assertJsonPath('data.addressable.type', 'thread')
             ->assertJsonPath('data.addressable.id', $thread->uuid)
             ->assertJsonPath('data.provider', 'waha')

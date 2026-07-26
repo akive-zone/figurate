@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('thread_relations', function (Blueprint $table) {
             $table->id();
+            $table->ulid('ulid')->unique();
             $table->foreignId('thread_id');
             $table->morphs('relationable');
             $table->string('type');

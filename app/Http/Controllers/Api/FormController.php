@@ -26,7 +26,8 @@ class FormController extends Controller
             'content' => is_array($validated['content'] ?? null) ? $validated['content'] : [],
             'extra' => is_array($validated['extra'] ?? null) ? $validated['extra'] : [],
             'attachments' => is_array($attachments) ? $attachments : [$attachments],
-            'idempotency_key' => $request->header('X-Idempotency-Key'),
+            'idempotency_key' => $request->header('Idempotency-Key')
+                ?? $request->header('X-Idempotency-Key'),
         ]);
 
         return response()->json($result['body'], $result['status']);

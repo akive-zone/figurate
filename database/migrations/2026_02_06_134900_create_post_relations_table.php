@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('post_relations', function (Blueprint $table) {
             $table->id();
+            $table->ulid('ulid')->unique();
             $table->foreignId('post_id')->constrained('posts')->cascadeOnDelete();
             $table->morphs('relationable');
             $table->string('role')->default('primary');

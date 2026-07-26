@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('channel_relations', function (Blueprint $table): void {
             $table->id();
+            $table->ulid('ulid')->unique();
             $table->foreignId('channel_id')->constrained('channels')->cascadeOnDelete();
             $table->nullableMorphs('relationable');
             $table->string('kind')->default('bind');

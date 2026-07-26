@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Graph\StoreGraphNodeRequest;
+use App\Http\Requests\Server\Graph\UpdateGraphNodeRequest;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
@@ -50,6 +51,96 @@ class GraphNodeController extends Controller
         return response()->json([
             'data' => $this->graphNodes->map($node, $actor),
         ], 201);
+    }
+
+    public function update(UpdateGraphNodeRequest $request, string $type, string $node): JsonResponse
+    {
+        /** @var User $actor */
+        $actor = $request->user();
+        $resolvedNode = $this->graphNodes->resolve($actor, $type, $node, true);
+        $attributes = $request->validated('attributes');
+        abort_unless(is_array($attributes), 422);
+
+        DB::transaction(function () use ($attributes, $resolvedNode): void {
+            match (true) {
+                $resolvedNode instanceof Space => $resolvedNode->fill([
+                    'status' => $attributes['status'] ?? $resolvedNode->status,
+                ])->save(),
+                $resolvedNode instanceof Thread => $resolvedNode->fill(
+                    collect($attributes)
+                        ->only(['title', 'purpose', 'phase', 'status'])
+                        ->all(),
+                )->save(),
+                $resolvedNode instanceof Post => $this->updatePost($resolvedNode, $attributes),
+                default => abort(422, 'Unsupported graph node model.'),
+            };
+        });
+
+        return response()->json([
+            'data' => $this->graphNodes->map($resolvedNode->refresh(), $actor),
+        ]);
+    }
+
+    public function destroy(Request $request, string $type, string $node): JsonResponse
+    {
+        /** @var User $actor */
+        $actor = $request->user();
+        $resolvedNode = $this->graphNodes->resolve($actor, $type, $node);
+        Gate::forUser($actor)->authorize('delete', $resolvedNode);
+
+        abort_if(
+            $this->graphNodes->children($actor, $resolvedNode)->isNotEmpty(),
+            409,
+            'A node with child nodes cannot be deleted.',
+        );
+
+        DB::transaction(function () use ($resolvedNode): void {
+            if (method_exists($resolvedNode, 'relations')) {
+                $resolvedNode->relations()->delete();
+            }
+
+            foreach (['inboundSpaceRelations', 'inboundThreadRelations', 'inboundPostRelations'] as $method) {
+                if (method_exists($resolvedNode, $method)) {
+                    $resolvedNode->{$method}()->each->delete();
+                }
+            }
+
+            $resolvedNode->delete();
+        });
+
+        return response()->json(status: 204);
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    protected function updatePost(Post $post, array $attributes): void
+    {
+        $values = collect($attributes)
+            ->only(['tag', 'status', 'meta', 'occurred_at'])
+            ->all();
+
+        if (array_key_exists('post_type', $attributes)) {
+            $values['type'] = $attributes['post_type'];
+        }
+
+        if (array_key_exists('payload', $attributes) || array_key_exists('text', $attributes)) {
+            $payload = array_key_exists('payload', $attributes) && is_array($attributes['payload'])
+                ? $attributes['payload']
+                : ($post->payload ?? []);
+
+            if (array_key_exists('text', $attributes)) {
+                if ($attributes['text'] === null) {
+                    unset($payload['text']);
+                } else {
+                    $payload['text'] = $attributes['text'];
+                }
+            }
+
+            $values['payload'] = $payload;
+        }
+
+        $post->fill($values)->save();
     }
 
     /**

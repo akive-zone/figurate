@@ -10,6 +10,7 @@ use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use App\Support\Channels\ChannelAccess;
+use App\Support\Channels\ChannelApiResolver;
 use App\Support\Channels\ChannelDriverRegistry;
 use App\Support\Channels\ChannelRegistry;
 use App\Support\Channels\ChannelSpaceContext;
@@ -23,6 +24,7 @@ class ChannelController extends Controller
     public function __construct(
         protected ChannelDriverRegistry $channelDriverRegistry,
         protected ChannelAccess $channelAccess,
+        protected ChannelApiResolver $channelApiResolver,
         protected ChannelSpaceContext $channelSpaceContext,
     ) {}
 
@@ -148,11 +150,11 @@ class ChannelController extends Controller
         ], 201);
     }
 
-    public function update(UpdateChannelRequest $request, int $channel, ChannelRegistry $channelRegistry): JsonResponse
+    public function update(UpdateChannelRequest $request, string $channel, ChannelRegistry $channelRegistry): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
-        $registeredChannel = Channel::query()->findOrFail($channel);
+        $registeredChannel = $this->channelApiResolver->channel($channel);
         abort_unless($this->canManageChannel($actor, $registeredChannel), 403, 'Not authorized to update this channel.');
 
         $owner = $this->resolveOwnerContext($registeredChannel);
@@ -165,11 +167,11 @@ class ChannelController extends Controller
         ]);
     }
 
-    public function destroy(Request $request, int $channel): JsonResponse
+    public function destroy(Request $request, string $channel): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
-        $registeredChannel = Channel::query()->findOrFail($channel);
+        $registeredChannel = $this->channelApiResolver->channel($channel);
 
         abort_unless($this->canManageChannel($actor, $registeredChannel), 403, 'Not authorized to delete this channel.');
 
@@ -239,8 +241,7 @@ class ChannelController extends Controller
         $driver = $this->channelDriverRegistry->resolveByChannel($channel);
 
         return [
-            'id' => $channel->id,
-            'uuid' => $channel->uuid,
+            'id' => $channel->uuid,
             'name' => $channel->server,
             'server' => $channel->server,
             'label' => $channel->label,

@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('channel_routes', function (Blueprint $table): void {
             $table->id();
+            $table->ulid('ulid')->unique();
             $table->foreignId('channel_id')->constrained('channels')->cascadeOnDelete();
             $table->string('name')->nullable();
             $table->string('label')->nullable();
@@ -28,6 +29,7 @@ return new class extends Migration
 
         Schema::create('channel_addresses', function (Blueprint $table): void {
             $table->id();
+            $table->ulid('ulid')->unique();
             $table->foreignId('channel_route_id')->constrained('channel_routes')->cascadeOnDelete();
             $table->morphs('addressable');
             $table->string('label')->nullable();

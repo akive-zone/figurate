@@ -8,9 +8,11 @@ use App\Models\Server\Space;
 use App\Models\Server\SpaceRelation;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Gate;
 
 class GraphNodeService
@@ -51,6 +53,53 @@ class GraphNodeService
                 (int) $node->getKey(),
             ))
             ->values();
+    }
+
+    /**
+     * @return array{
+     *     nodes: Collection<int, Model>,
+     *     meta: array{count: int, per_page: int, has_more: bool, next_cursor: ?string}
+     * }
+     */
+    public function paginateChildren(
+        User $actor,
+        Space|Thread|Post $parent,
+        ?string $cursor = null,
+        int $perPage = 25,
+    ): array {
+        $children = $this->children($actor, $parent);
+        $perPage = max(1, min(100, $perPage));
+        $offset = 0;
+
+        if (is_string($cursor) && trim($cursor) !== '') {
+            try {
+                $cursorKey = Crypt::decryptString($cursor);
+            } catch (DecryptException) {
+                abort(422, 'The node cursor is invalid.');
+            }
+
+            $position = $children->search(
+                fn (Model $node): bool => $this->nodeCursorKey($node) === $cursorKey,
+            );
+            abort_if($position === false, 422, 'The node cursor is no longer valid.');
+            $offset = (int) $position + 1;
+        }
+
+        $page = $children->slice($offset, $perPage)->values();
+        $hasMore = $offset + $page->count() < $children->count();
+        $last = $page->last();
+
+        return [
+            'nodes' => $page,
+            'meta' => [
+                'count' => $page->count(),
+                'per_page' => $perPage,
+                'has_more' => $hasMore,
+                'next_cursor' => $hasMore && $last instanceof Model
+                    ? Crypt::encryptString($this->nodeCursorKey($last))
+                    : null,
+            ],
+        ];
     }
 
     /**
@@ -144,5 +193,10 @@ class GraphNodeService
             ->with('space')
             ->where('type', SpaceRelation::TypeChildOf)
             ->whereMorphedTo('relationable', $space);
+    }
+
+    protected function nodeCursorKey(Model $node): string
+    {
+        return sprintf('%s:%s', $node->getMorphClass(), $node->getKey());
     }
 }

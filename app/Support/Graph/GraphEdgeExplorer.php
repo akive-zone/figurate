@@ -260,14 +260,7 @@ class GraphEdgeExplorer
         int $depth,
     ): array {
         return [
-            'edge_key' => sprintf(
-                '%s:%s:%s:%s:%s',
-                $this->nodeKey($source),
-                $this->relationType($relation),
-                $this->nodeKey($target),
-                $direction,
-                $depth,
-            ),
+            'edge_key' => sprintf('%s:%s', $relation->getMorphClass(), $relation->ulid),
             'relation' => $relation,
             'source' => $source,
             'target' => $target,

@@ -170,8 +170,8 @@ const submitPrompt = async (targetThreadId = null) => {
         }, runtime.value, {
             idempotencyKey: clientPostId,
         });
-        const submittedPostId = Number(response?.data?.post_id ?? 0);
-        if (Number.isFinite(submittedPostId) && submittedPostId > 0) {
+        const submittedPostId = (response?.data?.post_id ?? '').toString().trim();
+        if (submittedPostId !== '') {
             latestSubmittedPromptPostId.value = submittedPostId;
             await loadTurnsForPost(submittedPostId, threadId);
         }
@@ -482,10 +482,10 @@ const mergeThreadTurns = (threadId, incomingTurns) => {
 };
 
 const loadTurnsForPost = async (postId, threadId = null) => {
-    const normalizedPostId = Number(postId ?? 0);
+    const normalizedPostId = (postId ?? '').toString().trim();
     const targetThreadId = (threadId ?? activeAgentThreadId.value ?? activeThreadId.value ?? '').toString();
 
-    if (targetThreadId === '' || !Number.isFinite(normalizedPostId) || normalizedPostId <= 0) {
+    if (targetThreadId === '' || normalizedPostId === '') {
         return;
     }
 
@@ -609,8 +609,8 @@ const submitA2uiAction = async (actionPayload) => {
         }), runtime.value, {
             idempotencyKey: makeClientPostId(),
         });
-        const submittedPostId = Number(response?.data?.post_id ?? 0);
-        if (Number.isFinite(submittedPostId) && submittedPostId > 0) {
+        const submittedPostId = (response?.data?.post_id ?? '').toString().trim();
+        if (submittedPostId !== '') {
             latestSubmittedPromptPostId.value = submittedPostId;
             await loadTurnsForPost(submittedPostId, threadId);
         }

@@ -50,7 +50,7 @@ class ThreadController extends Controller
                     'kind' => 'message',
                     'scope' => 'thread',
                     'thread_id' => $threadRecord->uuid,
-                    'id' => $message->id,
+                    'id' => $message->ulid,
                     'sender_name' => null,
                     'source' => data_get($message->meta, 'source'),
                     'is_agent' => data_get($message->meta, 'source') === 'agent_response',

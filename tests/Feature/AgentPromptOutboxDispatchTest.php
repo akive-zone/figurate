@@ -92,11 +92,13 @@ class AgentPromptOutboxDispatchTest extends TestCase
             ],
         ])->assertAccepted();
 
-        $postId = (int) $response->json('post_id');
+        $post = Post::query()
+            ->where('ulid', (string) $response->json('post_id'))
+            ->firstOrFail();
 
         $outbox = Outbox::query()
             ->where('thread_id', $thread->id)
-            ->where('post_id', $postId)
+            ->where('post_id', $post->id)
             ->where('protocol', AgentPromptProtocol::Key)
             ->first();
 
@@ -117,7 +119,7 @@ class AgentPromptOutboxDispatchTest extends TestCase
 
         $event = ThreadEvent::query()
             ->where('thread_id', $thread->id)
-            ->where('post_id', $postId)
+            ->where('post_id', $post->id)
             ->where('event_type', 'orchestration.notification.completion_requested')
             ->first();
 
@@ -129,7 +131,7 @@ class AgentPromptOutboxDispatchTest extends TestCase
 
         $this->assertDatabaseMissing('inboxes', [
             'user_id' => $robot->id,
-            'inboxable_id' => $postId,
+            'inboxable_id' => $post->id,
             'kind' => Inbox::KindThreadMessage,
         ]);
     }

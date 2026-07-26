@@ -1,6 +1,8 @@
 <?php
 
 use App\Foundation\Application;
+use App\Http\Middleware\IdempotentApiRequest;
+use App\Http\Middleware\RequireApiAbility;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
@@ -21,6 +23,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'abilities' => CheckAbilities::class,
             'ability' => CheckForAnyAbility::class,
+            'api.ability' => RequireApiAbility::class,
+            'api.idempotent' => IdempotentApiRequest::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -116,7 +116,7 @@ class ChannelOutboundMessageSenderTest extends TestCase
         $this->assertSame(ChannelProtocol::Key, data_get($result, 'protocol'));
         $this->assertSame(Channel::ProtocolGeneric, data_get($result, 'provider'));
         $this->assertSame('dispatched', data_get($result, 'delivery'));
-        $this->assertSame($channel->uuid, data_get($result, 'channel.uuid'));
+        $this->assertSame($channel->uuid, data_get($result, 'channel.id'));
         $this->assertSame('provider-thread-123', data_get($result, 'channel_result.provider_identifier'));
         $this->assertSame('thread.post.created', data_get($result, 'channel_result.payload.event'));
         $this->assertSame($sender->id, data_get($result, 'channel_result.payload.sender.id'));

@@ -9,6 +9,7 @@ use App\Models\Server\Channel;
 use App\Models\Server\ChannelRoute;
 use App\Models\Server\User;
 use App\Support\Channels\ChannelAccess;
+use App\Support\Channels\ChannelApiResolver;
 use App\Support\Channels\ChannelRouteIngress;
 use App\Support\Channels\ChannelSkillContextResolver;
 use Illuminate\Http\JsonResponse;
@@ -18,15 +19,16 @@ class ChannelRouteController extends Controller
 {
     public function __construct(
         protected ChannelAccess $channelAccess,
+        protected ChannelApiResolver $channelApiResolver,
         protected ChannelRouteIngress $channelRouteIngress,
         protected ChannelSkillContextResolver $channelSkillContextResolver,
     ) {}
 
-    public function index(Request $request, int $channel): JsonResponse
+    public function index(Request $request, string $channel): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
-        $registeredChannel = Channel::query()->findOrFail($channel);
+        $registeredChannel = $this->channelApiResolver->channel($channel);
         abort_unless($this->canManageChannel($actor, $registeredChannel), 403, 'Not authorized to view this channel.');
 
         $routes = $registeredChannel->routes()
@@ -40,11 +42,11 @@ class ChannelRouteController extends Controller
         ]);
     }
 
-    public function store(StoreChannelRouteRequest $request, int $channel): JsonResponse
+    public function store(StoreChannelRouteRequest $request, string $channel): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
-        $registeredChannel = Channel::query()->findOrFail($channel);
+        $registeredChannel = $this->channelApiResolver->channel($channel);
         abort_unless($this->canManageChannel($actor, $registeredChannel), 403, 'Not authorized to create routes for this channel.');
 
         $route = $registeredChannel->routes()->create($this->routeAttributes($request->validated()));
@@ -54,12 +56,12 @@ class ChannelRouteController extends Controller
         ], 201);
     }
 
-    public function update(UpdateChannelRouteRequest $request, int $channel, int $route): JsonResponse
+    public function update(UpdateChannelRouteRequest $request, string $channel, string $route): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
-        $registeredChannel = Channel::query()->findOrFail($channel);
-        $registeredRoute = $registeredChannel->routes()->findOrFail($route);
+        $registeredChannel = $this->channelApiResolver->channel($channel);
+        $registeredRoute = $this->channelApiResolver->route($registeredChannel, $route);
         abort_unless($this->canManageChannel($actor, $registeredChannel), 403, 'Not authorized to update this channel route.');
 
         $registeredRoute->fill($this->routeAttributes($request->validated(), update: true))->save();
@@ -69,12 +71,12 @@ class ChannelRouteController extends Controller
         ]);
     }
 
-    public function destroy(Request $request, int $channel, int $route): JsonResponse
+    public function destroy(Request $request, string $channel, string $route): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
-        $registeredChannel = Channel::query()->findOrFail($channel);
-        $registeredRoute = $registeredChannel->routes()->findOrFail($route);
+        $registeredChannel = $this->channelApiResolver->channel($channel);
+        $registeredRoute = $this->channelApiResolver->route($registeredChannel, $route);
         abort_unless($this->canManageChannel($actor, $registeredChannel), 403, 'Not authorized to delete this channel route.');
 
         $registeredRoute->delete();
@@ -107,9 +109,8 @@ class ChannelRouteController extends Controller
     protected function mapRoute(Channel $channel, ChannelRoute $route): array
     {
         return [
-            'id' => $route->id,
-            'channel_id' => $channel->id,
-            'channel_uuid' => $channel->uuid,
+            'id' => $route->ulid,
+            'channel_id' => $channel->uuid,
             'protocol' => $channel->protocolKey(),
             'name' => $route->name,
             'label' => $route->label,

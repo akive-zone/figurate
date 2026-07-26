@@ -43,11 +43,10 @@ class ChannelOutboundMessageSender implements OutboundMessageSender
             'provider' => $outbox->provider ?: $channel->driver,
             'target' => $outbox->target,
             'delivery' => data_get($result, 'status', 'queued'),
-            'thread_id' => $thread->id,
-            'post_id' => $post->id,
+            'thread_id' => $thread->uuid,
+            'post_id' => $post->ulid,
             'channel' => [
-                'id' => $channel->id,
-                'uuid' => $channel->uuid,
+                'id' => $channel->uuid,
                 'driver' => $channel->driver,
             ],
             'channel_result' => $result,
@@ -80,7 +79,9 @@ class ChannelOutboundMessageSender implements OutboundMessageSender
 
     protected function resolveChannel(Outbox $outbox): Channel
     {
-        $channelUuid = data_get($outbox->payload, 'channel.uuid')
+        $channelUuid = data_get($outbox->payload, 'channel.id')
+            ?? data_get($outbox->payload, 'delivery.channel.id')
+            ?? data_get($outbox->payload, 'channel.uuid')
             ?? data_get($outbox->payload, 'delivery.channel.uuid');
         $channel = is_string($channelUuid)
             ? Channel::query()->where('uuid', trim($channelUuid))->first()

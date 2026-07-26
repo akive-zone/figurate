@@ -235,18 +235,19 @@ class EnqueueThreadMessageOutbox
                     'target' => $target,
                     'route_key' => 'channel_address:'.$address->id,
                     'payload' => [
-                        'event' => 'thread.post.created',
+                        'event' => $this->invocationId($post) !== null
+                            ? 'invocation.available'
+                            : 'thread.post.created',
                         'occurred_at' => optional($post->occurred_at ?? $post->created_at)?->toIso8601String(),
                         'channel' => [
-                            'id' => $channel->id,
-                            'uuid' => $channel->uuid,
+                            'id' => $channel->uuid,
                             'driver' => $channel->driver,
                             'name' => $channel->name,
                             'direction' => $channelDirection,
                             'status' => $channel->status,
                         ],
                         'route' => [
-                            'id' => $route->id,
+                            'id' => $route->ulid,
                             'name' => $route->name,
                             'label' => $route->label,
                             'status' => $route->status,
@@ -256,7 +257,7 @@ class EnqueueThreadMessageOutbox
                             'meta' => $routeMeta,
                         ],
                         'address' => [
-                            'id' => $address->id,
+                            'id' => $address->ulid,
                             'label' => $address->label,
                             'provider' => $provider,
                             'target' => $target,
@@ -271,8 +272,7 @@ class EnqueueThreadMessageOutbox
                             'meta' => $addressMeta,
                         ],
                         'thread' => [
-                            'id' => $thread->id,
-                            'uuid' => $thread->uuid,
+                            'id' => $thread->uuid,
                             'purpose' => $thread->purpose,
                             'title' => $thread->title,
                             'phase' => $thread->phase,
@@ -280,8 +280,7 @@ class EnqueueThreadMessageOutbox
                         ],
                         'space' => $this->spacePayload($thread),
                         'post' => [
-                            'id' => $post->id,
-                            'ulid' => $post->ulid,
+                            'id' => $post->ulid,
                             'type' => $post->type,
                             'tag' => $post->tag,
                             'text' => $post->text,
@@ -290,9 +289,10 @@ class EnqueueThreadMessageOutbox
                             'meta' => is_array($post->meta) ? $post->meta : [],
                             'created_at' => optional($post->created_at)?->toIso8601String(),
                         ],
+                        'invocation' => $this->invocationPayload($post),
                         'sender' => $this->senderPayload($sender),
                         'recipients' => [[
-                            'address_id' => $address->id,
+                            'address_id' => $address->ulid,
                             'provider' => $provider,
                             'target' => $target,
                             'target_type' => $address->target_type,
@@ -301,19 +301,18 @@ class EnqueueThreadMessageOutbox
                             'provider' => $provider,
                             'target' => $target,
                             'channel' => [
-                                'id' => $channel->id,
-                                'uuid' => $channel->uuid,
+                                'id' => $channel->uuid,
                                 'driver' => $channel->driver,
                             ],
                             'route' => [
-                                'id' => $route->id,
+                                'id' => $route->ulid,
                                 'name' => $route->name,
                                 'direction' => $routeDirection,
                                 'status' => $route->status,
                                 'config' => $routeConfig,
                             ],
                             'address' => [
-                                'id' => $address->id,
+                                'id' => $address->ulid,
                                 'direction' => $addressDirection,
                                 'status' => $address->status,
                                 'provider' => $provider,
@@ -366,8 +365,7 @@ class EnqueueThreadMessageOutbox
         }
 
         return [
-            'id' => $threadable->id,
-            'uuid' => $threadable->uuid,
+            'id' => $threadable->uuid,
             'status' => $threadable->status,
         ];
     }
@@ -383,8 +381,7 @@ class EnqueueThreadMessageOutbox
 
         return [
             'type' => $sender->getMorphClass(),
-            'id' => $sender->getKey(),
-            'uuid' => $this->normalizedString(data_get($sender, 'uuid')),
+            'id' => $this->publicIdentifier($sender),
             'display_name' => $this->normalizedString(data_get($sender, 'name'))
                 ?? $this->normalizedString(data_get($sender, 'title')),
         ];
@@ -425,21 +422,52 @@ class EnqueueThreadMessageOutbox
     {
         return [
             'message' => [
-                'id' => $post->id,
+                'id' => $post->ulid,
                 'text' => $post->text,
                 'source' => data_get($post->meta, 'source'),
                 'meta' => is_array($post->meta) ? $post->meta : [],
                 'created_at' => optional($post->created_at)?->toIso8601String(),
             ],
+            'event' => $this->invocationId($post) !== null
+                ? 'invocation.available'
+                : 'thread.post.created',
+            'invocation' => $this->invocationPayload($post),
             'delivery' => [
                 'provider' => $target['provider'] ?? null,
                 'target' => $target['target'] ?? null,
             ],
             'thread' => [
-                'id' => $thread->id,
-                'uuid' => $thread->uuid,
+                'id' => $thread->uuid,
             ],
         ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    protected function invocationPayload(Post $post): ?array
+    {
+        $invocationId = $this->invocationId($post);
+
+        if ($invocationId === null) {
+            return null;
+        }
+
+        return [
+            'id' => $invocationId,
+            'node' => [
+                'type' => 'post',
+                'id' => $post->ulid,
+            ],
+            'turns_url' => route('api.v1.form.turns.index', [
+                'invocation' => $invocationId,
+            ]),
+        ];
+    }
+
+    protected function invocationId(Post $post): ?string
+    {
+        return $this->normalizedString(data_get($post->meta, 'invocation_id'));
     }
 
     protected function normalizedProtocol(mixed $value): ?string

@@ -127,11 +127,11 @@ class SubmitChatMessageOperation
                     'interaction_mode' => $observerPolicy['interaction_mode'],
                     'observer_status' => $observerPolicy['status'],
                     'text' => $firstAssistantMessage?->text,
-                    'post_id' => $existingUserMessage->id,
-                    'assistant_post_id' => $firstAssistantMessage?->id,
+                    'post_id' => $existingUserMessage->ulid,
+                    'assistant_post_id' => $firstAssistantMessage?->ulid,
                     'assistant_posts' => $existingAssistantMessages
                         ->map(fn (Post $message): array => [
-                            'id' => $message->id,
+                            'id' => $message->ulid,
                             'actor_key' => data_get($message->meta, 'actor_key'),
                             'text' => $message->text,
                             'created_at' => optional($message->created_at)?->toIso8601String(),
@@ -177,7 +177,7 @@ class SubmitChatMessageOperation
                 'broadcast_channel' => $broadcastSpaceId,
                 'interaction_mode' => $observerPolicy['interaction_mode'],
                 'observer_status' => $observerPolicy['status'],
-                'post_id' => $userMessage->id,
+                'post_id' => $userMessage->ulid,
                 'assistant_post_id' => null,
                 'pending_presenters' => $activePresenters->isNotEmpty()
                     ? $this->expectedPresenterReplyCount($activePresenters)

@@ -112,11 +112,11 @@ MARKDOWN)
         $this->assertSame('waha', $outbox->provider);
         $this->assertSame('2348012345678@c.us', $outbox->target);
         $this->assertSame('thread.post.created', data_get($outbox->payload, 'event'));
-        $this->assertSame($channel->uuid, data_get($outbox->payload, 'channel.uuid'));
-        $this->assertSame($route->id, data_get($outbox->payload, 'route.id'));
-        $this->assertSame($address->id, data_get($outbox->payload, 'address.id'));
+        $this->assertSame($channel->uuid, data_get($outbox->payload, 'channel.id'));
+        $this->assertSame($route->ulid, data_get($outbox->payload, 'route.id'));
+        $this->assertSame($address->ulid, data_get($outbox->payload, 'address.id'));
         $this->assertSame('2348012345678@c.us', data_get($outbox->payload, 'address.target'));
-        $this->assertSame($sender->id, data_get($outbox->payload, 'sender.id'));
+        $this->assertSame($sender->uuid, data_get($outbox->payload, 'sender.id'));
         $this->assertSame('2348012345678@c.us', data_get($outbox->payload, 'recipients.0.target'));
         $this->assertSame('https://channels.example/send', data_get($outbox->payload, 'delivery.route.config.outbound.endpoint_url'));
         $this->assertSame('waha-http-send', data_get($outbox->payload, 'delivery.skill_context.entries.0.slug'));
@@ -124,5 +124,29 @@ MARKDOWN)
         Queue::assertPushed(DeliverOutboxMessage::class, function (DeliverOutboxMessage $job) use ($outbox): bool {
             return $job->outboxId === $outbox->id;
         });
+
+        $invocationPost = $thread->posts()->create([
+            'type' => Post::TypeMessage,
+            'status' => Post::StatusActive,
+            'data' => ['text' => 'Invocation output is ready.'],
+            'meta' => [
+                'source' => 'agent_response',
+                'invocation_id' => 'invocation-42',
+            ],
+        ]);
+        $invocationPost->attachRelation($sender, Post::RelationRoleSender);
+
+        $invocationOutbox = app(EnqueueThreadMessageOutbox::class)
+            ->execute($invocationPost)
+            ->first();
+
+        $this->assertInstanceOf(Outbox::class, $invocationOutbox);
+        $this->assertSame('invocation.available', data_get($invocationOutbox->payload, 'event'));
+        $this->assertSame('invocation-42', data_get($invocationOutbox->payload, 'invocation.id'));
+        $this->assertSame($invocationPost->ulid, data_get($invocationOutbox->payload, 'invocation.node.id'));
+        $this->assertStringEndsWith(
+            '/api/v1/form/invocation-42/turns',
+            (string) data_get($invocationOutbox->payload, 'invocation.turns_url'),
+        );
     }
 }

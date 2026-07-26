@@ -32,7 +32,6 @@ class PostResource extends JsonResource
 
         return [
             'id' => $post->ulid,
-            'database_id' => $post->id,
             'type' => $post->type,
             'tag' => $post->tag,
             'status' => $post->status,

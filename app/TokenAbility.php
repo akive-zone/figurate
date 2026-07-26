@@ -18,6 +18,22 @@ enum TokenAbility: string
 
     case A2aPushConfigManage = 'a2a:push.config.manage';
 
+    case NodesRead = 'nodes:read';
+
+    case NodesWrite = 'nodes:write';
+
+    case EdgesRead = 'edges:read';
+
+    case EdgesWrite = 'edges:write';
+
+    case FormsSubmit = 'forms:submit';
+
+    case InvocationsRead = 'invocations:read';
+
+    case ChannelsManage = 'channels:manage';
+
+    case CredentialsManage = 'credentials:manage';
+
     /**
      * @return list<string>
      */
@@ -41,6 +57,23 @@ enum TokenAbility: string
             self::A2aTaskRead->value,
             self::A2aTaskCancel->value,
             self::A2aPushConfigManage->value,
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function thirdPartyValues(): array
+    {
+        return [
+            self::NodesRead->value,
+            self::NodesWrite->value,
+            self::EdgesRead->value,
+            self::EdgesWrite->value,
+            self::FormsSubmit->value,
+            self::InvocationsRead->value,
+            self::ChannelsManage->value,
+            self::CredentialsManage->value,
         ];
     }
 }

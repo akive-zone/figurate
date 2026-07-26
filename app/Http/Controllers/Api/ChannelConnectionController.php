@@ -10,6 +10,7 @@ use App\Models\Server\ChannelRelation;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
+use App\Support\Channels\ChannelApiResolver;
 use App\Support\Channels\ChannelConnectionRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -18,11 +19,13 @@ use Illuminate\Support\Facades\Gate;
 
 class ChannelConnectionController extends Controller
 {
-    public function index(Request $request, int $channel): JsonResponse
+    public function __construct(protected ChannelApiResolver $channelApiResolver) {}
+
+    public function index(Request $request, string $channel): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
-        $registeredChannel = Channel::query()->findOrFail($channel);
+        $registeredChannel = $this->channelApiResolver->channel($channel);
 
         $connections = $registeredChannel->connections()
             ->latest('id')
@@ -39,12 +42,12 @@ class ChannelConnectionController extends Controller
 
     public function store(
         StoreChannelConnectionRequest $request,
-        int $channel,
+        string $channel,
         ChannelConnectionRegistry $channelConnectionRegistry
     ): JsonResponse {
         /** @var User $actor */
         $actor = $request->user();
-        $registeredChannel = Channel::query()->findOrFail($channel);
+        $registeredChannel = $this->channelApiResolver->channel($channel);
         [$ownerType, $owner] = $this->resolveOwnerTarget(
             (string) $request->validated('owner_type'),
             $request->validated('owner_id'),
@@ -68,14 +71,14 @@ class ChannelConnectionController extends Controller
 
     public function update(
         UpdateChannelConnectionRequest $request,
-        int $channel,
-        int $connection,
+        string $channel,
+        string $connection,
         ChannelConnectionRegistry $channelConnectionRegistry
     ): JsonResponse {
         /** @var User $actor */
         $actor = $request->user();
-        $registeredChannel = Channel::query()->findOrFail($channel);
-        $registeredConnection = $registeredChannel->connections()->findOrFail($connection);
+        $registeredChannel = $this->channelApiResolver->channel($channel);
+        $registeredConnection = $this->channelApiResolver->connection($registeredChannel, $connection);
         abort_unless($this->canManageConnection($actor, $registeredConnection), 403, 'Not authorized to update this channel connection.');
 
         $owner = $registeredConnection->relationable;
@@ -93,12 +96,12 @@ class ChannelConnectionController extends Controller
         ]);
     }
 
-    public function destroy(Request $request, int $channel, int $connection): JsonResponse
+    public function destroy(Request $request, string $channel, string $connection): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
-        $registeredChannel = Channel::query()->findOrFail($channel);
-        $registeredConnection = $registeredChannel->connections()->findOrFail($connection);
+        $registeredChannel = $this->channelApiResolver->channel($channel);
+        $registeredConnection = $this->channelApiResolver->connection($registeredChannel, $connection);
         abort_unless($this->canManageConnection($actor, $registeredConnection), 403, 'Not authorized to delete this channel connection.');
 
         $registeredConnection->delete();
@@ -174,10 +177,9 @@ class ChannelConnectionController extends Controller
         $credentials = is_array($config['credentials'] ?? null) ? $config['credentials'] : [];
 
         return [
-            'id' => $connection->id,
+            'id' => $connection->ulid,
             'channel' => [
-                'id' => $channel->id,
-                'uuid' => $channel->uuid,
+                'id' => $channel->uuid,
                 'protocol' => $channel->protocolKey(),
                 'driver' => $channel->protocolKey(),
                 'system' => $channel->protocolKey(),

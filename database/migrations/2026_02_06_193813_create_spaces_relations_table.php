@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('space_relations', function (Blueprint $table) {
             $table->id();
+            $table->ulid('ulid')->unique();
             $table->foreignId('space_id')->constrained('spaces')->cascadeOnDelete();
             $table->morphs('relationable');
             $table->string('type');

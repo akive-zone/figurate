@@ -2,6 +2,7 @@
 
 namespace App\Models\Server;
 
+use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class SpaceRelation extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUlids;
 
     public const TypeRelatedTo = 'related_to';
 
@@ -27,12 +28,21 @@ class SpaceRelation extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'ulid',
         'space_id',
         'relationable_type',
         'relationable_id',
         'type',
         'purpose',
     ];
+
+    /**
+     * @return array<int, string>
+     */
+    public function uniqueIds(): array
+    {
+        return ['ulid'];
+    }
 
     public function space(): BelongsTo
     {
