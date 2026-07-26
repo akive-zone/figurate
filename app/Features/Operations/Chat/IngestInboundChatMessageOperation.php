@@ -2,13 +2,13 @@
 
 namespace App\Features\Operations\Chat;
 
-use App\Features\Actions\Conversation\DispatchThreadMessage;
-use App\Features\Actions\Conversation\FindExistingInboundMessage;
-use App\Features\Actions\Conversation\InboundMessageEnvelope;
-use App\Features\Actions\Conversation\RecordInboundMessageReceipt;
-use App\Features\Actions\Conversation\RecordInboundThreadEvent;
-use App\Features\Actions\Conversation\ResolveInboundMessageIdempotency;
-use App\Features\Actions\Conversation\ThreadMessageEntry;
+use App\Features\Actions\Chat\DispatchThreadMessage;
+use App\Features\Actions\Chat\FindExistingInboundMessage;
+use App\Features\Actions\Chat\InboundMessageEnvelope;
+use App\Features\Actions\Chat\RecordInboundMessageReceipt;
+use App\Features\Actions\Chat\RecordInboundThreadEvent;
+use App\Features\Actions\Chat\ResolveInboundMessageIdempotency;
+use App\Features\Actions\Chat\ThreadMessageEntry;
 use App\Models\Server\Post;
 
 class IngestInboundChatMessageOperation

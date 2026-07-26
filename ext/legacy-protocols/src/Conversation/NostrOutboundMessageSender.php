@@ -2,7 +2,7 @@
 
 namespace Figurate\LegacyProtocols\Conversation;
 
-use App\Features\Actions\Conversation\Contracts\OutboundMessageSender;
+use App\Features\Actions\Chat\Contracts\OutboundMessageSender;
 use App\Models\Server\Outbox;
 
 class NostrOutboundMessageSender implements OutboundMessageSender

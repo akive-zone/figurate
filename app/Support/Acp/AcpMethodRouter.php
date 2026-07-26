@@ -2,7 +2,7 @@
 
 namespace App\Support\Acp;
 
-use App\Features\Actions\Conversation\BootstrapConversationSpaceContext;
+use App\Features\Actions\Chat\BootstrapConversationSpaceContext;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Auth\Access\AuthorizationException;

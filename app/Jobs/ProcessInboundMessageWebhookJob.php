@@ -2,9 +2,9 @@
 
 namespace App\Jobs;
 
-use App\Features\Actions\Conversation\InboundMessageEnvelope;
-use App\Features\Actions\Conversation\InboundMessageReceiverResolver;
-use App\Features\Actions\Conversation\ProtocolRegistry;
+use App\Features\Actions\Chat\InboundMessageEnvelope;
+use App\Features\Actions\Chat\InboundMessageReceiverResolver;
+use App\Features\Actions\Chat\ProtocolRegistry;
 use App\Models\Server\Thread;
 use Spatie\WebhookClient\Jobs\ProcessWebhookJob;
 

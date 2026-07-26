@@ -2,7 +2,7 @@
 
 namespace App\Notifications\Channels;
 
-use App\Features\Actions\Conversation\EnqueueThreadMessageOutbox;
+use App\Features\Actions\Chat\EnqueueThreadMessageOutbox;
 use App\Models\Server\Post;
 use App\Models\Server\User;
 use Illuminate\Notifications\Channels\DatabaseChannel;

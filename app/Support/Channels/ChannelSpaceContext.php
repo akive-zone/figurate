@@ -2,7 +2,7 @@
 
 namespace App\Support\Channels;
 
-use App\Features\Actions\Conversation\BootstrapConversationSpaceContext;
+use App\Features\Actions\Chat\BootstrapConversationSpaceContext;
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelRelation;
 use App\Models\Server\Space;

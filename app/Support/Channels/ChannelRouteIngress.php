@@ -2,7 +2,7 @@
 
 namespace App\Support\Channels;
 
-use App\Features\Actions\Conversation\InboundMessageEnvelope;
+use App\Features\Actions\Chat\InboundMessageEnvelope;
 use App\Features\Operations\Chat\IngestInboundChatMessageOperation;
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelAddress;

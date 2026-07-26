@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Ai\Storage\ConversationPersistenceResolver;
-use App\Features\Actions\Conversation\EnqueueThreadPromptOutbox;
-use App\Features\Actions\Conversation\Protocols\AgentPromptProtocol;
+use App\Features\Actions\Chat\EnqueueThreadPromptOutbox;
+use App\Features\Actions\Chat\Protocols\AgentPromptProtocol;
 use App\Jobs\DeliverOutboxMessage;
 use App\Models\Server\Inbox;
 use App\Models\Server\Outbox;

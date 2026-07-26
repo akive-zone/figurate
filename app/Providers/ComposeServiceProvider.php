@@ -2,11 +2,11 @@
 
 namespace App\Providers;
 
-use App\Features\Actions\Conversation\AgentPromptOutboundMessageSender;
-use App\Features\Actions\Conversation\ChannelOutboundMessageSender;
-use App\Features\Actions\Conversation\ProtocolRegistry;
-use App\Features\Actions\Conversation\Protocols\AgentPromptProtocol;
-use App\Features\Actions\Conversation\Protocols\ChannelProtocol;
+use App\Features\Actions\Chat\AgentPromptOutboundMessageSender;
+use App\Features\Actions\Chat\ChannelOutboundMessageSender;
+use App\Features\Actions\Chat\ProtocolRegistry;
+use App\Features\Actions\Chat\Protocols\AgentPromptProtocol;
+use App\Features\Actions\Chat\Protocols\ChannelProtocol;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;

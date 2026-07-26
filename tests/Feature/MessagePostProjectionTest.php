@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Features\Actions\Conversation\StoreThreadMessage;
+use App\Features\Actions\Chat\StoreThreadMessage;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;

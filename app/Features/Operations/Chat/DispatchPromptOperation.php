@@ -2,12 +2,12 @@
 
 namespace App\Features\Operations\Chat;
 
-use App\Features\Actions\Conversation\DispatchThreadMessage;
-use App\Features\Actions\Conversation\EnsureThreadMembership;
-use App\Features\Actions\Conversation\EnsureThreadPresenter;
-use App\Features\Actions\Conversation\QueuePresenterReplies;
-use App\Features\Actions\Conversation\ResolveActiveThreadPresenters;
-use App\Features\Actions\Conversation\ThreadMessageEntry;
+use App\Features\Actions\Chat\DispatchThreadMessage;
+use App\Features\Actions\Chat\EnsureThreadMembership;
+use App\Features\Actions\Chat\EnsureThreadPresenter;
+use App\Features\Actions\Chat\QueuePresenterReplies;
+use App\Features\Actions\Chat\ResolveActiveThreadPresenters;
+use App\Features\Actions\Chat\ThreadMessageEntry;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Features\Actions\Conversation\ProjectAgentTurns;
-use App\Features\Actions\Conversation\ProjectMessageExtra;
+use App\Features\Actions\Chat\ProjectAgentTurns;
+use App\Features\Actions\Chat\ProjectMessageExtra;
 use App\Http\Controllers\Controller;
 use App\Models\Server\Post;
 use App\Models\Server\Space;

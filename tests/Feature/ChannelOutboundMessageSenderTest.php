@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Features\Actions\Conversation\ChannelOutboundMessageSender;
-use App\Features\Actions\Conversation\Protocols\ChannelProtocol;
+use App\Features\Actions\Chat\ChannelOutboundMessageSender;
+use App\Features\Actions\Chat\Protocols\ChannelProtocol;
 use App\Models\Server\Channel;
 use App\Models\Server\Outbox;
 use App\Models\Server\Post;

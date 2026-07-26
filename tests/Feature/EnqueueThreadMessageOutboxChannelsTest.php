@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Features\Actions\Conversation\EnqueueThreadMessageOutbox;
-use App\Features\Actions\Conversation\Protocols\ChannelProtocol;
+use App\Features\Actions\Chat\EnqueueThreadMessageOutbox;
+use App\Features\Actions\Chat\Protocols\ChannelProtocol;
 use App\Jobs\DeliverOutboxMessage;
 use App\Models\Server\Channel;
 use App\Models\Server\Outbox;

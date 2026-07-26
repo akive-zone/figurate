@@ -2,12 +2,12 @@
 
 namespace Tests\Unit;
 
-use App\Features\Actions\Conversation\Contracts\InboundMessageReceiver;
-use App\Features\Actions\Conversation\Contracts\OutboundMessageSender;
-use App\Features\Actions\Conversation\Contracts\ProtocolDriver;
-use App\Features\Actions\Conversation\InboundMessageEnvelope;
-use App\Features\Actions\Conversation\ProtocolRegistry;
-use App\Features\Actions\Conversation\ProtocolWebhook;
+use App\Features\Actions\Chat\Contracts\InboundMessageReceiver;
+use App\Features\Actions\Chat\Contracts\OutboundMessageSender;
+use App\Features\Actions\Chat\Contracts\ProtocolDriver;
+use App\Features\Actions\Chat\InboundMessageEnvelope;
+use App\Features\Actions\Chat\ProtocolRegistry;
+use App\Features\Actions\Chat\ProtocolWebhook;
 use App\Jobs\ProcessInboundMessageWebhookJob;
 use App\Models\Server\Outbox;
 use App\Models\Server\Post;

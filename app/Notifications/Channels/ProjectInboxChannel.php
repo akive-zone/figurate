@@ -2,7 +2,7 @@
 
 namespace App\Notifications\Channels;
 
-use App\Features\Actions\Conversation\ProjectThreadMessageToInbox;
+use App\Features\Actions\Chat\ProjectThreadMessageToInbox;
 use App\Models\Server\Post;
 use App\Models\Server\User;
 use Illuminate\Notifications\Notification;

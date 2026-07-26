@@ -2,7 +2,7 @@
 
 namespace Figurate\LegacyProtocols;
 
-use App\Features\Actions\Conversation\ProtocolRegistry;
+use App\Features\Actions\Chat\ProtocolRegistry;
 use Figurate\LegacyProtocols\Conversation\ActivityPubOutboundMessageSender;
 use Figurate\LegacyProtocols\Conversation\NostrOutboundMessageSender;
 use Figurate\LegacyProtocols\Conversation\Protocols\ActivityPubProtocol;

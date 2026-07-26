@@ -2,8 +2,8 @@
 
 namespace App\Support\Acp;
 
-use App\Features\Actions\Conversation\EnsureThreadMembership;
-use App\Features\Actions\Conversation\ResolveActiveThreadPresenters;
+use App\Features\Actions\Chat\EnsureThreadMembership;
+use App\Features\Actions\Chat\ResolveActiveThreadPresenters;
 use App\Features\Operations\Chat\DispatchPromptOperation;
 use App\Models\Server\Post;
 use App\Models\Server\Space;

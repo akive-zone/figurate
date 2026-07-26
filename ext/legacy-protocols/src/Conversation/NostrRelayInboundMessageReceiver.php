@@ -2,8 +2,8 @@
 
 namespace Figurate\LegacyProtocols\Conversation;
 
-use App\Features\Actions\Conversation\Contracts\InboundMessageReceiver;
-use App\Features\Actions\Conversation\InboundMessageEnvelope;
+use App\Features\Actions\Chat\Contracts\InboundMessageReceiver;
+use App\Features\Actions\Chat\InboundMessageEnvelope;
 use App\Features\Operations\Chat\IngestInboundChatMessageOperation;
 use App\Models\Server\Post;
 

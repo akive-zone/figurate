@@ -2,11 +2,11 @@
 
 namespace App\Features\Operations\Chat;
 
-use App\Features\Actions\Conversation\ApplyConversationPurposeTriggers;
-use App\Features\Actions\Conversation\PersistActiveConversationThread;
-use App\Features\Actions\Conversation\RecordConversationOperationEvents;
-use App\Features\Actions\Conversation\ResolveActiveThreadPresenters;
-use App\Features\Actions\Conversation\ResolveBaseConversationThread;
+use App\Features\Actions\Chat\ApplyConversationPurposeTriggers;
+use App\Features\Actions\Chat\PersistActiveConversationThread;
+use App\Features\Actions\Chat\RecordConversationOperationEvents;
+use App\Features\Actions\Chat\ResolveActiveThreadPresenters;
+use App\Features\Actions\Chat\ResolveBaseConversationThread;
 use App\Models\Server\Space;
 use App\Models\Server\User;
 use App\Support\Orchestrate\OrchestrationDecision;

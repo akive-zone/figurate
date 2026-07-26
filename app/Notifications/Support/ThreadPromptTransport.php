@@ -3,8 +3,8 @@
 namespace App\Notifications\Support;
 
 use App\Ai\Storage\ConversationPersistenceResolver;
-use App\Features\Actions\Conversation\EnqueueThreadPromptOutbox;
-use App\Features\Actions\Conversation\ResolveActiveThreadPresenters;
+use App\Features\Actions\Chat\EnqueueThreadPromptOutbox;
+use App\Features\Actions\Chat\ResolveActiveThreadPresenters;
 use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;

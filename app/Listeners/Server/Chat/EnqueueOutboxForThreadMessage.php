@@ -3,7 +3,7 @@
 namespace App\Listeners\Server\Chat;
 
 use App\Events\Server\Chat\ThreadMessageStored;
-use App\Features\Actions\Conversation\EnqueueThreadMessageOutbox;
+use App\Features\Actions\Chat\EnqueueThreadMessageOutbox;
 
 class EnqueueOutboxForThreadMessage
 {

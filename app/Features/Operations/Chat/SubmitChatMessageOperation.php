@@ -2,18 +2,18 @@
 
 namespace App\Features\Operations\Chat;
 
-use App\Features\Actions\Conversation\ApplyReceivedMessageA2uiMetadata;
-use App\Features\Actions\Conversation\CacheIdempotentConversationMessage;
-use App\Features\Actions\Conversation\FindAssistantRepliesForMessage;
-use App\Features\Actions\Conversation\FindExistingIdempotentConversationMessage;
-use App\Features\Actions\Conversation\NormalizeInboundConversationPayload;
-use App\Features\Actions\Conversation\QueuePresenterReplies;
-use App\Features\Actions\Conversation\ResolveActiveThreadPresenters;
-use App\Features\Actions\Conversation\ResolveConversationAttachments;
-use App\Features\Actions\Conversation\ResolveConversationIdempotencyKey;
-use App\Features\Actions\Conversation\ResolveConversationSpaceContext;
-use App\Features\Actions\Conversation\ResolveConversationThreadContext;
-use App\Features\Actions\Conversation\SendPeerThreadMessage;
+use App\Features\Actions\Chat\ApplyReceivedMessageA2uiMetadata;
+use App\Features\Actions\Chat\CacheIdempotentConversationMessage;
+use App\Features\Actions\Chat\FindAssistantRepliesForMessage;
+use App\Features\Actions\Chat\FindExistingIdempotentConversationMessage;
+use App\Features\Actions\Chat\NormalizeInboundConversationPayload;
+use App\Features\Actions\Chat\QueuePresenterReplies;
+use App\Features\Actions\Chat\ResolveActiveThreadPresenters;
+use App\Features\Actions\Chat\ResolveConversationAttachments;
+use App\Features\Actions\Chat\ResolveConversationIdempotencyKey;
+use App\Features\Actions\Chat\ResolveConversationSpaceContext;
+use App\Features\Actions\Chat\ResolveConversationThreadContext;
+use App\Features\Actions\Chat\SendPeerThreadMessage;
 use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;

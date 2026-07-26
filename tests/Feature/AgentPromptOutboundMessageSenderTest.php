@@ -4,8 +4,8 @@ namespace Tests\Feature;
 
 use App\Ai\Storage\ConversationPersistenceResolver;
 use App\Ai\Support\AgentExecutor;
-use App\Features\Actions\Conversation\AgentPromptOutboundMessageSender;
-use App\Features\Actions\Conversation\Protocols\AgentPromptProtocol;
+use App\Features\Actions\Chat\AgentPromptOutboundMessageSender;
+use App\Features\Actions\Chat\Protocols\AgentPromptProtocol;
 use App\Models\Server\Outbox;
 use App\Models\Server\Post;
 use App\Models\Server\Space;

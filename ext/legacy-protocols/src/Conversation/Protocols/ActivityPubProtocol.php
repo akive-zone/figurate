@@ -2,12 +2,12 @@
 
 namespace Figurate\LegacyProtocols\Conversation\Protocols;
 
-use App\Features\Actions\Conversation\Contracts\InboundMessageReceiver;
-use App\Features\Actions\Conversation\Contracts\OutboundMessageSender;
-use App\Features\Actions\Conversation\Contracts\ProtocolDriver;
-use App\Features\Actions\Conversation\HttpInboundMessageReceiver;
-use App\Features\Actions\Conversation\ProtocolWebhook;
-use App\Features\Actions\Conversation\WebhookInboundMessageReceiver;
+use App\Features\Actions\Chat\Contracts\InboundMessageReceiver;
+use App\Features\Actions\Chat\Contracts\OutboundMessageSender;
+use App\Features\Actions\Chat\Contracts\ProtocolDriver;
+use App\Features\Actions\Chat\HttpInboundMessageReceiver;
+use App\Features\Actions\Chat\ProtocolWebhook;
+use App\Features\Actions\Chat\WebhookInboundMessageReceiver;
 use Figurate\LegacyProtocols\Conversation\ActivityPubOutboundMessageSender;
 
 class ActivityPubProtocol implements ProtocolDriver

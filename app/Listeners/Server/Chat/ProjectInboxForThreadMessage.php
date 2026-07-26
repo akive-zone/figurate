@@ -3,7 +3,7 @@
 namespace App\Listeners\Server\Chat;
 
 use App\Events\Server\Chat\ThreadMessageStored;
-use App\Features\Actions\Conversation\ResolveThreadMessageInboxRecipients;
+use App\Features\Actions\Chat\ResolveThreadMessageInboxRecipients;
 use App\Notifications\Server\Chat\ThreadMessageNotification;
 
 class ProjectInboxForThreadMessage

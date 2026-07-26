@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Features\Actions\Conversation\DispatchThreadMessage;
-use App\Features\Actions\Conversation\ThreadMessageEntry;
+use App\Features\Actions\Chat\DispatchThreadMessage;
+use App\Features\Actions\Chat\ThreadMessageEntry;
 use App\Models\Server\Space;
 use App\Models\Server\StoreDocument;
 use App\Models\Server\Thread;

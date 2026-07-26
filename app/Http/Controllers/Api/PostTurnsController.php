@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Features\Actions\Conversation\ProjectAgentTurns;
+use App\Features\Actions\Chat\ProjectAgentTurns;
 use App\Http\Controllers\Controller;
 use App\Models\Server\Post;
 use App\Models\Server\Thread;

@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Features\Actions\Conversation\DispatchThreadMessage;
-use App\Features\Actions\Conversation\ThreadMessageEntry;
+use App\Features\Actions\Chat\DispatchThreadMessage;
+use App\Features\Actions\Chat\ThreadMessageEntry;
 use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadEvent;

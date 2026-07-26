@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Features\Actions\Conversation\ProtocolRegistry;
+use App\Features\Actions\Chat\ProtocolRegistry;
 use App\Models\Server\Outbox;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
