@@ -241,7 +241,7 @@ class OpenApiController extends Controller
         return match ($name) {
             'api.auth.register' => 'RegisterRequest',
             'api.auth.login' => 'LoginRequest',
-            'api.credentials.store' => 'ApiCredentialRequest',
+            'api.auth.credentials.store' => 'ApiCredentialRequest',
             'api.form.store' => 'FormRequest',
             'api.nodes.store', 'api.form.nodes.store' => 'NodeCreateRequest',
             'api.nodes.update', 'api.form.nodes.update' => 'NodeUpdateRequest',

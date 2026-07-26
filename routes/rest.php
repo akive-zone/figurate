@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Api\ApiCredentialController;
 use App\Http\Controllers\Api\Auth\CurrentUserController;
 use App\Http\Controllers\Api\Auth\LoginController;
 use App\Http\Controllers\Api\Auth\LogoutController;
@@ -11,6 +10,7 @@ use App\Http\Controllers\Api\ChannelConnectionController;
 use App\Http\Controllers\Api\ChannelController;
 use App\Http\Controllers\Api\ChannelRouteController;
 use App\Http\Controllers\Api\ChannelSkillMediaController;
+use App\Http\Controllers\Api\CredentialController;
 use App\Http\Controllers\Api\FormController;
 use App\Http\Controllers\Api\FormTurnsController;
 use App\Http\Controllers\Api\GraphEdgeController;
@@ -60,15 +60,15 @@ Route::prefix('auth')->group(function (): void {
                 ->middleware(['auth:sanctum,passport'])
                 ->name('destroy');
         });
-});
 
-Route::prefix('credentials')
-    ->middleware(['auth:sanctum,passport'])
-    ->group(function (): void {
-        Route::get('/', [ApiCredentialController::class, 'index'])->name('api.credentials.index');
-        Route::post('/', [ApiCredentialController::class, 'store'])->name('api.credentials.store');
-        Route::delete('/{credential}', [ApiCredentialController::class, 'destroy'])->name('api.credentials.destroy');
-    });
+    Route::prefix('credentials')
+        ->middleware(['auth:sanctum,passport'])
+        ->group(function (): void {
+            Route::get('/', [CredentialController::class, 'index'])->name('api.auth.credentials.index');
+            Route::post('/', [CredentialController::class, 'store'])->name('api.auth.credentials.store');
+            Route::delete('/{credential}', [CredentialController::class, 'destroy'])->name('api.auth.credentials.destroy');
+        });
+});
 
 Route::prefix('form')->middleware(['auth:sanctum,passport'])->group(function (): void {
     Route::post('/', [FormController::class, 'store'])

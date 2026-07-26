@@ -3,9 +3,9 @@
 namespace App\Models\Server;
 
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
-use Laravel\Sanctum\PersonalAccessToken;
+use Laravel\Sanctum\PersonalAccessToken as SanctumPersonalAccessToken;
 
-class ApiPersonalAccessToken extends PersonalAccessToken
+class PersonalAccessToken extends SanctumPersonalAccessToken
 {
     use HasUlids;
 

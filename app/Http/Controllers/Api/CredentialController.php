@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Api\StoreApiCredentialRequest;
-use App\Models\Server\ApiPersonalAccessToken;
+use App\Models\Server\PersonalAccessToken;
 use App\Models\Server\SanctumUser;
 use App\Models\Server\User;
 use App\TokenAbility;
@@ -12,7 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
-class ApiCredentialController extends Controller
+class CredentialController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
@@ -20,13 +20,13 @@ class ApiCredentialController extends Controller
         $user = $request->user();
         $this->authorizeCredentialManagement($user);
 
-        $credentials = ApiPersonalAccessToken::query()
-            ->where('tokenable_type', $user->getMorphClass())
+        $credentials = PersonalAccessToken::query()
+            ->where('tokenable_type', SanctumUser::class)
             ->where('tokenable_id', $user->getKey())
             ->where('name', 'like', 'api:%')
             ->latest('created_at')
             ->get()
-            ->map(fn (ApiPersonalAccessToken $token): array => $this->mapCredential($token))
+            ->map(fn (PersonalAccessToken $token): array => $this->mapCredential($token))
             ->all();
 
         return response()->json(['data' => $credentials]);
@@ -47,7 +47,7 @@ class ApiCredentialController extends Controller
             array_values(array_unique($validated['abilities'])),
             $expiresAt,
         );
-        /** @var ApiPersonalAccessToken $accessToken */
+        /** @var PersonalAccessToken $accessToken */
         $accessToken = $newToken->accessToken;
 
         return response()->json([
@@ -65,9 +65,9 @@ class ApiCredentialController extends Controller
         $user = $request->user();
         $this->authorizeCredentialManagement($user);
 
-        $token = ApiPersonalAccessToken::query()
+        $token = PersonalAccessToken::query()
             ->where('ulid', $credential)
-            ->where('tokenable_type', $user->getMorphClass())
+            ->where('tokenable_type', SanctumUser::class)
             ->where('tokenable_id', $user->getKey())
             ->where('name', 'like', 'api:%')
             ->firstOrFail();
@@ -92,7 +92,7 @@ class ApiCredentialController extends Controller
     /**
      * @return array<string, mixed>
      */
-    protected function mapCredential(ApiPersonalAccessToken $token): array
+    protected function mapCredential(PersonalAccessToken $token): array
     {
         return [
             'id' => $token->ulid,

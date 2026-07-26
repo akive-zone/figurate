@@ -3,8 +3,8 @@
 namespace App\Providers;
 
 use App\Contracts\Users\UserRepository;
-use App\Models\Server\ApiPersonalAccessToken;
 use App\Models\Server\Channel;
+use App\Models\Server\PersonalAccessToken;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Store;
@@ -44,7 +44,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Sanctum::usePersonalAccessTokenModel(ApiPersonalAccessToken::class);
+        Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
 
         Factory::guessFactoryNamesUsing(function (string $modelName): string {
             return 'Database\\Factories\\'.class_basename($modelName).'Factory';

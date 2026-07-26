@@ -4,6 +4,7 @@ namespace App\Repositories\Users;
 
 use App\Contracts\Users\UserRepository;
 use App\Models\Server\Identity;
+use App\Models\Server\PersonalAccessToken;
 use App\Models\Server\SanctumUser;
 use App\Models\Server\User;
 use Illuminate\Support\Collection;
@@ -112,7 +113,10 @@ class EloquentUserRepository implements UserRepository
 
     public function deleteAuthTokens(User $user): void
     {
-        SanctumUser::query()->find($user->getKey())?->tokens()->delete();
+        PersonalAccessToken::query()
+            ->where('tokenable_type', SanctumUser::class)
+            ->where('tokenable_id', $user->getKey())
+            ->delete();
 
         if (Schema::hasTable('oauth_access_tokens')) {
             DB::table('oauth_access_tokens')

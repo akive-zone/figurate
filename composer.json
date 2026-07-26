@@ -36,6 +36,7 @@
         "wikimedia/composer-merge-plugin": "dev-master"
     },
     "require-dev": {
+        "behat/behat": "4.0.0-alpha1",
         "fakerphp/faker": "^1.23",
         "laravel/boost": "^2.0",
         "laravel/pail": "^1.2.2",
@@ -80,8 +81,12 @@
         "test:plugins": [
             "@php -r \"\\$pluginTestDirectories = array_merge(glob('mod/*/tests', GLOB_ONLYDIR) ?: [], glob('ext/*/tests', GLOB_ONLYDIR) ?: []); if (\\$pluginTestDirectories === []) { fwrite(STDOUT, 'No plugin tests found.'.PHP_EOL); exit(0); } foreach (\\$pluginTestDirectories as \\$pluginTestDirectory) { fwrite(STDOUT, PHP_EOL.'==> '.\\$pluginTestDirectory.PHP_EOL); passthru('php artisan test --compact '.escapeshellarg(\\$pluginTestDirectory), \\$exitCode); if (\\$exitCode !== 0) { exit(\\$exitCode); } }\""
         ],
+        "test:behaviour": [
+            "@php vendor/bin/behat --strict"
+        ],
         "test": [
             "@test:root",
+            "@test:behaviour",
             "@test:plugins"
         ],
         "post-autoload-dump": [

@@ -10,7 +10,7 @@ use App\Features\Actions\Chat\Protocols\ChannelProtocol;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
-use App\Policies\Server\MessagePolicy;
+use App\Policies\Server\PostPolicy;
 use App\Policies\Server\SpacePolicy;
 use App\Policies\Server\ThreadPolicy;
 use Illuminate\Support\Facades\Gate;
@@ -34,7 +34,7 @@ class ComposeServiceProvider extends ServiceProvider
     public function boot(ProtocolRegistry $protocolRegistry): void
     {
         Gate::policy(Space::class, SpacePolicy::class);
-        Gate::policy(Post::class, MessagePolicy::class);
+        Gate::policy(Post::class, PostPolicy::class);
         Gate::policy(Thread::class, ThreadPolicy::class);
 
         $existingWebhookConfigs = collect(config('webhook-client.configs', []))

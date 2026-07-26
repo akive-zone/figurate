@@ -8,12 +8,20 @@ use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Support\Facades\Gate;
 
-class MessagePolicy
+class PostPolicy
 {
-    protected function isSender(User $user, Post $message): bool
+    protected function isSender(User $user, Post $post): bool
     {
-        return $message->senderable_type === $user->getMorphClass()
-            && (string) $message->senderable_id === (string) $user->getKey();
+        return $post->relations()
+            ->where('role', Post::RelationRoleSender)
+            ->where('relationable_id', $user->getKey())
+            ->whereIn('relationable_type', [
+                User::class,
+                $user::class,
+                $user->getMorphClass(),
+                'user',
+            ])
+            ->exists();
     }
 
     /**
@@ -27,9 +35,9 @@ class MessagePolicy
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, Post $message): bool
+    public function view(User $user, Post $post): bool
     {
-        return $this->canView($user, $message);
+        return $this->canView($user, $post);
     }
 
     /**
@@ -43,23 +51,23 @@ class MessagePolicy
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, Post $message): bool
+    public function update(User $user, Post $post): bool
     {
-        return $this->isSender($user, $message);
+        return $this->isSender($user, $post);
     }
 
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, Post $message): bool
+    public function delete(User $user, Post $post): bool
     {
-        return $this->isSender($user, $message);
+        return $this->isSender($user, $post);
     }
 
     /**
      * Determine whether the user can restore the model.
      */
-    public function restore(User $user, Post $message): bool
+    public function restore(User $user, Post $post): bool
     {
         return false;
     }
@@ -67,7 +75,7 @@ class MessagePolicy
     /**
      * Determine whether the user can permanently delete the model.
      */
-    public function forceDelete(User $user, Post $message): bool
+    public function forceDelete(User $user, Post $post): bool
     {
         return false;
     }

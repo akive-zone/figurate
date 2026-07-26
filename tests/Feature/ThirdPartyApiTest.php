@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Server\ApiPersonalAccessToken;
+use App\Models\Server\SanctumUser;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
 use App\Models\Server\SpaceRelation;
@@ -22,7 +22,7 @@ class ThirdPartyApiTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user, ['*']);
 
-        $created = $this->postJson('/api/credentials', [
+        $created = $this->postJson('/api/auth/credentials', [
             'name' => 'automation',
             'abilities' => [
                 TokenAbility::NodesRead->value,
@@ -44,12 +44,12 @@ class ThirdPartyApiTest extends TestCase
             'name' => 'api:automation',
         ]);
 
-        $this->getJson('/api/credentials')
+        $this->getJson('/api/auth/credentials')
             ->assertOk()
             ->assertJsonPath('data.0.id', $credentialId)
             ->assertJsonMissingPath('data.0.token');
 
-        $this->deleteJson("/api/credentials/{$credentialId}")
+        $this->deleteJson("/api/auth/credentials/{$credentialId}")
             ->assertNoContent();
 
         $this->assertDatabaseMissing('personal_access_tokens', [
@@ -61,11 +61,11 @@ class ThirdPartyApiTest extends TestCase
     {
         $user = User::factory()->create();
         $space = $this->accessibleSpace($user);
-        Sanctum::actingAs($user);
-        $user->withAccessToken(new ApiPersonalAccessToken([
-            'name' => 'api:reader',
-            'abilities' => [TokenAbility::NodesRead->value],
-        ]));
+        $token = SanctumUser::query()
+            ->findOrFail($user->id)
+            ->createToken('api:reader', [TokenAbility::NodesRead->value])
+            ->plainTextToken;
+        $this->withHeader('Authorization', "Bearer {$token}");
 
         $this->getJson("/api/spaces/{$space->uuid}")
             ->assertOk()
@@ -76,7 +76,7 @@ class ThirdPartyApiTest extends TestCase
             'attributes' => ['status' => 'open'],
         ])->assertForbidden();
 
-        $this->getJson('/api/credentials')
+        $this->getJson('/api/auth/credentials')
             ->assertForbidden();
     }
 
