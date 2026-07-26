@@ -1,10 +1,11 @@
 import {
     createConversationThread,
-    fetchConversationPostTurns,
     fetchConversationMessages,
     fetchConversationPosts,
     fetchConversations,
     fetchConversationThreads,
+    fetchFormTurns,
+    fetchPost,
     sendConversationMessage,
 } from '@web-view/api';
 
@@ -25,8 +26,12 @@ export const chatDataService = {
         return fetchConversationPosts(conversationId, runtime);
     },
 
-    async listConversationPostTurns(conversationId, postId, runtime) {
-        return fetchConversationPostTurns(conversationId, postId, runtime);
+    async listFormTurns(invocationId, runtime) {
+        return fetchFormTurns(invocationId, runtime);
+    },
+
+    async readPost(postId, runtime) {
+        return fetchPost(postId, runtime);
     },
 
     async sendMessage(payload, runtime, options = {}) {

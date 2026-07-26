@@ -64,6 +64,43 @@ class SpaceStoreApiTest extends TestCase
         ]);
     }
 
+    public function test_it_shows_an_accessible_space(): void
+    {
+        $user = User::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $spaceResponse = $this->postJson('/api/spaces', [
+            'status' => 'preparing',
+        ])->assertCreated();
+
+        $this->getJson("/api/spaces/{$spaceResponse->json('data.id')}")
+            ->assertOk()
+            ->assertJsonPath('data.id', $spaceResponse->json('data.id'))
+            ->assertJsonPath('data.status', 'preparing')
+            ->assertJsonPath('data.active_thread_id', null);
+    }
+
+    public function test_it_forbids_showing_an_inaccessible_space(): void
+    {
+        $owner = User::factory()->create();
+        $intruder = User::factory()->create();
+        $space = Space::factory()->create();
+
+        SpaceActorState::query()->create([
+            'space_id' => $space->id,
+            'thread_id' => null,
+            'actorable_type' => $owner->getMorphClass(),
+            'actorable_id' => $owner->id,
+            'status' => SpaceActorState::StatusActive,
+        ]);
+
+        Sanctum::actingAs($intruder);
+
+        $this->getJson("/api/spaces/{$space->uuid}")
+            ->assertForbidden();
+    }
+
     public function test_it_validates_space_status(): void
     {
         $user = User::factory()->create();

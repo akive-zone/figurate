@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
-use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -43,32 +42,6 @@ class PostReadApiTest extends TestCase
             ->assertJsonPath('data.postable.id', $space->uuid);
     }
 
-    public function test_it_reads_projected_turns_for_a_thread_post(): void
-    {
-        $user = User::factory()->create();
-        $space = $this->accessibleSpace($user);
-        $thread = $this->threadForSpace($space);
-        $post = $thread->posts()->create([
-            'type' => Post::TypeMessage,
-            'status' => Post::StatusActive,
-            'payload' => [
-                'text' => 'Review this conversation.',
-            ],
-            'meta' => [
-                'source' => 'agent_prompt',
-            ],
-            'occurred_at' => now(),
-        ]);
-
-        Sanctum::actingAs($user);
-
-        $this->getJson("/api/posts/{$post->ulid}/turns")
-            ->assertOk()
-            ->assertJsonPath('thread', $thread->uuid)
-            ->assertJsonPath('post_id', $post->ulid)
-            ->assertJsonPath('data.0.prompt_post_id', $post->id);
-    }
-
     protected function accessibleSpace(User $user): Space
     {
         $space = Space::factory()->create();
@@ -82,15 +55,5 @@ class PostReadApiTest extends TestCase
         ]);
 
         return $space;
-    }
-
-    protected function threadForSpace(Space $space): Thread
-    {
-        return $space->threads()->create([
-            'purpose' => Thread::PurposeMain,
-            'title' => 'CRM Review',
-            'phase' => 'context_review',
-            'status' => 'open',
-        ]);
     }
 }

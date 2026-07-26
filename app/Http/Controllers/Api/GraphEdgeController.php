@@ -5,28 +5,28 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Graph\QueryGraphEdgesRequest;
 use App\Http\Requests\Server\Graph\StoreGraphEdgeRequest;
-use App\Models\Server\Post;
 use App\Models\Server\PostRelation;
-use App\Models\Server\Space;
 use App\Models\Server\SpaceRelation;
-use App\Models\Server\Thread;
 use App\Models\Server\ThreadRelation;
 use App\Models\Server\User;
 use App\Support\Graph\GraphEdgeExplorer;
+use App\Support\Graph\GraphNodeService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Gate;
 
 class GraphEdgeController extends Controller
 {
-    public function __construct(protected GraphEdgeExplorer $graphEdgeExplorer) {}
+    public function __construct(
+        protected GraphEdgeExplorer $graphEdgeExplorer,
+        protected GraphNodeService $graphNodes,
+    ) {}
 
     public function index(QueryGraphEdgesRequest $request): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
         $validated = $request->validated();
-        $node = $this->resolveNode(
+        $node = $this->graphNodes->resolve(
             $actor,
             (string) $validated['node_type'],
             (string) $validated['node_id'],
@@ -47,14 +47,14 @@ class GraphEdgeController extends Controller
             ->prepend($node)
             ->unique(fn (Model $relatedNode): string => sprintf('%s:%s', $relatedNode->getMorphClass(), $relatedNode->getKey()))
             ->values()
-            ->map(fn (Model $relatedNode): array => $this->mapNode($relatedNode))
+            ->map(fn (Model $relatedNode): array => $this->graphNodes->map($relatedNode))
             ->all();
 
         return response()->json([
             'data' => $edges
                 ->map(fn (array $edge): array => $this->mapEdge($edge))
                 ->all(),
-            'root' => $this->mapNode($node),
+            'root' => $this->graphNodes->map($node),
             'nodes' => $nodes,
             'meta' => [
                 'direction' => $direction,
@@ -72,13 +72,13 @@ class GraphEdgeController extends Controller
         /** @var User $actor */
         $actor = $request->user();
         $validated = $request->validated();
-        $source = $this->resolveNode(
+        $source = $this->graphNodes->resolve(
             $actor,
             (string) $validated['source_type'],
             (string) $validated['source_id'],
             true,
         );
-        $target = $this->resolveNode(
+        $target = $this->graphNodes->resolve(
             $actor,
             (string) $validated['target_type'],
             (string) $validated['target_id'],
@@ -104,49 +104,6 @@ class GraphEdgeController extends Controller
         ], 201);
     }
 
-    protected function resolveNode(User $actor, string $type, string $nodeId, bool $forUpdate = false): Model
-    {
-        return match ($type) {
-            'space' => $this->resolveSpace($actor, $nodeId, $forUpdate),
-            'thread' => $this->resolveThread($actor, $nodeId, $forUpdate),
-            'post' => $this->resolvePost($actor, $nodeId, $forUpdate),
-            default => abort(422, 'Unsupported graph node type.'),
-        };
-    }
-
-    protected function resolveSpace(User $actor, string $uuid, bool $forUpdate = false): Space
-    {
-        $space = Space::query()
-            ->where('uuid', $uuid)
-            ->firstOrFail();
-
-        Gate::forUser($actor)->authorize($forUpdate ? 'update' : 'view', $space);
-
-        return $space;
-    }
-
-    protected function resolveThread(User $actor, string $uuid, bool $forUpdate = false): Thread
-    {
-        $thread = Thread::query()
-            ->where('uuid', $uuid)
-            ->firstOrFail();
-
-        Gate::forUser($actor)->authorize($forUpdate ? 'update' : 'view', $thread);
-
-        return $thread;
-    }
-
-    protected function resolvePost(User $actor, string $ulid, bool $forUpdate = false): Post
-    {
-        $post = Post::query()
-            ->where('ulid', $ulid)
-            ->firstOrFail();
-
-        Gate::forUser($actor)->authorize($forUpdate ? 'update' : 'view', $post);
-
-        return $post;
-    }
-
     /**
      * @param  array<string, mixed>  $edge
      * @return array<string, mixed>
@@ -165,47 +122,9 @@ class GraphEdgeController extends Controller
             'depth' => (int) $edge['depth'],
             'type' => $relation instanceof PostRelation ? $relation->role : $relation->type,
             'purpose' => $relation instanceof PostRelation ? null : $relation->purpose,
-            'source' => $this->mapNode($source),
-            'target' => $this->mapNode($target),
+            'source' => $this->graphNodes->map($source),
+            'target' => $this->graphNodes->map($target),
             'created_at' => optional($relation->created_at)?->toIso8601String(),
         ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    protected function mapNode(Model $node): array
-    {
-        return match (true) {
-            $node instanceof Space => [
-                'type' => 'space',
-                'id' => $node->uuid,
-                'status' => $node->status,
-                'thread_count' => $node->conversationThreadIds()->count(),
-                'post_count' => $node->conversationPosts()->count(),
-            ],
-            $node instanceof Thread => [
-                'type' => 'thread',
-                'id' => $node->uuid,
-                'title' => $node->title ?: 'Thread',
-                'purpose' => $node->purpose,
-                'phase' => $node->phase,
-                'status' => $node->status,
-            ],
-            $node instanceof Post => [
-                'type' => 'post',
-                'id' => $node->ulid,
-                'post_type' => $node->type,
-                'status' => $node->status,
-                'postable_type' => $node->postable instanceof Space
-                    ? 'space'
-                    : ($node->postable instanceof Thread ? 'thread' : $node->postable_type),
-                'postable_id' => $node->postable instanceof Space
-                    ? $node->postable->uuid
-                    : ($node->postable instanceof Thread ? $node->postable->uuid : $node->postable_id),
-                'occurred_at' => optional($node->occurred_at)?->toIso8601String(),
-            ],
-            default => abort(422, 'Unsupported graph node model.'),
-        };
     }
 }

@@ -21,17 +21,7 @@ class ThreadPolicy
      */
     public function view(User $user, Thread $thread): bool
     {
-        if ($thread->hasActor($user)) {
-            return true;
-        }
-
-        $threadable = $thread->threadable;
-
-        if ($threadable instanceof Space) {
-            return $threadable->hasActor($user);
-        }
-
-        return false;
+        return $this->canAccess($user, $thread);
     }
 
     /**
@@ -47,17 +37,7 @@ class ThreadPolicy
      */
     public function update(User $user, Thread $thread): bool
     {
-        if ($thread->hasActor($user)) {
-            return true;
-        }
-
-        $threadable = $thread->threadable;
-
-        if ($threadable instanceof Space) {
-            return $threadable->hasActor($user);
-        }
-
-        return false;
+        return $this->canAccess($user, $thread);
     }
 
     /**
@@ -81,6 +61,36 @@ class ThreadPolicy
      */
     public function forceDelete(User $user, Thread $thread): bool
     {
+        return false;
+    }
+
+    /**
+     * @param  array<int, bool>  $visitedThreadIds
+     */
+    protected function canAccess(User $user, Thread $thread, array &$visitedThreadIds = []): bool
+    {
+        $threadId = (int) $thread->getKey();
+
+        if ($threadId <= 0 || isset($visitedThreadIds[$threadId])) {
+            return false;
+        }
+
+        $visitedThreadIds[$threadId] = true;
+
+        if ($thread->hasActor($user)) {
+            return true;
+        }
+
+        $threadable = $thread->threadable;
+
+        if ($threadable instanceof Space) {
+            return $threadable->hasActor($user);
+        }
+
+        if ($threadable instanceof Thread) {
+            return $this->canAccess($user, $threadable, $visitedThreadIds);
+        }
+
         return false;
     }
 }

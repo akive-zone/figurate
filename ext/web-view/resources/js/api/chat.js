@@ -164,15 +164,31 @@ export const fetchConversationMessages = async (conversationId, runtime = {}) =>
     }
 };
 
-export const fetchConversationPostTurns = async (conversationId, postId, runtime = {}) => {
-    const template = (runtime?.routes?.conversation_post_turns_template ?? '').toString().trim();
-    const normalizedPostId = (postId ?? '').toString().trim();
+export const fetchFormTurns = async (invocationId, runtime = {}) => {
+    const template = (runtime?.routes?.form_turns_template ?? '').toString().trim();
+    const normalizedInvocationId = (invocationId ?? '').toString().trim();
     const path = template !== ''
-        ? template.replace('__CONVERSATION__', conversationId).replace('__POST__', normalizedPostId)
-        : `/api/threads/${conversationId}/posts/${normalizedPostId}/turns`;
+        ? template.replace('__INVOCATION__', normalizedInvocationId)
+        : `/api/form/${normalizedInvocationId}/turns`;
 
     try {
         const response = await axios.get(chatApiUrl(path, runtime), {
+            headers: chatAuthHeaders(),
+        });
+        persistChatBootstrapHeaders(response);
+
+        return response.data;
+    } catch (error) {
+        persistChatBootstrapHeaders(error.response);
+        throw error;
+    }
+};
+
+export const fetchPost = async (postId, runtime = {}) => {
+    const normalizedPostId = (postId ?? '').toString().trim();
+
+    try {
+        const response = await axios.get(chatApiUrl(`/api/posts/${normalizedPostId}`, runtime), {
             headers: chatAuthHeaders(),
         });
         persistChatBootstrapHeaders(response);

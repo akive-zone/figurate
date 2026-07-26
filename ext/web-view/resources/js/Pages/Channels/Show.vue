@@ -490,7 +490,14 @@ const loadTurnsForPost = async (postId, threadId = null) => {
     }
 
     try {
-        const payload = await chatDataService.listConversationPostTurns(targetThreadId, normalizedPostId, runtime.value);
+        const postPayload = await chatDataService.readPost(normalizedPostId, runtime.value);
+        const invocationId = (postPayload?.data?.invocation?.invocation_id ?? '').toString().trim();
+
+        if (invocationId === '') {
+            return;
+        }
+
+        const payload = await chatDataService.listFormTurns(invocationId, runtime.value);
         mergeThreadTurns(targetThreadId, payload?.data ?? []);
     } catch {
         // Keep current turn state if scoped refresh fails.

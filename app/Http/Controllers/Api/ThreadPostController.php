@@ -9,10 +9,26 @@ use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class ThreadPostController extends Controller
 {
+    public function index(Request $request, string $thread): JsonResponse
+    {
+        $threadRecord = Thread::query()
+            ->where('uuid', $thread)
+            ->firstOrFail();
+
+        Gate::authorize('view', $threadRecord);
+
+        return response()->json([
+            'data' => PostResource::collection(
+                $threadRecord->posts()->oldest('created_at')->get()
+            )->resolve($request),
+        ]);
+    }
+
     public function store(StorePostRequest $request, string $thread): JsonResponse
     {
         $threadRecord = Thread::query()

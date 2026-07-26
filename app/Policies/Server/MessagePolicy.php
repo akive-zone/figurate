@@ -6,6 +6,7 @@ use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
+use Illuminate\Support\Facades\Gate;
 
 class MessagePolicy
 {
@@ -28,29 +29,7 @@ class MessagePolicy
      */
     public function view(User $user, Post $message): bool
     {
-        if ($this->isSender($user, $message)) {
-            return true;
-        }
-
-        $messageable = $message->messageable;
-
-        if ($messageable instanceof Space) {
-            return $messageable->hasActor($user);
-        }
-
-        if ($messageable instanceof Thread) {
-            if ($messageable->hasActor($user)) {
-                return true;
-            }
-
-            $threadable = $messageable->threadable;
-
-            if ($threadable instanceof Space) {
-                return $threadable->hasActor($user);
-            }
-        }
-
-        return false;
+        return $this->canView($user, $message);
     }
 
     /**
@@ -90,6 +69,40 @@ class MessagePolicy
      */
     public function forceDelete(User $user, Post $message): bool
     {
+        return false;
+    }
+
+    /**
+     * @param  array<int, bool>  $visitedPostIds
+     */
+    protected function canView(User $user, Post $post, array &$visitedPostIds = []): bool
+    {
+        $postId = (int) $post->getKey();
+
+        if ($postId <= 0 || isset($visitedPostIds[$postId])) {
+            return false;
+        }
+
+        $visitedPostIds[$postId] = true;
+
+        if ($this->isSender($user, $post)) {
+            return true;
+        }
+
+        $postable = $post->postable;
+
+        if ($postable instanceof Space) {
+            return $postable->hasActor($user);
+        }
+
+        if ($postable instanceof Thread) {
+            return Gate::forUser($user)->allows('view', $postable);
+        }
+
+        if ($postable instanceof Post) {
+            return $this->canView($user, $postable, $visitedPostIds);
+        }
+
         return false;
     }
 }

@@ -395,15 +395,15 @@ class AgentExecutor
         $telemetry->forceFill([
             'invocation_id' => $response->invocationId,
             'trace_id' => $telemetry->trace_id ?: $response->invocationId,
-            'root_post_id' => $userPost->id,
-            'output_post_id' => $assistantMessage->id,
+            'invocable_type' => $userPost->getMorphClass(),
+            'invocable_id' => $userPost->getKey(),
             'meta' => json_encode($meta),
         ])->save();
 
         AgentConversationMessage::query()
             ->where('conversation_id', $storageConversationId)
             ->where('participant_id', $userId)
-            ->where('root_post_id', $userPost->id)
+            ->whereMorphedTo('invocable', $userPost)
             ->whereNull('parent_invocation_id')
             ->where('meta->kind', 'sub_agent')
             ->where('id', '!=', $telemetry->id)

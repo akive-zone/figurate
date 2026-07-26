@@ -57,14 +57,14 @@ class HandleInertiaRequests extends Middleware
                     'conversation_show_template' => $this->runtime->isNative()
                         ? route('chat.index', [], false)
                         : route('api.threads.show', ['thread' => '__CONVERSATION__'], false),
-                    'conversation_post_turns_template' => $this->runtime->isNative() || ! Route::has('api.threads.posts.turns.index')
+                    'form_turns_template' => $this->runtime->isNative()
                         ? route('chat.index', [], false)
-                        : route('api.threads.posts.turns.index', ['thread' => '__CONVERSATION__', 'post' => '__POST__'], false),
+                        : route('api.form.turns.index', ['invocation' => '__INVOCATION__'], false),
                     'conversation_threads_template' => $this->runtime->isNative()
                         ? route('chat.index', [], false)
                         : route('api.spaces.threads.index', ['space' => '__CONVERSATION__'], false),
                     'conversation_store' => $this->runtime->isNative() ? route('chat.index', [], false) : route('api.form.store', [], false),
-                    'conversation_posts_template' => route('api.spaces.posts.index', ['space' => '__CONVERSATION__'], false),
+                    'conversation_posts_template' => route('api.spaces.nodes.index', ['space' => '__CONVERSATION__'], false),
                     'create' => route('chat.create', [], false),
                     'show_template' => route('chat.show', ['space' => '__SPACE__'], false),
                     'show_thread_template' => route('chat.thread', ['space' => '__SPACE__', 'thread' => '__THREAD__'], false),

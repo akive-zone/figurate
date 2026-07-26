@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Features\Actions\Chat\ProjectMessageExtra;
+use App\Features\Actions\Chat\ResolveNodeInvocation;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Space\StoreSpaceRequest;
 use App\Models\Server\Post;
@@ -21,11 +22,42 @@ class SpaceController extends Controller
 {
     public function __construct(
         protected ProjectMessageExtra $projectMessageExtra,
+        protected ResolveNodeInvocation $resolveNodeInvocation,
     ) {}
 
     public function index(Request $request): JsonResponse
     {
         return response()->json($this->cursorPageForRequest($request));
+    }
+
+    public function show(Request $request, string $space): JsonResponse
+    {
+        /** @var User $actor */
+        $actor = $request->user();
+        $spaceRecord = Space::query()
+            ->where('uuid', $space)
+            ->firstOrFail();
+
+        Gate::forUser($actor)->authorize('view', $spaceRecord);
+
+        $actorState = $this->actorStateForSpace($spaceRecord, $actor);
+        $activeThreadUuid = null;
+
+        if (is_int($actorState?->thread_id) && $actorState->thread_id > 0) {
+            $activeThreadUuid = Thread::query()
+                ->whereKey($actorState->thread_id)
+                ->value('uuid');
+        }
+
+        return response()->json([
+            'data' => [
+                'id' => $spaceRecord->uuid,
+                'status' => $spaceRecord->status,
+                'active_thread_id' => $activeThreadUuid,
+                'invocation' => $this->resolveNodeInvocation->execute($actor, $spaceRecord),
+                'created_at' => optional($spaceRecord->created_at)?->toIso8601String(),
+            ],
+        ]);
     }
 
     public function store(StoreSpaceRequest $request): JsonResponse

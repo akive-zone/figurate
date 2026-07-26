@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Features\Actions\Chat\ProjectAgentTurns;
 use App\Features\Actions\Chat\ProjectMessageExtra;
+use App\Features\Actions\Chat\ResolveNodeInvocation;
 use App\Http\Controllers\Controller;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
@@ -17,12 +17,12 @@ class ThreadController extends Controller
 {
     public function __construct(
         protected ProjectMessageExtra $projectMessageExtra,
+        protected ResolveNodeInvocation $resolveNodeInvocation,
     ) {}
 
     public function show(
         Request $request,
         string $thread,
-        ProjectAgentTurns $projectAgentTurns,
     ): JsonResponse {
         /** @var User $actor */
         $actor = $request->user();
@@ -62,11 +62,8 @@ class ThreadController extends Controller
             ->values()
             ->all();
 
-        $turns = $projectAgentTurns->execute($threadRecord, $threadMessages, $actor);
-
         return response()->json([
             'data' => $messages,
-            'turns' => $turns,
             'space' => $spaceRecord ? [
                 'id' => $spaceRecord->uuid,
                 'status' => $spaceRecord->status,
@@ -77,6 +74,7 @@ class ThreadController extends Controller
                 'purpose' => $threadRecord->purpose,
                 'phase' => $threadRecord->phase,
                 'status' => $threadRecord->status,
+                'invocation' => $this->resolveNodeInvocation->execute($actor, $threadRecord),
             ],
         ]);
     }

@@ -42,6 +42,11 @@ class Thread extends Model
         return $this->morphTo();
     }
 
+    public function threads(): MorphMany
+    {
+        return $this->morphMany(self::class, 'threadable');
+    }
+
     public function posts(): MorphMany
     {
         return $this->morphMany(Post::class, 'postable');

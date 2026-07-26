@@ -2,9 +2,11 @@
 
 namespace App\Http\Resources\Server\Api;
 
+use App\Features\Actions\Chat\ResolveNodeInvocation;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
+use App\Models\Server\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -19,6 +21,7 @@ class PostResource extends JsonResource
     {
         /** @var Post $post */
         $post = $this->resource;
+        $actor = $request->user();
         $postable = $post->postable;
         $thread = $postable instanceof Thread ? $postable : null;
         $space = match (true) {
@@ -33,6 +36,9 @@ class PostResource extends JsonResource
             'type' => $post->type,
             'tag' => $post->tag,
             'status' => $post->status,
+            'invocation' => $actor instanceof User
+                ? app(ResolveNodeInvocation::class)->execute($actor, $post)
+                : null,
             'text' => $post->text,
             'payload' => $post->payload ?? [],
             'meta' => $post->meta ?? [],

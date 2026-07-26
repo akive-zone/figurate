@@ -17,11 +17,9 @@ return new class extends Migration
             $table->string('invocation_id', 100)->nullable()->index();
             $table->string('trace_id', 100)->nullable()->index();
             $table->string('parent_invocation_id', 100)->nullable()->index();
-            $table->foreignId('root_post_id')->nullable();
-            $table->foreignId('output_post_id')->nullable();
+            $table->nullableMorphs('invocable');
 
             $table->index(['trace_id', 'parent_invocation_id'], 'agent_message_trace_parent_index');
-            $table->index(['root_post_id', 'created_at'], 'agent_message_root_post_index');
         });
     }
 
@@ -34,9 +32,7 @@ return new class extends Migration
 
         Schema::table($messagesTable, function (Blueprint $table) {
             $table->dropIndex('agent_message_trace_parent_index');
-            $table->dropIndex('agent_message_root_post_index');
-            $table->dropConstrainedForeignId('root_post_id');
-            $table->dropConstrainedForeignId('output_post_id');
+            $table->dropMorphs('invocable');
             $table->dropColumn([
                 'invocation_id',
                 'trace_id',

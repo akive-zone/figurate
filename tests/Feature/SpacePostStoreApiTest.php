@@ -21,40 +21,49 @@ class SpacePostStoreApiTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $this->postJson("/api/spaces/{$space->uuid}/posts", [
-            'type' => 'crm.conversation',
-            'text' => 'Customer asked for refund after failed fulfilment.',
-            'source' => [
-                'system' => 'crm',
-                'conversation_id' => 'crm-conv-1001',
+        $this->postJson('/api/form/nodes', [
+            'type' => 'post',
+            'parent' => [
+                'type' => 'space',
+                'id' => $space->uuid,
             ],
-            'conversation' => [
-                'customer' => [
-                    'id' => 'cust_123',
-                    'name' => 'Ada Lovelace',
-                ],
-                'messages' => [
-                    [
-                        'sender' => 'customer',
-                        'body' => 'The order never arrived.',
+            'attributes' => [
+                'post_type' => 'crm.conversation',
+                'text' => 'Customer asked for refund after failed fulfilment.',
+                'payload' => [
+                    'source' => [
+                        'system' => 'crm',
+                        'conversation_id' => 'crm-conv-1001',
                     ],
-                    [
-                        'sender' => 'agent',
-                        'body' => 'I can check the fulfilment status.',
+                    'conversation' => [
+                        'customer' => [
+                            'id' => 'cust_123',
+                            'name' => 'Ada Lovelace',
+                        ],
+                        'messages' => [
+                            [
+                                'sender' => 'customer',
+                                'body' => 'The order never arrived.',
+                            ],
+                            [
+                                'sender' => 'agent',
+                                'body' => 'I can check the fulfilment status.',
+                            ],
+                        ],
                     ],
                 ],
-            ],
-            'meta' => [
-                'review_requested' => true,
+                'meta' => [
+                    'review_requested' => true,
+                ],
             ],
         ])
             ->assertCreated()
-            ->assertJsonPath('data.type', 'crm.conversation')
-            ->assertJsonPath('data.text', 'Customer asked for refund after failed fulfilment.')
-            ->assertJsonPath('data.payload.source.conversation_id', 'crm-conv-1001')
-            ->assertJsonPath('data.payload.conversation.messages.0.body', 'The order never arrived.')
-            ->assertJsonPath('data.meta.review_requested', true)
-            ->assertJsonPath('data.space.id', $space->uuid);
+            ->assertJsonPath('data.type', 'post')
+            ->assertJsonPath('data.attributes.post_type', 'crm.conversation')
+            ->assertJsonPath('data.attributes.text', 'Customer asked for refund after failed fulfilment.')
+            ->assertJsonPath('data.attributes.payload.source.conversation_id', 'crm-conv-1001')
+            ->assertJsonPath('data.attributes.payload.conversation.messages.0.body', 'The order never arrived.')
+            ->assertJsonPath('data.attributes.meta.review_requested', true);
 
         $post = Post::query()->latest('id')->firstOrFail();
 
@@ -80,31 +89,36 @@ class SpacePostStoreApiTest extends TestCase
 
         Sanctum::actingAs($intruder);
 
-        $this->postJson("/api/spaces/{$space->uuid}/posts", [
-            'payload' => [
-                'source' => 'crm',
+        $this->postJson('/api/form/nodes', [
+            'type' => 'post',
+            'parent' => [
+                'type' => 'space',
+                'id' => $space->uuid,
             ],
         ])->assertForbidden();
     }
 
-    public function test_it_stores_raw_request_bodies_as_context_payloads(): void
+    public function test_it_stores_plain_values_inside_a_node_payload(): void
     {
         $user = User::factory()->create();
         $space = $this->accessibleSpace($user);
 
         Sanctum::actingAs($user);
 
-        $this->call(
-            'POST',
-            "/api/spaces/{$space->uuid}/posts",
-            [],
-            [],
-            [],
-            ['CONTENT_TYPE' => 'text/plain'],
-            'plain CRM transcript export',
-        )
+        $this->postJson('/api/form/nodes', [
+            'type' => 'post',
+            'parent' => [
+                'type' => 'space',
+                'id' => $space->uuid,
+            ],
+            'attributes' => [
+                'payload' => [
+                    'value' => 'plain CRM transcript export',
+                ],
+            ],
+        ])
             ->assertCreated()
-            ->assertJsonPath('data.payload.value', 'plain CRM transcript export');
+            ->assertJsonPath('data.attributes.payload.value', 'plain CRM transcript export');
     }
 
     protected function accessibleSpace(User $user): Space

@@ -189,8 +189,8 @@ class HandleConversationMessageTest extends TestCase
             'invocation_id' => $invocationId,
             'trace_id' => $invocationId,
             'parent_invocation_id' => null,
-            'root_post_id' => $promptMessage->id,
-            'output_post_id' => $assistantMessage->id,
+            'invocable_type' => $promptMessage->getMorphClass(),
+            'invocable_id' => $promptMessage->id,
             'content' => $assistantMessage->text,
             'attachments' => '[]',
             'tool_calls' => '[]',
@@ -210,8 +210,8 @@ class HandleConversationMessageTest extends TestCase
             'invocation_id' => $childInvocationId,
             'trace_id' => $invocationId,
             'parent_invocation_id' => $invocationId,
-            'root_post_id' => $promptMessage->id,
-            'output_post_id' => null,
+            'invocable_type' => $promptMessage->getMorphClass(),
+            'invocable_id' => $promptMessage->id,
             'content' => 'The relevant constraint is documented.',
             'attachments' => '[]',
             'tool_calls' => '[]',
@@ -222,18 +222,15 @@ class HandleConversationMessageTest extends TestCase
 
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
-        $this->getJson(sprintf('/api/threads/%s/posts/%d/turns', $thread->uuid, $promptMessage->id))
+        $this->getJson(sprintf('/api/form/%s/turns', $invocationId))
             ->assertOk()
-            ->assertJsonPath('thread', $thread->uuid)
-            ->assertJsonPath('post_id', $promptMessage->ulid)
+            ->assertJsonPath('invocation_id', $invocationId)
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.agent_message_id', $agentMessage->id)
             ->assertJsonPath('data.0.invocation_id', $invocationId)
             ->assertJsonPath('data.0.trace_id', $invocationId)
-            ->assertJsonPath('data.0.root_post_id', $promptMessage->id)
-            ->assertJsonPath('data.0.output_post_id', $assistantMessage->id)
-            ->assertJsonPath('data.0.prompt_post_id', $promptMessage->id)
-            ->assertJsonPath('data.0.assistant_post_id', $assistantMessage->id)
+            ->assertJsonPath('data.0.invocable.type', 'post')
+            ->assertJsonPath('data.0.invocable.id', $promptMessage->ulid)
             ->assertJsonPath('data.0.children.0.agent_message_id', $childAgentMessage->id)
             ->assertJsonPath('data.0.children.0.parent_invocation_id', $invocationId)
             ->assertJsonPath('data.0.status', 'completed');
@@ -342,8 +339,8 @@ class HandleConversationMessageTest extends TestCase
         $this->assertArrayNotHasKey('telemetry', $result);
         $this->assertSame('MAIN-INV-1', $childMessage->trace_id);
         $this->assertSame('MAIN-INV-1', $childMessage->parent_invocation_id);
-        $this->assertSame($promptPost->id, $childMessage->root_post_id);
-        $this->assertNull($childMessage->output_post_id);
+        $this->assertSame($promptPost->getMorphClass(), $childMessage->invocable_type);
+        $this->assertSame($promptPost->id, $childMessage->invocable_id);
         $this->assertSame([['name' => 'search']], json_decode($childMessage->tool_calls, true));
         $this->assertSame([['result' => 'found']], json_decode($childMessage->tool_results, true));
     }

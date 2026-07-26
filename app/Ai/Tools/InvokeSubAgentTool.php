@@ -13,6 +13,7 @@ use App\Models\Server\ThreadActorSession;
 use App\Models\Server\ThreadEvent;
 use App\Models\Server\User;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
@@ -120,7 +121,7 @@ class InvokeSubAgentTool implements Tool
     {
         $this->thread->events()->create([
             'thread_actor_id' => $this->threadActor?->id,
-            'post_id' => $this->resolveRootPostId($this->normalizedString($result['parent_invocation_id'] ?? null)),
+            'post_id' => $this->resolveInvocationPostId($this->normalizedString($result['parent_invocation_id'] ?? null)),
             'event_key' => 'sub_agent_invoke_tool',
             'layer' => ThreadEvent::LayerExecution,
             'kind' => ThreadEvent::KindOrchestration,
@@ -154,6 +155,7 @@ class InvokeSubAgentTool implements Tool
         $responseText = $this->normalizedString(data_get($result, 'response.text'));
         $telemetry = is_array($result['telemetry'] ?? null) ? $result['telemetry'] : [];
         $conversationId = $this->resolveConversationId();
+        $invocable = $this->resolveInvocable($parentInvocationId);
 
         if ($invocationId === null || $responseText === null || $conversationId === null) {
             return;
@@ -172,8 +174,8 @@ class InvokeSubAgentTool implements Tool
             'invocation_id' => $invocationId,
             'trace_id' => $traceId ?? $invocationId,
             'parent_invocation_id' => $parentInvocationId,
-            'root_post_id' => $this->resolveRootPostId($parentInvocationId),
-            'output_post_id' => null,
+            'invocable_type' => $invocable?->getMorphClass(),
+            'invocable_id' => $invocable?->getKey(),
             'content' => $responseText,
             'attachments' => '[]',
             'tool_calls' => json_encode(is_array($telemetry['tool_calls'] ?? null) ? $telemetry['tool_calls'] : []),
@@ -204,15 +206,23 @@ class InvokeSubAgentTool implements Tool
         );
     }
 
-    protected function resolveRootPostId(?string $parentInvocationId): ?int
+    protected function resolveInvocationPostId(?string $parentInvocationId): ?int
+    {
+        $invocable = $this->resolveInvocable($parentInvocationId);
+
+        return $invocable instanceof Post ? (int) $invocable->getKey() : null;
+    }
+
+    protected function resolveInvocable(?string $parentInvocationId): ?Model
     {
         if ($parentInvocationId !== null) {
-            $rootPostId = AgentConversationMessage::query()
+            $parentInvocation = AgentConversationMessage::query()
+                ->with('invocable')
                 ->where('invocation_id', $parentInvocationId)
-                ->value('root_post_id');
+                ->first();
 
-            if (is_numeric($rootPostId)) {
-                return (int) $rootPostId;
+            if ($parentInvocation?->invocable instanceof Model) {
+                return $parentInvocation->invocable;
             }
 
             $parentOutputPost = Post::query()
@@ -224,17 +234,15 @@ class InvokeSubAgentTool implements Tool
             $replyPostId = data_get($parentOutputPost?->meta, 'in_reply_to_post_id');
 
             if (is_numeric($replyPostId)) {
-                return (int) $replyPostId;
+                return Post::query()->find((int) $replyPostId);
             }
         }
 
-        $promptPostId = Post::query()
+        return Post::query()
             ->forThread($this->thread)
             ->where('meta->source', 'agent_prompt')
             ->latest('id')
-            ->value('id');
-
-        return is_numeric($promptPostId) ? (int) $promptPostId : null;
+            ->first();
     }
 
     protected function isSubAgentAllowedForActor(string $subAgent): bool

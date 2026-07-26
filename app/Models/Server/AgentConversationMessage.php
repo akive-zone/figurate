@@ -35,13 +35,8 @@ class AgentConversationMessage extends Model
         return $this->belongsTo(User::class, 'participant_id');
     }
 
-    public function rootPost(): BelongsTo
+    public function invocable(): MorphTo
     {
-        return $this->belongsTo(Post::class, 'root_post_id');
-    }
-
-    public function outputPost(): BelongsTo
-    {
-        return $this->belongsTo(Post::class, 'output_post_id');
+        return $this->morphTo();
     }
 }
