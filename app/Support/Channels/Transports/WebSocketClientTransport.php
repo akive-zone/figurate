@@ -44,10 +44,10 @@ class WebSocketClientTransport
         return [
             'status' => 'sent',
             'provider' => $channel->driver,
-            'provider_message_id' => $this->generateMessageId($channel, $thread, $message),
+            'provider_message_id' => $this->generateProviderMessageId($channel, $thread, $message),
             'provider_identifier' => $bindingConfig['provider_identifier'] ?? null,
             'thread_uuid' => $thread->uuid,
-            'message_id' => $message->id,
+            'post_id' => $message->id,
             'endpoint_url' => $endpointUrl,
             'transport' => 'websocket-client',
             'mode' => 'client',
@@ -73,7 +73,7 @@ class WebSocketClientTransport
         return null;
     }
 
-    protected function generateMessageId(Channel $channel, Thread $thread, Post $message): string
+    protected function generateProviderMessageId(Channel $channel, Thread $thread, Post $message): string
     {
         return sprintf(
             'ws-client:%s:%s:%s',

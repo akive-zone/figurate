@@ -17,5 +17,6 @@ class MultiSpaceTopologyTest extends TestCase
         $this->assertTrue($definition->requiresSiteContext);
         $this->assertSame('multi_site', $definition->parentLayer);
         $this->assertSame(['site_id', 'space_id'], $definition->scopeColumns);
+        $this->assertFalse(config('multitenancy.queues_are_tenant_aware_by_default'));
     }
 }

@@ -70,7 +70,7 @@ class GenericChannelDriver implements ChannelDriver
             'provider_message_id' => (string) Str::uuid(),
             'provider_identifier' => data_get($deliveryConfig, 'address.target') ?? data_get($deliveryConfig, 'target'),
             'thread_uuid' => $thread->uuid,
-            'message_id' => $message->id,
+            'post_id' => $message->id,
             'payload' => $outboundPayload,
             'transport' => $transport,
         ];

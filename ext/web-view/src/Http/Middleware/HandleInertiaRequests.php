@@ -57,9 +57,9 @@ class HandleInertiaRequests extends Middleware
                     'conversation_show_template' => $this->runtime->isNative()
                         ? route('chat.index', [], false)
                         : route('api.threads.show', ['thread' => '__CONVERSATION__'], false),
-                    'conversation_message_turns_template' => $this->runtime->isNative() || ! Route::has('api.threads.posts.turns.show')
+                    'conversation_post_turns_template' => $this->runtime->isNative() || ! Route::has('api.threads.posts.turns.index')
                         ? route('chat.index', [], false)
-                        : route('api.threads.posts.turns.show', ['thread' => '__CONVERSATION__', 'message' => '__MESSAGE__'], false),
+                        : route('api.threads.posts.turns.index', ['thread' => '__CONVERSATION__', 'post' => '__POST__'], false),
                     'conversation_threads_template' => $this->runtime->isNative()
                         ? route('chat.index', [], false)
                         : route('api.spaces.threads.index', ['space' => '__CONVERSATION__'], false),

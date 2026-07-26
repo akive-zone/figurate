@@ -48,7 +48,7 @@ class PasskeyManagementApiTest extends TestCase
                 ->andReturn($optionsJson);
         });
 
-        $this->postJson('/api/auth/passkeys/options/register')
+        $this->postJson('/api/auth/passkeys/options')
             ->assertOk()
             ->assertJsonPath('data.options.challenge', 'register-challenge')
             ->assertJsonPath('data.options.rp.name', 'Figurate')
@@ -71,7 +71,7 @@ class PasskeyManagementApiTest extends TestCase
                 ->andReturn($optionsJson);
         });
 
-        $response = $this->postJson('/api/auth/passkeys/options/register');
+        $response = $this->postJson('/api/auth/passkeys/options');
 
         $response->assertOk()
             ->assertJsonPath('data.options.challenge', 'guest-register-challenge')
@@ -102,7 +102,7 @@ class PasskeyManagementApiTest extends TestCase
                 ->andReturn($optionsJson);
         });
 
-        $ceremonyId = (string) $this->postJson('/api/auth/passkeys/options/register')
+        $ceremonyId = (string) $this->postJson('/api/auth/passkeys/options')
             ->assertOk()
             ->json('data.ceremony_id');
 
@@ -146,7 +146,7 @@ class PasskeyManagementApiTest extends TestCase
                 ->andReturn($optionsJson);
         });
 
-        $optionsResponse = $this->postJson('/api/auth/passkeys/options/register')
+        $optionsResponse = $this->postJson('/api/auth/passkeys/options')
             ->assertOk();
 
         $widgetUserId = (string) $optionsResponse->headers->get('X-Widget-User-ID');

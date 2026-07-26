@@ -87,7 +87,7 @@ const retry = (turn) => {
         <div class="pending-turns__grid">
             <article
                 v-for="turn in activeTurns"
-                :key="turn.id ?? `${turn.prompt_message_id}-${turn.actor_key}`"
+                :key="turn.id ?? `${turn.prompt_post_id}-${turn.actor_key}`"
                 class="pending-turn"
                 :class="{ 'pending-turn--failed': turn.status === 'failed' }"
             >

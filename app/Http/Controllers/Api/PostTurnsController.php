@@ -39,14 +39,14 @@ class PostTurnsController extends Controller
             ->orderBy('created_at')
             ->get();
         $turns = collect($this->projectAgentTurns->execute($threadRecord, $threadMessages, $actor))
-            ->filter(fn (array $turn): bool => (int) ($turn['prompt_message_id'] ?? 0) === (int) $message->id)
+            ->filter(fn (array $turn): bool => (int) ($turn['prompt_post_id'] ?? 0) === (int) $message->id)
             ->values()
             ->all();
 
         return response()->json([
             'data' => $turns,
             'thread' => $threadRecord->uuid,
-            'message_id' => $message->ulid,
+            'post_id' => $message->ulid,
         ]);
     }
 
@@ -54,7 +54,7 @@ class PostTurnsController extends Controller
     {
         return Post::query()
             ->where('ulid', $post)
-            ->when(ctype_digit($post), fn ($query) => $query->orWhereKey((int) $post))
+            ->when(ctype_digit($post), fn ($query) => $query->orWhere('id', (int) $post))
             ->firstOrFail();
     }
 

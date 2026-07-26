@@ -79,7 +79,7 @@ class InboundClientMessageHandler
 
         return [
             'status' => 'success',
-            'message_id' => $data['id'] ?? $data['message_id'] ?? null,
+            'external_message_id' => $data['id'] ?? $data['message_id'] ?? null,
             'post_id' => $post->id,
             'post_ulid' => $post->ulid,
             'thread_uuid' => $thread->uuid,

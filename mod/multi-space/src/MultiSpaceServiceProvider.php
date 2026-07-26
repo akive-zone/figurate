@@ -10,6 +10,11 @@ class MultiSpaceServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(dirname(__DIR__).'/config/multi-space.php', 'figurate-multi-space');
 
+        config()->set(
+            'multitenancy.queues_are_tenant_aware_by_default',
+            (bool) config('figurate-multi-space.queues_are_tenant_aware_by_default', false),
+        );
+
         $this->app->singleton(MultiSpaceDefinition::class, function (): MultiSpaceDefinition {
             $config = config('figurate-multi-space', []);
 

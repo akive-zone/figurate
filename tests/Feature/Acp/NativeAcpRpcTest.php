@@ -126,7 +126,7 @@ class NativeAcpRpcTest extends TestCase
             ->assertJsonPath('result.id', $taskId)
             ->assertJsonPath('result.state', 'submitted');
 
-        $this->postJson('/acp/rpc', [
+        $this->postJson('/api/acp/rpc', [
             'jsonrpc' => '2.0',
             'method' => 'session/cancel',
             'params' => ['sessionId' => $sessionId],
@@ -141,7 +141,7 @@ class NativeAcpRpcTest extends TestCase
     {
         $this->authenticate();
 
-        $this->postJson('/acp/rpc', [
+        $this->postJson('/api/acp/rpc', [
             'jsonrpc' => '1.0',
             'id' => 8,
             'method' => 'initialize',
@@ -164,7 +164,7 @@ class NativeAcpRpcTest extends TestCase
      */
     protected function rpc(string $method, array $params = []): TestResponse
     {
-        return $this->postJson('/acp/rpc', [
+        return $this->postJson('/api/acp/rpc', [
             'jsonrpc' => '2.0',
             'id' => 1,
             'method' => $method,

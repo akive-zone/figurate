@@ -26,14 +26,15 @@ class ProjectAgentTurns
             ->values();
 
         $assistantByPromptId = $assistantMessages
-            ->groupBy(fn (Post $message): int => (int) data_get($message->meta, 'in_reply_to_message_id', 0));
+            ->groupBy(fn (Post $message): int => (int) data_get($message->meta, 'in_reply_to_post_id', 0));
         $invocationIds = $assistantMessages
             ->map(fn (Post $message): ?string => $this->trimmedString(data_get($message->meta, 'invocation_id')))
             ->filter()
             ->values()
             ->all();
+        $rootPostIds = $promptMessages->pluck('id')->map(fn (mixed $id): int => (int) $id)->all();
 
-        $telemetryByInvocation = $this->telemetryByInvocation($actor, $invocationIds);
+        $telemetryByInvocation = $this->telemetryByInvocation($actor, $rootPostIds, $invocationIds);
         $turns = collect();
 
         foreach ($promptMessages as $promptMessage) {
@@ -85,7 +86,7 @@ class ProjectAgentTurns
 
         return $turns
             ->sortBy([
-                fn (array $turn): int => (int) ($turn['prompt_message_id'] ?? 0),
+                fn (array $turn): int => (int) ($turn['prompt_post_id'] ?? 0),
                 fn (array $turn): string => (string) ($turn['actor_key'] ?? ''),
             ])
             ->values()
@@ -93,41 +94,84 @@ class ProjectAgentTurns
     }
 
     /**
+     * @param  array<int, int>  $rootPostIds
      * @param  array<int, string>  $invocationIds
      * @return array<string, array<string, mixed>>
      */
-    protected function telemetryByInvocation(User $actor, array $invocationIds): array
+    protected function telemetryByInvocation(User $actor, array $rootPostIds, array $invocationIds): array
     {
-        if ($invocationIds === []) {
+        if ($rootPostIds === [] && $invocationIds === []) {
             return [];
         }
 
-        return AgentConversationMessage::query()
-            ->where('user_id', $actor->id)
+        $messages = AgentConversationMessage::query()
+            ->where('participant_id', $actor->id)
             ->where('role', 'assistant')
-            ->orderByDesc('created_at')
-            ->limit(300)
-            ->get()
-            ->map(function (AgentConversationMessage $message) use ($invocationIds): ?array {
-                $meta = $this->decodeJsonArray($message->meta);
-                $invocationId = $this->trimmedString($meta['invocation_id'] ?? null);
+            ->where(function ($query) use ($rootPostIds, $invocationIds): void {
+                if ($rootPostIds !== []) {
+                    $query->whereIn('root_post_id', $rootPostIds);
+                }
 
-                if (! $invocationId || ! in_array($invocationId, $invocationIds, true)) {
+                if ($invocationIds !== []) {
+                    $method = $rootPostIds === [] ? 'whereIn' : 'orWhereIn';
+                    $query->{$method}('invocation_id', $invocationIds);
+                }
+            })
+            ->oldest('created_at')
+            ->get()
+            ->map(function (AgentConversationMessage $agentMessage): ?array {
+                $meta = $this->decodeJsonArray($agentMessage->meta);
+                $invocationId = $this->trimmedString($agentMessage->invocation_id)
+                    ?? $this->trimmedString($meta['invocation_id'] ?? null);
+
+                if (! $invocationId) {
                     return null;
                 }
 
                 return [
+                    'agent_message_id' => $agentMessage->id,
                     'invocation_id' => $invocationId,
-                    'conversation_id' => $message->conversation_id,
-                    'tool_calls' => $this->decodeJsonArray($message->tool_calls),
-                    'tool_results' => $this->decodeJsonArray($message->tool_results),
-                    'usage' => $this->decodeJsonArray($message->usage),
+                    'trace_id' => $this->trimmedString($agentMessage->trace_id),
+                    'parent_invocation_id' => $this->trimmedString($agentMessage->parent_invocation_id),
+                    'root_post_id' => $agentMessage->root_post_id ? (int) $agentMessage->root_post_id : null,
+                    'output_post_id' => $agentMessage->output_post_id ? (int) $agentMessage->output_post_id : null,
+                    'agent' => $agentMessage->agent,
+                    'role' => $agentMessage->role,
+                    'content' => $agentMessage->content,
+                    'conversation_id' => $agentMessage->conversation_id,
+                    'tool_calls' => $this->decodeJsonArray($agentMessage->tool_calls),
+                    'tool_results' => $this->decodeJsonArray($agentMessage->tool_results),
+                    'usage' => $this->decodeJsonArray($agentMessage->usage),
                     'meta' => $meta,
-                    'created_at' => optional($message->created_at)?->toIso8601String(),
+                    'created_at' => optional($agentMessage->created_at)?->toIso8601String(),
                 ];
             })
             ->filter(fn (?array $item): bool => is_array($item))
             ->keyBy(fn (array $item): string => (string) $item['invocation_id'])
+            ->all();
+
+        $childrenByParent = collect($messages)
+            ->filter(fn (array $message): bool => is_string($message['parent_invocation_id']))
+            ->groupBy('parent_invocation_id');
+
+        $attachChildren = function (array $message, array $ancestors = []) use (&$attachChildren, $childrenByParent): array {
+            $invocationId = (string) $message['invocation_id'];
+
+            if (in_array($invocationId, $ancestors, true)) {
+                return [...$message, 'children' => []];
+            }
+
+            $children = $childrenByParent
+                ->get($invocationId, collect())
+                ->map(fn (array $child): array => $attachChildren($child, [...$ancestors, $invocationId]))
+                ->values()
+                ->all();
+
+            return [...$message, 'children' => $children];
+        };
+
+        return collect($messages)
+            ->map(fn (array $message): array => $attachChildren($message))
             ->all();
     }
 
@@ -154,8 +198,13 @@ class ProjectAgentTurns
             'status' => $status,
             'actor_key' => $actorKey,
             'invocation_id' => $invocationId,
-            'prompt_message_id' => $promptMessage->id,
-            'assistant_message_id' => $assistantMessage?->id,
+            'agent_message_id' => $telemetry['agent_message_id'] ?? null,
+            'trace_id' => $telemetry['trace_id'] ?? null,
+            'parent_invocation_id' => $telemetry['parent_invocation_id'] ?? null,
+            'root_post_id' => $telemetry['root_post_id'] ?? $promptMessage->id,
+            'output_post_id' => $telemetry['output_post_id'] ?? $assistantMessage?->id,
+            'prompt_post_id' => $promptMessage->id,
+            'assistant_post_id' => $assistantMessage?->id,
             'prompt_text' => is_string($promptMessage->text) ? $promptMessage->text : '',
             'assistant_text' => is_string($assistantMessage?->text) ? $assistantMessage->text : null,
             'assistant_content' => $assistantMessage instanceof Post ? $this->messageContent($assistantMessage) : null,
@@ -165,6 +214,7 @@ class ProjectAgentTurns
             'tool_calls' => is_array($telemetry['tool_calls'] ?? null) ? $telemetry['tool_calls'] : [],
             'tool_results' => is_array($telemetry['tool_results'] ?? null) ? $telemetry['tool_results'] : [],
             'usage' => is_array($telemetry['usage'] ?? null) ? $telemetry['usage'] : [],
+            'children' => is_array($telemetry['children'] ?? null) ? $telemetry['children'] : [],
             'created_at' => optional($promptMessage->created_at)?->toIso8601String(),
             'completed_at' => optional($assistantMessage?->created_at)?->toIso8601String(),
             'telemetry' => $telemetry,

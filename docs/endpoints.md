@@ -2,7 +2,7 @@
 
 This document captures the primary product surface of Figurate: the APIs and protocols used by third-party systems and first-party clients.
 
-Laravel is configured with `apiPrefix: '/'` in `bootstrap/app.php`, so most API routes are root-relative (`/channels`, `/graph/edges`, `/spaces`) rather than `/api/...`. Routes that explicitly include `/api` are listed with that prefix.
+Laravel is configured with `apiPrefix: 'api'` in `bootstrap/app.php`, so product API routes are exposed under `/api`.
 
 The bundled web workspace and control panel are supporting interfaces. Integrations should depend on the authenticated API and protocol contracts documented here rather than UI routes.
 
@@ -27,30 +27,32 @@ php artisan route:list --path=channel-routes
 
 | Method | Path | Auth | Name | Purpose |
 | --- | --- | --- | --- | --- |
-| `POST` | `/auth/register` | public | unnamed | Register a user. |
-| `POST` | `/auth/login` | public | unnamed | Log in and issue auth/session state. |
-| `POST` | `/auth/logout` | `auth:sanctum,passport` | unnamed | Log out the authenticated user. |
-| `POST` | `/auth/broadcasting` | `auth:sanctum,passport` | unnamed | Authenticate private/presence broadcast channels. |
-| `GET` | `/auth/passkeys` | `auth:sanctum,passport` | `api.passkeys.index` | List passkeys for the authenticated user. |
-| `POST` | `/auth/passkeys/options/register` | public | `api.passkeys.register-options` | Generate passkey registration options. |
-| `POST` | `/auth/passkeys` | public | `api.passkeys.store` | Store/register a passkey. |
-| `DELETE` | `/auth/passkeys/{passkey}` | `auth:sanctum,passport` | `api.passkeys.destroy` | Delete a passkey. |
-| `POST` | `/auth/robots` | `auth:sanctum,passport`, `EnsureTransportUser:subject` | unnamed | Provision a robot/system user. |
+| `POST` | `/api/auth/register` | public | unnamed | Register a user. |
+| `POST` | `/api/auth/login` | public | unnamed | Log in and issue auth/session state. |
+| `POST` | `/api/auth/logout` | `auth:sanctum,passport` | unnamed | Log out the authenticated user. |
+| `POST` | `/api/auth/broadcasting` | `auth:sanctum,passport` | unnamed | Authenticate private/presence broadcast channels. |
+| `GET` | `/api/auth/user` | `auth:sanctum,passport` | `api.auth.user.show` | Read the current User and effective abilities. |
+| `PATCH` | `/api/auth/user` | `auth:sanctum,passport` | `api.auth.user.update` | Update the current User's public fields. |
+| `GET` | `/api/auth/passkeys` | `auth:sanctum,passport` | `api.passkeys.index` | List passkeys for the authenticated user. |
+| `POST` | `/api/auth/passkeys/options` | public | `api.passkeys.register-options` | Generate passkey registration options. |
+| `POST` | `/api/auth/passkeys` | public | `api.passkeys.store` | Store/register a passkey. |
+| `DELETE` | `/api/auth/passkeys/{passkey}` | `auth:sanctum,passport` | `api.passkeys.destroy` | Delete a passkey. |
+| `POST` | `/api/users` | `auth:sanctum,passport`, `EnsureTransportUser:subject` | `api.users.store` | Provision a delegated User with scoped abilities. |
 
 ## Spaces, Threads, And Posts
 
 | Method | Path | Auth | Name | Purpose |
 | --- | --- | --- | --- | --- |
-| `GET` | `/spaces` | `auth:sanctum,passport` | `api.spaces.index` | List spaces available to the authenticated user. |
-| `GET` | `/spaces/{space}/posts` | `auth:sanctum,passport` | `api.spaces.posts.index` | List posts in a space. |
-| `POST` | `/spaces/{space}/posts` | `auth:sanctum,passport` | `api.spaces.posts.store` | Store arbitrary context data as a post in a space. |
-| `GET` | `/spaces/{space}/threads` | `auth:sanctum,passport` | `api.spaces.threads.index` | List threads in a space. |
-| `POST` | `/spaces/{space}/threads` | `auth:sanctum,passport` | `api.spaces.threads.store` | Create a thread in a space. |
-| `GET` | `/threads/{thread}` | `auth:sanctum,passport` | `api.threads.show` | Read a thread. |
-| `POST` | `/threads/{thread}/posts` | `auth:sanctum,passport` | `api.threads.posts.store` | Store arbitrary context data as a post in a thread. |
-| `GET` | `/threads/{thread}/posts/{post}/turns` | `auth:sanctum,passport` | `api.threads.posts.turns.index` | Read projected assistant turns for a thread post. |
-| `GET` | `/posts/{post}` | `auth:sanctum,passport` | `api.posts.show` | Read a post by ULID or database id. |
-| `GET` | `/posts/{post}/turns` | `auth:sanctum,passport` | `api.posts.turns.index` | Read projected assistant turns for a thread post. |
+| `GET` | `/api/spaces` | `auth:sanctum,passport` | `api.spaces.index` | List spaces available to the authenticated user. |
+| `GET` | `/api/spaces/{space}/posts` | `auth:sanctum,passport` | `api.spaces.posts.index` | List posts in a space. |
+| `POST` | `/api/spaces/{space}/posts` | `auth:sanctum,passport` | `api.spaces.posts.store` | Store arbitrary context data as a post in a space. |
+| `GET` | `/api/spaces/{space}/threads` | `auth:sanctum,passport` | `api.spaces.threads.index` | List threads in a space. |
+| `POST` | `/api/spaces/{space}/threads` | `auth:sanctum,passport` | `api.spaces.threads.store` | Create a thread in a space. |
+| `GET` | `/api/threads/{thread}` | `auth:sanctum,passport` | `api.threads.show` | Read a thread. |
+| `POST` | `/api/threads/{thread}/posts` | `auth:sanctum,passport` | `api.threads.posts.store` | Store arbitrary context data as a post in a thread. |
+| `GET` | `/api/threads/{thread}/posts/{post}/turns` | `auth:sanctum,passport` | `api.threads.posts.turns.index` | Read projected assistant turns for a thread post. |
+| `GET` | `/api/posts/{post}` | `auth:sanctum,passport` | `api.posts.show` | Read a post by ULID or database id. |
+| `GET` | `/api/posts/{post}/turns` | `auth:sanctum,passport` | `api.posts.turns.index` | Read projected assistant turns for a thread post. |
 
 ## Graph
 
@@ -58,8 +60,8 @@ The graph API links existing Fig nodes. It is not the conversation-ingestion end
 
 | Method | Path | Auth | Name | Purpose |
 | --- | --- | --- | --- | --- |
-| `GET` | `/graph/edges` | `auth:sanctum,passport` | `api.graph.edges.index` | Explore graph edges from a `space`, `thread`, or `post`. |
-| `POST` | `/graph/edges` | `auth:sanctum,passport` | `api.graph.edges.store` | Create an edge between existing `space`, `thread`, or `post` nodes. |
+| `GET` | `/api/graph/edges` | `auth:sanctum,passport` | `api.graph.edges.index` | Explore graph edges from a `space`, `thread`, or `post`. |
+| `POST` | `/api/graph/edges` | `auth:sanctum,passport` | `api.graph.edges.store` | Create an edge between existing `space`, `thread`, or `post` nodes. |
 
 See [Graph](./graph.md) for request/response details.
 
@@ -69,20 +71,20 @@ Channels describe integration surfaces and delivery routes.
 
 | Method | Path | Auth | Name | Purpose |
 | --- | --- | --- | --- | --- |
-| `GET` | `/channels` | `auth:sanctum,passport` | `api.channels.index` | List channels. |
-| `POST` | `/channels` | `auth:sanctum,passport` | `api.channels.store` | Create a channel. |
-| `PATCH` | `/channels/{channel}` | `auth:sanctum,passport` | `api.channels.update` | Update a channel. |
-| `DELETE` | `/channels/{channel}` | `auth:sanctum,passport` | `api.channels.destroy` | Delete a channel. |
-| `POST` | `/channels/{channel}/skills` | `auth:sanctum,passport` | `api.channels.skills.store` | Attach skill media/context to a channel. |
+| `GET` | `/api/channels` | `auth:sanctum,passport` | `api.channels.index` | List channels. |
+| `POST` | `/api/channels` | `auth:sanctum,passport` | `api.channels.store` | Create a channel. |
+| `PATCH` | `/api/channels/{channel}` | `auth:sanctum,passport` | `api.channels.update` | Update a channel. |
+| `DELETE` | `/api/channels/{channel}` | `auth:sanctum,passport` | `api.channels.destroy` | Delete a channel. |
+| `POST` | `/api/channels/{channel}/skills` | `auth:sanctum,passport` | `api.channels.skills.store` | Attach skill media/context to a channel. |
 
 ## Channel Connections
 
 | Method | Path | Auth | Name | Purpose |
 | --- | --- | --- | --- | --- |
-| `GET` | `/channels/{channel}/connections` | `auth:sanctum,passport` | `api.channels.connections.index` | List channel connections. |
-| `POST` | `/channels/{channel}/connections` | `auth:sanctum,passport` | `api.channels.connections.store` | Create a channel connection. |
-| `PATCH` | `/channels/{channel}/connections/{connection}` | `auth:sanctum,passport` | `api.channels.connections.update` | Update a channel connection. |
-| `DELETE` | `/channels/{channel}/connections/{connection}` | `auth:sanctum,passport` | `api.channels.connections.destroy` | Delete a channel connection. |
+| `GET` | `/api/channels/{channel}/connections` | `auth:sanctum,passport` | `api.channels.connections.index` | List channel connections. |
+| `POST` | `/api/channels/{channel}/connections` | `auth:sanctum,passport` | `api.channels.connections.store` | Create a channel connection. |
+| `PATCH` | `/api/channels/{channel}/connections/{connection}` | `auth:sanctum,passport` | `api.channels.connections.update` | Update a channel connection. |
+| `DELETE` | `/api/channels/{channel}/connections/{connection}` | `auth:sanctum,passport` | `api.channels.connections.destroy` | Delete a channel connection. |
 
 ## Channel Routes And Addresses
 
@@ -90,16 +92,16 @@ Routes define how channel traffic maps into Fig context. Addresses define route-
 
 | Method | Path | Auth | Name | Purpose |
 | --- | --- | --- | --- | --- |
-| `GET` | `/channels/{channel}/routes` | `auth:sanctum,passport` | `api.channels.routes.index` | List channel routes. |
-| `POST` | `/channels/{channel}/routes` | `auth:sanctum,passport` | `api.channels.routes.store` | Create a channel route. |
-| `PATCH` | `/channels/{channel}/routes/{route}` | `auth:sanctum,passport` | `api.channels.routes.update` | Update a channel route. |
-| `DELETE` | `/channels/{channel}/routes/{route}` | `auth:sanctum,passport` | `api.channels.routes.destroy` | Delete a channel route. |
-| `POST` | `/channels/{channel}/routes/{route}/skills` | `auth:sanctum,passport` | `api.channels.routes.skills.store` | Attach skill media/context to a route. |
-| `GET` | `/channels/{channel}/routes/{route}/addresses` | `auth:sanctum,passport` | `api.channels.routes.addresses.index` | List route addresses. |
-| `POST` | `/channels/{channel}/routes/{route}/addresses` | `auth:sanctum,passport` | `api.channels.routes.addresses.store` | Create a route address. |
-| `PATCH` | `/channels/{channel}/routes/{route}/addresses/{address}` | `auth:sanctum,passport` | `api.channels.routes.addresses.update` | Update a route address. |
-| `DELETE` | `/channels/{channel}/routes/{route}/addresses/{address}` | `auth:sanctum,passport` | `api.channels.routes.addresses.destroy` | Delete a route address. |
-| `POST` | `/channels/{channel}/routes/{route}/addresses/{address}/skills` | `auth:sanctum,passport` | `api.channels.routes.addresses.skills.store` | Attach skill media/context to an address. |
+| `GET` | `/api/channels/{channel}/routes` | `auth:sanctum,passport` | `api.channels.routes.index` | List channel routes. |
+| `POST` | `/api/channels/{channel}/routes` | `auth:sanctum,passport` | `api.channels.routes.store` | Create a channel route. |
+| `PATCH` | `/api/channels/{channel}/routes/{route}` | `auth:sanctum,passport` | `api.channels.routes.update` | Update a channel route. |
+| `DELETE` | `/api/channels/{channel}/routes/{route}` | `auth:sanctum,passport` | `api.channels.routes.destroy` | Delete a channel route. |
+| `POST` | `/api/channels/{channel}/routes/{route}/skills` | `auth:sanctum,passport` | `api.channels.routes.skills.store` | Attach skill media/context to a route. |
+| `GET` | `/api/channels/{channel}/routes/{route}/addresses` | `auth:sanctum,passport` | `api.channels.routes.addresses.index` | List route addresses. |
+| `POST` | `/api/channels/{channel}/routes/{route}/addresses` | `auth:sanctum,passport` | `api.channels.routes.addresses.store` | Create a route address. |
+| `PATCH` | `/api/channels/{channel}/routes/{route}/addresses/{address}` | `auth:sanctum,passport` | `api.channels.routes.addresses.update` | Update a route address. |
+| `DELETE` | `/api/channels/{channel}/routes/{route}/addresses/{address}` | `auth:sanctum,passport` | `api.channels.routes.addresses.destroy` | Delete a route address. |
+| `POST` | `/api/channels/{channel}/routes/{route}/addresses/{address}/skills` | `auth:sanctum,passport` | `api.channels.routes.addresses.skills.store` | Attach skill media/context to an address. |
 
 ## Channel Webhooks
 
@@ -113,7 +115,7 @@ This route is explicitly prefixed with `/api` in `routes/webhook.php`.
 
 | Method | Path | Auth | Name | Purpose |
 | --- | --- | --- | --- | --- |
-| `POST` | `/form` | `auth:sanctum,passport` | `api.form.store` | Generic form submission endpoint. |
+| `POST` | `/api/form` | `auth:sanctum,passport` | `api.form.store` | Generic form submission endpoint. |
 
 ## ACP
 
@@ -121,28 +123,28 @@ ACP routes are authenticated with `auth:sanctum,passport`, require a resolved tr
 
 | Method | Path | Auth | Name | Purpose |
 | --- | --- | --- | --- | --- |
-| `GET` | `/acp/sessions` | ACP auth middleware | `api.acp.sessions.index` | List ACP sessions. |
-| `POST` | `/acp/sessions` | ACP auth middleware | `api.acp.sessions.store` | Create an ACP session. |
-| `GET` | `/acp/sessions/{session}` | ACP auth middleware | `api.acp.sessions.show` | Read an ACP session. |
-| `POST` | `/acp/sessions/{session}/prompt` | ACP auth middleware | `api.acp.sessions.prompt` | Prompt an ACP session. |
-| `GET` | `/acp/tasks/{task}` | ACP auth middleware | `api.acp.tasks.show` | Read ACP task state. |
-| `POST` | `/acp/tasks/{task}/cancel` | ACP auth middleware | `api.acp.tasks.cancel` | Cancel an ACP task. |
+| `GET` | `/api/acp/sessions` | ACP auth middleware | `api.acp.sessions.index` | List ACP sessions. |
+| `POST` | `/api/acp/sessions` | ACP auth middleware | `api.acp.sessions.store` | Create an ACP session. |
+| `GET` | `/api/acp/sessions/{session}` | ACP auth middleware | `api.acp.sessions.show` | Read an ACP session. |
+| `POST` | `/api/acp/sessions/{session}/prompt` | ACP auth middleware | `api.acp.sessions.prompt` | Prompt an ACP session. |
+| `GET` | `/api/acp/tasks/{task}` | ACP auth middleware | `api.acp.tasks.show` | Read ACP task state. |
+| `POST` | `/api/acp/tasks/{task}/cancel` | ACP auth middleware | `api.acp.tasks.cancel` | Cancel an ACP task. |
 
 ## A2A
 
 | Method | Path | Auth | Name | Purpose |
 | --- | --- | --- | --- | --- |
 | `GET` | `/.well-known/agent-card` | public API route | `a2a.agent-card` | Publish the local A2A agent card. |
-| `POST` | `/a2a/rpc` | A2A auth/ability middleware | `api.a2a.rpc` | JSON-RPC A2A endpoint for task/message methods. |
-| `POST` | `/a2a/stream` | A2A auth/ability middleware | `api.a2a.stream` | Streaming A2A endpoint. |
-| `POST` | `/a2a/webhooks/push` | Spatie webhook signature/config | `webhook-client-a2a_push` | Receive A2A push webhook callbacks. |
+| `POST` | `/api/a2a/rpc` | A2A auth/ability middleware | `api.a2a.rpc` | JSON-RPC A2A endpoint for task/message methods. |
+| `POST` | `/api/a2a/stream` | A2A auth/ability middleware | `api.a2a.stream` | Streaming A2A endpoint. |
+| `POST` | `/api/a2a/webhooks/push` | Spatie webhook signature/config | `webhook-client-a2a_push` | Receive A2A push webhook callbacks. |
 
 ## MCP
 
 | Method | Path | Auth | Name | Purpose |
 | --- | --- | --- | --- | --- |
-| `GET` | `/mcp` | `auth:sanctum,passport`, `mcp:use` ability | vendor route | MCP server transport. |
-| `POST` | `/mcp` | `auth:sanctum,passport`, `mcp:use` ability | vendor route | MCP server transport. |
+| `GET` | `/api/mcp` | `auth:sanctum,passport`, `mcp:use` ability | vendor route | MCP server transport. |
+| `POST` | `/api/mcp` | `auth:sanctum,passport`, `mcp:use` ability | vendor route | MCP server transport. |
 
 MCP OAuth discovery/registration routes are provided by Laravel MCP and Passport:
 

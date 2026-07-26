@@ -44,16 +44,16 @@ class ResolveInboundMessageIdempotency
         array $payload
     ): string {
         $externalMessageId = Arr::get($payload, 'message.id') ?? Arr::get($payload, 'id');
-        $normalizedMessageId = is_string($externalMessageId) ? trim($externalMessageId) : '';
+        $normalizedExternalMessageId = is_string($externalMessageId) ? trim($externalMessageId) : '';
 
-        if ($normalizedMessageId !== '') {
+        if ($normalizedExternalMessageId !== '') {
             return sprintf(
                 'inbound:%s:%s:%d:%s:%s',
                 $protocol,
                 $provider ?? 'default',
                 $thread->id,
                 $externalActorId,
-                $normalizedMessageId
+                $normalizedExternalMessageId
             );
         }
 

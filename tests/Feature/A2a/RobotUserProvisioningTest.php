@@ -21,7 +21,7 @@ class RobotUserProvisioningTest extends TestCase
 
         Sanctum::actingAs($person, []);
 
-        $response = $this->postJson('/api/auth/robots', [
+        $response = $this->postJson('/api/users', [
             'name' => 'Remote Planner',
         ]);
 
@@ -71,7 +71,7 @@ class RobotUserProvisioningTest extends TestCase
 
         Sanctum::actingAs($person, []);
 
-        $response = $this->postJson('/api/auth/robots', [
+        $response = $this->postJson('/api/users', [
             'name' => 'Workspace Robot',
             'account_uuid' => $account->uuid,
         ]);
@@ -116,7 +116,7 @@ class RobotUserProvisioningTest extends TestCase
 
         Sanctum::actingAs($person, []);
 
-        $response = $this->postJson('/api/auth/robots', [
+        $response = $this->postJson('/api/users', [
             'name' => 'Fallback Robot',
             'account_uuid' => $foreignAccount->uuid,
         ]);
@@ -153,7 +153,7 @@ class RobotUserProvisioningTest extends TestCase
 
         Sanctum::actingAs($widgetUser, [TokenAbility::Compose->value]);
 
-        $this->postJson('/api/auth/robots', [
+        $this->postJson('/api/users', [
             'name' => 'Blocked Robot',
         ])->assertForbidden();
     }
@@ -174,7 +174,7 @@ class RobotUserProvisioningTest extends TestCase
 
         Sanctum::actingAs($widgetUser, []);
 
-        $this->postJson('/api/auth/robots', [
+        $this->postJson('/api/users', [
             'name' => 'Linked Widget Robot',
         ])->assertForbidden();
     }

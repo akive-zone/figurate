@@ -176,7 +176,7 @@ class A2aMethodRouter
                     context: [
                         'thread_id' => $thread->uuid,
                         'space_id' => $space->uuid,
-                        'prompt_message_ulid' => $message->ulid,
+                        'prompt_post_ulid' => $message->ulid,
                         'agent_task_uuid' => $task->uuid,
                     ],
                 ),
@@ -192,7 +192,7 @@ class A2aMethodRouter
                 context: [
                     'thread_id' => $thread->uuid,
                     'space_id' => $space->uuid,
-                    'prompt_message_ulid' => $message->ulid,
+                    'prompt_post_ulid' => $message->ulid,
                     'agent_task_uuid' => $task->uuid,
                     'pending_presenters' => $dispatch['presenters']->count(),
                 ],
@@ -235,8 +235,8 @@ class A2aMethodRouter
                 state: $task->status,
                 context: [
                     'thread_id' => $thread?->uuid,
-                    'prompt_message_ulid' => $promptMessage->ulid,
-                    'prompt_message_id' => $promptMessage->id,
+                    'prompt_post_ulid' => $promptMessage->ulid,
+                    'prompt_post_id' => $promptMessage->id,
                     'agent_task_uuid' => $task->uuid,
                     'invocations' => $this->messageTaskService->invocationPayload($invocations),
                     'payload' => $promptPayload,
@@ -270,7 +270,7 @@ class A2aMethodRouter
                     ],
                     'context' => [
                         'thread_id' => $thread?->uuid,
-                        'prompt_message_ulid' => $promptMessage?->ulid,
+                        'prompt_post_ulid' => $promptMessage?->ulid,
                         'agent_task_uuid' => $task->uuid,
                     ],
                 ];
@@ -321,7 +321,7 @@ class A2aMethodRouter
                 taskId: $this->taskService->publicId($task),
                 state: $task->status,
                 context: [
-                    'prompt_message_ulid' => $promptMessage->ulid,
+                    'prompt_post_ulid' => $promptMessage->ulid,
                     'agent_task_uuid' => $task->uuid,
                 ],
             ),

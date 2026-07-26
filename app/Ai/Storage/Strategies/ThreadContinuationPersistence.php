@@ -131,6 +131,11 @@ class ThreadContinuationPersistence implements ThreadConversationPersistence
                 'participant_id' => $resolvedUserId,
                 'agent' => $prompt->agent::class,
                 'role' => 'assistant',
+                'invocation_id' => $response->invocationId,
+                'trace_id' => $this->normalizedString($telemetryMeta['trace_id'] ?? null) ?? $response->invocationId,
+                'parent_invocation_id' => $this->normalizedString($telemetryMeta['parent_invocation_id'] ?? null),
+                'root_post_id' => null,
+                'output_post_id' => null,
                 'content' => trim((string) ($response->text ?? '')),
                 'attachments' => '[]',
                 'tool_calls' => json_encode($this->toArrayValue($response->toolCalls)),
@@ -266,5 +271,16 @@ class ThreadContinuationPersistence implements ThreadConversationPersistence
         }
 
         return is_array($value) ? $value : [];
+    }
+
+    protected function normalizedString(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        return $value === '' ? null : $value;
     }
 }

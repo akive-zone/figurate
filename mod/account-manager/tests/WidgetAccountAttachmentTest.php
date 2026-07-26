@@ -210,7 +210,8 @@ class WidgetAccountAttachmentTest extends TestCase
 
         $conversation = AgentConversation::query()->create([
             'id' => 'conv-widget-login-1',
-            'user_id' => $widgetUser->id,
+            'participant_type' => $widgetUser->getMorphClass(),
+            'participant_id' => $widgetUser->id,
             'title' => 'Anonymous conversation',
         ]);
 
@@ -272,7 +273,8 @@ class WidgetAccountAttachmentTest extends TestCase
         $taskEvent->refresh();
         $task = TaskRecord::fromEvent($taskEvent);
 
-        $this->assertSame($widgetUser->id, $conversation->user_id);
+        $this->assertSame($widgetUser->getMorphClass(), $conversation->participant_type);
+        $this->assertSame($widgetUser->id, $conversation->participant_id);
         $this->assertSame($widgetUser->id, $session->user_id);
         $this->assertInstanceOf(TaskRecord::class, $task);
         $this->assertSame($widgetUser->id, $task->userId);

@@ -1,6 +1,6 @@
 import {
     createConversationThread,
-    fetchConversationMessageTurns,
+    fetchConversationPostTurns,
     fetchConversationMessages,
     fetchConversationPosts,
     fetchConversations,
@@ -25,8 +25,8 @@ export const chatDataService = {
         return fetchConversationPosts(conversationId, runtime);
     },
 
-    async listConversationMessageTurns(conversationId, messageId, runtime) {
-        return fetchConversationMessageTurns(conversationId, messageId, runtime);
+    async listConversationPostTurns(conversationId, postId, runtime) {
+        return fetchConversationPostTurns(conversationId, postId, runtime);
     },
 
     async sendMessage(payload, runtime, options = {}) {

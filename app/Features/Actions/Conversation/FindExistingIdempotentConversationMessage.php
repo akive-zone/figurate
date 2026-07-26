@@ -15,14 +15,14 @@ class FindExistingIdempotentConversationMessage
             return null;
         }
 
-        $cachedMessageId = Cache::get($this->cacheKey($thread, $actor, $idempotencyKey));
-        if (! is_int($cachedMessageId)) {
+        $cachedPostId = Cache::get($this->cacheKey($thread, $actor, $idempotencyKey));
+        if (! is_int($cachedPostId)) {
             return null;
         }
 
         return Post::query()
             ->messageType()
-            ->whereKey($cachedMessageId)
+            ->whereKey($cachedPostId)
             ->forThread($thread)
             ->fromSender($actor)
             ->first();

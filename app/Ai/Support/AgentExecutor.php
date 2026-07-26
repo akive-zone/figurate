@@ -187,7 +187,7 @@ class AgentExecutor
             ->withoutSender()
             ->where('meta->source', 'agent_response')
             ->where('meta->actor_key', $threadActor->actorName())
-            ->where('meta->in_reply_to_message_id', $userPost->id)
+            ->where('meta->in_reply_to_post_id', $userPost->id)
             ->oldest('id')
             ->first();
     }
@@ -268,7 +268,7 @@ class AgentExecutor
             meta: [
                 'actor_key' => $threadActor->actorName(),
                 'conversation_id' => $response->conversationId ?? $session->conversation_id,
-                'in_reply_to_message_id' => $userPost->id,
+                'in_reply_to_post_id' => $userPost->id,
                 'invocation_id' => $response->invocationId,
                 'a2ui' => is_array($assistantA2ui) ? $assistantA2ui : null,
             ],
@@ -349,14 +349,26 @@ class AgentExecutor
         $storageConversationId = ConversationId::toStorageId($response->conversationId);
         $rows = AgentConversationMessage::query()
             ->where('conversation_id', $storageConversationId)
-            ->where('user_id', $userId)
+            ->where('participant_id', $userId)
             ->where('agent', PresenterAgent::class)
             ->where('role', 'assistant')
+            ->where(function ($query) use ($response): void {
+                $query->where('invocation_id', $response->invocationId)
+                    ->orWhere(function ($fallbackQuery) use ($response): void {
+                        $fallbackQuery
+                            ->whereNull('invocation_id')
+                            ->where('meta->invocation_id', $response->invocationId);
+                    });
+            })
             ->orderByDesc('created_at')
             ->limit(25)
             ->get();
 
         $telemetry = $rows->first(function (AgentConversationMessage $message) use ($response): bool {
+            if ($message->invocation_id === $response->invocationId) {
+                return true;
+            }
+
             $meta = json_decode((string) $message->meta, true);
 
             return is_array($meta) && ($meta['invocation_id'] ?? null) === $response->invocationId;
@@ -376,13 +388,30 @@ class AgentExecutor
 
         $meta['thread_id'] = $thread->id;
         $meta['thread_uuid'] = $thread->uuid;
-        $meta['thread_message_id'] = $assistantMessage->id;
-        $meta['in_reply_to_message_id'] = $userPost->id;
+        $meta['thread_post_id'] = $assistantMessage->id;
+        $meta['in_reply_to_post_id'] = $userPost->id;
         $meta['actor_key'] = $actorKey;
 
         $telemetry->forceFill([
+            'invocation_id' => $response->invocationId,
+            'trace_id' => $telemetry->trace_id ?: $response->invocationId,
+            'root_post_id' => $userPost->id,
+            'output_post_id' => $assistantMessage->id,
             'meta' => json_encode($meta),
         ])->save();
+
+        AgentConversationMessage::query()
+            ->where('conversation_id', $storageConversationId)
+            ->where('participant_id', $userId)
+            ->where('root_post_id', $userPost->id)
+            ->whereNull('parent_invocation_id')
+            ->where('meta->kind', 'sub_agent')
+            ->where('id', '!=', $telemetry->id)
+            ->update([
+                'trace_id' => $response->invocationId,
+                'parent_invocation_id' => $response->invocationId,
+                'updated_at' => now(),
+            ]);
     }
 
     protected function handleQueuedThreadActorReplyFailure(

@@ -5,12 +5,15 @@ namespace App\Ai\Tools;
 use App\Ai\Support\SubAgents\SubAgentDispatcher;
 use App\Ai\Support\SubAgents\SubAgentInvocationMemory;
 use App\Ai\Tools\Diagnostics\EncodesToolResponse;
+use App\Models\Server\AgentConversationMessage;
 use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadActor;
+use App\Models\Server\ThreadActorSession;
 use App\Models\Server\ThreadEvent;
 use App\Models\Server\User;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Illuminate\Support\Str;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
 use Stringable;
@@ -82,6 +85,12 @@ class InvokeSubAgentTool implements Tool
 
         $successful = (bool) ($result['ok'] ?? false);
 
+        if ($successful) {
+            $this->persistSuccessfulInvocation($subAgent, $result);
+        }
+
+        unset($result['telemetry']);
+
         $this->rememberInvocationContext(
             traceId: $resolvedTraceId,
             parentInvocationId: $resolvedParentInvocationId,
@@ -111,7 +120,7 @@ class InvokeSubAgentTool implements Tool
     {
         $this->thread->events()->create([
             'thread_actor_id' => $this->threadActor?->id,
-            'post_id' => null,
+            'post_id' => $this->resolveRootPostId($this->normalizedString($result['parent_invocation_id'] ?? null)),
             'event_key' => 'sub_agent_invoke_tool',
             'layer' => ThreadEvent::LayerExecution,
             'kind' => ThreadEvent::KindOrchestration,
@@ -132,6 +141,100 @@ class InvokeSubAgentTool implements Tool
                     : null,
             ],
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $result
+     */
+    protected function persistSuccessfulInvocation(string $subAgent, array $result): void
+    {
+        $invocationId = $this->normalizedString($result['invocation_id'] ?? null);
+        $traceId = $this->normalizedString($result['trace_id'] ?? null);
+        $parentInvocationId = $this->normalizedString($result['parent_invocation_id'] ?? null);
+        $responseText = $this->normalizedString(data_get($result, 'response.text'));
+        $telemetry = is_array($result['telemetry'] ?? null) ? $result['telemetry'] : [];
+        $conversationId = $this->resolveConversationId();
+
+        if ($invocationId === null || $responseText === null || $conversationId === null) {
+            return;
+        }
+
+        $message = AgentConversationMessage::query()
+            ->where('invocation_id', $invocationId)
+            ->first() ?? new AgentConversationMessage;
+        $message->forceFill([
+            'id' => $message->exists ? $message->id : (string) Str::uuid7(),
+            'conversation_id' => $conversationId,
+            'participant_type' => $this->actor->getMorphClass(),
+            'participant_id' => $this->actor->id,
+            'agent' => $this->normalizedString($telemetry['agent'] ?? null) ?? $subAgent,
+            'role' => 'assistant',
+            'invocation_id' => $invocationId,
+            'trace_id' => $traceId ?? $invocationId,
+            'parent_invocation_id' => $parentInvocationId,
+            'root_post_id' => $this->resolveRootPostId($parentInvocationId),
+            'output_post_id' => null,
+            'content' => $responseText,
+            'attachments' => '[]',
+            'tool_calls' => json_encode(is_array($telemetry['tool_calls'] ?? null) ? $telemetry['tool_calls'] : []),
+            'tool_results' => json_encode(is_array($telemetry['tool_results'] ?? null) ? $telemetry['tool_results'] : []),
+            'usage' => json_encode(is_array($telemetry['usage'] ?? null) ? $telemetry['usage'] : []),
+            'meta' => json_encode([
+                ...(is_array($telemetry['meta'] ?? null) ? $telemetry['meta'] : []),
+                'kind' => 'sub_agent',
+                'sub_agent' => $subAgent,
+                'provider_invocation_id' => $this->normalizedString(data_get($result, 'response.provider_invocation_id')),
+            ]),
+            'approval_state' => null,
+        ])->save();
+    }
+
+    protected function resolveConversationId(): ?string
+    {
+        return $this->normalizedString(
+            ThreadActorSession::query()
+                ->where('thread_id', $this->thread->id)
+                ->where('user_id', $this->actor->id)
+                ->when(
+                    $this->threadActor?->id,
+                    fn ($query, int $threadActorId) => $query->where('thread_actor_id', $threadActorId),
+                )
+                ->latest('last_used_at')
+                ->value('conversation_id')
+        );
+    }
+
+    protected function resolveRootPostId(?string $parentInvocationId): ?int
+    {
+        if ($parentInvocationId !== null) {
+            $rootPostId = AgentConversationMessage::query()
+                ->where('invocation_id', $parentInvocationId)
+                ->value('root_post_id');
+
+            if (is_numeric($rootPostId)) {
+                return (int) $rootPostId;
+            }
+
+            $parentOutputPost = Post::query()
+                ->forThread($this->thread)
+                ->where('meta->source', 'agent_response')
+                ->where('meta->invocation_id', $parentInvocationId)
+                ->latest('id')
+                ->first();
+            $replyPostId = data_get($parentOutputPost?->meta, 'in_reply_to_post_id');
+
+            if (is_numeric($replyPostId)) {
+                return (int) $replyPostId;
+            }
+        }
+
+        $promptPostId = Post::query()
+            ->forThread($this->thread)
+            ->where('meta->source', 'agent_prompt')
+            ->latest('id')
+            ->value('id');
+
+        return is_numeric($promptPostId) ? (int) $promptPostId : null;
     }
 
     protected function isSubAgentAllowedForActor(string $subAgent): bool

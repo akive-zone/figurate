@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Auth\CurrentUserController;
 use App\Http\Controllers\Api\Auth\LoginController;
 use App\Http\Controllers\Api\Auth\LogoutController;
 use App\Http\Controllers\Api\Auth\PasskeyController;
@@ -31,13 +32,20 @@ Route::prefix('auth')->group(function (): void {
     Route::post('broadcasting', [BroadcastController::class, 'authenticate'])
         ->middleware(['auth:sanctum,passport']);
 
+    Route::get('user', [CurrentUserController::class, 'show'])
+        ->middleware(['auth:sanctum,passport'])
+        ->name('api.auth.user.show');
+    Route::patch('user', [CurrentUserController::class, 'update'])
+        ->middleware(['auth:sanctum,passport'])
+        ->name('api.auth.user.update');
+
     Route::prefix('passkeys')
         ->name('api.passkeys.')
         ->group(function (): void {
             Route::get('/', [PasskeyController::class, 'index'])
                 ->middleware(['auth:sanctum,passport'])
                 ->name('index');
-            Route::post('/options/register', [PasskeyController::class, 'generateRegisterOptions'])
+            Route::post('/options', [PasskeyController::class, 'generateRegisterOptions'])
                 ->name('register-options');
             Route::post('/', [PasskeyController::class, 'store'])
                 ->name('store');
@@ -45,10 +53,11 @@ Route::prefix('auth')->group(function (): void {
                 ->middleware(['auth:sanctum,passport'])
                 ->name('destroy');
         });
-
-    Route::post('robots', [RobotUserController::class, 'store'])
-        ->middleware(['auth:sanctum,passport', EnsureTransportUser::class.':subject']);
 });
+
+Route::post('users', [RobotUserController::class, 'store'])
+    ->middleware(['auth:sanctum,passport', EnsureTransportUser::class.':subject'])
+    ->name('api.users.store');
 
 Route::prefix('channels')->middleware(['auth:sanctum,passport'])->group(function (): void {
     Route::get('/', [ChannelController::class, 'index'])->name('api.channels.index');

@@ -45,11 +45,11 @@ Channels describe integration surfaces and delivery routes.
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| `GET` | `/channels` | `auth:sanctum,passport` | List channels. |
-| `POST` | `/channels` | `auth:sanctum,passport` | Create a channel. |
-| `PATCH` | `/channels/{channel}` | `auth:sanctum,passport` | Update a channel. |
-| `DELETE` | `/channels/{channel}` | `auth:sanctum,passport` | Delete a channel. |
-| `POST` | `/channels/{channel}/skills` | `auth:sanctum,passport` | Attach skill media/context to a channel. |
+| `GET` | `/api/channels` | `auth:sanctum,passport` | List channels. |
+| `POST` | `/api/channels` | `auth:sanctum,passport` | Create a channel. |
+| `PATCH` | `/api/channels/{channel}` | `auth:sanctum,passport` | Update a channel. |
+| `DELETE` | `/api/channels/{channel}` | `auth:sanctum,passport` | Delete a channel. |
+| `POST` | `/api/channels/{channel}/skills` | `auth:sanctum,passport` | Attach skill media/context to a channel. |
 
 ## Channel Connections
 
@@ -57,10 +57,10 @@ Connections bind channels to owners or contexts.
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| `GET` | `/channels/{channel}/connections` | `auth:sanctum,passport` | List channel connections. |
-| `POST` | `/channels/{channel}/connections` | `auth:sanctum,passport` | Create a channel connection. |
-| `PATCH` | `/channels/{channel}/connections/{connection}` | `auth:sanctum,passport` | Update a channel connection. |
-| `DELETE` | `/channels/{channel}/connections/{connection}` | `auth:sanctum,passport` | Delete a channel connection. |
+| `GET` | `/api/channels/{channel}/connections` | `auth:sanctum,passport` | List channel connections. |
+| `POST` | `/api/channels/{channel}/connections` | `auth:sanctum,passport` | Create a channel connection. |
+| `PATCH` | `/api/channels/{channel}/connections/{connection}` | `auth:sanctum,passport` | Update a channel connection. |
+| `DELETE` | `/api/channels/{channel}/connections/{connection}` | `auth:sanctum,passport` | Delete a channel connection. |
 
 ## Channel Routes
 
@@ -68,11 +68,11 @@ Routes define how channel traffic maps into Fig context.
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| `GET` | `/channels/{channel}/routes` | `auth:sanctum,passport` | List channel routes. |
-| `POST` | `/channels/{channel}/routes` | `auth:sanctum,passport` | Create a channel route. |
-| `PATCH` | `/channels/{channel}/routes/{route}` | `auth:sanctum,passport` | Update a channel route. |
-| `DELETE` | `/channels/{channel}/routes/{route}` | `auth:sanctum,passport` | Delete a channel route. |
-| `POST` | `/channels/{channel}/routes/{route}/skills` | `auth:sanctum,passport` | Attach skill media/context to a route. |
+| `GET` | `/api/channels/{channel}/routes` | `auth:sanctum,passport` | List channel routes. |
+| `POST` | `/api/channels/{channel}/routes` | `auth:sanctum,passport` | Create a channel route. |
+| `PATCH` | `/api/channels/{channel}/routes/{route}` | `auth:sanctum,passport` | Update a channel route. |
+| `DELETE` | `/api/channels/{channel}/routes/{route}` | `auth:sanctum,passport` | Delete a channel route. |
+| `POST` | `/api/channels/{channel}/routes/{route}/skills` | `auth:sanctum,passport` | Attach skill media/context to a route. |
 
 ## Channel Addresses
 
@@ -80,11 +80,11 @@ Addresses represent route-specific external identities, destinations, or address
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| `GET` | `/channels/{channel}/routes/{route}/addresses` | `auth:sanctum,passport` | List route addresses. |
-| `POST` | `/channels/{channel}/routes/{route}/addresses` | `auth:sanctum,passport` | Create a route address. |
-| `PATCH` | `/channels/{channel}/routes/{route}/addresses/{address}` | `auth:sanctum,passport` | Update a route address. |
-| `DELETE` | `/channels/{channel}/routes/{route}/addresses/{address}` | `auth:sanctum,passport` | Delete a route address. |
-| `POST` | `/channels/{channel}/routes/{route}/addresses/{address}/skills` | `auth:sanctum,passport` | Attach skill media/context to an address. |
+| `GET` | `/api/channels/{channel}/routes/{route}/addresses` | `auth:sanctum,passport` | List route addresses. |
+| `POST` | `/api/channels/{channel}/routes/{route}/addresses` | `auth:sanctum,passport` | Create a route address. |
+| `PATCH` | `/api/channels/{channel}/routes/{route}/addresses/{address}` | `auth:sanctum,passport` | Update a route address. |
+| `DELETE` | `/api/channels/{channel}/routes/{route}/addresses/{address}` | `auth:sanctum,passport` | Delete a route address. |
+| `POST` | `/api/channels/{channel}/routes/{route}/addresses/{address}/skills` | `auth:sanctum,passport` | Attach skill media/context to an address. |
 
 ## Channel Ingress
 
@@ -100,11 +100,11 @@ Spaces are long-lived work contexts.
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| `GET` | `/spaces` | `auth:sanctum,passport` | List spaces available to the authenticated user. |
-| `GET` | `/spaces/{space}/posts` | `auth:sanctum,passport` | List posts in a space. |
-| `POST` | `/spaces/{space}/posts` | `auth:sanctum,passport` | Create a post in a space. |
-| `GET` | `/spaces/{space}/threads` | `auth:sanctum,passport` | List threads in a space. |
-| `POST` | `/spaces/{space}/threads` | `auth:sanctum,passport` | Create a thread in a space. |
+| `GET` | `/api/spaces` | `auth:sanctum,passport` | List spaces available to the authenticated user. |
+| `GET` | `/api/spaces/{space}/posts` | `auth:sanctum,passport` | List posts in a space. |
+| `POST` | `/api/spaces/{space}/posts` | `auth:sanctum,passport` | Create a post in a space. |
+| `GET` | `/api/spaces/{space}/threads` | `auth:sanctum,passport` | List threads in a space. |
+| `POST` | `/api/spaces/{space}/threads` | `auth:sanctum,passport` | Create a thread in a space. |
 
 ## Threads
 
@@ -112,9 +112,9 @@ Threads are active sessions or workstreams.
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| `GET` | `/threads/{thread}` | `auth:sanctum,passport` | Read a thread. |
-| `POST` | `/threads/{thread}/posts` | `auth:sanctum,passport` | Create a post in a thread. |
-| `GET` | `/threads/{thread}/posts/{post}/turns` | `auth:sanctum,passport` | Read projected assistant turns for a thread post. |
+| `GET` | `/api/threads/{thread}` | `auth:sanctum,passport` | Read a thread. |
+| `POST` | `/api/threads/{thread}/posts` | `auth:sanctum,passport` | Create a post in a thread. |
+| `GET` | `/api/threads/{thread}/posts/{post}/turns` | `auth:sanctum,passport` | Read projected assistant turns for a thread post. |
 
 ## Posts
 
@@ -124,12 +124,12 @@ Current post-facing routes:
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| `GET` | `/spaces/{space}/posts` | `auth:sanctum,passport` | List posts in a space. |
-| `POST` | `/spaces/{space}/posts` | `auth:sanctum,passport` | Store arbitrary context data as a post in a space. |
-| `POST` | `/threads/{thread}/posts` | `auth:sanctum,passport` | Store arbitrary context data as a post in a thread. |
-| `GET` | `/threads/{thread}/posts/{post}/turns` | `auth:sanctum,passport` | Read assistant turns projected from a thread post. |
-| `GET` | `/posts/{post}` | `auth:sanctum,passport` | Read a post by ULID or database id. |
-| `GET` | `/posts/{post}/turns` | `auth:sanctum,passport` | Read assistant turns projected from a thread post. |
+| `GET` | `/api/spaces/{space}/posts` | `auth:sanctum,passport` | List posts in a space. |
+| `POST` | `/api/spaces/{space}/posts` | `auth:sanctum,passport` | Store arbitrary context data as a post in a space. |
+| `POST` | `/api/threads/{thread}/posts` | `auth:sanctum,passport` | Store arbitrary context data as a post in a thread. |
+| `GET` | `/api/threads/{thread}/posts/{post}/turns` | `auth:sanctum,passport` | Read assistant turns projected from a thread post. |
+| `GET` | `/api/posts/{post}` | `auth:sanctum,passport` | Read a post by ULID or database id. |
+| `GET` | `/api/posts/{post}/turns` | `auth:sanctum,passport` | Read assistant turns projected from a thread post. |
 
 ### Creating Space Posts
 

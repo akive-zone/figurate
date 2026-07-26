@@ -37,7 +37,7 @@ class RecordInboundMessageReceipt
                 'processed_at' => now(),
                 'payload' => $payload,
                 'result' => [
-                    'message_id' => $message->id,
+                    'post_id' => $message->id,
                     'thread_id' => $thread->id,
                     'ingested_at' => now()->toIso8601String(),
                 ],

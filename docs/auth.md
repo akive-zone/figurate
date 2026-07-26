@@ -8,20 +8,22 @@ Most product APIs use `auth:sanctum,passport`. Some interop APIs add token abili
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| `POST` | `/auth/register` | public | Register a user. |
-| `POST` | `/auth/login` | public | Log in and issue auth/session state. |
-| `POST` | `/auth/logout` | `auth:sanctum,passport` | Log out the authenticated user. |
-| `POST` | `/auth/broadcasting` | `auth:sanctum,passport` | Authenticate private/presence broadcast channels. |
-| `POST` | `/auth/robots` | `auth:sanctum,passport`, `EnsureTransportUser:subject` | Provision a robot/system user. |
+| `POST` | `/api/auth/register` | public | Register a user. |
+| `POST` | `/api/auth/login` | public | Log in and issue auth/session state. |
+| `POST` | `/api/auth/logout` | `auth:sanctum,passport` | Log out the authenticated user. |
+| `POST` | `/api/auth/broadcasting` | `auth:sanctum,passport` | Authenticate private/presence broadcast channels. |
+| `GET` | `/api/auth/user` | `auth:sanctum,passport` | Read the current User and effective abilities. |
+| `PATCH` | `/api/auth/user` | `auth:sanctum,passport` | Update the current User's public fields. |
+| `POST` | `/api/users` | `auth:sanctum,passport`, `EnsureTransportUser:subject` | Provision a delegated User with scoped abilities. |
 
 ## Passkeys
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| `GET` | `/auth/passkeys` | `auth:sanctum,passport` | List passkeys for the authenticated user. |
-| `POST` | `/auth/passkeys/options/register` | public | Generate passkey registration options. |
-| `POST` | `/auth/passkeys` | public | Store/register a passkey. |
-| `DELETE` | `/auth/passkeys/{passkey}` | `auth:sanctum,passport` | Delete a passkey. |
+| `GET` | `/api/auth/passkeys` | `auth:sanctum,passport` | List passkeys for the authenticated user. |
+| `POST` | `/api/auth/passkeys/options` | public | Generate passkey registration options. |
+| `POST` | `/api/auth/passkeys` | public | Store/register a passkey. |
+| `DELETE` | `/api/auth/passkeys/{passkey}` | `auth:sanctum,passport` | Delete a passkey. |
 
 Package passkey routes are also present:
 

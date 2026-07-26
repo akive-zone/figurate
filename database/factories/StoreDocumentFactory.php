@@ -7,12 +7,12 @@ use App\Models\Server\StoreDocument;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Server\StoreDocument>
+ * @extends Factory<StoreDocument>
  */
 class StoreDocumentFactory extends Factory
 {
     /**
-     * @var class-string<\App\Models\Server\StoreDocument>
+     * @var class-string<StoreDocument>
      */
     protected $model = StoreDocument::class;
 
@@ -26,7 +26,7 @@ class StoreDocumentFactory extends Factory
         return [
             'store_id' => Store::factory(),
             'media_id' => 1,
-            'message_id' => null,
+            'post_id' => null,
             'origin' => 'unknown',
             'provider_file_id' => null,
             'provider_document_id' => null,

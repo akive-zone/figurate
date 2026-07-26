@@ -32,7 +32,7 @@ class FindAssistantRepliesForMessage
             ->forThread($thread)
             ->withoutSender()
             ->where('meta->source', 'agent_response')
-            ->where('meta->in_reply_to_message_id', $userMessage->id)
+            ->where('meta->in_reply_to_post_id', $userMessage->id)
             ->whereIn('meta->actor_key', $presenterKeys->all())
             ->orderBy('id')
             ->get();

@@ -8,6 +8,8 @@ use App\Ai\Agents\Subs\Explorer;
 use App\Ai\Agents\Subs\Manager;
 use App\Ai\Agents\Subs\Planner;
 use App\Ai\Agents\Subs\Researcher;
+use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\Support\Collection;
 use Laravel\Ai\Contracts\Agent;
 use Stringable;
 use Throwable;
@@ -130,6 +132,13 @@ class SubAgentDispatcher
                 'provider_invocation_id' => $this->normalizedId(data_get($response, 'invocationId')),
                 'fallback_text' => null,
             ],
+            'telemetry' => [
+                'agent' => $agent::class,
+                'tool_calls' => $this->toArrayValue(data_get($response, 'toolCalls')),
+                'tool_results' => $this->toArrayValue(data_get($response, 'toolResults')),
+                'usage' => $this->toArrayValue(data_get($response, 'usage')),
+                'meta' => $this->toArrayValue(data_get($response, 'meta')),
+            ],
         ];
     }
 
@@ -233,5 +242,25 @@ class SubAgentDispatcher
         $trimmed = trim($value);
 
         return $trimmed === '' ? null : $trimmed;
+    }
+
+    /**
+     * @return array<int|string, mixed>
+     */
+    protected function toArrayValue(mixed $value): array
+    {
+        if ($value instanceof Collection) {
+            return $value->values()->all();
+        }
+
+        if ($value instanceof Arrayable) {
+            return $value->toArray();
+        }
+
+        if ($value instanceof \JsonSerializable) {
+            $value = $value->jsonSerialize();
+        }
+
+        return is_array($value) ? $value : [];
     }
 }

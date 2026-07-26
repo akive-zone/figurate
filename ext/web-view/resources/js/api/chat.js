@@ -164,12 +164,12 @@ export const fetchConversationMessages = async (conversationId, runtime = {}) =>
     }
 };
 
-export const fetchConversationMessageTurns = async (conversationId, messageId, runtime = {}) => {
-    const template = (runtime?.routes?.conversation_message_turns_template ?? '').toString().trim();
-    const normalizedMessageId = (messageId ?? '').toString().trim();
+export const fetchConversationPostTurns = async (conversationId, postId, runtime = {}) => {
+    const template = (runtime?.routes?.conversation_post_turns_template ?? '').toString().trim();
+    const normalizedPostId = (postId ?? '').toString().trim();
     const path = template !== ''
-        ? template.replace('__CONVERSATION__', conversationId).replace('__MESSAGE__', normalizedMessageId)
-        : `/api/threads/${conversationId}/posts/${normalizedMessageId}/turns`;
+        ? template.replace('__CONVERSATION__', conversationId).replace('__POST__', normalizedPostId)
+        : `/api/threads/${conversationId}/posts/${normalizedPostId}/turns`;
 
     try {
         const response = await axios.get(chatApiUrl(path, runtime), {

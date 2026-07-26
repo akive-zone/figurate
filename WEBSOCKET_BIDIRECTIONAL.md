@@ -77,7 +77,7 @@ Figurate supports **full bidirectional WebSocket communication** using two compl
 ```json
 {
   "status": "success",
-  "message_id": "unique-message-id",
+  "external_message_id": "unique-message-id",
   "post_id": 12345,
   "post_ulid": "01H1X2Y3Z4...",
   "thread_uuid": "thread-uuid-here",
@@ -329,7 +329,7 @@ wscat -c ws://localhost:8090
 > {"id":"test-1","type":"message","thread_uuid":"your-thread-uuid","sender":"user-uuid","text":"Hello from client!"}
 
 # Response:
-< {"status":"success","message_id":"test-1","post_id":123,"post_ulid":"01H...","thread_uuid":"your-thread-uuid","timestamp":"2026-04-06T12:00:01Z"}
+< {"status":"success","external_message_id":"test-1","post_id":123,"post_ulid":"01H...","thread_uuid":"your-thread-uuid","timestamp":"2026-04-06T12:00:01Z"}
 ```
 
 ### Test Outbound Broadcasts

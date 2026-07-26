@@ -360,16 +360,16 @@ class ChannelRouteIngress
      */
     protected function normalizedPayload(array $payload, array $normalized, ChannelAddress $address, array $skillContext, array $headers = []): array
     {
-        $messageId = $this->normalizedString($normalized['provider_message_id'] ?? null);
+        $providerMessageId = $this->normalizedString($normalized['provider_message_id'] ?? null);
         $target = $this->normalizedString($normalized['target'] ?? null)
             ?? $this->normalizedString($normalized['provider_identifier'] ?? null)
             ?? $address->target;
 
         return [
             ...$payload,
-            'id' => $messageId ?? ($payload['id'] ?? null),
+            'id' => $providerMessageId ?? ($payload['id'] ?? null),
             'message' => [
-                'id' => $messageId ?? data_get($payload, 'message.id') ?? ($payload['id'] ?? null),
+                'id' => $providerMessageId ?? data_get($payload, 'message.id') ?? ($payload['id'] ?? null),
                 'text' => $this->normalizedText($normalized['text'] ?? null),
             ],
             'target' => $target,

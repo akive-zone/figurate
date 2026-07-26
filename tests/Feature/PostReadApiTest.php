@@ -34,7 +34,7 @@ class PostReadApiTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $this->getJson("/posts/{$post->ulid}")
+        $this->getJson("/api/posts/{$post->ulid}")
             ->assertOk()
             ->assertJsonPath('data.id', $post->ulid)
             ->assertJsonPath('data.type', 'crm.conversation')
@@ -62,11 +62,11 @@ class PostReadApiTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $this->getJson("/posts/{$post->ulid}/turns")
+        $this->getJson("/api/posts/{$post->ulid}/turns")
             ->assertOk()
             ->assertJsonPath('thread', $thread->uuid)
-            ->assertJsonPath('message_id', $post->ulid)
-            ->assertJsonPath('data.0.prompt_message_id', $post->id);
+            ->assertJsonPath('post_id', $post->ulid)
+            ->assertJsonPath('data.0.prompt_post_id', $post->id);
     }
 
     protected function accessibleSpace(User $user): Space

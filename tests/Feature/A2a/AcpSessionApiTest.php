@@ -30,7 +30,7 @@ class AcpSessionApiTest extends TestCase
 
         Sanctum::actingAs($user, [TokenAbility::AcpUse->value]);
 
-        $response = $this->postJson('/acp/sessions', [
+        $response = $this->postJson('/api/acp/sessions', [
             'space_uuid' => $space->uuid,
             'title' => 'ACP Build Session',
             'purpose' => Thread::PurposeExecution,
@@ -72,11 +72,11 @@ class AcpSessionApiTest extends TestCase
             ],
         ]);
 
-        $this->getJson('/acp/sessions')
+        $this->getJson('/api/acp/sessions')
             ->assertOk()
             ->assertJsonPath('data.0.id', $sessionId);
 
-        $this->getJson("/acp/sessions/{$sessionId}")
+        $this->getJson("/api/acp/sessions/{$sessionId}")
             ->assertOk()
             ->assertJsonPath('data.id', $sessionId)
             ->assertJsonPath('data.messages.1.role', 'assistant')
@@ -94,7 +94,7 @@ class AcpSessionApiTest extends TestCase
 
         Sanctum::actingAs($user, [TokenAbility::AcpUse->value]);
 
-        $sessionResponse = $this->postJson('/acp/sessions', [
+        $sessionResponse = $this->postJson('/api/acp/sessions', [
             'space_uuid' => $space->uuid,
             'title' => 'Cancelable ACP Session',
             'purpose' => Thread::PurposeExecution,
@@ -102,7 +102,7 @@ class AcpSessionApiTest extends TestCase
 
         $sessionId = (string) $sessionResponse->json('data.id');
 
-        $promptResponse = $this->postJson("/acp/sessions/{$sessionId}/prompt", [
+        $promptResponse = $this->postJson("/api/acp/sessions/{$sessionId}/prompt", [
             'text' => 'Run the task.',
         ]);
 
@@ -124,12 +124,12 @@ class AcpSessionApiTest extends TestCase
         $this->assertNotNull($task->message?->id);
         $this->assertSame($user->id, $task->userId);
 
-        $this->getJson("/acp/tasks/{$taskId}")
+        $this->getJson("/api/acp/tasks/{$taskId}")
             ->assertOk()
             ->assertJsonPath('data.id', $taskId)
             ->assertJsonPath('data.state', 'submitted');
 
-        $this->postJson("/acp/tasks/{$taskId}/cancel")
+        $this->postJson("/api/acp/tasks/{$taskId}/cancel")
             ->assertOk()
             ->assertJsonPath('data.id', $taskId)
             ->assertJsonPath('data.state', 'canceled');
@@ -145,7 +145,7 @@ class AcpSessionApiTest extends TestCase
         $this->assertSame('canceled', $task->status);
         $this->assertNotNull($task->canceledAt);
 
-        $this->getJson("/acp/tasks/{$taskId}")
+        $this->getJson("/api/acp/tasks/{$taskId}")
             ->assertOk()
             ->assertJsonPath('data.state', 'canceled');
     }
@@ -157,7 +157,7 @@ class AcpSessionApiTest extends TestCase
 
         Passport::actingAs($user, [TokenAbility::AcpUse->value], 'passport');
 
-        $this->postJson('/acp/sessions', [
+        $this->postJson('/api/acp/sessions', [
             'space_uuid' => $space->uuid,
             'title' => 'Passport ACP Session',
             'purpose' => Thread::PurposeExecution,

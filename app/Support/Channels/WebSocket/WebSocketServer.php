@@ -122,7 +122,7 @@ class WebSocketServer
 
         return [
             'status' => 'received',
-            'message_id' => $data['id'] ?? null,
+            'external_message_id' => $data['id'] ?? null,
             'timestamp' => now()->toIso8601String(),
         ];
     }

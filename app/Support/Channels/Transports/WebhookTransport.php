@@ -52,12 +52,12 @@ class WebhookTransport
         return [
             'status' => 'dispatched',
             'provider' => $channel->driver,
-            'provider_message_id' => $this->generateMessageId($channel, $thread, $message),
+            'provider_message_id' => $this->generateProviderMessageId($channel, $thread, $message),
             'provider_identifier' => data_get($deliveryConfig, 'address.target')
                 ?? data_get($deliveryConfig, 'target')
                 ?? data_get($deliveryConfig, 'provider_identifier'),
             'thread_uuid' => $thread->uuid,
-            'message_id' => $message->id,
+            'post_id' => $message->id,
             'endpoint_url' => $endpointUrl,
             'signed' => $secret !== null && $secret !== '',
             'payload' => $outboundPayload,
@@ -142,8 +142,8 @@ class WebhookTransport
             'channel_uuid' => $channel->uuid,
             'thread_id' => $thread->id,
             'thread_uuid' => $thread->uuid,
-            'message_id' => $message->id,
-            'message_ulid' => $message->ulid,
+            'post_id' => $message->id,
+            'post_ulid' => $message->ulid,
             'provider_identifier' => data_get($deliveryConfig, 'address.target')
                 ?? data_get($deliveryConfig, 'target')
                 ?? data_get($deliveryConfig, 'provider_identifier'),
@@ -152,7 +152,7 @@ class WebhookTransport
         ];
     }
 
-    protected function generateMessageId(Channel $channel, Thread $thread, Post $message): string
+    protected function generateProviderMessageId(Channel $channel, Thread $thread, Post $message): string
     {
         return sprintf(
             'webhook:%s:%s:%s',

@@ -5,9 +5,8 @@ namespace Figurate\AccountManager\Listeners;
 use App\Events\Server\Auth\RobotProvisioned;
 use App\Models\Server\User;
 use Figurate\AccountManager\Actions\AttachRobotUserToRequestedAccount;
-use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 
-class AttachRobotUserToRequestedAccountListener implements ShouldQueueAfterCommit
+class AttachRobotUserToRequestedAccountListener
 {
     public function __construct(protected AttachRobotUserToRequestedAccount $attachRobotUserToRequestedAccount) {}
 

@@ -57,7 +57,7 @@ class MessageTaskService
             ->forThread($thread)
             ->withoutSender()
             ->where('meta->source', 'agent_response')
-            ->where('meta->in_reply_to_message_id', $promptMessage->id)
+            ->where('meta->in_reply_to_post_id', $promptMessage->id)
             ->oldest('id')
             ->get();
     }
@@ -95,7 +95,7 @@ class MessageTaskService
     {
         return [
             'id' => $message->ulid,
-            'message_id' => $message->id,
+            'post_id' => $message->id,
             'role' => 'assistant',
             'text' => is_string($message->text) ? $message->text : '',
             'actor_key' => data_get($message->meta, 'actor_key'),

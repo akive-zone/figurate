@@ -24,7 +24,7 @@ class NostrOutboundMessageSender implements OutboundMessageSender
             'provider' => $outbox->provider,
             'target' => $target,
             'delivery' => 'queued_for_adapter',
-            'message_id' => data_get($outbox->payload ?? [], 'message.id'),
+            'provider_message_id' => data_get($outbox->payload ?? [], 'message.id'),
         ];
     }
 }

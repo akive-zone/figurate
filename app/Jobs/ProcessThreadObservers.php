@@ -19,7 +19,7 @@ class ProcessThreadObservers implements ShouldQueue
 
     public function __construct(
         public int $threadId,
-        public int $messageId,
+        public int $postId,
     ) {
         $this->afterCommit();
     }
@@ -35,7 +35,7 @@ class ProcessThreadObservers implements ShouldQueue
 
         $message = Post::query()
             ->messageType()
-            ->find($this->messageId);
+            ->find($this->postId);
 
         if (! $thread || ! $message) {
             return;

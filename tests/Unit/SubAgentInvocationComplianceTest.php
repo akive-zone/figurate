@@ -8,6 +8,7 @@ use App\Ai\Support\SubAgents\SubAgentInvocationMemory;
 use App\Ai\Tools\InvokeSubAgentTool;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
+use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Tools\Request;
 use PHPUnit\Framework\TestCase;
 
@@ -22,7 +23,7 @@ class SubAgentInvocationComplianceTest extends TestCase
                 return new Planner;
             }
 
-            protected function invokeAgent(\Laravel\Ai\Contracts\Agent $agent, string $prompt): mixed
+            protected function invokeAgent(Agent $agent, string $prompt): mixed
             {
                 return '';
             }
@@ -188,6 +189,8 @@ class SubAgentInvocationComplianceTest extends TestCase
             protected function rememberInvocationContext(string $traceId, ?string $parentInvocationId, ?string $lastSubAgentInvocationId): void {}
 
             protected function recordInvocationEvent(string $subAgent, array $result, bool $successful): void {}
+
+            protected function persistSuccessfulInvocation(string $subAgent, array $result): void {}
         };
     }
 }

@@ -144,7 +144,7 @@ Establish a usable MCP gateway for Figurate, covering both the first-party Figur
 
 ### Completed
 
-1. First-party Figurate MCP server is implemented and exposed at `/mcp`.
+1. First-party Figurate MCP server is implemented and exposed at `/api/mcp`.
 2. MCP web access is protected behind `EnsureDeviceUser` and `auth:sanctum`.
 3. The Figurate server publishes a concrete capability surface for channels/threads/posts/actors/context, including:
    - read/list tools,

@@ -21,7 +21,7 @@ class SpacePostStoreApiTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $this->postJson("/spaces/{$space->uuid}/posts", [
+        $this->postJson("/api/spaces/{$space->uuid}/posts", [
             'type' => 'crm.conversation',
             'text' => 'Customer asked for refund after failed fulfilment.',
             'source' => [
@@ -80,7 +80,7 @@ class SpacePostStoreApiTest extends TestCase
 
         Sanctum::actingAs($intruder);
 
-        $this->postJson("/spaces/{$space->uuid}/posts", [
+        $this->postJson("/api/spaces/{$space->uuid}/posts", [
             'payload' => [
                 'source' => 'crm',
             ],
@@ -96,7 +96,7 @@ class SpacePostStoreApiTest extends TestCase
 
         $this->call(
             'POST',
-            "/spaces/{$space->uuid}/posts",
+            "/api/spaces/{$space->uuid}/posts",
             [],
             [],
             [],

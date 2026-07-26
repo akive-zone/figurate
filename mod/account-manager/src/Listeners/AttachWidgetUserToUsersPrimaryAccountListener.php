@@ -6,9 +6,8 @@ use App\Events\Server\Auth\SubjectAuthenticated;
 use App\Features\Actions\Auth\ResolveWidgetUser;
 use App\Models\Server\User;
 use Figurate\AccountManager\Actions\AttachWidgetUserToUsersPrimaryAccount;
-use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 
-class AttachWidgetUserToUsersPrimaryAccountListener implements ShouldQueueAfterCommit
+class AttachWidgetUserToUsersPrimaryAccountListener
 {
     public function __construct(
         protected AttachWidgetUserToUsersPrimaryAccount $attachWidgetUserToUsersPrimaryAccount,

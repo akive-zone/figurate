@@ -23,7 +23,7 @@ class ThreadPostStoreApiTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $this->postJson("/threads/{$thread->uuid}/posts", [
+        $this->postJson("/api/threads/{$thread->uuid}/posts", [
             'text' => 'Review this fulfilment exchange.',
             'source' => [
                 'system' => 'crm',
@@ -68,7 +68,7 @@ class ThreadPostStoreApiTest extends TestCase
 
         Sanctum::actingAs($intruder);
 
-        $this->postJson("/threads/{$thread->uuid}/posts", [
+        $this->postJson("/api/threads/{$thread->uuid}/posts", [
             'text' => 'not allowed',
         ])->assertForbidden();
     }

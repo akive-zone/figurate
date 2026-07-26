@@ -46,7 +46,7 @@ const chatIndexUrl = computed(() => {
 
 const promptForm = reactive({
     content: '',
-    clientMessageId: '',
+    clientPostId: '',
     draftForClientId: '',
 });
 
@@ -61,7 +61,7 @@ const workspaceTurns = ref({});
 const isLoadingThreads = ref({});
 const threadLoadError = ref('');
 const agentStatusMessage = ref('');
-const latestSubmittedPromptMessageId = ref(null);
+const latestSubmittedPromptPostId = ref(null);
 const isFloatingChatOpen = ref(false);
 const isSlidingChatOpen = ref(false);
 const openAgentThreadIds = ref(new Set());
@@ -129,7 +129,7 @@ const loadActiveSpace = async () => {
     }
 };
 
-const makeClientMessageId = () => {
+const makeClientPostId = () => {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
         return crypto.randomUUID();
     }
@@ -137,26 +137,26 @@ const makeClientMessageId = () => {
     return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 };
 
-const ensureClientMessageId = (content) => {
+const ensureClientPostId = (content) => {
     const normalizedContent = (content ?? '').toString().trim();
 
     if (normalizedContent === '') {
         return '';
     }
 
-    if (promptForm.clientMessageId === '' || promptForm.draftForClientId !== normalizedContent) {
-        promptForm.clientMessageId = makeClientMessageId();
+    if (promptForm.clientPostId === '' || promptForm.draftForClientId !== normalizedContent) {
+        promptForm.clientPostId = makeClientPostId();
         promptForm.draftForClientId = normalizedContent;
     }
 
-    return promptForm.clientMessageId;
+    return promptForm.clientPostId;
 };
 
 const submitPrompt = async (targetThreadId = null) => {
     promptErrors.value = {};
     promptErrorMessage.value = '';
     isPrompting.value = true;
-    const clientMessageId = ensureClientMessageId(promptForm.content);
+    const clientPostId = ensureClientPostId(promptForm.content);
     const threadId = targetThreadId || activeThreadId.value;
 
     try {
@@ -168,16 +168,16 @@ const submitPrompt = async (targetThreadId = null) => {
                 attachments: [],
             },
         }, runtime.value, {
-            idempotencyKey: clientMessageId,
+            idempotencyKey: clientPostId,
         });
-        const submittedMessageId = Number(response?.data?.message_id ?? 0);
-        if (Number.isFinite(submittedMessageId) && submittedMessageId > 0) {
-            latestSubmittedPromptMessageId.value = submittedMessageId;
-            await loadTurnsForMessage(submittedMessageId, threadId);
+        const submittedPostId = Number(response?.data?.post_id ?? 0);
+        if (Number.isFinite(submittedPostId) && submittedPostId > 0) {
+            latestSubmittedPromptPostId.value = submittedPostId;
+            await loadTurnsForPost(submittedPostId, threadId);
         }
         agentStatusMessage.value = 'Agent is thinking...';
         promptForm.content = '';
-        promptForm.clientMessageId = '';
+        promptForm.clientPostId = '';
         promptForm.draftForClientId = '';
         if (threadId) {
             await loadThreadMessages(threadId);
@@ -281,7 +281,7 @@ const slidingChatMessages = computed(() => {
         .slice(-25);
     const turns = Array.isArray(workspaceTurns.value[threadId]) ? workspaceTurns.value[threadId] : [];
     const turnsByPrompt = turns.reduce((carry, turn) => {
-        const promptId = Number(turn?.prompt_message_id ?? 0);
+        const promptId = Number(turn?.prompt_post_id ?? 0);
         if (!Number.isFinite(promptId) || promptId <= 0) {
             return carry;
         }
@@ -467,8 +467,8 @@ const mergeThreadTurns = (threadId, incomingTurns) => {
     });
 
     workspaceTurns.value[threadId] = Array.from(byId.values()).sort((left, right) => {
-        const leftPromptId = Number(left?.prompt_message_id ?? 0);
-        const rightPromptId = Number(right?.prompt_message_id ?? 0);
+        const leftPromptId = Number(left?.prompt_post_id ?? 0);
+        const rightPromptId = Number(right?.prompt_post_id ?? 0);
 
         if (leftPromptId !== rightPromptId) {
             return leftPromptId - rightPromptId;
@@ -481,16 +481,16 @@ const mergeThreadTurns = (threadId, incomingTurns) => {
     });
 };
 
-const loadTurnsForMessage = async (messageId, threadId = null) => {
-    const normalizedMessageId = Number(messageId ?? 0);
+const loadTurnsForPost = async (postId, threadId = null) => {
+    const normalizedPostId = Number(postId ?? 0);
     const targetThreadId = (threadId ?? activeAgentThreadId.value ?? activeThreadId.value ?? '').toString();
 
-    if (targetThreadId === '' || !Number.isFinite(normalizedMessageId) || normalizedMessageId <= 0) {
+    if (targetThreadId === '' || !Number.isFinite(normalizedPostId) || normalizedPostId <= 0) {
         return;
     }
 
     try {
-        const payload = await chatDataService.listConversationMessageTurns(targetThreadId, normalizedMessageId, runtime.value);
+        const payload = await chatDataService.listConversationPostTurns(targetThreadId, normalizedPostId, runtime.value);
         mergeThreadTurns(targetThreadId, payload?.data ?? []);
     } catch {
         // Keep current turn state if scoped refresh fails.
@@ -505,8 +505,8 @@ useThreadEcho({
     },
     onReplyCompleted: () => {
         agentStatusMessage.value = '';
-        if (latestSubmittedPromptMessageId.value) {
-            loadTurnsForMessage(latestSubmittedPromptMessageId.value, activeAgentThreadId.value);
+        if (latestSubmittedPromptPostId.value) {
+            loadTurnsForPost(latestSubmittedPromptPostId.value, activeAgentThreadId.value);
         }
         loadWorkspace();
         loadActiveSpace();
@@ -527,8 +527,8 @@ useThreadEcho({
     },
     onStreamEnd: () => {
         agentStatusMessage.value = '';
-        if (latestSubmittedPromptMessageId.value) {
-            loadTurnsForMessage(latestSubmittedPromptMessageId.value, activeAgentThreadId.value);
+        if (latestSubmittedPromptPostId.value) {
+            loadTurnsForPost(latestSubmittedPromptPostId.value, activeAgentThreadId.value);
         }
         loadWorkspace();
         loadActiveSpace();
@@ -563,7 +563,7 @@ watch(
 watch(
     () => [activeSpace.value?.id ?? null, activeThreadId.value],
     () => {
-        latestSubmittedPromptMessageId.value = null;
+        latestSubmittedPromptPostId.value = null;
         loadSpacePosts();
         loadWorkspace();
     },
@@ -600,12 +600,12 @@ const submitA2uiAction = async (actionPayload) => {
             thread: threadId,
             action: actionPayload,
         }), runtime.value, {
-            idempotencyKey: makeClientMessageId(),
+            idempotencyKey: makeClientPostId(),
         });
-        const submittedMessageId = Number(response?.data?.message_id ?? 0);
-        if (Number.isFinite(submittedMessageId) && submittedMessageId > 0) {
-            latestSubmittedPromptMessageId.value = submittedMessageId;
-            await loadTurnsForMessage(submittedMessageId, threadId);
+        const submittedPostId = Number(response?.data?.post_id ?? 0);
+        if (Number.isFinite(submittedPostId) && submittedPostId > 0) {
+            latestSubmittedPromptPostId.value = submittedPostId;
+            await loadTurnsForPost(submittedPostId, threadId);
         }
         agentStatusMessage.value = 'Agent is thinking...';
         await loadThreadMessages(threadId);
@@ -628,7 +628,7 @@ const retryFailedTurn = async (turn) => {
     }
 
     promptForm.content = prompt;
-    promptForm.clientMessageId = '';
+    promptForm.clientPostId = '';
     promptForm.draftForClientId = '';
     await submitPrompt(latestAgentThread.value?.id);
 };

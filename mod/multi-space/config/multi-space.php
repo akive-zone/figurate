@@ -7,4 +7,5 @@ return [
     'requires_site_context' => true,
     'parent_layer' => 'multi_site',
     'scope_columns' => ['site_id', 'space_id'],
+    'queues_are_tenant_aware_by_default' => false,
 ];

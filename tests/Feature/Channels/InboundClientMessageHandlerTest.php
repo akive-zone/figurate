@@ -53,7 +53,7 @@ class InboundClientMessageHandlerTest extends TestCase
         $result = $handler->handle($channel, $messageData);
 
         $this->assertSame('success', $result['status']);
-        $this->assertSame('msg-123', $result['message_id']);
+        $this->assertSame('msg-123', $result['external_message_id']);
         $this->assertSame($thread->uuid, $result['thread_uuid']);
         $this->assertArrayHasKey('post_id', $result);
         $this->assertArrayHasKey('post_ulid', $result);
