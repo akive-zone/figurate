@@ -18,11 +18,11 @@ class OpenApiController extends Controller
             'openapi' => '3.1.0',
             'info' => [
                 'title' => 'Figurate API',
-                'version' => '1.0.0',
+                'version' => (string) config('app.version', 'unreleased'),
                 'description' => 'API-first access to users, hierarchical nodes, graph edges, forms, invocations, credentials, and channels.',
             ],
             'servers' => [
-                ['url' => url('/api/v1')],
+                ['url' => url('/api')],
             ],
             'tags' => collect([
                 'Auth',
@@ -48,11 +48,15 @@ class OpenApiController extends Controller
         $paths = [];
 
         foreach (Route::getRoutes() as $route) {
-            if (! $route instanceof LaravelRoute || ! str_starts_with($route->uri(), 'api/v1')) {
+            if (
+                ! $route instanceof LaravelRoute
+                || ! is_string($route->getName())
+                || ! str_starts_with($route->getName(), 'api.')
+            ) {
                 continue;
             }
 
-            $path = substr($route->uri(), strlen('api/v1'));
+            $path = substr($route->uri(), strlen('api'));
             $path = $path === '' ? '/' : '/'.ltrim($path, '/');
 
             foreach (array_diff($route->methods(), ['HEAD']) as $method) {
@@ -71,7 +75,7 @@ class OpenApiController extends Controller
     protected function operation(LaravelRoute $route, string $method): array
     {
         $name = $route->getName() ?? Str::slug($method.' '.$route->uri(), '.');
-        $shortName = Str::after($name, 'api.v1.');
+        $shortName = Str::after($name, 'api.');
         $tag = Str::headline(Str::before($shortName, '.'));
         $operation = [
             'tags' => [$tag],
@@ -81,7 +85,7 @@ class OpenApiController extends Controller
             'responses' => $this->responses($method, $name),
         ];
 
-        if (! in_array($name, ['api.v1.openapi', 'api.v1.auth.register', 'api.v1.auth.login'], true)) {
+        if (! in_array($name, ['api.openapi', 'api.auth.register', 'api.auth.login'], true)) {
             $operation['security'] = [['bearerAuth' => []]];
         }
 
@@ -142,7 +146,7 @@ class OpenApiController extends Controller
             );
         }
 
-        if ($name === 'api.v1.edges.index') {
+        if (in_array($name, ['api.edges.index', 'api.form.edges.index'], true)) {
             foreach ([
                 ['node_type', true, ['type' => 'string', 'enum' => ['space', 'thread', 'post']]],
                 ['node_id', true, ['type' => 'string']],
@@ -161,7 +165,7 @@ class OpenApiController extends Controller
             }
         }
 
-        if ($name === 'api.v1.spaces.index') {
+        if ($name === 'api.spaces.index') {
             $parameters->push([
                 'name' => 'status',
                 'in' => 'query',
@@ -170,10 +174,12 @@ class OpenApiController extends Controller
         }
 
         if (in_array($name, [
-            'api.v1.form.store',
-            'api.v1.nodes.store',
-            'api.v1.edges.store',
-            'api.v1.spaces.store',
+            'api.form.store',
+            'api.form.nodes.store',
+            'api.form.edges.store',
+            'api.nodes.store',
+            'api.edges.store',
+            'api.spaces.store',
         ], true)) {
             $parameters->push([
                 '$ref' => '#/components/parameters/IdempotencyKey',
@@ -209,8 +215,8 @@ class OpenApiController extends Controller
         }
 
         $successStatus = match ($name) {
-            'api.v1.form.store' => '202',
-            'api.v1.auth.login', 'api.v1.auth.register' => '200',
+            'api.form.store' => '202',
+            'api.auth.login', 'api.auth.register' => '200',
             default => $method === 'post' ? '201' : '200',
         };
 
@@ -233,23 +239,23 @@ class OpenApiController extends Controller
     protected function requestSchema(string $name): ?string
     {
         return match ($name) {
-            'api.v1.auth.register' => 'RegisterRequest',
-            'api.v1.auth.login' => 'LoginRequest',
-            'api.v1.credentials.store' => 'ApiCredentialRequest',
-            'api.v1.form.store' => 'FormRequest',
-            'api.v1.nodes.store' => 'NodeCreateRequest',
-            'api.v1.nodes.update' => 'NodeUpdateRequest',
-            'api.v1.edges.store' => 'EdgeCreateRequest',
-            'api.v1.edges.update' => 'EdgeUpdateRequest',
-            'api.v1.spaces.store' => 'SpaceCreateRequest',
-            'api.v1.channels.store',
-            'api.v1.channels.update' => 'ChannelRequest',
-            'api.v1.channels.connections.store',
-            'api.v1.channels.connections.update' => 'ChannelConnectionRequest',
-            'api.v1.channels.routes.store',
-            'api.v1.channels.routes.update' => 'ChannelRouteRequest',
-            'api.v1.channels.routes.addresses.store',
-            'api.v1.channels.routes.addresses.update' => 'ChannelAddressRequest',
+            'api.auth.register' => 'RegisterRequest',
+            'api.auth.login' => 'LoginRequest',
+            'api.credentials.store' => 'ApiCredentialRequest',
+            'api.form.store' => 'FormRequest',
+            'api.nodes.store', 'api.form.nodes.store' => 'NodeCreateRequest',
+            'api.nodes.update', 'api.form.nodes.update' => 'NodeUpdateRequest',
+            'api.edges.store', 'api.form.edges.store' => 'EdgeCreateRequest',
+            'api.edges.update', 'api.form.edges.update' => 'EdgeUpdateRequest',
+            'api.spaces.store' => 'SpaceCreateRequest',
+            'api.channels.store',
+            'api.channels.update' => 'ChannelRequest',
+            'api.channels.connections.store',
+            'api.channels.connections.update' => 'ChannelConnectionRequest',
+            'api.channels.routes.store',
+            'api.channels.routes.update' => 'ChannelRouteRequest',
+            'api.channels.routes.addresses.store',
+            'api.channels.routes.addresses.update' => 'ChannelAddressRequest',
             default => null,
         };
     }

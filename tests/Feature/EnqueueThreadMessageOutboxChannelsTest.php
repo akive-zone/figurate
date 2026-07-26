@@ -145,7 +145,7 @@ MARKDOWN)
         $this->assertSame('invocation-42', data_get($invocationOutbox->payload, 'invocation.id'));
         $this->assertSame($invocationPost->ulid, data_get($invocationOutbox->payload, 'invocation.node.id'));
         $this->assertStringEndsWith(
-            '/api/v1/form/invocation-42/turns',
+            '/api/form/invocation-42/turns',
             (string) data_get($invocationOutbox->payload, 'invocation.turns_url'),
         );
     }

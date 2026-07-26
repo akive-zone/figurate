@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Server\ApiPersonalAccessToken;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
 use App\Models\Server\SpaceRelation;
@@ -21,7 +22,7 @@ class ThirdPartyApiTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user, ['*']);
 
-        $created = $this->postJson('/api/v1/credentials', [
+        $created = $this->postJson('/api/credentials', [
             'name' => 'automation',
             'abilities' => [
                 TokenAbility::NodesRead->value,
@@ -43,12 +44,12 @@ class ThirdPartyApiTest extends TestCase
             'name' => 'api:automation',
         ]);
 
-        $this->getJson('/api/v1/credentials')
+        $this->getJson('/api/credentials')
             ->assertOk()
             ->assertJsonPath('data.0.id', $credentialId)
             ->assertJsonMissingPath('data.0.token');
 
-        $this->deleteJson("/api/v1/credentials/{$credentialId}")
+        $this->deleteJson("/api/credentials/{$credentialId}")
             ->assertNoContent();
 
         $this->assertDatabaseMissing('personal_access_tokens', [
@@ -56,23 +57,26 @@ class ThirdPartyApiTest extends TestCase
         ]);
     }
 
-    public function test_scoped_credentials_are_enforced_by_the_versioned_api(): void
+    public function test_scoped_credentials_are_enforced_by_the_api(): void
     {
         $user = User::factory()->create();
         $space = $this->accessibleSpace($user);
+        Sanctum::actingAs($user);
+        $user->withAccessToken(new ApiPersonalAccessToken([
+            'name' => 'api:reader',
+            'abilities' => [TokenAbility::NodesRead->value],
+        ]));
 
-        Sanctum::actingAs($user, [TokenAbility::NodesRead->value]);
-
-        $this->getJson("/api/v1/spaces/{$space->uuid}")
+        $this->getJson("/api/spaces/{$space->uuid}")
             ->assertOk()
             ->assertJsonPath('data.id', $space->uuid);
 
-        $this->postJson('/api/v1/nodes', [
+        $this->postJson('/api/nodes', [
             'type' => 'space',
             'attributes' => ['status' => 'open'],
         ])->assertForbidden();
 
-        $this->getJson('/api/v1/credentials')
+        $this->getJson('/api/credentials')
             ->assertForbidden();
     }
 
@@ -82,12 +86,12 @@ class ThirdPartyApiTest extends TestCase
         Sanctum::actingAs($user, [TokenAbility::NodesWrite->value]);
         $headers = ['Idempotency-Key' => 'create-root-space-42'];
 
-        $first = $this->postJson('/api/v1/nodes', [
+        $first = $this->postJson('/api/nodes', [
             'type' => 'space',
             'attributes' => ['status' => 'preparing'],
         ], $headers)->assertCreated();
 
-        $second = $this->postJson('/api/v1/nodes', [
+        $second = $this->postJson('/api/nodes', [
             'type' => 'space',
             'attributes' => ['status' => 'preparing'],
         ], $headers);
@@ -100,7 +104,7 @@ class ThirdPartyApiTest extends TestCase
         $this->assertDatabaseCount('spaces', 1);
         $this->assertDatabaseCount('idempotency_records', 1);
 
-        $this->postJson('/api/v1/nodes', [
+        $this->postJson('/api/nodes', [
             'type' => 'space',
             'attributes' => ['status' => 'different'],
         ], $headers)->assertConflict();
@@ -124,26 +128,26 @@ class ThirdPartyApiTest extends TestCase
             ]);
         }
 
-        $firstPage = $this->getJson("/api/v1/spaces/{$space->uuid}/nodes?per_page=2");
+        $firstPage = $this->getJson("/api/spaces/{$space->uuid}/nodes?per_page=2");
         $firstPage
             ->assertOk()
             ->assertJsonCount(2, 'data')
             ->assertJsonPath('meta.has_more', true);
 
         $cursor = urlencode((string) $firstPage->json('meta.next_cursor'));
-        $this->getJson("/api/v1/spaces/{$space->uuid}/nodes?per_page=2&cursor={$cursor}")
+        $this->getJson("/api/spaces/{$space->uuid}/nodes?per_page=2&cursor={$cursor}")
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('meta.has_more', false);
 
         $emptySpace = $this->accessibleSpace($user);
-        $this->patchJson("/api/v1/nodes/space/{$emptySpace->uuid}", [
+        $this->patchJson("/api/nodes/space/{$emptySpace->uuid}", [
             'attributes' => ['status' => 'archived'],
         ])
             ->assertOk()
             ->assertJsonPath('data.attributes.status', 'archived');
 
-        $this->deleteJson("/api/v1/nodes/space/{$emptySpace->uuid}")
+        $this->deleteJson("/api/nodes/space/{$emptySpace->uuid}")
             ->assertNoContent();
 
         $this->assertSoftDeleted('spaces', ['id' => $emptySpace->id]);
@@ -159,7 +163,7 @@ class ThirdPartyApiTest extends TestCase
             TokenAbility::NodesRead->value,
         ]);
 
-        $created = $this->postJson('/api/v1/edges', [
+        $created = $this->postJson('/api/edges', [
             'source_type' => 'space',
             'source_id' => $source->uuid,
             'target_type' => 'space',
@@ -175,7 +179,7 @@ class ThirdPartyApiTest extends TestCase
         $edgeId = (string) $created->json('data.id');
         $this->assertMatchesRegularExpression('/^[0-9A-HJKMNP-TV-Z]{26}$/i', $edgeId);
 
-        $this->patchJson("/api/v1/edges/{$edgeId}", [
+        $this->patchJson("/api/edges/{$edgeId}", [
             'edge_type' => SpaceRelation::TypeDependsOn,
             'purpose' => 'External dependency',
         ])
@@ -184,7 +188,7 @@ class ThirdPartyApiTest extends TestCase
             ->assertJsonPath('data.type', SpaceRelation::TypeDependsOn)
             ->assertJsonPath('data.purpose', 'External dependency');
 
-        $this->deleteJson("/api/v1/edges/{$edgeId}")
+        $this->deleteJson("/api/edges/{$edgeId}")
             ->assertNoContent();
 
         $this->assertDatabaseMissing('space_relations', ['ulid' => $edgeId]);
@@ -192,7 +196,7 @@ class ThirdPartyApiTest extends TestCase
 
     public function test_openapi_document_covers_every_versioned_route(): void
     {
-        $document = $this->getJson('/api/v1/openapi.json')
+        $document = $this->getJson('/api/openapi.json')
             ->assertOk()
             ->assertJsonPath('openapi', '3.1.0')
             ->json();
@@ -204,7 +208,7 @@ class ThirdPartyApiTest extends TestCase
             ->all();
 
         $expectedOperations = collect(Route::getRoutes())
-            ->filter(fn ($route): bool => str_starts_with($route->uri(), 'api/v1'))
+            ->filter(fn ($route): bool => is_string($route->getName()) && str_starts_with($route->getName(), 'api.'))
             ->map(fn ($route): string => str_replace('.', '_', (string) $route->getName()))
             ->values()
             ->all();

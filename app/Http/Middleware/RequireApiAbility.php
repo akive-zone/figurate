@@ -18,10 +18,17 @@ class RequireApiAbility
     {
         $user = $request->user();
 
+        if (! $user instanceof User) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $token = $user->currentAccessToken();
+        $tokenName = is_object($token) && isset($token->name) ? (string) $token->name : '';
+
         if (
-            ! $user instanceof User
-            || $user->currentAccessToken() === null
-            || (! $user->tokenCan('*') && ! $user->tokenCan($ability))
+            str_starts_with($tokenName, 'api:')
+            && ! $user->tokenCan('*')
+            && ! $user->tokenCan($ability)
         ) {
             return response()->json([
                 'message' => 'The API credential does not have the required ability.',

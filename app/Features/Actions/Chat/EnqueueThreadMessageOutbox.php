@@ -459,7 +459,7 @@ class EnqueueThreadMessageOutbox
                 'type' => 'post',
                 'id' => $post->ulid,
             ],
-            'turns_url' => route('api.v1.form.turns.index', [
+            'turns_url' => route('api.form.turns.index', [
                 'invocation' => $invocationId,
             ]),
         ];
