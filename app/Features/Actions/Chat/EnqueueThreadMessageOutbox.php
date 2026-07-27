@@ -227,7 +227,7 @@ class EnqueueThreadMessageOutbox
                     ?? $this->normalizedProvider($channel->driver)
                     ?? Channel::ProtocolGeneric;
                 $addressable = $address->addressable;
-                $skillContext = $this->channelSkillContextResolver->resolve($channel, $route, $address);
+                $skillContext = $this->channelSkillContextResolver->resolve($channel, $route, $address, $post);
 
                 return [
                     'protocol' => ChannelProtocol::Key,

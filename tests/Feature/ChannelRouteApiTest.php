@@ -6,13 +6,13 @@ use App\Models\Server\Channel;
 use App\Models\Server\ChannelAddress;
 use App\Models\Server\ChannelRelation;
 use App\Models\Server\ChannelRoute;
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use App\TokenAbility;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -119,11 +119,10 @@ class ChannelRouteApiTest extends TestCase
         $this->assertTrue($thread->channelAddresses()->whereKey($address->id)->exists());
     }
 
-    public function test_it_adds_media_backed_skills_to_channel_routes(): void
+    public function test_it_exposes_post_backed_skills_attached_to_the_channel(): void
     {
-        Storage::fake('public');
-
         $user = User::factory()->create();
+        $space = Space::factory()->create();
         $channel = Channel::factory()->create([
             'driver' => Channel::ProtocolGeneric,
             'server' => 'whatsapp-waha',
@@ -146,26 +145,30 @@ class ChannelRouteApiTest extends TestCase
             'data' => [],
             'meta' => [],
         ]);
+        $skill = $space->posts()->create([
+            'type' => Post::TypeSkill,
+            'tag' => 'waha-whatsapp',
+            'status' => Post::StatusActive,
+            'data' => [
+                'text' => 'Use sendText for outbound messages.',
+                'slug' => 'waha-whatsapp',
+                'name' => 'WAHA WhatsApp',
+                'description' => 'WAHA route send and receive behavior.',
+            ],
+            'meta' => [],
+        ]);
+        $skill->attachRelation($channel, Post::RelationRoleSkill);
 
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
-        $response = $this->postJson(route('api.channels.routes.skills.store', [
+        $response = $this->getJson(route('api.channels.routes.index', [
             'channel' => $channel->id,
-            'route' => $route->id,
-        ]), [
-            'content' => "# WAHA WhatsApp\n\nUse sendText for outbound messages.",
-            'filename' => 'waha-whatsapp.md',
-            'disk' => 'public',
-            'skill_slug' => 'waha-whatsapp',
-            'description' => 'WAHA route send and receive behavior.',
-            'capabilities' => ['outbound_formatting'],
-        ]);
+        ]));
 
-        $response->assertCreated()
-            ->assertJsonPath('data.collection', Channel::SkillCollection)
-            ->assertJsonPath('data.skill_slug', 'waha-whatsapp')
-            ->assertJsonPath('data.description', 'WAHA route send and receive behavior.');
-
-        $this->assertTrue($route->getMedia(Channel::SkillCollection)->contains('file_name', 'waha-whatsapp.md'));
+        $response->assertOk()
+            ->assertJsonPath('data.0.id', $route->ulid)
+            ->assertJsonPath('data.0.skills.entries.0.source', 'post')
+            ->assertJsonPath('data.0.skills.entries.0.post_id', $skill->ulid)
+            ->assertJsonPath('data.0.skills.entries.0.slug', 'waha-whatsapp');
     }
 }

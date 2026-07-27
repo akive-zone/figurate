@@ -2,10 +2,8 @@
 
 namespace App\Ai\Support\Skills;
 
-use App\Models\Server\Channel;
+use App\Models\Server\Post;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Storage;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class SkillRepository
 {
@@ -24,7 +22,7 @@ class SkillRepository
             }
         }
 
-        foreach ($this->mediaSkills($includeContent || $normalizedQuery !== '') as $entry) {
+        foreach ($this->postSkills($includeContent || $normalizedQuery !== '') as $entry) {
             if ($this->matchesQuery($entry, $normalizedQuery)) {
                 if (! $includeContent) {
                     unset($entry['content_excerpt']);
@@ -75,35 +73,24 @@ class SkillRepository
     /**
      * @return array<string, mixed>|null
      */
-    public function fromMedia(Media $media, bool $includeContent = false): ?array
+    public function fromPost(Post $post, bool $includeContent = false): array
     {
-        if ($media->collection_name !== Channel::SkillCollection) {
-            return null;
-        }
-
-        $raw = $this->mediaContent($media);
-        $frontmatter = $raw !== null ? $this->parseFrontmatter($raw) : [];
-        $slug = $this->stringValue($media->getCustomProperty('skill_slug'))
-            ?? $this->stringValue($media->getCustomProperty('slug'))
-            ?? pathinfo($media->file_name, PATHINFO_FILENAME);
+        $payload = is_array($post->payload) ? $post->payload : [];
+        $slug = $this->stringValue($payload['slug'] ?? null)
+            ?? $this->stringValue($post->tag)
+            ?? $post->ulid;
         $entry = [
-            'source' => 'media',
+            'source' => 'post',
             'slug' => $slug,
-            'name' => $this->stringValue($media->getCustomProperty('name'))
-                ?? (string) ($frontmatter['name'] ?? $media->name ?: $slug),
-            'description' => $this->stringValue($media->getCustomProperty('description'))
-                ?? (string) ($frontmatter['description'] ?? ''),
-            'skill_path' => "media:{$media->uuid}",
-            'media_id' => $media->id,
-            'media_uuid' => $media->uuid,
-            'media_model' => $media->model_type,
-            'media_model_id' => $media->model_id,
-            'disk' => $media->disk,
-            'references' => [],
+            'name' => $this->stringValue($payload['name'] ?? null) ?? $slug,
+            'description' => $this->stringValue($payload['description'] ?? null) ?? '',
+            'skill_path' => "post:{$post->ulid}",
+            'post_id' => $post->ulid,
+            'references' => $this->references($payload['references'] ?? null),
         ];
 
-        if ($includeContent && $raw !== null) {
-            $entry['content_excerpt'] = mb_substr(trim($raw), 0, 1500);
+        if ($includeContent && is_string($post->text)) {
+            $entry['content_excerpt'] = mb_substr(trim($post->text), 0, 1500);
         }
 
         return $entry;
@@ -149,27 +136,29 @@ class SkillRepository
     /**
      * @return list<array<string, mixed>>
      */
-    protected function mediaSkills(bool $includeContent): array
+    protected function postSkills(bool $includeContent): array
     {
-        return Media::query()
-            ->where('collection_name', Channel::SkillCollection)
+        return Post::query()
+            ->where('type', Post::TypeSkill)
             ->latest('id')
             ->get()
-            ->map(fn (Media $media): ?array => $this->fromMedia($media, $includeContent))
-            ->filter(fn (mixed $entry): bool => is_array($entry))
+            ->map(fn (Post $post): array => $this->fromPost($post, $includeContent))
             ->values()
             ->all();
     }
 
-    protected function mediaContent(Media $media): ?string
+    /**
+     * @return list<string>
+     */
+    protected function references(mixed $references): array
     {
-        try {
-            $contents = Storage::disk($media->disk)->get($media->getPathRelativeToRoot());
-
-            return is_string($contents) ? $contents : null;
-        } catch (\Throwable) {
-            return null;
-        }
+        return is_array($references)
+            ? collect($references)
+                ->filter(fn (mixed $reference): bool => is_string($reference) && trim($reference) !== '')
+                ->map(fn (string $reference): string => trim($reference))
+                ->values()
+                ->all()
+            : [];
     }
 
     /**

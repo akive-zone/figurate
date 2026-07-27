@@ -18,10 +18,16 @@ Feature: Follow work submitted to Figurate
     When the client sends a "POST" request to "/api/form" with JSON:
       """
       {
-        "space": "{{space_id}}",
-        "thread": "{{thread_id}}",
-        "content": {
-          "text": "Review contract CASE-42 and return the risks."
+        "body": {
+          "type": "post",
+          "parent": {
+            "type": "thread",
+            "id": "{{thread_id}}"
+          },
+          "attributes": {
+            "post_type": "message",
+            "text": "Review contract CASE-42 and return the risks."
+          }
         }
       }
       """

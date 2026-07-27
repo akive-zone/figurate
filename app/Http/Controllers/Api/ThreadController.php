@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Features\Actions\Chat\ProjectMessageExtra;
 use App\Features\Actions\Chat\ResolveNodeInvocation;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Server\Thread\StoreThreadRequest;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
+use App\Support\Graph\GraphNodeService;
+use App\Support\Graph\NodeFormer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -19,6 +22,24 @@ class ThreadController extends Controller
         protected ProjectMessageExtra $projectMessageExtra,
         protected ResolveNodeInvocation $resolveNodeInvocation,
     ) {}
+
+    public function store(
+        StoreThreadRequest $request,
+        NodeFormer $nodeFormer,
+        GraphNodeService $graphNodes,
+    ): JsonResponse {
+        /** @var User $actor */
+        $actor = $request->user();
+        $result = $nodeFormer->form($actor, [
+            'type' => 'thread',
+            ...$request->validated(),
+        ]);
+
+        return response()->json([
+            'data' => $graphNodes->map($result['node'], $actor),
+            'relations' => $result['relations'],
+        ], 201);
+    }
 
     public function show(
         Request $request,

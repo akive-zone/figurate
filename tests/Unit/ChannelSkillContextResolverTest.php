@@ -3,121 +3,81 @@
 namespace Tests\Unit;
 
 use App\Models\Server\Channel;
+use App\Models\Server\Post;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Support\Channels\ChannelSkillContextResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ChannelSkillContextResolverTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_resolves_attached_and_referenced_channel_route_and_address_skills(): void
+    public function test_it_resolves_post_backed_skills_attached_to_channel_space_thread_and_post_contexts(): void
     {
-        Storage::fake('public');
-
+        $space = Space::factory()->create();
+        $thread = $space->threads()->create([
+            'title' => 'Support',
+            'purpose' => Thread::PurposeMain,
+            'phase' => Thread::PhaseInitial,
+            'status' => 'open',
+        ]);
         $channel = Channel::factory()->create([
             'driver' => Channel::ProtocolGeneric,
-            'config' => [
-                'skills' => ['provider-send'],
-            ],
         ]);
         $route = $channel->routes()->create([
-            'config' => [
-                'skills' => ['route-general'],
-                'inbound' => [
-                    'skills' => ['route-inbound'],
-                ],
-                'outbound' => [
-                    'skills' => ['route-outbound'],
-                ],
-            ],
+            'config' => [],
             'status' => Channel::StatusActive,
             'direction' => Channel::DirectionBidirectional,
             'data' => [],
             'meta' => [],
         ]);
-        $thread = Thread::factory()->create();
         $address = $route->addresses()->create([
             'addressable_type' => $thread->getMorphClass(),
             'addressable_id' => $thread->getKey(),
             'provider' => 'generic',
             'target' => 'target-123',
-            'target_type' => 'external_target',
             'status' => Channel::StatusActive,
             'direction' => Channel::DirectionBidirectional,
-            'data' => [
-                'skills' => ['address-general'],
-            ],
+            'data' => [],
+            'meta' => [],
+        ]);
+        $outboundPost = $thread->posts()->create([
+            'type' => Post::TypeMessage,
+            'status' => Post::StatusActive,
+            'data' => ['text' => 'Deliver this message.'],
             'meta' => [],
         ]);
 
-        foreach (['provider-send', 'route-general', 'route-inbound', 'route-outbound', 'address-general'] as $slug) {
-            $channel->addMediaFromString(<<<MARKDOWN
----
-name: {$slug}
-description: {$slug} description
----
+        $this->createSkill($space, 'channel-skill')->attachRelation($channel, Post::RelationRoleSkill);
+        $this->createSkill($space, 'space-skill')->attachRelation($space, Post::RelationRoleSkill);
+        $this->createSkill($space, 'thread-skill')->attachRelation($thread, Post::RelationRoleSkill);
+        $this->createSkill($space, 'post-skill')->attachRelation($outboundPost, Post::RelationRoleSkill);
 
-# {$slug}
+        $resolved = app(ChannelSkillContextResolver::class)
+            ->resolve($channel, $route, $address, $outboundPost);
 
-Use {$slug}.
-MARKDOWN)
-                ->usingName($slug)
-                ->usingFileName("{$slug}.md")
-                ->withCustomProperties([
-                    'skill_slug' => $slug,
-                    'description' => "{$slug} description",
-                ])
-                ->toMediaCollection(Channel::SkillCollection, 'public');
-        }
+        $this->assertSame('channel-skill', data_get($resolved, 'channel.0.slug'));
+        $this->assertSame('space-skill', data_get($resolved, 'space.0.slug'));
+        $this->assertSame('thread-skill', data_get($resolved, 'thread.0.slug'));
+        $this->assertSame('post-skill', data_get($resolved, 'post.0.slug'));
+        $this->assertCount(4, $resolved['entries']);
+    }
 
-        $route->addMediaFromString(<<<'MARKDOWN'
----
-name: route-attached
-description: route attached description
----
-
-# route-attached
-
-Use route-attached.
-MARKDOWN)
-            ->usingName('route-attached')
-            ->usingFileName('route-attached.md')
-            ->withCustomProperties([
-                'skill_slug' => 'route-attached',
-                'description' => 'route attached description',
-            ])
-            ->toMediaCollection(Channel::SkillCollection, 'public');
-
-        $address->addMediaFromString(<<<'MARKDOWN'
----
-name: address-attached
-description: address attached description
----
-
-# address-attached
-
-Use address-attached.
-MARKDOWN)
-            ->usingName('address-attached')
-            ->usingFileName('address-attached.md')
-            ->withCustomProperties([
-                'skill_slug' => 'address-attached',
-                'description' => 'address attached description',
-            ])
-            ->toMediaCollection(Channel::SkillCollection, 'public');
-
-        $resolved = app(ChannelSkillContextResolver::class)->resolve($channel, $route, $address);
-
-        $this->assertSame('provider-send', data_get($resolved, 'channel.referenced.0.slug'));
-        $this->assertSame('route-attached', data_get($resolved, 'route.attached.0.slug'));
-        $this->assertSame('route-general', data_get($resolved, 'route.referenced.0.slug'));
-        $this->assertSame('route-inbound', data_get($resolved, 'route.inbound.0.slug'));
-        $this->assertSame('route-outbound', data_get($resolved, 'route.outbound.0.slug'));
-        $this->assertSame('address-attached', data_get($resolved, 'address.attached.0.slug'));
-        $this->assertSame('address-general', data_get($resolved, 'address.referenced.0.slug'));
-        $this->assertCount(7, $resolved['entries']);
+    protected function createSkill(Space $space, string $slug): Post
+    {
+        return $space->posts()->create([
+            'type' => Post::TypeSkill,
+            'tag' => $slug,
+            'status' => Post::StatusActive,
+            'data' => [
+                'text' => "Use {$slug}.",
+                'slug' => $slug,
+                'name' => $slug,
+                'description' => "{$slug} description",
+            ],
+            'meta' => [],
+        ]);
     }
 }

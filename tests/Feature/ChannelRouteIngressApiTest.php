@@ -8,7 +8,6 @@ use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Storage;
 use Spatie\WebhookClient\Models\WebhookCall;
 use Tests\TestCase;
 
@@ -18,8 +17,6 @@ class ChannelRouteIngressApiTest extends TestCase
 
     public function test_it_accepts_inbound_messages_for_a_thread_address(): void
     {
-        Storage::fake('public');
-
         $user = User::factory()->create();
         $channel = Channel::factory()->create([
             'driver' => Channel::ProtocolGeneric,
@@ -59,23 +56,19 @@ class ChannelRouteIngressApiTest extends TestCase
             'data' => [],
             'meta' => [],
         ]);
-        $route->addMediaFromString(<<<'MARKDOWN'
----
-name: waha-webhook-ingest
-description: Normalize WAHA inbound webhook payloads.
----
-
-# WAHA Webhook Ingest
-
-Map chatId to the provider target and text to the inbound message body.
-MARKDOWN)
-            ->usingName('waha-webhook-ingest')
-            ->usingFileName('waha-webhook-ingest.md')
-            ->withCustomProperties([
-                'skill_slug' => 'waha-webhook-ingest',
+        $skill = $space->posts()->create([
+            'type' => Post::TypeSkill,
+            'tag' => 'waha-webhook-ingest',
+            'status' => Post::StatusActive,
+            'data' => [
+                'text' => 'Map chatId to the provider target and text to the inbound message body.',
+                'slug' => 'waha-webhook-ingest',
+                'name' => 'WAHA Webhook Ingest',
                 'description' => 'Normalize WAHA inbound webhook payloads.',
-            ])
-            ->toMediaCollection(Channel::SkillCollection, 'public');
+            ],
+            'meta' => [],
+        ]);
+        $skill->attachRelation($channel, Post::RelationRoleSkill);
         $address = $route->addresses()->create([
             'addressable_type' => $thread->getMorphClass(),
             'addressable_id' => $thread->getKey(),

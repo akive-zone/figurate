@@ -29,9 +29,13 @@ class Post extends Model implements HasMedia
 
     public const TypeSystem = 'system';
 
+    public const TypeSkill = 'skill';
+
     public const RelationRoleContext = 'context';
 
     public const RelationRoleSender = 'sender';
+
+    public const RelationRoleSkill = 'skill';
 
     public const StatusActive = 'active';
 

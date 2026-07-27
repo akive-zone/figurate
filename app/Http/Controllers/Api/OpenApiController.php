@@ -186,6 +186,7 @@ class OpenApiController extends Controller
             'api.nodes.store',
             'api.edges.store',
             'api.spaces.store',
+            'api.posts.store',
         ], true)) {
             $parameters->push([
                 '$ref' => '#/components/parameters/IdempotencyKey',
@@ -220,8 +221,28 @@ class OpenApiController extends Controller
             ];
         }
 
+        if ($name === 'api.form.store') {
+            $response = [
+                'description' => 'The body was formed or submitted.',
+                'content' => [
+                    'application/json' => [
+                        'schema' => ['$ref' => '#/components/schemas/Envelope'],
+                    ],
+                ],
+            ];
+
+            return [
+                '200' => $response,
+                '201' => $response,
+                '202' => $response,
+                '401' => ['$ref' => '#/components/responses/Unauthenticated'],
+                '403' => ['$ref' => '#/components/responses/Forbidden'],
+                '404' => ['$ref' => '#/components/responses/NotFound'],
+                '422' => ['$ref' => '#/components/responses/ValidationError'],
+            ];
+        }
+
         $successStatus = match ($name) {
-            'api.form.store' => '202',
             'api.auth.login', 'api.auth.register' => '200',
             default => $method === 'post' ? '201' : '200',
         };
@@ -249,6 +270,8 @@ class OpenApiController extends Controller
             'api.auth.login' => 'LoginRequest',
             'api.auth.credentials.store' => 'ApiCredentialRequest',
             'api.form.store' => 'FormRequest',
+            'api.threads.store' => 'ThreadCreateRequest',
+            'api.posts.store' => 'PostCreateRequest',
             'api.nodes.store' => 'NodeCreateRequest',
             'api.nodes.update' => 'NodeUpdateRequest',
             'api.edges.store' => 'EdgeCreateRequest',
@@ -341,7 +364,49 @@ class OpenApiController extends Controller
                     'type' => 'string',
                     'enum' => TokenAbility::thirdPartyValues(),
                 ],
-                'FormRequest' => $object,
+                'FormRelationTarget' => [
+                    'type' => 'object',
+                    'required' => ['type', 'id'],
+                    'properties' => [
+                        'type' => ['type' => 'string', 'enum' => ['channel', 'space', 'thread', 'post']],
+                        'id' => $publicId,
+                    ],
+                ],
+                'FormRelation' => [
+                    'type' => 'object',
+                    'required' => ['role', 'target'],
+                    'properties' => [
+                        'role' => ['type' => 'string'],
+                        'purpose' => ['type' => ['string', 'null']],
+                        'target' => ['$ref' => '#/components/schemas/FormRelationTarget'],
+                    ],
+                ],
+                'FormBody' => [
+                    'type' => 'object',
+                    'required' => ['type'],
+                    'properties' => [
+                        'type' => $nodeTypes,
+                        'id' => ['type' => ['string', 'null']],
+                        'parent' => [
+                            'anyOf' => [
+                                ['$ref' => '#/components/schemas/NodeReference'],
+                                ['type' => 'null'],
+                            ],
+                        ],
+                        'attributes' => $object,
+                        'relations' => [
+                            'type' => 'array',
+                            'items' => ['$ref' => '#/components/schemas/FormRelation'],
+                        ],
+                    ],
+                ],
+                'FormRequest' => [
+                    'type' => 'object',
+                    'required' => ['body'],
+                    'properties' => [
+                        'body' => ['$ref' => '#/components/schemas/FormBody'],
+                    ],
+                ],
                 'NodeReference' => [
                     'type' => 'object',
                     'required' => ['type', 'id'],
@@ -368,6 +433,30 @@ class OpenApiController extends Controller
                     'type' => 'object',
                     'required' => ['attributes'],
                     'properties' => ['attributes' => $object],
+                ],
+                'PostCreateRequest' => [
+                    'type' => 'object',
+                    'required' => ['parent', 'attributes'],
+                    'properties' => [
+                        'parent' => ['$ref' => '#/components/schemas/NodeReference'],
+                        'attributes' => $object,
+                        'relations' => [
+                            'type' => 'array',
+                            'items' => ['$ref' => '#/components/schemas/FormRelation'],
+                        ],
+                    ],
+                ],
+                'ThreadCreateRequest' => [
+                    'type' => 'object',
+                    'required' => ['parent', 'attributes'],
+                    'properties' => [
+                        'parent' => ['$ref' => '#/components/schemas/NodeReference'],
+                        'attributes' => $object,
+                        'relations' => [
+                            'type' => 'array',
+                            'items' => ['$ref' => '#/components/schemas/FormRelation'],
+                        ],
+                    ],
                 ],
                 'EdgeCreateRequest' => [
                     'type' => 'object',

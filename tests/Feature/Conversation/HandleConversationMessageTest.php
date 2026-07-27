@@ -45,10 +45,16 @@ class HandleConversationMessageTest extends TestCase
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
         $this->postJson('/api/form', [
-            'space' => $space->uuid,
-            'thread' => $thread->uuid,
-            'content' => [
-                'text' => 'Please help me scope the repair.',
+            'body' => [
+                'type' => 'post',
+                'parent' => [
+                    'type' => 'thread',
+                    'id' => $thread->uuid,
+                ],
+                'attributes' => [
+                    'post_type' => Post::TypeMessage,
+                    'text' => 'Please help me scope the repair.',
+                ],
             ],
         ])
             ->assertAccepted()
@@ -82,10 +88,16 @@ class HandleConversationMessageTest extends TestCase
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
         $this->postJson('/api/form', [
-            'space' => $space->uuid,
-            'thread' => $thread->uuid,
-            'content' => [
-                'text' => 'I have shared the details with the artisan.',
+            'body' => [
+                'type' => 'post',
+                'parent' => [
+                    'type' => 'thread',
+                    'id' => $thread->uuid,
+                ],
+                'attributes' => [
+                    'post_type' => Post::TypeMessage,
+                    'text' => 'I have shared the details with the artisan.',
+                ],
             ],
         ])
             ->assertOk()
@@ -118,10 +130,16 @@ class HandleConversationMessageTest extends TestCase
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
         $this->postJson('/api/form', [
-            'space' => $space->uuid,
-            'thread' => $thread->uuid,
-            'content' => [
-                'text' => 'We are confirming the visit window now.',
+            'body' => [
+                'type' => 'post',
+                'parent' => [
+                    'type' => 'thread',
+                    'id' => $thread->uuid,
+                ],
+                'attributes' => [
+                    'post_type' => Post::TypeMessage,
+                    'text' => 'We are confirming the visit window now.',
+                ],
             ],
         ])
             ->assertAccepted()

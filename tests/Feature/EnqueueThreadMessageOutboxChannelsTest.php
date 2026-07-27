@@ -13,7 +13,6 @@ use App\Models\Server\Thread;
 use App\Models\Server\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class EnqueueThreadMessageOutboxChannelsTest extends TestCase
@@ -23,7 +22,6 @@ class EnqueueThreadMessageOutboxChannelsTest extends TestCase
     public function test_it_enqueues_channel_outbox_records_for_active_thread_channel_addresses(): void
     {
         Queue::fake();
-        Storage::fake('public');
 
         $sender = User::factory()->create();
         $space = Space::factory()->create();
@@ -59,23 +57,19 @@ class EnqueueThreadMessageOutboxChannelsTest extends TestCase
             ],
             'meta' => [],
         ]);
-        $route->addMediaFromString(<<<'MARKDOWN'
----
-name: waha-http-send
-description: Shape outbound WAHA HTTP payloads.
----
-
-# WAHA HTTP Send
-
-Use chatId and text for outbound delivery.
-MARKDOWN)
-            ->usingName('waha-http-send')
-            ->usingFileName('waha-http-send.md')
-            ->withCustomProperties([
-                'skill_slug' => 'waha-http-send',
+        $skill = $space->posts()->create([
+            'type' => Post::TypeSkill,
+            'tag' => 'waha-http-send',
+            'status' => Post::StatusActive,
+            'data' => [
+                'text' => 'Use chatId and text for outbound delivery.',
+                'slug' => 'waha-http-send',
+                'name' => 'WAHA HTTP Send',
                 'description' => 'Shape outbound WAHA HTTP payloads.',
-            ])
-            ->toMediaCollection(Channel::SkillCollection, 'public');
+            ],
+            'meta' => [],
+        ]);
+        $skill->attachRelation($thread, Post::RelationRoleSkill);
         $address = $route->addresses()->create([
             'addressable_type' => $thread->getMorphClass(),
             'addressable_id' => $thread->getKey(),

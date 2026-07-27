@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
@@ -57,9 +58,16 @@ class ThreadMessageNotificationDispatchTest extends TestCase
         Sanctum::actingAs($sender, [TokenAbility::Compose->value]);
 
         $this->postJson('/api/form', [
-            'thread' => $thread->uuid,
-            'content' => [
-                'text' => 'Please confirm the arrival time.',
+            'body' => [
+                'type' => 'post',
+                'parent' => [
+                    'type' => 'thread',
+                    'id' => $thread->uuid,
+                ],
+                'attributes' => [
+                    'post_type' => Post::TypeMessage,
+                    'text' => 'Please confirm the arrival time.',
+                ],
             ],
         ])->assertOk();
 

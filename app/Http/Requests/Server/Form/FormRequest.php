@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\Server\Form;
 
+use App\Models\Server\Post;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest as BaseFormRequest;
+use Illuminate\Validation\Validator;
 
 class FormRequest extends BaseFormRequest
 {
@@ -18,46 +20,38 @@ class FormRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'space' => ['nullable', 'uuid', 'exists:spaces,uuid'],
-            'thread' => ['nullable', 'uuid', 'exists:threads,uuid'],
-            'content' => ['required', 'array:text,attachments,actions,errors'],
-            'content.text' => ['nullable', 'required_without_all:content.attachments,content.actions,content.errors', 'string', 'max:5000'],
-            'content.actions' => ['nullable', 'array', 'max:16'],
-            'content.actions.*' => ['array:protocol,name,id,surfaceId,sourceComponentId,timestamp,context,values'],
-            'content.attachments' => ['nullable', 'array', 'max:8'],
-            'content.attachments.*' => ['file', 'max:10240', 'mimes:jpg,jpeg,png,webp,pdf,doc,docx,txt,mp4,mov,mp3,wav,m4a'],
-            'content.actions.*.protocol' => ['nullable', 'string', 'max:40'],
-            'content.actions.*.name' => ['nullable', 'string', 'max:120'],
-            'content.actions.*.id' => ['nullable', 'string', 'max:120'],
-            'content.actions.*.surfaceId' => ['nullable', 'string', 'max:160'],
-            'content.actions.*.sourceComponentId' => ['nullable', 'string', 'max:160'],
-            'content.actions.*.timestamp' => ['nullable', 'string', 'max:64'],
-            'content.actions.*.context' => ['nullable', 'array'],
-            'content.actions.*.values' => ['nullable', 'array'],
-            'content.errors' => ['nullable', 'array', 'max:16'],
-            'content.errors.*' => ['array:protocol,code,path,message,userAction'],
-            'content.errors.*.protocol' => ['nullable', 'string', 'max:40'],
-            'content.errors.*.code' => ['nullable', 'string', 'max:160'],
-            'content.errors.*.path' => ['nullable', 'string', 'max:200'],
-            'content.errors.*.message' => ['nullable', 'string', 'max:2000'],
-            'content.errors.*.userAction' => ['nullable', 'array:protocol,name,id,surfaceId,sourceComponentId,timestamp,context,values'],
-            'content.errors.*.userAction.protocol' => ['nullable', 'string', 'max:40'],
-            'content.errors.*.userAction.name' => ['nullable', 'string', 'max:120'],
-            'content.errors.*.userAction.id' => ['nullable', 'string', 'max:120'],
-            'content.errors.*.userAction.surfaceId' => ['nullable', 'string', 'max:160'],
-            'content.errors.*.userAction.sourceComponentId' => ['nullable', 'string', 'max:160'],
-            'content.errors.*.userAction.timestamp' => ['nullable', 'string', 'max:64'],
-            'content.errors.*.userAction.context' => ['nullable', 'array'],
-            'content.errors.*.userAction.values' => ['nullable', 'array'],
-            'extra' => ['nullable', 'array'],
-            'extra.a2ui' => ['nullable', 'array:config,surface'],
-            'extra.a2ui.config' => ['nullable', 'array:a2uiClientDataModel,a2uiClientCapabilities'],
-            'extra.a2ui.config.a2uiClientDataModel' => ['nullable', 'string', 'max:40'],
-            'extra.a2ui.config.a2uiClientCapabilities' => ['nullable', 'array:supportedCatalogIds,acceptsInlineCatalogs'],
-            'extra.a2ui.config.a2uiClientCapabilities.supportedCatalogIds' => ['nullable', 'array', 'max:64'],
-            'extra.a2ui.config.a2uiClientCapabilities.supportedCatalogIds.*' => ['string', 'max:160'],
-            'extra.a2ui.config.a2uiClientCapabilities.acceptsInlineCatalogs' => ['nullable', 'boolean'],
-            'extra.a2ui.surface' => ['nullable', 'array'],
+            'body' => ['required', 'array:type,id,parent,attributes,relations'],
+            'body.type' => ['required', 'string', 'in:space,thread,post'],
+            'body.id' => ['nullable', 'string'],
+            'body.parent' => ['nullable', 'array:type,id'],
+            'body.parent.type' => ['nullable', 'required_with:body.parent.id', 'string', 'in:space,thread,post'],
+            'body.parent.id' => ['nullable', 'required_with:body.parent.type', 'string'],
+            'body.attributes' => ['nullable', 'array:status,title,purpose,phase,post_type,tag,text,payload,meta,occurred_at,attachments,actions,errors,extra,conversation_persistence'],
+            'body.attributes.status' => ['nullable', 'string', 'max:100'],
+            'body.attributes.title' => ['nullable', 'string', 'max:255'],
+            'body.attributes.purpose' => ['nullable', 'string', 'max:50'],
+            'body.attributes.phase' => ['nullable', 'string', 'max:100'],
+            'body.attributes.post_type' => ['nullable', 'string', 'max:100'],
+            'body.attributes.tag' => ['nullable', 'string', 'max:100'],
+            'body.attributes.text' => ['nullable', 'string', 'max:5000'],
+            'body.attributes.payload' => ['nullable', 'array'],
+            'body.attributes.meta' => ['nullable', 'array'],
+            'body.attributes.occurred_at' => ['nullable', 'date'],
+            'body.attributes.attachments' => ['nullable', 'array', 'max:8'],
+            'body.attributes.attachments.*' => ['file', 'max:10240', 'mimes:jpg,jpeg,png,webp,pdf,doc,docx,txt,mp4,mov,mp3,wav,m4a'],
+            'body.attributes.actions' => ['nullable', 'array', 'max:16'],
+            'body.attributes.actions.*' => ['array'],
+            'body.attributes.errors' => ['nullable', 'array', 'max:16'],
+            'body.attributes.errors.*' => ['array'],
+            'body.attributes.extra' => ['nullable', 'array'],
+            'body.attributes.conversation_persistence' => ['nullable', 'string', 'max:80'],
+            'body.relations' => ['nullable', 'array', 'max:32'],
+            'body.relations.*' => ['array:role,purpose,target'],
+            'body.relations.*.role' => ['required', 'string', 'max:100'],
+            'body.relations.*.purpose' => ['nullable', 'string', 'max:255'],
+            'body.relations.*.target' => ['required', 'array:type,id'],
+            'body.relations.*.target.type' => ['required', 'string', 'in:channel,space,thread,post'],
+            'body.relations.*.target.id' => ['required', 'string'],
         ];
     }
 
@@ -67,61 +61,92 @@ class FormRequest extends BaseFormRequest
     public function messages(): array
     {
         return [
-            'space.exists' => 'The selected space was not found.',
-            'thread.exists' => 'The selected thread was not found.',
-            'content.text.required_without_all' => 'Enter a text, submit an action, report an error, or attach media.',
-            'content.actions.max' => 'You can submit up to 16 actions at once.',
-            'content.errors.max' => 'You can submit up to 16 client errors at once.',
-            'content.array' => 'Unsupported content fields were provided.',
-            'extra.array' => 'Unsupported extra fields were provided.',
-            'content.attachments.max' => 'You can attach up to 8 files.',
-            'content.attachments.*.max' => 'Each file must be 10MB or smaller.',
-            'content.attachments.*.mimes' => 'One or more files have an unsupported type.',
+            'body.required' => 'A body describing what should be formed is required.',
+            'body.attributes.attachments.max' => 'You can attach up to 8 files.',
+            'body.attributes.attachments.*.max' => 'Each file must be 10MB or smaller.',
+            'body.attributes.attachments.*.mimes' => 'One or more files have an unsupported type.',
+        ];
+    }
+
+    /**
+     * @return array<int, \Closure(Validator): void>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                $body = $this->input('body');
+
+                if (! is_array($body)) {
+                    return;
+                }
+
+                $type = $body['type'] ?? null;
+                $id = $body['id'] ?? null;
+                $parentType = data_get($body, 'parent.type');
+                $parentId = data_get($body, 'parent.id');
+                $isExisting = is_string($id) && trim($id) !== '';
+
+                if ($isExisting && is_array($body['parent'] ?? null)) {
+                    $validator->errors()->add('body.parent', 'An existing node cannot be assigned a new hierarchical parent through Form.');
+                }
+
+                if (! $isExisting && $type === 'space' && $parentType !== null && $parentType !== 'space') {
+                    $validator->errors()->add('body.parent.type', 'A Space node may only be contained by another Space.');
+                }
+
+                if (
+                    ! $isExisting
+                    && in_array($type, ['thread', 'post'], true)
+                    && (! is_string($parentId) || trim($parentId) === '')
+                ) {
+                    $validator->errors()->add('body.parent.id', 'A parent node is required.');
+                }
+
+                if (! $isExisting && $type === 'thread' && ! in_array($parentType, ['space', 'thread'], true)) {
+                    $validator->errors()->add('body.parent.type', 'A Thread node must be contained by a Space or Thread.');
+                }
+
+                if (! $isExisting && $type === 'post' && ! in_array($parentType, ['space', 'thread', 'post'], true)) {
+                    $validator->errors()->add('body.parent.type', 'A Post node must be contained by a Space, Thread, or Post.');
+                }
+
+                if (
+                    ! $isExisting
+                    && $type === 'thread'
+                    && ! is_string(data_get($body, 'attributes.title'))
+                ) {
+                    $validator->errors()->add('body.attributes.title', 'A Thread title is required.');
+                }
+
+                $postType = data_get($body, 'attributes.post_type', Post::TypeMessage);
+                if (
+                    ! $isExisting
+                    && $type === 'post'
+                    && $parentType === 'thread'
+                    && $postType === Post::TypeMessage
+                    && ! is_string(data_get($body, 'attributes.text'))
+                ) {
+                    $validator->errors()->add('body.attributes.text', 'A message Post formed under a Thread requires text.');
+                }
+            },
         ];
     }
 
     protected function prepareForValidation(): void
     {
-        $content = $this->input('content');
-        $extra = $this->input('extra');
+        $body = $this->input('body');
 
-        if (is_array($content)) {
-            $content['text'] = $this->trimmedString($content['text'] ?? null);
-            $this->merge(['content' => $content]);
+        if (! is_array($body)) {
+            return;
         }
 
-        if (is_array($extra)) {
-            if (is_array(data_get($extra, 'a2ui.config'))) {
-                data_set(
-                    $extra,
-                    'a2ui.config.a2uiClientDataModel',
-                    $this->trimmedString(data_get($extra, 'a2ui.config.a2uiClientDataModel'))
-                );
+        $text = data_get($body, 'attributes.text');
 
-                $supportedCatalogIds = data_get($extra, 'a2ui.config.a2uiClientCapabilities.supportedCatalogIds');
-                if (is_array($supportedCatalogIds)) {
-                    $normalizedCatalogIds = collect($supportedCatalogIds)
-                        ->map(fn (mixed $catalogId): ?string => $this->trimmedString($catalogId))
-                        ->filter(fn (mixed $catalogId): bool => is_string($catalogId) && $catalogId !== '')
-                        ->values()
-                        ->all();
-
-                    data_set($extra, 'a2ui.config.a2uiClientCapabilities.supportedCatalogIds', $normalizedCatalogIds);
-                }
-            }
-
-            $this->merge(['extra' => $extra]);
-        }
-    }
-
-    protected function trimmedString(mixed $value): ?string
-    {
-        if (! is_string($value)) {
-            return null;
+        if (is_string($text)) {
+            data_set($body, 'attributes.text', trim($text));
         }
 
-        $trimmed = trim($value);
-
-        return $trimmed === '' ? null : $trimmed;
+        $this->merge(['body' => $body]);
     }
 }

@@ -1,11 +1,12 @@
 <?php
 
-namespace App\Http\Requests\Server\Post;
+namespace App\Http\Requests\Server\Thread;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
-class StorePostRequest extends FormRequest
+class StoreThreadRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -19,16 +20,13 @@ class StorePostRequest extends FormRequest
     {
         return [
             'parent' => ['required', 'array:type,id'],
-            'parent.type' => ['required', 'string', 'in:space,thread,post'],
+            'parent.type' => ['required', 'string', 'in:space,thread'],
             'parent.id' => ['required', 'string'],
-            'attributes' => ['required', 'array:status,post_type,tag,text,payload,meta,occurred_at'],
+            'attributes' => ['required', 'array:title,purpose,phase,status'],
+            'attributes.title' => ['required', 'string', 'max:255'],
+            'attributes.purpose' => ['nullable', 'string', 'max:50'],
+            'attributes.phase' => ['nullable', 'string', 'max:100'],
             'attributes.status' => ['nullable', 'string', 'max:100'],
-            'attributes.post_type' => ['nullable', 'string', 'max:100'],
-            'attributes.tag' => ['nullable', 'string', 'max:100'],
-            'attributes.text' => ['nullable', 'string'],
-            'attributes.payload' => ['nullable', 'array'],
-            'attributes.meta' => ['nullable', 'array'],
-            'attributes.occurred_at' => ['nullable', 'date'],
             'relations' => ['nullable', 'array', 'max:32'],
             'relations.*' => ['array:role,purpose,target'],
             'relations.*.role' => ['required', 'string', 'max:100'],
@@ -36,6 +34,22 @@ class StorePostRequest extends FormRequest
             'relations.*.target' => ['required', 'array:type,id'],
             'relations.*.target.type' => ['required', 'string', 'in:channel,space,thread,post'],
             'relations.*.target.id' => ['required', 'string'],
+        ];
+    }
+
+    /**
+     * @return array<int, \Closure(Validator): void>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                $parentId = $this->input('parent.id');
+
+                if (! is_string($parentId) || trim($parentId) === '') {
+                    $validator->errors()->add('parent.id', 'A parent node is required.');
+                }
+            },
         ];
     }
 }

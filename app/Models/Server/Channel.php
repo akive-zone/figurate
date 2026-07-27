@@ -9,13 +9,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Spatie\MediaLibrary\HasMedia;
-use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Channel extends Model implements HasMedia
+class Channel extends Model
 {
     /** @use HasFactory<ChannelFactory> */
-    use HasFactory, HasPublicUuid, InteractsWithMedia, SoftDeletes;
+    use HasFactory, HasPublicUuid, SoftDeletes;
 
     public const StatusActive = 'active';
 
@@ -48,8 +46,6 @@ class Channel extends Model implements HasMedia
     public const TransportRelay = 'relay';
 
     public const TransportStdio = 'stdio';
-
-    public const SkillCollection = 'skills';
 
     public const HealthHealthy = 'healthy';
 
@@ -116,11 +112,6 @@ class Channel extends Model implements HasMedia
     public function routes(): HasMany
     {
         return $this->hasMany(ChannelRoute::class);
-    }
-
-    public function registerMediaCollections(): void
-    {
-        $this->addMediaCollection(self::SkillCollection);
     }
 
     public function threads(): MorphToMany

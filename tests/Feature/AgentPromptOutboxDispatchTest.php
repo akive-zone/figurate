@@ -84,11 +84,17 @@ class AgentPromptOutboxDispatchTest extends TestCase
         Sanctum::actingAs($sender, [TokenAbility::Compose->value]);
 
         $response = $this->postJson('/api/form', [
-            'space' => $space->uuid,
-            'thread' => $thread->uuid,
-            'conversation_persistence' => ConversationPersistenceResolver::ThreadCompletion,
-            'content' => [
-                'text' => 'Compile the latest update.',
+            'body' => [
+                'type' => 'post',
+                'parent' => [
+                    'type' => 'thread',
+                    'id' => $thread->uuid,
+                ],
+                'attributes' => [
+                    'post_type' => Post::TypeMessage,
+                    'text' => 'Compile the latest update.',
+                    'conversation_persistence' => ConversationPersistenceResolver::ThreadCompletion,
+                ],
             ],
         ])->assertAccepted();
 

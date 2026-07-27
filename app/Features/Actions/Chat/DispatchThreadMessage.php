@@ -94,7 +94,7 @@ class DispatchThreadMessage
         $request = request();
 
         return ConversationPersistenceResolver::normalizeMode(
-            $request?->input('conversation_persistence')
+            $request?->input('body.attributes.conversation_persistence')
             ?? $request?->header('X-Conversation-Persistence')
         );
     }

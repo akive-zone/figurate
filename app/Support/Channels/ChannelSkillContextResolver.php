@@ -6,66 +6,47 @@ use App\Ai\Support\Skills\SkillRepository;
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelAddress;
 use App\Models\Server\ChannelRoute;
-use Spatie\MediaLibrary\HasMedia;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use App\Models\Server\Post;
+use App\Models\Server\Space;
+use App\Models\Server\Thread;
+use Illuminate\Database\Eloquent\Model;
 
 class ChannelSkillContextResolver
 {
-    public function __construct(
-        protected SkillRepository $skillRepository,
-    ) {}
+    public function __construct(protected SkillRepository $skillRepository) {}
 
     /**
      * @return array<string, mixed>
      */
-    public function resolve(Channel $channel, ?ChannelRoute $route = null, ?ChannelAddress $address = null, bool $includeContent = true): array
-    {
-        $channelSkills = [
-            'attached' => $this->mediaEntries($channel, $includeContent),
-            'referenced' => $this->referencedEntries($this->skillSlugs(data_get($channel->config, 'skills')), $includeContent),
-        ];
-
-        $routeSkills = [
-            'attached' => $route instanceof ChannelRoute ? $this->mediaEntries($route, $includeContent) : [],
-            'referenced' => $route instanceof ChannelRoute
-                ? $this->referencedEntries($this->skillSlugs(data_get($route->config, 'skills')), $includeContent)
-                : [],
-            'inbound' => $route instanceof ChannelRoute
-                ? $this->referencedEntries($this->skillSlugs(data_get($route->config, 'inbound.skills')), $includeContent)
-                : [],
-            'outbound' => $route instanceof ChannelRoute
-                ? $this->referencedEntries($this->skillSlugs(data_get($route->config, 'outbound.skills')), $includeContent)
-                : [],
-        ];
-
-        $addressSkills = [
-            'attached' => $address instanceof ChannelAddress ? $this->mediaEntries($address, $includeContent) : [],
-            'referenced' => $address instanceof ChannelAddress
-                ? $this->referencedEntries($this->skillSlugs(data_get($address->data, 'skills')), $includeContent)
-                : [],
-            'inbound' => $address instanceof ChannelAddress
-                ? $this->referencedEntries($this->skillSlugs(data_get($address->data, 'inbound.skills')), $includeContent)
-                : [],
-            'outbound' => $address instanceof ChannelAddress
-                ? $this->referencedEntries($this->skillSlugs(data_get($address->data, 'outbound.skills')), $includeContent)
-                : [],
-        ];
+    public function resolve(
+        Channel $channel,
+        ?ChannelRoute $route = null,
+        ?ChannelAddress $address = null,
+        ?Post $post = null,
+        bool $includeContent = true,
+    ): array {
+        $context = $this->resolveContext($address?->addressable, $post);
+        $channelSkills = $this->attachedEntries($channel, $includeContent);
+        $spaceSkills = $context['space'] instanceof Space
+            ? $this->attachedEntries($context['space'], $includeContent)
+            : [];
+        $threadSkills = $context['thread'] instanceof Thread
+            ? $this->attachedEntries($context['thread'], $includeContent)
+            : [];
+        $postSkills = $post instanceof Post
+            ? $this->attachedEntries($post, $includeContent)
+            : [];
 
         return [
             'channel' => $channelSkills,
-            'route' => $routeSkills,
-            'address' => $addressSkills,
+            'space' => $spaceSkills,
+            'thread' => $threadSkills,
+            'post' => $postSkills,
             'entries' => $this->uniqueEntries([
-                ...$channelSkills['attached'],
-                ...$channelSkills['referenced'],
-                ...$routeSkills['attached'],
-                ...$routeSkills['referenced'],
-                ...$routeSkills['inbound'],
-                ...$routeSkills['outbound'],
-                ...$addressSkills['attached'],
-                ...$addressSkills['referenced'],
-                ...$addressSkills['inbound'],
-                ...$addressSkills['outbound'],
+                ...$channelSkills,
+                ...$spaceSkills,
+                ...$threadSkills,
+                ...$postSkills,
             ]),
         ];
     }
@@ -73,16 +54,21 @@ class ChannelSkillContextResolver
     /**
      * @return array<string, mixed>
      */
-    public function summary(Channel $channel, ?ChannelRoute $route = null, ?ChannelAddress $address = null): array
-    {
-        $resolved = $this->resolve($channel, $route, $address, includeContent: false);
+    public function summary(
+        Channel $channel,
+        ?ChannelRoute $route = null,
+        ?ChannelAddress $address = null,
+        ?Post $post = null,
+    ): array {
+        $resolved = $this->resolve($channel, $route, $address, $post, includeContent: false);
 
         return [
             'entries' => $resolved['entries'],
             'counts' => [
-                'channel' => count($resolved['channel']['attached']) + count($resolved['channel']['referenced']),
-                'route' => count($resolved['route']['attached']) + count($resolved['route']['referenced']) + count($resolved['route']['inbound']) + count($resolved['route']['outbound']),
-                'address' => count($resolved['address']['attached']) + count($resolved['address']['referenced']) + count($resolved['address']['inbound']) + count($resolved['address']['outbound']),
+                'channel' => count($resolved['channel']),
+                'space' => count($resolved['space']),
+                'thread' => count($resolved['thread']),
+                'post' => count($resolved['post']),
                 'total' => count($resolved['entries']),
             ],
         ];
@@ -91,38 +77,66 @@ class ChannelSkillContextResolver
     /**
      * @return list<array<string, mixed>>
      */
-    protected function mediaEntries(HasMedia $model, bool $includeContent): array
+    protected function attachedEntries(Model $target, bool $includeContent): array
     {
-        return collect($model->getMedia(Channel::SkillCollection))
-            ->map(fn (Media $media): ?array => $this->skillRepository->fromMedia($media, $includeContent))
-            ->filter(fn (mixed $entry): bool => is_array($entry))
+        return Post::query()
+            ->where('type', Post::TypeSkill)
+            ->whereHas('relations', function ($query) use ($target): void {
+                $query
+                    ->where('role', Post::RelationRoleSkill)
+                    ->where('relationable_type', $target->getMorphClass())
+                    ->where('relationable_id', $target->getKey());
+            })
+            ->latest('id')
+            ->get()
+            ->map(fn (Post $skill): array => $this->skillRepository->fromPost($skill, $includeContent))
             ->values()
             ->all();
     }
 
     /**
-     * @param  list<string>  $slugs
-     * @return list<array<string, mixed>>
+     * @return array{space: ?Space, thread: ?Thread}
      */
-    protected function referencedEntries(array $slugs, bool $includeContent): array
+    protected function resolveContext(mixed $addressable, ?Post $post): array
     {
-        return $this->skillRepository->resolveMany($slugs, $includeContent);
-    }
+        $context = $post instanceof Post ? $post : $addressable;
+        $space = null;
+        $thread = null;
+        $visited = [];
 
-    /**
-     * @return list<string>
-     */
-    protected function skillSlugs(mixed $value): array
-    {
-        if (! is_array($value)) {
-            return [];
+        while ($context instanceof Post || $context instanceof Thread) {
+            $key = $context::class.':'.$context->getKey();
+
+            if (isset($visited[$key])) {
+                break;
+            }
+
+            $visited[$key] = true;
+
+            if ($context instanceof Thread) {
+                $thread ??= $context;
+                $context = $context->threadable;
+
+                continue;
+            }
+
+            $context = $context->postable;
         }
 
-        return collect($value)
-            ->filter(fn (mixed $slug): bool => is_string($slug) && trim($slug) !== '')
-            ->map(fn (string $slug): string => trim($slug))
-            ->values()
-            ->all();
+        if ($context instanceof Space) {
+            $space = $context;
+        } elseif ($addressable instanceof Space) {
+            $space = $addressable;
+        }
+
+        if (! $thread instanceof Thread && $addressable instanceof Thread) {
+            $thread = $addressable;
+        }
+
+        return [
+            'space' => $space,
+            'thread' => $thread,
+        ];
     }
 
     /**
@@ -132,12 +146,7 @@ class ChannelSkillContextResolver
     protected function uniqueEntries(array $entries): array
     {
         return collect($entries)
-            ->filter(fn (mixed $entry): bool => is_array($entry))
-            ->unique(fn (array $entry): string => implode(':', [
-                (string) ($entry['source'] ?? 'unknown'),
-                (string) ($entry['slug'] ?? 'unknown'),
-                (string) ($entry['skill_path'] ?? 'unknown'),
-            ]))
+            ->unique(fn (array $entry): string => (string) ($entry['post_id'] ?? $entry['slug'] ?? 'unknown'))
             ->values()
             ->all();
     }
