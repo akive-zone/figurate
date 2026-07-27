@@ -25,6 +25,7 @@ class ThreadNodeController extends Controller
             $parent,
             $request->validated('cursor'),
             (int) ($request->validated('per_page') ?? 25),
+            $request->validated('type'),
         );
         $children = $page['nodes'];
 

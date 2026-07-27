@@ -3,13 +3,14 @@
 namespace App\Ai\Gateways\Mcp\Tools;
 
 use App\Ai\Gateways\Mcp\Support\FigurateMcpPayloads;
+use App\Support\Graph\GraphEdgeExplorer;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Tool;
 
-#[Description('Create a typed graph edge between spaces, threads, and posts.')]
+#[Description('Create a semantic graph edge between spaces, threads, and posts without changing their node hierarchy.')]
 class CreateGraphEdgeTool extends Tool
 {
     public function handle(Request $request, FigurateMcpPayloads $payloads): Response
@@ -19,7 +20,7 @@ class CreateGraphEdgeTool extends Tool
             'source_id' => ['required', 'string'],
             'target_type' => ['required', 'string', 'in:space,thread,post'],
             'target_id' => ['required', 'string'],
-            'edge_type' => ['required', 'string', 'in:related_to,references,depends_on,blocks,derived_from,child_of'],
+            'edge_type' => ['required', 'string', 'max:100', 'not_in:'.implode(',', GraphEdgeExplorer::ReservedEdgeTypes)],
             'purpose' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -63,14 +64,9 @@ class CreateGraphEdgeTool extends Tool
             'source_id' => $schema->string()->description('The source node public ID.')->required(),
             'target_type' => $schema->string()->description('The target node type.')->enum('space', 'thread', 'post')->required(),
             'target_id' => $schema->string()->description('The target node public ID.')->required(),
-            'edge_type' => $schema->string()->description('The typed edge label.')->enum(
-                'related_to',
-                'references',
-                'depends_on',
-                'blocks',
-                'derived_from',
-                'child_of',
-            )->required(),
+            'edge_type' => $schema->string()
+                ->description('An open-ended semantic relationship label. Structural labels such as child_of are reserved.')
+                ->required(),
             'purpose' => $schema->string()->description('Optional note describing why the edge exists.'),
         ];
     }

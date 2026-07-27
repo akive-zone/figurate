@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\Server\Graph;
 
+use App\Support\Graph\GraphEdgeExplorer;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class QueryGraphEdgesRequest extends FormRequest
 {
@@ -21,7 +23,7 @@ class QueryGraphEdgesRequest extends FormRequest
             'node_type' => ['required', 'string', 'in:space,thread,post'],
             'node_id' => ['required', 'string'],
             'direction' => ['nullable', 'string', 'in:outgoing,incoming,both'],
-            'edge_type' => ['nullable', 'string', 'in:related_to,references,depends_on,blocks,derived_from,child_of'],
+            'edge_type' => ['nullable', 'string', 'max:100', Rule::notIn(GraphEdgeExplorer::ReservedEdgeTypes)],
             'target_type' => ['nullable', 'string', 'in:space,thread,post'],
             'depth' => ['nullable', 'integer', 'min:1', 'max:5'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:100'],

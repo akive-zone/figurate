@@ -13,6 +13,11 @@ use Illuminate\Support\Collection;
 
 class GraphEdgeExplorer
 {
+    public const ReservedEdgeTypes = [
+        SpaceRelation::TypeChildOf,
+        Post::RelationRoleSender,
+    ];
+
     public const DirectionOutgoing = 'outgoing';
 
     public const DirectionIncoming = 'incoming';
@@ -133,10 +138,11 @@ class GraphEdgeExplorer
             return collect();
         }
 
+        $column = $node instanceof Post ? 'role' : 'type';
         if ($edgeType !== null) {
-            $column = $node instanceof Post ? 'role' : 'type';
-
             $query->where($column, $edgeType);
+        } else {
+            $query->whereNotIn($column, self::ReservedEdgeTypes);
         }
 
         return $query
@@ -221,6 +227,11 @@ class GraphEdgeExplorer
         return $spaceRelations
             ->merge($threadRelations)
             ->merge($postRelations)
+            ->filter(fn (SpaceRelation|ThreadRelation|PostRelation $relation): bool => in_array(
+                $this->relationType($relation),
+                self::ReservedEdgeTypes,
+                true,
+            ) === false)
             ->each(function (SpaceRelation|ThreadRelation|PostRelation $relation): void {
                 match (true) {
                     $relation instanceof SpaceRelation => $relation->loadMissing('space'),

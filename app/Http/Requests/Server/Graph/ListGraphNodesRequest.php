@@ -25,6 +25,7 @@ class ListGraphNodesRequest extends FormRequest
         return [
             'cursor' => ['nullable', 'string', 'max:2048'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'type' => ['nullable', 'string', 'in:space,thread,post'],
         ];
     }
 }

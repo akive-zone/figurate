@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\Server\Graph;
 
+use App\Support\Graph\GraphEdgeExplorer;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreGraphEdgeRequest extends FormRequest
 {
@@ -22,7 +24,7 @@ class StoreGraphEdgeRequest extends FormRequest
             'source_id' => ['required', 'string'],
             'target_type' => ['required', 'string', 'in:space,thread,post'],
             'target_id' => ['required', 'string'],
-            'edge_type' => ['required', 'string', 'in:related_to,references,depends_on,blocks,derived_from,child_of'],
+            'edge_type' => ['required', 'string', 'max:100', Rule::notIn(GraphEdgeExplorer::ReservedEdgeTypes)],
             'purpose' => ['nullable', 'string', 'max:1000'],
         ];
     }

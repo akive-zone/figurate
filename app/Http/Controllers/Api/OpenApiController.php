@@ -19,7 +19,7 @@ class OpenApiController extends Controller
             'info' => [
                 'title' => 'Figurate API',
                 'version' => (string) config('app.version', 'unreleased'),
-                'description' => 'API-first access to users, hierarchical nodes, graph edges, forms, invocations, credentials, and channels.',
+                'description' => 'API-first access to users, hierarchical nodes, semantic graph edges, forms, invocations, credentials, and channels.',
             ],
             'servers' => [
                 ['url' => url('/api')],
@@ -143,15 +143,23 @@ class OpenApiController extends Controller
                     'in' => 'query',
                     'schema' => ['type' => 'string'],
                 ],
+                [
+                    'name' => 'type',
+                    'in' => 'query',
+                    'schema' => ['type' => 'string', 'enum' => ['space', 'thread', 'post']],
+                ],
             );
         }
 
-        if (in_array($name, ['api.edges.index', 'api.form.edges.index'], true)) {
+        if ($name === 'api.edges.index') {
             foreach ([
                 ['node_type', true, ['type' => 'string', 'enum' => ['space', 'thread', 'post']]],
                 ['node_id', true, ['type' => 'string']],
                 ['direction', false, ['type' => 'string', 'enum' => ['incoming', 'outgoing', 'both']]],
-                ['edge_type', false, ['type' => 'string']],
+                ['edge_type', false, [
+                    'type' => 'string',
+                    'description' => 'Open-ended semantic label. Structural labels are reserved.',
+                ]],
                 ['target_type', false, ['type' => 'string', 'enum' => ['space', 'thread', 'post']]],
                 ['depth', false, ['type' => 'integer', 'minimum' => 1]],
                 ['limit', false, ['type' => 'integer', 'minimum' => 1]],
@@ -175,8 +183,6 @@ class OpenApiController extends Controller
 
         if (in_array($name, [
             'api.form.store',
-            'api.form.nodes.store',
-            'api.form.edges.store',
             'api.nodes.store',
             'api.edges.store',
             'api.spaces.store',
@@ -243,10 +249,10 @@ class OpenApiController extends Controller
             'api.auth.login' => 'LoginRequest',
             'api.auth.credentials.store' => 'ApiCredentialRequest',
             'api.form.store' => 'FormRequest',
-            'api.nodes.store', 'api.form.nodes.store' => 'NodeCreateRequest',
-            'api.nodes.update', 'api.form.nodes.update' => 'NodeUpdateRequest',
-            'api.edges.store', 'api.form.edges.store' => 'EdgeCreateRequest',
-            'api.edges.update', 'api.form.edges.update' => 'EdgeUpdateRequest',
+            'api.nodes.store' => 'NodeCreateRequest',
+            'api.nodes.update' => 'NodeUpdateRequest',
+            'api.edges.store' => 'EdgeCreateRequest',
+            'api.edges.update' => 'EdgeUpdateRequest',
             'api.spaces.store' => 'SpaceCreateRequest',
             'api.channels.store',
             'api.channels.update' => 'ChannelRequest',
@@ -371,14 +377,20 @@ class OpenApiController extends Controller
                         'source_id' => $publicId,
                         'target_type' => $nodeTypes,
                         'target_id' => $publicId,
-                        'edge_type' => ['type' => 'string'],
+                        'edge_type' => [
+                            'type' => 'string',
+                            'description' => 'Open-ended semantic label. Structural labels are reserved.',
+                        ],
                         'purpose' => ['type' => ['string', 'null']],
                     ],
                 ],
                 'EdgeUpdateRequest' => [
                     'type' => 'object',
                     'properties' => [
-                        'edge_type' => ['type' => 'string'],
+                        'edge_type' => [
+                            'type' => 'string',
+                            'description' => 'Open-ended semantic label. Structural labels are reserved.',
+                        ],
                         'purpose' => ['type' => ['string', 'null']],
                     ],
                     'minProperties' => 1,

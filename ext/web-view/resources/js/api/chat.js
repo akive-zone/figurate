@@ -110,16 +110,32 @@ export const fetchConversationThreads = async (conversationId, runtime = {}, que
     const template = (runtime?.routes?.conversation_threads_template ?? '').toString().trim();
     const path = template !== ''
         ? template.replace('__CONVERSATION__', conversationId)
-        : `/api/spaces/${conversationId}/threads`;
+        : `/api/spaces/${conversationId}/nodes`;
 
     try {
         const response = await axios.get(chatApiUrl(path, runtime), {
-            params: query,
+            params: {
+                ...query,
+                type: 'thread',
+            },
             headers: chatAuthHeaders(),
         });
         persistChatBootstrapHeaders(response);
 
-        return response.data;
+        const payload = response.data ?? {};
+
+        return {
+            ...payload,
+            data: Array.isArray(payload.data)
+                ? payload.data
+                    .filter((node) => node?.type === 'thread')
+                    .map((node) => ({
+                        id: node.id,
+                        ...(node.attributes ?? {}),
+                        created_at: node.created_at ?? null,
+                    }))
+                : [],
+        };
     } catch (error) {
         persistChatBootstrapHeaders(error.response);
         throw error;
@@ -127,13 +143,26 @@ export const fetchConversationThreads = async (conversationId, runtime = {}, que
 };
 
 export const createConversationThread = async (conversationId, payload, runtime = {}) => {
-    const template = (runtime?.routes?.conversation_threads_template ?? '').toString().trim();
-    const path = template !== ''
-        ? template.replace('__CONVERSATION__', conversationId)
-        : `/api/spaces/${conversationId}/threads`;
+    const configuredPath = (runtime?.routes?.node_store ?? '').toString().trim();
+    const path = configuredPath !== '' ? configuredPath : '/api/nodes';
+    const attributes = {
+        title: payload?.title,
+        purpose: payload?.purpose,
+        phase: payload?.phase,
+        status: payload?.status,
+    };
 
     try {
-        const response = await axios.post(chatApiUrl(path, runtime), payload, {
+        const response = await axios.post(chatApiUrl(path, runtime), {
+            type: 'thread',
+            parent: {
+                type: 'space',
+                id: conversationId,
+            },
+            attributes: Object.fromEntries(
+                Object.entries(attributes).filter(([, value]) => value !== undefined),
+            ),
+        }, {
             headers: chatAuthHeaders(),
         });
         persistChatBootstrapHeaders(response);
@@ -204,15 +233,37 @@ export const fetchConversationPosts = async (conversationId, runtime = {}) => {
     const template = (runtime?.routes?.conversation_posts_template ?? '').toString().trim();
     const path = template !== ''
         ? template.replace('__CONVERSATION__', conversationId)
-        : `/api/spaces/${conversationId}/posts`;
+        : `/api/spaces/${conversationId}/nodes`;
 
     try {
         const response = await axios.get(chatApiUrl(path, runtime), {
+            params: {
+                type: 'post',
+            },
             headers: chatAuthHeaders(),
         });
         persistChatBootstrapHeaders(response);
 
-        return response.data;
+        const payload = response.data ?? {};
+
+        return {
+            ...payload,
+            data: Array.isArray(payload.data)
+                ? payload.data
+                    .filter((node) => node?.type === 'post')
+                    .map((node) => ({
+                        id: node.id,
+                        type: node.attributes?.post_type,
+                        kind: node.attributes?.post_type,
+                        status: node.attributes?.status,
+                        text: node.attributes?.text,
+                        payload: node.attributes?.payload ?? {},
+                        meta: node.attributes?.meta ?? {},
+                        occurred_at: node.attributes?.occurred_at ?? null,
+                        created_at: node.created_at ?? null,
+                    }))
+                : [],
+        };
     } catch (error) {
         persistChatBootstrapHeaders(error.response);
         throw error;

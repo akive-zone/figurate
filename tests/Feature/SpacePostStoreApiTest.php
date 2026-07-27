@@ -21,7 +21,7 @@ class SpacePostStoreApiTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $this->postJson('/api/form/nodes', [
+        $this->postJson('/api/nodes', [
             'type' => 'post',
             'parent' => [
                 'type' => 'space',
@@ -89,7 +89,7 @@ class SpacePostStoreApiTest extends TestCase
 
         Sanctum::actingAs($intruder);
 
-        $this->postJson('/api/form/nodes', [
+        $this->postJson('/api/nodes', [
             'type' => 'post',
             'parent' => [
                 'type' => 'space',
@@ -105,7 +105,7 @@ class SpacePostStoreApiTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $this->postJson('/api/form/nodes', [
+        $this->postJson('/api/nodes', [
             'type' => 'post',
             'parent' => [
                 'type' => 'space',

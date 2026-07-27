@@ -17,7 +17,7 @@ class GraphEdgeApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_creates_a_graph_edge_via_http_api(): void
+    public function test_it_creates_an_open_ended_semantic_graph_edge_via_http_api(): void
     {
         $user = User::factory()->create();
         $sourceSpace = $this->accessibleSpace($user);
@@ -25,16 +25,16 @@ class GraphEdgeApiTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $this->postJson('/api/form/edges', [
+        $this->postJson('/api/edges', [
             'source_type' => 'space',
             'source_id' => $sourceSpace->uuid,
             'target_type' => 'thread',
             'target_id' => $targetThread->uuid,
-            'edge_type' => SpaceRelation::TypeReferences,
+            'edge_type' => 'supports_hypothesis',
             'purpose' => 'Space should reference this thread.',
         ])
             ->assertCreated()
-            ->assertJsonPath('data.type', SpaceRelation::TypeReferences)
+            ->assertJsonPath('data.type', 'supports_hypothesis')
             ->assertJsonPath('data.source.id', $sourceSpace->uuid)
             ->assertJsonPath('data.target.id', $targetThread->uuid);
 
@@ -42,7 +42,7 @@ class GraphEdgeApiTest extends TestCase
             'space_id' => $sourceSpace->id,
             'relationable_type' => $targetThread->getMorphClass(),
             'relationable_id' => $targetThread->id,
-            'type' => SpaceRelation::TypeReferences,
+            'type' => 'supports_hypothesis',
         ]);
     }
 
@@ -67,7 +67,7 @@ class GraphEdgeApiTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $this->getJson('/api/form/edges?'.http_build_query([
+        $this->getJson('/api/edges?'.http_build_query([
             'node_type' => 'space',
             'node_id' => $rootSpace->uuid,
             'direction' => 'outgoing',
@@ -101,7 +101,7 @@ class GraphEdgeApiTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $this->postJson('/api/form/edges', [
+        $this->postJson('/api/edges', [
             'source_type' => 'post',
             'source_id' => $sourcePost->ulid,
             'target_type' => 'thread',
@@ -132,7 +132,7 @@ class GraphEdgeApiTest extends TestCase
 
         Sanctum::actingAs($intruder);
 
-        $this->postJson('/api/form/edges', [
+        $this->postJson('/api/edges', [
             'source_type' => 'space',
             'source_id' => $sourceSpace->uuid,
             'target_type' => 'space',

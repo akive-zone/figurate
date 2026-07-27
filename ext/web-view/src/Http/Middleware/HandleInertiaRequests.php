@@ -62,7 +62,8 @@ class HandleInertiaRequests extends Middleware
                         : route('api.form.turns.index', ['invocation' => '__INVOCATION__'], false),
                     'conversation_threads_template' => $this->runtime->isNative()
                         ? route('chat.index', [], false)
-                        : route('api.spaces.threads.index', ['space' => '__CONVERSATION__'], false),
+                        : route('api.spaces.nodes.index', ['space' => '__CONVERSATION__'], false),
+                    'node_store' => $this->runtime->isNative() ? route('chat.index', [], false) : route('api.nodes.store', [], false),
                     'conversation_store' => $this->runtime->isNative() ? route('chat.index', [], false) : route('api.form.store', [], false),
                     'conversation_posts_template' => route('api.spaces.nodes.index', ['space' => '__CONVERSATION__'], false),
                     'create' => route('chat.create', [], false),

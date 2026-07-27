@@ -189,7 +189,14 @@ class GraphEdgeController extends Controller
                 ->where('ulid', $edge)
                 ->first();
 
-            if ($relation instanceof SpaceRelation || $relation instanceof ThreadRelation || $relation instanceof PostRelation) {
+            if (
+                ($relation instanceof SpaceRelation || $relation instanceof ThreadRelation || $relation instanceof PostRelation)
+                && ! in_array(
+                    $relation instanceof PostRelation ? $relation->role : $relation->type,
+                    GraphEdgeExplorer::ReservedEdgeTypes,
+                    true,
+                )
+            ) {
                 return $relation;
             }
         }

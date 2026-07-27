@@ -15,7 +15,7 @@ class ThreadPostStoreApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_stores_arbitrary_context_payloads_in_a_thread_post(): void
+    public function test_it_stores_arbitrary_context_payloads_in_a_post_node(): void
     {
         $user = User::factory()->create();
         $space = $this->accessibleSpace($user);
@@ -23,27 +23,35 @@ class ThreadPostStoreApiTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $this->postJson("/api/threads/{$thread->uuid}/posts", [
-            'text' => 'Review this fulfilment exchange.',
-            'source' => [
-                'system' => 'crm',
-                'conversation_id' => 'crm-conv-2002',
+        $this->postJson('/api/nodes', [
+            'type' => 'post',
+            'parent' => [
+                'type' => 'thread',
+                'id' => $thread->uuid,
             ],
-            'conversation' => [
-                'messages' => [
-                    [
-                        'sender' => 'customer',
-                        'body' => 'I still have no tracking number.',
+            'attributes' => [
+                'text' => 'Review this fulfilment exchange.',
+                'payload' => [
+                    'source' => [
+                        'system' => 'crm',
+                        'conversation_id' => 'crm-conv-2002',
+                    ],
+                    'conversation' => [
+                        'messages' => [
+                            [
+                                'sender' => 'customer',
+                                'body' => 'I still have no tracking number.',
+                            ],
+                        ],
                     ],
                 ],
             ],
         ])
             ->assertCreated()
-            ->assertJsonPath('data.type', Post::TypeMessage)
-            ->assertJsonPath('data.text', 'Review this fulfilment exchange.')
-            ->assertJsonPath('data.payload.source.conversation_id', 'crm-conv-2002')
-            ->assertJsonPath('data.thread.id', $thread->uuid)
-            ->assertJsonPath('data.thread.space_id', $space->uuid);
+            ->assertJsonPath('data.type', 'post')
+            ->assertJsonPath('data.attributes.post_type', Post::TypeMessage)
+            ->assertJsonPath('data.attributes.text', 'Review this fulfilment exchange.')
+            ->assertJsonPath('data.attributes.payload.source.conversation_id', 'crm-conv-2002');
 
         $post = Post::query()->latest('id')->firstOrFail();
 
@@ -59,7 +67,7 @@ class ThreadPostStoreApiTest extends TestCase
         ]);
     }
 
-    public function test_it_forbids_posting_to_an_inaccessible_thread(): void
+    public function test_it_forbids_creating_a_post_node_in_an_inaccessible_thread(): void
     {
         $owner = User::factory()->create();
         $intruder = User::factory()->create();
@@ -68,8 +76,15 @@ class ThreadPostStoreApiTest extends TestCase
 
         Sanctum::actingAs($intruder);
 
-        $this->postJson("/api/threads/{$thread->uuid}/posts", [
-            'text' => 'not allowed',
+        $this->postJson('/api/nodes', [
+            'type' => 'post',
+            'parent' => [
+                'type' => 'thread',
+                'id' => $thread->uuid,
+            ],
+            'attributes' => [
+                'text' => 'not allowed',
+            ],
         ])->assertForbidden();
     }
 

@@ -399,10 +399,17 @@ class HandleConversationMessageTest extends TestCase
 
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
-        $response = $this->postJson(sprintf('/api/spaces/%s/threads', $space->uuid), [
-            'title' => 'External workflow',
-            'purpose' => 'document_review',
-            'phase' => 'awaiting_approval',
+        $response = $this->postJson('/api/nodes', [
+            'type' => 'thread',
+            'parent' => [
+                'type' => 'space',
+                'id' => $space->uuid,
+            ],
+            'attributes' => [
+                'title' => 'External workflow',
+                'purpose' => 'document_review',
+                'phase' => 'awaiting_approval',
+            ],
         ]);
 
         $response->assertCreated();

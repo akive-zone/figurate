@@ -23,7 +23,7 @@ class GraphNodeApiTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $response = $this->postJson('/api/form/nodes', [
+        $response = $this->postJson('/api/nodes', [
             'type' => 'space',
             'parent' => [
                 'type' => 'space',
@@ -56,6 +56,20 @@ class GraphNodeApiTest extends TestCase
             ->assertJsonPath('meta.count', 1)
             ->assertJsonPath('data.0.type', 'space')
             ->assertJsonPath('data.0.id', $child->uuid);
+
+        $this->getJson("/api/edges?node_type=space&node_id={$parent->uuid}&direction=incoming")
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        $this->postJson('/api/edges', [
+            'source_type' => 'space',
+            'source_id' => $child->uuid,
+            'target_type' => 'space',
+            'target_id' => $parent->uuid,
+            'edge_type' => SpaceRelation::TypeChildOf,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('edge_type');
     }
 
     public function test_it_creates_thread_and_post_nodes_with_caller_defined_attributes(): void
@@ -65,7 +79,7 @@ class GraphNodeApiTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $threadResponse = $this->postJson('/api/form/nodes', [
+        $threadResponse = $this->postJson('/api/nodes', [
             'type' => 'thread',
             'parent' => [
                 'type' => 'space',
@@ -88,7 +102,7 @@ class GraphNodeApiTest extends TestCase
             ->where('uuid', $threadResponse->json('data.id'))
             ->firstOrFail();
 
-        $postResponse = $this->postJson('/api/form/nodes', [
+        $postResponse = $this->postJson('/api/nodes', [
             'type' => 'post',
             'parent' => [
                 'type' => 'thread',
@@ -124,13 +138,18 @@ class GraphNodeApiTest extends TestCase
                 'id' => $thread->uuid,
             ]);
 
-        $this->getJson("/api/threads/{$thread->uuid}/nodes")
+        $this->getJson("/api/spaces/{$space->uuid}/nodes?type=thread")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $thread->uuid);
+
+        $this->getJson("/api/threads/{$thread->uuid}/nodes?type=post")
             ->assertOk()
             ->assertJsonPath('parent.type', 'thread')
             ->assertJsonPath('data.0.type', 'post')
             ->assertJsonPath('data.0.id', $post->ulid);
 
-        $this->getJson("/api/form/nodes/post/{$post->ulid}")
+        $this->getJson("/api/nodes/post/{$post->ulid}")
             ->assertOk()
             ->assertJsonPath('data.attributes.meta.source', 'document-service');
     }
@@ -142,7 +161,7 @@ class GraphNodeApiTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $threadResponse = $this->postJson('/api/form/nodes', [
+        $threadResponse = $this->postJson('/api/nodes', [
             'type' => 'thread',
             'parent' => [
                 'type' => 'space',
@@ -155,7 +174,7 @@ class GraphNodeApiTest extends TestCase
 
         $threadId = $threadResponse->json('data.id');
 
-        $this->postJson('/api/form/nodes', [
+        $this->postJson('/api/nodes', [
             'type' => 'space',
             'parent' => [
                 'type' => 'thread',
@@ -165,7 +184,7 @@ class GraphNodeApiTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors('parent.type');
 
-        $postResponse = $this->postJson('/api/form/nodes', [
+        $postResponse = $this->postJson('/api/nodes', [
             'type' => 'post',
             'parent' => [
                 'type' => 'thread',
@@ -176,7 +195,7 @@ class GraphNodeApiTest extends TestCase
             ],
         ])->assertCreated();
 
-        $this->postJson('/api/form/nodes', [
+        $this->postJson('/api/nodes', [
             'type' => 'thread',
             'parent' => [
                 'type' => 'post',
@@ -197,7 +216,7 @@ class GraphNodeApiTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $parentThreadResponse = $this->postJson('/api/form/nodes', [
+        $parentThreadResponse = $this->postJson('/api/nodes', [
             'type' => 'thread',
             'parent' => [
                 'type' => 'space',
@@ -208,7 +227,7 @@ class GraphNodeApiTest extends TestCase
             ],
         ])->assertCreated();
 
-        $childThreadResponse = $this->postJson('/api/form/nodes', [
+        $childThreadResponse = $this->postJson('/api/nodes', [
             'type' => 'thread',
             'parent' => [
                 'type' => 'thread',
@@ -219,7 +238,7 @@ class GraphNodeApiTest extends TestCase
             ],
         ])->assertCreated();
 
-        $parentPostResponse = $this->postJson('/api/form/nodes', [
+        $parentPostResponse = $this->postJson('/api/nodes', [
             'type' => 'post',
             'parent' => [
                 'type' => 'thread',
@@ -230,7 +249,7 @@ class GraphNodeApiTest extends TestCase
             ],
         ])->assertCreated();
 
-        $childPostResponse = $this->postJson('/api/form/nodes', [
+        $childPostResponse = $this->postJson('/api/nodes', [
             'type' => 'post',
             'parent' => [
                 'type' => 'post',

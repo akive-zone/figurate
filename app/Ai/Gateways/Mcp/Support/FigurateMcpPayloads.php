@@ -204,21 +204,6 @@ class FigurateMcpPayloads
         return ['space', 'thread', 'post'];
     }
 
-    /**
-     * @return list<string>
-     */
-    public function allowedGraphEdgeTypes(): array
-    {
-        return [
-            SpaceRelation::TypeRelatedTo,
-            SpaceRelation::TypeReferences,
-            SpaceRelation::TypeDependsOn,
-            SpaceRelation::TypeBlocks,
-            SpaceRelation::TypeDerivedFrom,
-            SpaceRelation::TypeChildOf,
-        ];
-    }
-
     public function mapPost(Post $post): array
     {
         return [

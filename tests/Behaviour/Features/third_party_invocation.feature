@@ -37,10 +37,10 @@ Feature: Follow work submitted to Figurate
     And the response field "data.invocation.status" should equal "completed"
     And I remember response field "data.invocation.invocation_id" as "invocation_id"
 
-    When the client sends a "GET" request to "/api/threads/{{thread_id}}/posts"
+    When the client sends a "GET" request to "/api/threads/{{thread_id}}/nodes"
     Then the response status should be 200
-    And the response list "data.*.text" should contain "Termination clause requires thirty days notice."
-    And I remember field "id" from the response item in "data" where "text" equals "Termination clause requires thirty days notice." as "assistant_post_id"
+    And the response list "data.*.attributes.text" should contain "Termination clause requires thirty days notice."
+    And I remember field "id" from the response item in "data" where "attributes.text" equals "Termination clause requires thirty days notice." as "assistant_post_id"
 
     When the client sends a "GET" request to "/api/posts/{{assistant_post_id}}"
     Then the response status should be 200

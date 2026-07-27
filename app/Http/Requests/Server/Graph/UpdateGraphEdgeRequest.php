@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\Server\Graph;
 
+use App\Support\Graph\GraphEdgeExplorer;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class UpdateGraphEdgeRequest extends FormRequest
@@ -24,7 +26,7 @@ class UpdateGraphEdgeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'edge_type' => ['sometimes', 'string', 'in:related_to,references,depends_on,blocks,derived_from,child_of'],
+            'edge_type' => ['sometimes', 'string', 'max:100', Rule::notIn(GraphEdgeExplorer::ReservedEdgeTypes)],
             'purpose' => ['sometimes', 'nullable', 'string', 'max:1000'],
         ];
     }

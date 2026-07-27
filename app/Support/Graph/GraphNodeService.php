@@ -66,8 +66,21 @@ class GraphNodeService
         Space|Thread|Post $parent,
         ?string $cursor = null,
         int $perPage = 25,
+        ?string $type = null,
     ): array {
         $children = $this->children($actor, $parent);
+
+        if (is_string($type) && $type !== '') {
+            $children = $children
+                ->filter(fn (Model $node): bool => match ($type) {
+                    'space' => $node instanceof Space,
+                    'thread' => $node instanceof Thread,
+                    'post' => $node instanceof Post,
+                    default => false,
+                })
+                ->values();
+        }
+
         $perPage = max(1, min(100, $perPage));
         $offset = 0;
 
