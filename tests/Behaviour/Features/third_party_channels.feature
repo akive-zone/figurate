@@ -10,6 +10,7 @@ Feature: Connect an external messaging service through channels
     And the client "support-messaging-service" has these abilities:
       | nodes:read     |
       | nodes:write    |
+      | edges:write    |
       | channels:manage |
       | forms:submit   |
 
@@ -50,6 +51,22 @@ Feature: Connect an external messaging service through channels
     And the response field "data.protocol" should equal "generic"
     And the response field "data.space.id" should equal "{{space_id}}"
     And I remember response field "data.id" as "channel_id"
+    And I remember response field "link.id" as "channel_link_post_id"
+
+    When the client sends a "POST" request to "/api/edges" with JSON:
+      """
+      {
+        "source_type": "post",
+        "source_id": "{{channel_link_post_id}}",
+        "target_type": "thread",
+        "target_id": "{{thread_id}}",
+        "edge_type": "channel.link"
+      }
+      """
+    Then the response status should be 201
+    And the response field "data.type" should equal "channel.link"
+    And the response field "data.source.id" should equal "{{channel_link_post_id}}"
+    And the response field "data.target.id" should equal "{{thread_id}}"
 
     When the client sends a "POST" request to "/api/posts" with JSON:
       """

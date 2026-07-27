@@ -7,6 +7,7 @@ use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
+use App\Support\Channels\ChannelLinkRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\WebhookClient\Models\WebhookCall;
 use Tests\TestCase;
@@ -22,16 +23,6 @@ class ChannelRouteIngressApiTest extends TestCase
             'driver' => Channel::ProtocolGeneric,
             'server' => 'whatsapp-waha',
         ]);
-        $channel->relations()->create([
-            'relationable_type' => $user->getMorphClass(),
-            'relationable_id' => $user->id,
-            'kind' => 'link',
-            'status' => Channel::StatusActive,
-            'direction' => Channel::DirectionBidirectional,
-            'config' => [],
-            'data' => [],
-            'meta' => [],
-        ]);
         $space = Space::factory()->create();
         $thread = $space->threads()->create([
             'purpose' => Thread::PurposeMain,
@@ -39,6 +30,7 @@ class ChannelRouteIngressApiTest extends TestCase
             'phase' => 'open',
             'status' => 'open',
         ]);
+        app(ChannelLinkRepository::class)->create($channel, $space, $thread);
         $route = $channel->routes()->create([
             'name' => 'default-session',
             'status' => Channel::StatusActive,
@@ -117,17 +109,8 @@ class ChannelRouteIngressApiTest extends TestCase
             'driver' => Channel::ProtocolGeneric,
             'server' => 'vendor-webhook',
         ]);
-        $channel->relations()->create([
-            'relationable_type' => $user->getMorphClass(),
-            'relationable_id' => $user->id,
-            'kind' => 'link',
-            'status' => Channel::StatusActive,
-            'direction' => Channel::DirectionBidirectional,
-            'config' => [],
-            'data' => [],
-            'meta' => [],
-        ]);
         $space = Space::factory()->create();
+        app(ChannelLinkRepository::class)->create($channel, $space, $space);
         $route = $channel->routes()->create([
             'name' => 'support-ingress',
             'status' => Channel::StatusActive,

@@ -31,7 +31,13 @@ class Post extends Model implements HasMedia
 
     public const TypeSkill = 'skill';
 
+    public const TypeChannelLink = 'channel.link';
+
     public const RelationRoleContext = 'context';
+
+    public const RelationRoleChannel = 'channel';
+
+    public const RelationRoleChannelLink = 'channel.link';
 
     public const RelationRoleSender = 'sender';
 

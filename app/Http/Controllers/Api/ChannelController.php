@@ -6,12 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Channel\StoreChannelRequest;
 use App\Http\Requests\Server\Channel\UpdateChannelRequest;
 use App\Models\Server\Channel;
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
 use App\Support\Channels\ChannelAccess;
 use App\Support\Channels\ChannelApiResolver;
 use App\Support\Channels\ChannelDriverRegistry;
+use App\Support\Channels\ChannelLinkRepository;
 use App\Support\Channels\ChannelRegistry;
 use App\Support\Channels\ChannelSpaceContext;
 use Illuminate\Database\Eloquent\Model;
@@ -26,6 +28,7 @@ class ChannelController extends Controller
         protected ChannelAccess $channelAccess,
         protected ChannelApiResolver $channelApiResolver,
         protected ChannelSpaceContext $channelSpaceContext,
+        protected ChannelLinkRepository $channelLinks,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -38,8 +41,8 @@ class ChannelController extends Controller
         $protocol = $this->trimmedString($request->query('protocol'))
             ?? $this->trimmedString($request->query('system'))
             ?? $this->trimmedString($request->query('driver'));
-        $kind = $this->trimmedString($request->query('kind'));
         $query = Channel::query()->latest('id');
+        $owner = null;
 
         if ($protocol !== null) {
             $query->where('driver', $protocol);
@@ -47,68 +50,12 @@ class ChannelController extends Controller
 
         if ($ownerType !== null) {
             [, $owner] = $this->resolveOwnerTarget($ownerType, $ownerId, $actor);
-
-            $query->whereHas('relations', function ($relationQuery) use ($owner, $kind): void {
-                $relationQuery
-                    ->where('relationable_type', $owner->getMorphClass())
-                    ->where('relationable_id', $owner->getKey());
-
-                if ($kind !== null) {
-                    $relationQuery->where('kind', $kind);
-                }
-            });
-        } else {
-            $query->where(function ($scopedQuery) use ($actor): void {
-                $scopedQuery->orWhere(function ($userQuery) use ($actor): void {
-                    $userQuery->whereHas('relations', function ($relationQuery) use ($actor): void {
-                        $relationQuery
-                            ->where('relationable_type', $actor->getMorphClass())
-                            ->where('relationable_id', $actor->getKey());
-                    });
-                });
-
-                $spaceIds = Space::query()
-                    ->whereHas('actorStates', function ($actorStateQuery) use ($actor): void {
-                        $actorStateQuery
-                            ->where('actorable_type', $actor->getMorphClass())
-                            ->where('actorable_id', $actor->getKey());
-                    })
-                    ->pluck('id');
-
-                if ($spaceIds->isNotEmpty()) {
-                    $scopedQuery->orWhere(function ($channelQuery) use ($spaceIds): void {
-                        $channelQuery->whereHas('relations', function ($relationQuery) use ($spaceIds): void {
-                            $relationQuery
-                                ->where('relationable_type', (new Space)->getMorphClass())
-                                ->whereIn('relationable_id', $spaceIds->all());
-                        });
-                    });
-                }
-
-                $threadIds = Thread::query()
-                    ->whereHasMorph('threadable', [Space::class], function ($threadableQuery) use ($actor): void {
-                        $threadableQuery->whereHas('actorStates', function ($actorStateQuery) use ($actor): void {
-                            $actorStateQuery
-                                ->where('actorable_type', $actor->getMorphClass())
-                                ->where('actorable_id', $actor->getKey());
-                        });
-                    })
-                    ->pluck('id');
-
-                if ($threadIds->isNotEmpty()) {
-                    $scopedQuery->orWhere(function ($channelQuery) use ($threadIds): void {
-                        $channelQuery->whereHas('relations', function ($relationQuery) use ($threadIds): void {
-                            $relationQuery
-                                ->where('relationable_type', (new Thread)->getMorphClass())
-                                ->whereIn('relationable_id', $threadIds->all());
-                        });
-                    });
-                }
-            });
         }
 
         $channels = $query->get()
-            ->filter(fn (Channel $channel): bool => $this->canManageChannel($actor, $channel))
+            ->filter(fn (Channel $channel): bool => $ownerType !== null
+                ? $this->channelAccess->isAttachedTo($actor, $channel, $owner)
+                : $this->canManageChannel($actor, $channel))
             ->values()
             ->map(fn (Channel $channel): array => $this->mapChannel($channel))
             ->all();
@@ -128,17 +75,24 @@ class ChannelController extends Controller
             $validated['owner_id'] ?? null,
             $actor,
         );
-        $channel = $channelRegistry->register($owner, $validated);
         $space = $this->channelSpaceContext->resolve(
             actor: $actor,
-            channel: $channel,
             ownerType: $ownerType,
             owner: $owner,
             spaceId: is_string($validated['space_id'] ?? null) ? $validated['space_id'] : null,
         );
+        $channel = $channelRegistry->register($validated);
+        $target = $owner instanceof Space || $owner instanceof Thread || $owner instanceof Post
+            ? $owner
+            : $space;
+        $link = $this->channelLinks->create($channel, $space, $target, $validated, $actor);
 
         return response()->json([
             'data' => $this->mapChannel($channel),
+            'link' => [
+                'id' => $link->ulid,
+                'type' => $link->type,
+            ],
             'owner' => [
                 'type' => $ownerType,
                 'id' => $this->publicIdentifier($owner),
@@ -157,10 +111,7 @@ class ChannelController extends Controller
         $registeredChannel = $this->channelApiResolver->channel($channel);
         abort_unless($this->canManageChannel($actor, $registeredChannel), 403, 'Not authorized to update this channel.');
 
-        $owner = $this->resolveOwnerContext($registeredChannel);
-        abort_unless($owner instanceof Model, 404, 'Channel owner could not be resolved.');
-
-        $updatedChannel = $channelRegistry->update($owner, $registeredChannel, $request->validated());
+        $updatedChannel = $channelRegistry->update($registeredChannel, $request->validated());
 
         return response()->json([
             'data' => $this->mapChannel($updatedChannel),
@@ -219,6 +170,15 @@ class ChannelController extends Controller
             return ['thread', $thread];
         }
 
+        if ($resolvedType === 'post') {
+            abort_if(! is_string($ownerId) || trim($ownerId) === '', 422, 'owner_id is required for post owners.');
+
+            $post = Post::query()->where('ulid', $ownerId)->firstOrFail();
+            Gate::forUser($actor)->authorize('view', $post);
+
+            return ['post', $post];
+        }
+
         abort(422, 'Unsupported owner type.');
     }
 
@@ -235,9 +195,7 @@ class ChannelController extends Controller
         $owner = $this->resolveOwnerContext($channel);
         $space = $this->resolveSpaceContext($channel, $owner);
         $ownerType = $owner instanceof Model ? strtolower(class_basename($owner)) : null;
-        $relation = $channel->relations()
-            ->latest('id')
-            ->first();
+        $link = $this->channelLinks->forChannel($channel)->first();
         $driver = $this->channelDriverRegistry->resolveByChannel($channel);
 
         return [
@@ -253,8 +211,11 @@ class ChannelController extends Controller
             'priority' => $channel->priority,
             'transport' => $channel->transportKey(),
             'status' => $channel->status,
-            'direction' => $relation?->direction ?? $channel->direction,
-            'kind' => $relation?->kind,
+            'direction' => $link instanceof Post ? $this->channelLinks->direction($link) : $channel->direction,
+            'link' => $link instanceof Post ? [
+                'id' => $link->ulid,
+                'type' => $link->type,
+            ] : null,
             'endpoint_url' => $channel->endpoint_url,
             'handler' => $channel->handler,
             'allowed_tools' => is_array($channel->allowed_tools) ? $channel->allowed_tools : [],
@@ -274,13 +235,11 @@ class ChannelController extends Controller
 
     protected function resolveOwnerContext(Channel $channel): ?Model
     {
-        $ownerRelation = $channel->relations()
-            ->latest('id')
-            ->first();
+        $link = $this->channelLinks->forChannel($channel)->first();
 
-        $relationable = $ownerRelation?->relationable;
-
-        return $relationable instanceof Model ? $relationable : null;
+        return $link instanceof Post
+            ? $this->channelLinks->targets($link)->first()
+            : null;
     }
 
     protected function resolveSpaceContext(Channel $channel, ?Model $owner = null): ?Space
@@ -297,13 +256,17 @@ class ChannelController extends Controller
             }
         }
 
-        $spaceRelation = $channel->relations()
-            ->where('relationable_type', (new Space)->getMorphClass())
-            ->latest('id')
-            ->first();
-        $relationable = $spaceRelation?->relationable;
+        if ($owner instanceof Post) {
+            $parent = $owner->postable;
 
-        return $relationable instanceof Space ? $relationable : null;
+            return match (true) {
+                $parent instanceof Space => $parent,
+                $parent instanceof Thread && $parent->threadable instanceof Space => $parent->threadable,
+                default => null,
+            };
+        }
+
+        return null;
     }
 
     protected function publicIdentifier(Model $model): mixed

@@ -4,16 +4,18 @@ namespace App\Ai\Support\Mcp;
 
 use App\Ai\Support\ThreadContextResolver;
 use App\Models\Server\Channel;
-use App\Models\Server\ChannelRelation;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
-use Illuminate\Database\Eloquent\Builder;
+use App\Support\Channels\ChannelLinkRepository;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 
 class McpRegistry
 {
     public function __construct(
         protected ThreadContextResolver $threadContextResolver = new ThreadContextResolver,
+        protected ChannelLinkRepository $channelLinks = new ChannelLinkRepository,
     ) {}
 
     /**
@@ -62,34 +64,34 @@ class McpRegistry
 
         $resolved['enabled'] = true;
 
-        $contextConnection = $this->resolveContextConnection($contextServer);
+        $contextLink = $this->resolveContextLink($contextServer);
         $resolved['context_server_id'] = $contextServer->id;
         $resolved['context_source'] = $this->contextSource($contextServer);
 
         $contextMeta = is_array($contextServer->meta) ? $contextServer->meta : [];
-        $connectionConfig = is_array($contextConnection?->config ?? null) ? $contextConnection->config : [];
-        $transport = $this->stringValue($connectionConfig['transport'] ?? $contextServer->transport ?? null);
+        $linkConfig = $contextLink instanceof Post ? $this->channelLinks->config($contextLink) : [];
+        $transport = $this->stringValue($linkConfig['transport'] ?? $contextServer->transport ?? null);
         if ($transport !== null) {
             $resolved['transport'] = strtolower($transport);
         }
 
-        $mode = $this->stringValue($connectionConfig['mode'] ?? $contextMeta['mode'] ?? null);
+        $mode = $this->stringValue($linkConfig['mode'] ?? $contextMeta['mode'] ?? null);
         if ($mode !== null) {
             $resolved['mode'] = strtolower($mode);
         }
 
-        $endpointUrl = $this->stringValue($connectionConfig['endpoint_url'] ?? $contextServer->endpoint_url ?? null);
+        $endpointUrl = $this->stringValue($linkConfig['endpoint_url'] ?? $contextServer->endpoint_url ?? null);
         if ($endpointUrl !== null) {
             $resolved['endpoint_url'] = $endpointUrl;
         }
 
-        $handler = $this->stringValue($connectionConfig['handler'] ?? $contextMeta['handler'] ?? $contextServer->handler ?? null);
+        $handler = $this->stringValue($linkConfig['handler'] ?? $contextMeta['handler'] ?? $contextServer->handler ?? null);
         if ($handler !== null) {
             $resolved['handler'] = $handler;
         }
 
-        $mergedConfig = $connectionConfig !== []
-            ? $connectionConfig
+        $mergedConfig = $linkConfig !== []
+            ? $linkConfig
             : (is_array($contextServer->config ?? null) ? $contextServer->config : []);
         if ($mergedConfig !== []) {
             $resolved['config'] = array_merge($resolved['config'], $mergedConfig);
@@ -116,14 +118,9 @@ class McpRegistry
         $serverNames = collect();
 
         foreach ($this->credentialCandidates($thread, $user) as $credentialable) {
-            if (! method_exists($credentialable, 'linkedChannels')) {
-                continue;
-            }
-
             $serverNames = $serverNames->merge(
                 $this->mcpChannelsFor($credentialable)
-                    ->where('enabled', true)
-                    ->whereNotNull('server')
+                    ->filter(fn (Channel $channel): bool => $channel->enabled && is_string($channel->server))
                     ->pluck('server')
                     ->all()
             );
@@ -195,42 +192,54 @@ class McpRegistry
 
     protected function findContextServerFor(Model $owner, string $server): ?Channel
     {
-        if (! method_exists($owner, 'linkedChannels')) {
-            return null;
-        }
-
         return $this->mcpChannelsFor($owner)
-            ->where('server', $server)
-            ->where('enabled', true)
-            ->orderByDesc('priority')
-            ->orderByDesc('id')
+            ->filter(fn (Channel $channel): bool => $channel->server === $server && $channel->enabled)
+            ->sortByDesc(fn (Channel $channel): int => (((int) $channel->priority) * 1000000) + (int) $channel->id)
             ->first();
     }
 
-    protected function mcpChannelsFor(Model $owner)
+    /**
+     * @return Collection<int, Channel>
+     */
+    protected function mcpChannelsFor(Model $owner): Collection
     {
-        return $owner->linkedChannels()
-            ->wherePivot('status', Channel::StatusActive)
-            ->where(function (Builder $builder): void {
-                $builder
-                    ->where('channels.driver', Channel::ProtocolMcp)
-                    ->orWhere('channels.config->protocol', Channel::ProtocolMcp)
-                    ->orWhere('channel_relations.config->protocol', Channel::ProtocolMcp);
-            });
+        return $this->channelLinks->forContext($owner)
+            ->filter(fn (Post $link): bool => in_array(
+                $this->channelLinks->direction($link),
+                [Channel::DirectionOutbound, Channel::DirectionBidirectional],
+                true,
+            ))
+            ->map(function (Post $link) use ($owner): ?Channel {
+                $channel = $this->channelLinks->channel($link);
+                $linkConfig = $this->channelLinks->config($link);
+
+                if (
+                    ! $channel instanceof Channel
+                    || ! $channel->enabled
+                    || ! in_array($channel->status, [Channel::StatusActive, null], true)
+                    || (
+                        $channel->driver !== Channel::ProtocolMcp
+                        && data_get($channel->config, 'protocol') !== Channel::ProtocolMcp
+                        && ($linkConfig['protocol'] ?? null) !== Channel::ProtocolMcp
+                    )
+                ) {
+                    return null;
+                }
+
+                $channel->setRelation('channelLink', $link);
+                $channel->setAttribute('link_context_source', class_basename($owner));
+
+                return $channel;
+            })
+            ->filter(fn (mixed $channel): bool => $channel instanceof Channel)
+            ->values();
     }
 
     protected function contextSource(Channel $contextServer): ?string
     {
-        $sourceType = $contextServer->relations()
-            ->where('kind', ChannelRelation::KindLink)
-            ->orderByDesc('id')
-            ->value('relationable_type');
+        $source = $contextServer->getAttribute('link_context_source');
 
-        if (! is_string($sourceType) || $sourceType === '') {
-            return null;
-        }
-
-        return class_basename($sourceType);
+        return is_string($source) && $source !== '' ? $source : null;
     }
 
     /**
@@ -278,14 +287,12 @@ class McpRegistry
     protected function headersFromContextServer(Channel $contextServer): array
     {
         $headers = [];
-        $contextConnection = $this->resolveContextConnection($contextServer);
-        $connectionConfig = is_array($contextConnection?->config ?? null) ? $contextConnection->config : [];
-        $credentials = is_array($connectionConfig['credentials'] ?? null)
-            ? $connectionConfig['credentials']
-            : (is_array($contextServer->credentials) ? $contextServer->credentials : []);
+        $contextLink = $this->resolveContextLink($contextServer);
+        $linkConfig = $contextLink instanceof Post ? $this->channelLinks->config($contextLink) : [];
+        $credentials = is_array($contextServer->credentials) ? $contextServer->credentials : [];
 
-        $authType = is_string($connectionConfig['auth_type'] ?? null)
-            ? strtolower(trim((string) $connectionConfig['auth_type']))
+        $authType = is_string($linkConfig['auth_type'] ?? null)
+            ? strtolower(trim((string) $linkConfig['auth_type']))
             : (is_string($contextServer->auth_type) ? strtolower(trim($contextServer->auth_type)) : '');
 
         if ($authType === 'bearer') {
@@ -318,15 +325,11 @@ class McpRegistry
         return array_merge($headers, $extraHeaders);
     }
 
-    protected function resolveContextConnection(Channel $contextServer): ?ChannelRelation
+    protected function resolveContextLink(Channel $contextServer): ?Post
     {
-        $connectionId = data_get($contextServer, 'pivot.id');
+        $link = $contextServer->getRelation('channelLink');
 
-        if (! is_numeric($connectionId)) {
-            return null;
-        }
-
-        return ChannelRelation::query()->find((int) $connectionId);
+        return $link instanceof Post ? $link : null;
     }
 
     protected function intValue(mixed $value, int $default): int

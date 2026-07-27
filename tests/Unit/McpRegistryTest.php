@@ -4,8 +4,10 @@ namespace Tests\Unit;
 
 use App\Ai\Support\Mcp\McpRegistry;
 use App\Models\Server\Channel;
-use App\Models\Server\ChannelRelation;
+use App\Models\Server\Space;
+use App\Models\Server\SpaceActorState;
 use App\Models\Server\User;
+use App\Support\Channels\ChannelLinkRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -13,9 +15,17 @@ class McpRegistryTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_prefers_connection_runtime_fields_for_context_servers(): void
+    public function test_it_prefers_link_runtime_fields_for_context_servers(): void
     {
         $user = User::factory()->create();
+        $space = Space::factory()->create();
+        SpaceActorState::query()->create([
+            'space_id' => $space->id,
+            'thread_id' => null,
+            'actorable_type' => $user->getMorphClass(),
+            'actorable_id' => $user->id,
+            'status' => SpaceActorState::StatusActive,
+        ]);
         $channel = Channel::factory()->create([
             'driver' => Channel::ProtocolMcp,
             'server' => 'filesystem',
@@ -24,9 +34,7 @@ class McpRegistryTest extends TestCase
             'allowed_tools' => ['search'],
         ]);
 
-        $user->channelRelations()->create([
-            'channel_id' => $channel->id,
-            'kind' => ChannelRelation::KindLink,
+        app(ChannelLinkRepository::class)->create($channel, $space, $space, [
             'status' => Channel::StatusActive,
             'direction' => Channel::DirectionBidirectional,
             'config' => [

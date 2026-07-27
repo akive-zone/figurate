@@ -11,6 +11,7 @@ use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
+use App\Support\Channels\ChannelLinkRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -35,12 +36,8 @@ class EnqueueThreadMessageOutboxChannelsTest extends TestCase
             'driver' => Channel::ProtocolGeneric,
         ]);
 
-        $thread->channelRelations()->create([
-            'channel_id' => $channel->id,
-            'kind' => 'link',
-            'status' => 'active',
+        app(ChannelLinkRepository::class)->create($channel, $thread, $thread, [
             'direction' => Channel::DirectionOutbound,
-            'data' => [],
         ]);
         $route = $channel->routes()->create([
             'name' => 'primary',

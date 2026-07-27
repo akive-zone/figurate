@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Server\Channel;
 
 use App\Models\Server\Channel;
-use App\Models\Server\ChannelRelation;
 use App\Support\Security\UrlTrustPolicy;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -25,7 +24,6 @@ class UpdateChannelRequest extends FormRequest
             'protocol' => ['sometimes', 'string', 'max:40'],
             'name' => ['sometimes', 'string', 'max:120'],
             'label' => ['sometimes', 'nullable', 'string', 'max:160'],
-            'kind' => ['sometimes', 'string', 'in:'.implode(',', [ChannelRelation::KindLink, ChannelRelation::KindBind])],
             'enabled' => ['sometimes', 'boolean'],
             'priority' => ['sometimes', 'integer', 'min:0'],
             'transport' => ['sometimes', 'string', 'max:40'],

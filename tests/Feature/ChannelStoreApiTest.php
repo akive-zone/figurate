@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Server\Channel;
-use App\Models\Server\ChannelRelation;
+use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
 use App\Models\Server\User;
@@ -41,14 +41,17 @@ class ChannelStoreApiTest extends TestCase
         $channel = Channel::query()->where('server', 'whatsapp-waha')->firstOrFail();
         $space = Space::query()->where('uuid', (string) $response->json('space.id'))->firstOrFail();
 
-        $this->assertTrue($channel->relations()
-            ->where('relationable_type', $user->getMorphClass())
-            ->where('relationable_id', $user->getKey())
+        $link = Post::query()
+            ->where('type', Post::TypeChannelLink)
+            ->where('tag', $channel->uuid)
+            ->firstOrFail();
+        $this->assertTrue($link->relations()
+            ->whereMorphedTo('relationable', $channel)
+            ->where('role', Post::RelationRoleChannel)
             ->exists());
-        $this->assertTrue($channel->relations()
-            ->where('relationable_type', $space->getMorphClass())
-            ->where('relationable_id', $space->getKey())
-            ->where('kind', ChannelRelation::KindLink)
+        $this->assertTrue($link->relations()
+            ->whereMorphedTo('relationable', $space)
+            ->where('role', Post::RelationRoleChannelLink)
             ->exists());
         $this->assertTrue(SpaceActorState::query()
             ->where('space_id', $space->id)
@@ -89,9 +92,12 @@ class ChannelStoreApiTest extends TestCase
 
         $channel = Channel::query()->where('server', 'vendor-webhook')->firstOrFail();
 
-        $this->assertTrue($channel->relations()
-            ->where('relationable_type', $space->getMorphClass())
-            ->where('relationable_id', $space->getKey())
+        $this->assertTrue(Post::query()
+            ->where('type', Post::TypeChannelLink)
+            ->where('tag', $channel->uuid)
+            ->whereHas('relations', fn ($query) => $query
+                ->whereMorphedTo('relationable', $space)
+                ->where('role', Post::RelationRoleChannelLink))
             ->exists());
     }
 }

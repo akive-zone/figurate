@@ -6,11 +6,11 @@ use App\Ai\Tools\DelegateAcpTaskTool;
 use App\Ai\Tools\InvokeAcpAgentTool;
 use App\Ai\Tools\ListAvailableAcpAgentsTool;
 use App\Models\Server\Channel;
-use App\Models\Server\ChannelRelation;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadEvent;
 use App\Models\Server\User;
+use App\Support\Channels\ChannelLinkRepository;
 use App\Support\Orchestrate\TaskRecord;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request as HttpRequest;
@@ -559,9 +559,7 @@ class OutboundAcpToolsTest extends TestCase
             'meta' => [],
         ]);
 
-        $thread->channelRelations()->create([
-            'channel_id' => $channel->id,
-            'kind' => ChannelRelation::KindLink,
+        app(ChannelLinkRepository::class)->create($channel, $thread, $thread, [
             'status' => Channel::StatusActive,
             'direction' => Channel::DirectionOutbound,
             'config' => $config,

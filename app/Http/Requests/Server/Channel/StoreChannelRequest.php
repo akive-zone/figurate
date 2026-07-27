@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Server\Channel;
 
 use App\Models\Server\Channel;
-use App\Models\Server\ChannelRelation;
 use App\Support\Security\UrlTrustPolicy;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -22,7 +21,7 @@ class StoreChannelRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'owner_type' => ['required', 'string', 'in:user,space,thread'],
+            'owner_type' => ['required', 'string', 'in:user,space,thread,post'],
             'owner_id' => ['nullable', 'string'],
             'space_id' => ['nullable', 'string'],
             'protocol' => ['nullable', 'string', 'max:40'],
@@ -30,7 +29,6 @@ class StoreChannelRequest extends FormRequest
             'driver' => ['nullable', 'string', 'max:40'],
             'name' => ['required', 'string', 'max:120'],
             'label' => ['nullable', 'string', 'max:160'],
-            'kind' => ['nullable', 'string', 'in:'.implode(',', [ChannelRelation::KindLink, ChannelRelation::KindBind])],
             'enabled' => ['nullable', 'boolean'],
             'priority' => ['nullable', 'integer', 'min:0'],
             'transport' => ['nullable', 'string', 'max:40'],

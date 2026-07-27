@@ -3,8 +3,10 @@
 namespace Tests\Feature\Mcp;
 
 use App\Models\Server\Channel;
-use App\Models\Server\ChannelRelation;
+use App\Models\Server\Space;
+use App\Models\Server\SpaceActorState;
 use App\Models\Server\User;
+use App\Support\Channels\ChannelLinkRepository;
 use App\TokenAbility;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -91,14 +93,15 @@ class InboundServerApiTest extends TestCase
             'endpoint_url' => 'https://agents.example/mcp',
             'allowed_tools' => ['search'],
         ]);
-        $user->channelRelations()->create([
-            'channel_id' => $contextServer->id,
-            'kind' => ChannelRelation::KindLink,
-            'status' => Channel::StatusActive,
-            'direction' => Channel::DirectionBidirectional,
-            'data' => [],
-            'meta' => [],
+        $space = Space::factory()->create();
+        SpaceActorState::query()->create([
+            'space_id' => $space->id,
+            'thread_id' => null,
+            'actorable_type' => $user->getMorphClass(),
+            'actorable_id' => $user->id,
+            'status' => SpaceActorState::StatusActive,
         ]);
+        app(ChannelLinkRepository::class)->create($contextServer, $space, $space);
 
         $response = $this->patchJson(route('api.channels.update', ['channel' => $contextServer->id]), [
             'endpoint_url' => 'http://127.0.0.1:3000/mcp',

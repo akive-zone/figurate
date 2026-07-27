@@ -3,8 +3,6 @@
 namespace App\Support\Channels;
 
 use App\Models\Server\Channel;
-use App\Models\Server\ChannelRelation;
-use Illuminate\Database\Eloquent\Model;
 
 class ChannelRegistry
 {
@@ -15,28 +13,15 @@ class ChannelRegistry
     /**
      * @param  array<string, mixed>  $attributes
      */
-    public function register(Model $owner, array $attributes): Channel
+    public function register(array $attributes): Channel
     {
-        $this->ensureOwnerSupportsChannels($owner);
-
         $protocolKey = strtolower(trim((string) ($attributes['protocol'] ?? $attributes['driver'] ?? $attributes['system'] ?? '')));
         $name = trim((string) ($attributes['name'] ?? ''));
         $driver = $this->channelDriverRegistry->resolveByProtocol($protocolKey);
         $prepared = $driver->prepareForRegistration($attributes);
-        $kind = $this->kindValue($prepared['kind'] ?? null);
-
-        $channel = $this->existingOwnedChannel($owner, $protocolKey, $name, $kind)
-            ?? Channel::query()->make();
+        $channel = Channel::query()->make();
 
         $channel->forceFill($this->channelAttributes($prepared, $protocolKey, $name))->save();
-
-        $owner->channelRelations()->updateOrCreate(
-            [
-                'channel_id' => $channel->id,
-                'kind' => $kind,
-            ],
-            $this->relationAttributes($prepared),
-        );
 
         return $channel->fresh() ?? $channel;
     }
@@ -44,51 +29,13 @@ class ChannelRegistry
     /**
      * @param  array<string, mixed>  $attributes
      */
-    public function update(Model $owner, Channel $channel, array $attributes): Channel
+    public function update(Channel $channel, array $attributes): Channel
     {
-        $this->ensureOwnerSupportsChannels($owner);
-
         $driver = $this->channelDriverRegistry->resolveByChannel($channel);
         $prepared = $driver->prepareForUpdate($channel, $attributes);
         $channel->fill($this->updatableChannelAttributes($prepared))->save();
 
-        $relationUpdates = collect([
-            'status' => $prepared['status'] ?? null,
-            'direction' => $prepared['direction'] ?? null,
-            'data' => $prepared['data'] ?? null,
-            'meta' => $prepared['meta'] ?? null,
-        ])->filter(fn (mixed $value): bool => $value !== null)->all();
-
-        if ($relationUpdates !== []) {
-            $owner->channelRelations()
-                ->where('channel_id', $channel->id)
-                ->when(isset($prepared['kind']), fn ($query) => $query->where('kind', $this->kindValue($prepared['kind'])))
-                ->update($relationUpdates);
-        }
-
         return $channel->fresh() ?? $channel;
-    }
-
-    protected function ensureOwnerSupportsChannels(Model $owner): void
-    {
-        if (! method_exists($owner, 'channelRelations')) {
-            throw new \RuntimeException('Channel owner does not support channel relations.');
-        }
-    }
-
-    protected function existingOwnedChannel(Model $owner, string $protocol, string $name, string $kind): ?Channel
-    {
-        return Channel::query()
-            ->where('driver', $protocol)
-            ->where('server', $name)
-            ->whereHas('relations', function ($query) use ($owner, $kind): void {
-                $query
-                    ->where('relationable_type', $owner->getMorphClass())
-                    ->where('relationable_id', $owner->getKey())
-                    ->where('kind', $kind);
-            })
-            ->latest('id')
-            ->first();
     }
 
     /**
@@ -148,26 +95,5 @@ class ChannelRegistry
                 ? $attributes['meta']
                 : (array_key_exists('meta', $attributes) ? [] : null),
         ])->filter(fn (mixed $value): bool => $value !== null)->all();
-    }
-
-    /**
-     * @param  array<string, mixed>  $attributes
-     * @return array<string, mixed>
-     */
-    protected function relationAttributes(array $attributes): array
-    {
-        return [
-            'status' => $attributes['status'] ?? Channel::StatusActive,
-            'direction' => $attributes['direction'] ?? Channel::DirectionBidirectional,
-            'data' => is_array($attributes['data'] ?? null) ? $attributes['data'] : [],
-            'meta' => is_array($attributes['meta'] ?? null) ? $attributes['meta'] : [],
-        ];
-    }
-
-    protected function kindValue(mixed $value): string
-    {
-        $kind = strtolower(trim((string) ($value ?? ChannelRelation::KindLink)));
-
-        return $kind !== '' ? $kind : ChannelRelation::KindLink;
     }
 }

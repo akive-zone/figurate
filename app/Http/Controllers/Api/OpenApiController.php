@@ -200,7 +200,7 @@ class OpenApiController extends Controller
     {
         return match ($parameter) {
             'space', 'thread', 'channel' => 'Public UUID.',
-            'post', 'edge', 'credential', 'route', 'address', 'connection' => 'Public ULID.',
+            'post', 'edge', 'credential', 'route', 'address' => 'Public ULID.',
             'invocation' => 'Invocation identifier.',
             'type' => 'Node type: space, thread, or post.',
             default => 'Public identifier.',
@@ -279,8 +279,6 @@ class OpenApiController extends Controller
             'api.spaces.store' => 'SpaceCreateRequest',
             'api.channels.store',
             'api.channels.update' => 'ChannelRequest',
-            'api.channels.connections.store',
-            'api.channels.connections.update' => 'ChannelConnectionRequest',
             'api.channels.routes.store',
             'api.channels.routes.update' => 'ChannelRouteRequest',
             'api.channels.routes.addresses.store',
@@ -491,7 +489,6 @@ class OpenApiController extends Controller
                     ],
                 ],
                 'ChannelRequest' => $object,
-                'ChannelConnectionRequest' => $object,
                 'ChannelRouteRequest' => $object,
                 'ChannelAddressRequest' => $object,
             ],

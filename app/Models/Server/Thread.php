@@ -251,65 +251,8 @@ class Thread extends Model
             ->withTimestamps();
     }
 
-    public function channelRelations(): MorphMany
-    {
-        return $this->morphMany(ChannelRelation::class, 'relationable');
-    }
-
     public function channelAddresses(): MorphMany
     {
         return $this->morphMany(ChannelAddress::class, 'addressable');
-    }
-
-    public function contextServers(): MorphToMany
-    {
-        return $this->linkedChannels()
-            ->where(function (Builder $query): void {
-                $query
-                    ->where('channels.driver', Channel::ProtocolMcp)
-                    ->orWhere('channels.config->protocol', Channel::ProtocolMcp)
-                    ->orWhere('channel_relations.config->protocol', Channel::ProtocolMcp);
-            })
-            ->withPivot([
-                'id',
-                'kind',
-                'status',
-                'direction',
-                'config',
-                'data',
-                'meta',
-            ]);
-    }
-
-    public function linkedChannels(): MorphToMany
-    {
-        return $this->morphToMany(Channel::class, 'relationable', 'channel_relations', 'relationable_id', 'channel_id')
-            ->wherePivot('kind', ChannelRelation::KindLink)
-            ->withPivot([
-                'id',
-                'kind',
-                'status',
-                'direction',
-                'config',
-                'data',
-                'meta',
-            ])
-            ->withTimestamps();
-    }
-
-    public function channels(): MorphToMany
-    {
-        return $this->morphToMany(Channel::class, 'relationable', 'channel_relations', 'relationable_id', 'channel_id')
-            ->wherePivot('kind', ChannelRelation::KindBind)
-            ->withPivot([
-                'id',
-                'kind',
-                'status',
-                'direction',
-                'config',
-                'data',
-                'meta',
-            ])
-            ->withTimestamps();
     }
 }

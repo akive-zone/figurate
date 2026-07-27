@@ -4,9 +4,10 @@ namespace App\Ai\Support\Acp;
 
 use App\Ai\Support\ThreadContextResolver;
 use App\Models\Server\Channel;
-use App\Models\Server\ChannelRelation;
+use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
+use App\Support\Channels\ChannelLinkRepository;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -15,6 +16,7 @@ class AcpRegistry
 {
     public function __construct(
         protected ThreadContextResolver $threadContextResolver = new ThreadContextResolver,
+        protected ChannelLinkRepository $channelLinks = new ChannelLinkRepository,
     ) {}
 
     public function enabled(?Thread $thread = null, ?User $user = null): bool
@@ -55,8 +57,8 @@ class AcpRegistry
         $agentsById = [];
 
         foreach ($this->credentialCandidates($thread, $user) as $owner) {
-            foreach ($this->acpConnectionsFor($owner) as $connection) {
-                $agent = $this->agentFromConnection($connection, $owner);
+            foreach ($this->acpLinksFor($owner) as $link) {
+                $agent = $this->agentFromLink($link, $owner);
 
                 if (! is_array($agent)) {
                     continue;
@@ -128,25 +130,13 @@ class AcpRegistry
     }
 
     /**
-     * @return Collection<int, ChannelRelation>
+     * @return Collection<int, Post>
      */
-    protected function acpConnectionsFor(Model $owner): Collection
+    protected function acpLinksFor(Model $owner): Collection
     {
-        if (! method_exists($owner, 'channelRelations')) {
-            return collect();
-        }
-
-        /** @var Collection<int, ChannelRelation> $connections */
-        $connections = $owner->channelRelations()
-            ->with('channel')
-            ->whereIn('kind', [ChannelRelation::KindLink, ChannelRelation::KindBind])
-            ->where('status', Channel::StatusActive)
-            ->whereIn('direction', [Channel::DirectionOutbound, Channel::DirectionBidirectional])
-            ->get();
-
-        return $connections
-            ->filter(function (ChannelRelation $connection): bool {
-                $channel = $connection->channel;
+        return $this->channelLinks->forContext($owner)
+            ->filter(function (Post $link): bool {
+                $channel = $this->channelLinks->channel($link);
 
                 if (! $channel instanceof Channel || ! $channel->enabled) {
                     return false;
@@ -156,37 +146,45 @@ class AcpRegistry
                     return false;
                 }
 
-                $connectionConfig = is_array($connection->config) ? $connection->config : [];
+                if (! in_array($this->channelLinks->direction($link), [Channel::DirectionOutbound, Channel::DirectionBidirectional], true)) {
+                    return false;
+                }
+
+                $linkConfig = $this->channelLinks->config($link);
                 $channelConfig = is_array($channel->config) ? $channel->config : [];
-                $protocol = $this->stringOrNull($connectionConfig['protocol'] ?? $channelConfig['protocol'] ?? null);
+                $protocol = $this->stringOrNull($linkConfig['protocol'] ?? $channelConfig['protocol'] ?? null);
 
                 return $channel->driver === Channel::ProtocolAcp || $protocol === Channel::ProtocolAcp;
             })
-            ->sortByDesc(fn (ChannelRelation $connection): int => (((int) ($connection->channel?->priority ?? 0)) * 1000000) + (int) $connection->id)
+            ->sortByDesc(function (Post $link): int {
+                $channel = $this->channelLinks->channel($link);
+
+                return (((int) ($channel?->priority ?? 0)) * 1000000) + (int) $link->id;
+            })
             ->values();
     }
 
     /**
      * @return array<string, mixed>|null
      */
-    protected function agentFromConnection(ChannelRelation $connection, Model $owner): ?array
+    protected function agentFromLink(Post $link, Model $owner): ?array
     {
-        $channel = $connection->channel;
+        $channel = $this->channelLinks->channel($link);
 
         if (! $channel instanceof Channel) {
             return null;
         }
 
-        $connectionConfig = is_array($connection->config) ? $connection->config : [];
+        $linkConfig = $this->channelLinks->config($link);
         $channelConfig = is_array($channel->config) ? $channel->config : [];
-        $mergedConfig = array_replace_recursive($channelConfig, $connectionConfig);
+        $mergedConfig = array_replace_recursive($channelConfig, $linkConfig);
         $endpoint = $this->endpointFrom($channel, $mergedConfig);
 
         if ($endpoint === null) {
             return null;
         }
 
-        $agentId = $this->stringOrNull(data_get($connection->data, 'agent_id'))
+        $agentId = $this->stringOrNull(data_get($link->payload, 'data.agent_id'))
             ?? $this->stringOrNull($mergedConfig['agent_id'] ?? null)
             ?? $this->stringOrNull($mergedConfig['gateway_agent'] ?? null)
             ?? $this->stringOrNull($channel->server)
@@ -215,7 +213,7 @@ class AcpRegistry
             'client' => is_array($mergedConfig['client'] ?? null) ? $mergedConfig['client'] : [],
             'channel_id' => $channel->id,
             'channel_uuid' => $channel->uuid,
-            'connection_id' => $connection->id,
+            'link_id' => $link->ulid,
             'context_source' => strtolower(class_basename($owner)),
         ];
     }

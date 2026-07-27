@@ -4,7 +4,6 @@ namespace App\Support\Channels;
 
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelAddress;
-use App\Models\Server\ChannelRelation;
 use App\Models\Server\ChannelRoute;
 
 class ChannelApiResolver
@@ -43,19 +42,6 @@ class ChannelApiResolver
 
                 if (ctype_digit($identifier)) {
                     $query->orWhere('channel_addresses.id', (int) $identifier);
-                }
-            })
-            ->firstOrFail();
-    }
-
-    public function connection(Channel $channel, string $identifier): ChannelRelation
-    {
-        return $channel->connections()
-            ->where(function ($query) use ($identifier): void {
-                $query->where('ulid', $identifier);
-
-                if (ctype_digit($identifier)) {
-                    $query->orWhere('channel_relations.id', (int) $identifier);
                 }
             })
             ->firstOrFail();

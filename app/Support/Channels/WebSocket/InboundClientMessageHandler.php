@@ -6,6 +6,7 @@ use App\Models\Server\Channel;
 use App\Models\Server\Post;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
+use App\Support\Channels\ChannelLinkRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Log;
  */
 class InboundClientMessageHandler
 {
+    public function __construct(protected ChannelLinkRepository $channelLinks) {}
+
     /**
      * Handle incoming message from external WebSocket server
      *
@@ -124,14 +127,13 @@ class InboundClientMessageHandler
             }
         }
 
-        // Look for a thread associated with this channel
-        // Check if channel has any related threads through channel relations
-        $channelRelation = $channel->relations()
-            ->where('relationable_type', Thread::class)
-            ->first();
+        foreach ($this->channelLinks->forChannel($channel) as $link) {
+            $thread = $this->channelLinks->targets($link)
+                ->first(fn (mixed $target): bool => $target instanceof Thread);
 
-        if ($channelRelation) {
-            return Thread::query()->find($channelRelation->relationable_id);
+            if ($thread instanceof Thread) {
+                return $thread;
+            }
         }
 
         // If no specific thread found, try to find any active thread

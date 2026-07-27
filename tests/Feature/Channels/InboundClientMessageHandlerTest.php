@@ -7,6 +7,7 @@ use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
+use App\Support\Channels\ChannelLinkRepository;
 use App\Support\Channels\WebSocket\InboundClientMessageHandler;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -33,12 +34,7 @@ class InboundClientMessageHandlerTest extends TestCase
             'status' => 'open',
         ]);
 
-        // Associate channel with thread
-        $channel->relations()->create([
-            'relationable_type' => Thread::class,
-            'relationable_id' => $thread->id,
-            'kind' => 'link',
-        ]);
+        app(ChannelLinkRepository::class)->create($channel, $thread, $thread);
 
         $messageData = [
             'id' => 'msg-123',
@@ -84,12 +80,7 @@ class InboundClientMessageHandlerTest extends TestCase
             'status' => 'open',
         ]);
 
-        // Associate channel with thread so it can be found
-        $channel->relations()->create([
-            'relationable_type' => Thread::class,
-            'relationable_id' => $thread->id,
-            'kind' => 'link',
-        ]);
+        app(ChannelLinkRepository::class)->create($channel, $thread, $thread);
 
         $messageData = [
             'text' => 'Message without explicit thread',
@@ -147,11 +138,7 @@ class InboundClientMessageHandlerTest extends TestCase
             'status' => 'open',
         ]);
 
-        $channel->relations()->create([
-            'relationable_type' => Thread::class,
-            'relationable_id' => $thread->id,
-            'kind' => 'link',
-        ]);
+        app(ChannelLinkRepository::class)->create($channel, $thread, $thread);
 
         // Test with 'content' instead of 'text'
         $messageData = [
@@ -178,11 +165,7 @@ class InboundClientMessageHandlerTest extends TestCase
             'status' => 'open',
         ]);
 
-        $channel->relations()->create([
-            'relationable_type' => Thread::class,
-            'relationable_id' => $thread->id,
-            'kind' => 'link',
-        ]);
+        app(ChannelLinkRepository::class)->create($channel, $thread, $thread);
         $handler = app(InboundClientMessageHandler::class);
 
         // Test message type

@@ -6,7 +6,6 @@ use App\Http\Controllers\Api\Auth\LogoutController;
 use App\Http\Controllers\Api\Auth\PasskeyController;
 use App\Http\Controllers\Api\Auth\RegisterController;
 use App\Http\Controllers\Api\ChannelAddressController;
-use App\Http\Controllers\Api\ChannelConnectionController;
 use App\Http\Controllers\Api\ChannelController;
 use App\Http\Controllers\Api\ChannelRouteController;
 use App\Http\Controllers\Api\CredentialController;
@@ -139,10 +138,6 @@ Route::prefix('channels')->middleware(['auth:sanctum,passport', 'api.ability:cha
     Route::post('/', [ChannelController::class, 'store'])->name('api.channels.store');
     Route::patch('/{channel}', [ChannelController::class, 'update'])->name('api.channels.update');
     Route::delete('/{channel}', [ChannelController::class, 'destroy'])->name('api.channels.destroy');
-    Route::get('/{channel}/connections', [ChannelConnectionController::class, 'index'])->name('api.channels.connections.index');
-    Route::post('/{channel}/connections', [ChannelConnectionController::class, 'store'])->name('api.channels.connections.store');
-    Route::patch('/{channel}/connections/{connection}', [ChannelConnectionController::class, 'update'])->name('api.channels.connections.update');
-    Route::delete('/{channel}/connections/{connection}', [ChannelConnectionController::class, 'destroy'])->name('api.channels.connections.destroy');
     Route::get('/{channel}/routes', [ChannelRouteController::class, 'index'])->name('api.channels.routes.index');
     Route::post('/{channel}/routes', [ChannelRouteController::class, 'store'])->name('api.channels.routes.store');
     Route::patch('/{channel}/routes/{route}', [ChannelRouteController::class, 'update'])->name('api.channels.routes.update');

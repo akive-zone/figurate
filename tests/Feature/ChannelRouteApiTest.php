@@ -4,13 +4,13 @@ namespace Tests\Feature;
 
 use App\Models\Server\Channel;
 use App\Models\Server\ChannelAddress;
-use App\Models\Server\ChannelRelation;
 use App\Models\Server\ChannelRoute;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
+use App\Support\Channels\ChannelLinkRepository;
 use App\TokenAbility;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -36,16 +36,6 @@ class ChannelRouteApiTest extends TestCase
             'label' => 'WhatsApp WAHA',
         ]);
 
-        $channel->relations()->create([
-            'relationable_type' => $user->getMorphClass(),
-            'relationable_id' => $user->id,
-            'kind' => ChannelRelation::KindLink,
-            'status' => Channel::StatusActive,
-            'direction' => Channel::DirectionBidirectional,
-            'config' => [],
-            'data' => [],
-            'meta' => [],
-        ]);
         SpaceActorState::query()->create([
             'space_id' => $space->id,
             'thread_id' => null,
@@ -53,6 +43,7 @@ class ChannelRouteApiTest extends TestCase
             'actorable_id' => $user->id,
             'status' => SpaceActorState::StatusActive,
         ]);
+        app(ChannelLinkRepository::class)->create($channel, $space, $space);
 
         Sanctum::actingAs($user, [TokenAbility::Compose->value]);
 
@@ -127,16 +118,14 @@ class ChannelRouteApiTest extends TestCase
             'driver' => Channel::ProtocolGeneric,
             'server' => 'whatsapp-waha',
         ]);
-        $channel->relations()->create([
-            'relationable_type' => $user->getMorphClass(),
-            'relationable_id' => $user->id,
-            'kind' => ChannelRelation::KindLink,
-            'status' => Channel::StatusActive,
-            'direction' => Channel::DirectionBidirectional,
-            'config' => [],
-            'data' => [],
-            'meta' => [],
+        SpaceActorState::query()->create([
+            'space_id' => $space->id,
+            'thread_id' => null,
+            'actorable_type' => $user->getMorphClass(),
+            'actorable_id' => $user->id,
+            'status' => SpaceActorState::StatusActive,
         ]);
+        app(ChannelLinkRepository::class)->create($channel, $space, $space);
         $route = $channel->routes()->create([
             'name' => 'default-session',
             'status' => Channel::StatusActive,

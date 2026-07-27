@@ -7,11 +7,11 @@ use App\Ai\Tools\DelegateA2aTaskTool;
 use App\Ai\Tools\InvokeA2aAgentTool;
 use App\Ai\Tools\ListAvailableA2aAgentsTool;
 use App\Models\Server\Channel;
-use App\Models\Server\ChannelRelation;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\ThreadEvent;
 use App\Models\Server\User;
+use App\Support\Channels\ChannelLinkRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Laravel\Ai\Tools\Request as ToolRequest;
@@ -181,9 +181,7 @@ class OutboundA2aToolsTest extends TestCase
             'meta' => [],
         ]);
 
-        $thread->channelRelations()->create([
-            'channel_id' => $channel->id,
-            'kind' => ChannelRelation::KindLink,
+        app(ChannelLinkRepository::class)->create($channel, $thread, $thread, [
             'status' => Channel::StatusActive,
             'direction' => Channel::DirectionOutbound,
             'config' => $config,

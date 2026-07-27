@@ -7,7 +7,6 @@ use Database\Factories\ChannelFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Channel extends Model
@@ -99,35 +98,9 @@ class Channel extends Model
         ];
     }
 
-    public function relations(): HasMany
-    {
-        return $this->hasMany(ChannelRelation::class, 'channel_id');
-    }
-
-    public function connections(): HasMany
-    {
-        return $this->relations();
-    }
-
     public function routes(): HasMany
     {
         return $this->hasMany(ChannelRoute::class);
-    }
-
-    public function threads(): MorphToMany
-    {
-        return $this->morphedByMany(Thread::class, 'relationable', 'channel_relations', 'channel_id', 'relationable_id')
-            ->wherePivot('kind', ChannelRelation::KindBind)
-            ->withPivot([
-                'id',
-                'kind',
-                'status',
-                'direction',
-                'config',
-                'data',
-                'meta',
-            ])
-            ->withTimestamps();
     }
 
     public function protocolKey(): string
