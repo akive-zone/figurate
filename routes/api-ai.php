@@ -1,6 +1,6 @@
 <?php
 
-use App\Ai\Gateways\Mcp\Servers\FigurateServer;
+use App\Ai\Gateways\Mcp\Servers\ComposeServer;
 use App\Http\Controllers\Api\A2a\StreamController as A2aStreamController;
 use App\Http\Controllers\Api\Acp\RpcController as AcpRpcController;
 use App\Http\Controllers\Api\Acp\SessionController as AcpSessionController;
@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Route;
 use Laravel\Mcp\Facades\Mcp;
 
 Route::prefix('mcp')->middleware(['auth:sanctum,passport'])->group(function (): void {
-    Mcp::web('/', FigurateServer::class)
+    Mcp::web('/compose', ComposeServer::class)
         ->middleware([EnsureTransportUser::class, EnsureTokenAbility::class.':mcp:use']);
 });
 

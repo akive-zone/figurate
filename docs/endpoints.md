@@ -143,8 +143,11 @@ ACP routes are authenticated with `auth:sanctum,passport`, require a resolved tr
 
 | Method | Path | Auth | Name | Purpose |
 | --- | --- | --- | --- | --- |
-| `GET` | `/api/mcp` | `auth:sanctum,passport`, `mcp:use` ability | vendor route | MCP server transport. |
-| `POST` | `/api/mcp` | `auth:sanctum,passport`, `mcp:use` ability | vendor route | MCP server transport. |
+Figurate can host multiple MCP servers under `/api/mcp/{server}`. The first hosted server is Compose.
+
+| `GET` | `/api/mcp/compose` | `auth:sanctum,passport` | vendor route | Reject non-transport requests with `405 Method Not Allowed`. |
+| `DELETE` | `/api/mcp/compose` | `auth:sanctum,passport` | vendor route | Reject non-transport requests with `405 Method Not Allowed`. |
+| `POST` | `/api/mcp/compose` | `auth:sanctum,passport`, `mcp:use` ability | vendor route | Compose MCP server transport. |
 
 MCP OAuth discovery/registration routes are provided by Laravel MCP and Passport:
 

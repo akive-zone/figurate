@@ -3,8 +3,8 @@
 namespace Tests\Feature\Mcp;
 
 use App\Ai\Gateways\Mcp\Prompts\PlanSpaceWorkPrompt;
-use App\Ai\Gateways\Mcp\Resources\FigurateServerGuideResource;
-use App\Ai\Gateways\Mcp\Servers\FigurateServer;
+use App\Ai\Gateways\Mcp\Resources\ComposeServerGuideResource;
+use App\Ai\Gateways\Mcp\Servers\ComposeServer;
 use App\Ai\Gateways\Mcp\Tools\AssignThreadActorTool;
 use App\Ai\Gateways\Mcp\Tools\CreateGraphEdgeTool;
 use App\Ai\Gateways\Mcp\Tools\CreatePostTool;
@@ -27,11 +27,20 @@ use App\Models\Server\User;
 use Database\Factories\SpaceFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Laravel\Mcp\Server\Registrar;
 use Tests\TestCase;
 
-class FigurateMcpServerTest extends TestCase
+class ComposeMcpServerTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_it_is_registered_as_a_named_hosted_server(): void
+    {
+        $route = app(Registrar::class)->getWebServer('api/mcp/compose');
+
+        $this->assertNotNull($route);
+        $this->assertSame('api/mcp/compose', $route->uri());
+    }
 
     public function test_it_lists_only_accessible_spaces(): void
     {
@@ -39,7 +48,7 @@ class FigurateMcpServerTest extends TestCase
         $visibleSpace = $this->accessibleSpace($user);
         SpaceFactory::new()->create();
 
-        $response = FigurateServer::actingAs($user)->tool(ListSpacesTool::class, [
+        $response = ComposeServer::actingAs($user)->tool(ListSpacesTool::class, [
             'limit' => 10,
         ]);
 
@@ -82,7 +91,7 @@ class FigurateMcpServerTest extends TestCase
             'occurred_at' => now(),
         ]);
 
-        $response = FigurateServer::actingAs($user)->tool(ReadThreadTool::class, [
+        $response = ComposeServer::actingAs($user)->tool(ReadThreadTool::class, [
             'thread_id' => $thread->uuid,
         ]);
 
@@ -97,7 +106,7 @@ class FigurateMcpServerTest extends TestCase
         $user = $this->makeUser();
         $space = $this->accessibleSpace($user);
 
-        $createThread = FigurateServer::actingAs($user)->tool(CreateThreadTool::class, [
+        $createThread = ComposeServer::actingAs($user)->tool(CreateThreadTool::class, [
             'space_id' => $space->uuid,
             'title' => 'Source replacement',
             'purpose' => 'asset_update',
@@ -110,7 +119,7 @@ class FigurateMcpServerTest extends TestCase
         $this->assertSame('asset_update', $thread->purpose);
         $this->assertSame('ready_for_review', $thread->phase);
 
-        $createPost = FigurateServer::actingAs($user)->tool(CreatePostTool::class, [
+        $createPost = ComposeServer::actingAs($user)->tool(CreatePostTool::class, [
             'target_type' => 'thread',
             'target_id' => $thread->uuid,
             'type' => 'note.created',
@@ -135,7 +144,7 @@ class FigurateMcpServerTest extends TestCase
         $sourceSpace = $this->accessibleSpace($user);
         $targetSpace = $this->accessibleSpace($user);
 
-        $response = FigurateServer::actingAs($user)->tool(CreateGraphEdgeTool::class, [
+        $response = ComposeServer::actingAs($user)->tool(CreateGraphEdgeTool::class, [
             'source_type' => 'space',
             'source_id' => $sourceSpace->uuid,
             'target_type' => 'space',
@@ -183,7 +192,7 @@ class FigurateMcpServerTest extends TestCase
             'status' => 'open',
         ]);
 
-        $response = FigurateServer::actingAs($user)->tool(CreateGraphEdgeTool::class, [
+        $response = ComposeServer::actingAs($user)->tool(CreateGraphEdgeTool::class, [
             'source_type' => 'post',
             'source_id' => $post->ulid,
             'target_type' => 'thread',
@@ -234,7 +243,7 @@ class FigurateMcpServerTest extends TestCase
             'occurred_at' => now(),
         ]);
 
-        $response = FigurateServer::actingAs($user)->tool(SearchConversationContextTool::class, [
+        $response = ComposeServer::actingAs($user)->tool(SearchConversationContextTool::class, [
             'thread_id' => $thread->uuid,
             'query' => 'drain',
         ]);
@@ -286,7 +295,7 @@ class FigurateMcpServerTest extends TestCase
         $knowledgePost->attachRelation($user, Post::RelationRoleSender);
         $knowledgeThread->attachRelation($knowledgePost, ThreadRelation::TypeDerivedFrom, 'Derived artifact');
 
-        $response = FigurateServer::actingAs($user)->tool(QueryGraphEdgesTool::class, [
+        $response = ComposeServer::actingAs($user)->tool(QueryGraphEdgesTool::class, [
             'node_type' => 'space',
             'node_id' => $sourceSpace->uuid,
             'direction' => 'outgoing',
@@ -312,13 +321,13 @@ class FigurateMcpServerTest extends TestCase
         $user = $this->makeUser();
         $space = $this->accessibleSpace($user);
 
-        FigurateServer::actingAs($user)
-            ->resource(FigurateServerGuideResource::class)
+        ComposeServer::actingAs($user)
+            ->resource(ComposeServerGuideResource::class)
             ->assertOk()
-            ->assertSee('Figurate MCP Guide')
+            ->assertSee('Compose MCP Guide')
             ->assertSee('create_thread');
 
-        FigurateServer::actingAs($user)
+        ComposeServer::actingAs($user)
             ->prompt(PlanSpaceWorkPrompt::class, [
                 'space_id' => $space->uuid,
                 'objective' => 'Prepare the next repair workflow.',
@@ -340,7 +349,7 @@ class FigurateMcpServerTest extends TestCase
             'status' => 'open',
         ]);
 
-        $assignResponse = FigurateServer::actingAs($user)->tool(AssignThreadActorTool::class, [
+        $assignResponse = ComposeServer::actingAs($user)->tool(AssignThreadActorTool::class, [
             'thread_id' => $thread->uuid,
             'actor_type' => 'named',
             'actor_key' => ThreadActor::ActorCoordinator,
@@ -375,7 +384,7 @@ class FigurateMcpServerTest extends TestCase
             'last_used_at' => now(),
         ]);
 
-        $transferResponse = FigurateServer::actingAs($user)->tool(TransferThreadSessionTool::class, [
+        $transferResponse = ComposeServer::actingAs($user)->tool(TransferThreadSessionTool::class, [
             'thread_id' => $thread->uuid,
             'from_user_id' => $user->id,
             'to_user_id' => $targetUser->id,

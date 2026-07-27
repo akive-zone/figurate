@@ -9,17 +9,17 @@ use Laravel\Mcp\Server\Attributes\MimeType;
 use Laravel\Mcp\Server\Attributes\Uri;
 use Laravel\Mcp\Server\Resource;
 
-#[Description('Operational guidance for using the Figurate MCP server.')]
+#[Description('Operational guidance for using the Compose MCP server hosted by Figurate.')]
 #[MimeType('text/markdown')]
-#[Uri('file://figurate/guide')]
-class FigurateServerGuideResource extends Resource
+#[Uri('file://compose/guide')]
+class ComposeServerGuideResource extends Resource
 {
     public function handle(Request $request): Response
     {
         return Response::text(implode("\n", [
-            '# Figurate MCP Guide',
+            '# Compose MCP Guide',
             '',
-            'Use this server to inspect and operate on space-based work in Figurate.',
+            'Use the Compose server to inspect and operate on space-based work in Figurate.',
             '',
             'Core objects:',
             '- Space: long-lived context and entrypoint.',

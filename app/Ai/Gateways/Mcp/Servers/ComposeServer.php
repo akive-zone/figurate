@@ -4,7 +4,7 @@ namespace App\Ai\Gateways\Mcp\Servers;
 
 use App\Ai\Gateways\Mcp\Prompts\PlanSpaceWorkPrompt;
 use App\Ai\Gateways\Mcp\Prompts\SummarizeThreadPrompt;
-use App\Ai\Gateways\Mcp\Resources\FigurateServerGuideResource;
+use App\Ai\Gateways\Mcp\Resources\ComposeServerGuideResource;
 use App\Ai\Gateways\Mcp\Resources\SpaceResource;
 use App\Ai\Gateways\Mcp\Resources\ThreadResource;
 use App\Ai\Gateways\Mcp\Tools\AssignThreadActorTool;
@@ -25,10 +25,10 @@ use Laravel\Mcp\Server\Attributes\Instructions;
 use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Attributes\Version;
 
-#[Name('Figurate Server')]
+#[Name('Compose Server')]
 #[Version('0.0.1')]
-#[Instructions('Use this server to inspect and operate on Figurate chat context. It exposes spaces, threads, posts, actors, and context search. Prefer read tools first, then use create_thread or create_post for safe workflow actions. Application-specific state transitions remain outside the core server.')]
-class FigurateServer extends Server
+#[Instructions('Use the Compose server to inspect and operate on Figurate chat context. It exposes spaces, threads, posts, actors, and context search. Prefer read tools first, then use create_thread or create_post for safe workflow actions. Application-specific state transitions remain outside the server.')]
+class ComposeServer extends Server
 {
     protected array $tools = [
         ListSpacesTool::class,
@@ -47,7 +47,7 @@ class FigurateServer extends Server
     ];
 
     protected array $resources = [
-        FigurateServerGuideResource::class,
+        ComposeServerGuideResource::class,
         SpaceResource::class,
         ThreadResource::class,
     ];

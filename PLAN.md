@@ -140,11 +140,11 @@ Date opened: 2026-03-15
 Current status: Partially Completed
 
 ### Goal
-Establish a usable MCP gateway for Figurate, covering both the first-party Figurate MCP server and outbound MCP tool invocation from chat/runtime context.
+Establish a usable MCP gateway for Figurate, covering both hosted MCP servers and outbound MCP tool invocation from chat/runtime context.
 
 ### Completed
 
-1. First-party Figurate MCP server is implemented and exposed at `/api/mcp`.
+1. The first hosted MCP server, Compose, is implemented and exposed at `/api/mcp/compose`.
 2. MCP web access is protected behind `EnsureDeviceUser` and `auth:sanctum`.
 3. The Figurate server publishes a concrete capability surface for channels/threads/posts/actors/context, including:
    - read/list tools,
@@ -160,7 +160,7 @@ Establish a usable MCP gateway for Figurate, covering both the first-party Figur
 7. Outbound MCP invocation supports both remote endpoint transport and local handler transport, including allowlisted tools, timeout bounds, optional headers, and normalized response envelopes.
 8. MCP invocation outcomes are recorded to `thread_events` with MCP-specific event typing for execution traceability.
 9. Context-server CRUD and registration flows exist so MCP endpoints/handlers can be attached to user, channel, and thread context.
-10. Feature coverage exists for the first-party Figurate MCP server capability surface.
+10. Feature coverage exists for the Compose MCP server capability surface.
 
 ### Partially Completed
 
@@ -169,7 +169,7 @@ Establish a usable MCP gateway for Figurate, covering both the first-party Figur
    - endpoint/handler presence checks exist,
    - broader trust policy and environment-aware restrictions are still open.
 2. First-party server coverage exists, but outbound resolver/client/policy coverage is still thin compared with the implemented surface.
-3. The Figurate MCP server is operational for context inspection and safe workflow actions, but its broader mutation contract remains intentionally narrow.
+3. The Compose MCP server is operational for context inspection and safe workflow actions, but its broader mutation contract remains intentionally narrow.
 
 ### Open Work
 
@@ -177,11 +177,11 @@ Establish a usable MCP gateway for Figurate, covering both the first-party Figur
 2. Define and enforce outbound MCP trust rules for remote endpoints, credential/header policy, and environment-aware allowlisting.
 3. Decide whether remote MCP integration should remain config/allowlist driven or gain capability discovery/schema-sync behavior.
 4. Define clearer operator-facing observability for MCP endpoint failures, denial reasons, latency, and retry/no-retry behavior.
-5. Decide whether the first-party Figurate MCP server should expand beyond chat/workflow support into additional domain mutations, or remain intentionally constrained.
+5. Decide whether the Compose MCP server should expand beyond chat/workflow support into additional domain mutations, or remain intentionally constrained.
 
 ### Exit Criteria Check
 
-1. First-party Figurate MCP server is usable for supported chat/workflow operations: Met.
+1. The Compose MCP server is usable for supported chat/workflow operations: Met.
 2. Chat runtime can discover and invoke scoped MCP tools through a unified gateway: Met.
 3. MCP trust policy is fully enforced for outbound integrations: Not met.
 4. Gateway test coverage is broad enough for inbound and outbound confidence: Not met.

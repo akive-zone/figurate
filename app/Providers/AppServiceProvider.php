@@ -52,7 +52,7 @@ class AppServiceProvider extends ServiceProvider
 
         Passport::tokensCan([
             'compose' => 'Use message-oriented API capabilities.',
-            'mcp:use' => 'Use the Figurate MCP transport.',
+            'mcp:use' => 'Use MCP servers hosted by Figurate.',
             'acp:use' => 'Use the ACP transport.',
             'a2a:message.send' => 'Send A2A messages.',
             'a2a:task.read' => 'Read A2A task state.',
