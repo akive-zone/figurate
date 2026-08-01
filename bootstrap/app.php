@@ -13,7 +13,11 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: [__DIR__.'/../routes/webview.php', __DIR__.'/../routes/webhook.php'],
-        api: [__DIR__.'/../routes/rest.php', __DIR__.'/../routes/api-ai.php'],
+        api: [
+            __DIR__.'/../routes/rest.php',
+            __DIR__.'/../routes/json-http.php',
+            __DIR__.'/../routes/api-ai.php',
+        ],
         channels: __DIR__.'/../routes/broadcast.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
