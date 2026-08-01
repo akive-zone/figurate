@@ -12,6 +12,7 @@ use App\Models\Server\ThreadRelation;
 use App\Models\Server\User;
 use App\Support\Graph\GraphEdgeExplorer;
 use App\Support\Graph\GraphNodeService;
+use App\Support\Graph\GraphPayloadMapper;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,6 +23,7 @@ class GraphEdgeController extends Controller
     public function __construct(
         protected GraphEdgeExplorer $graphEdgeExplorer,
         protected GraphNodeService $graphNodes,
+        protected GraphPayloadMapper $graphPayloads,
     ) {}
 
     public function index(QueryGraphEdgesRequest $request): JsonResponse
@@ -50,14 +52,14 @@ class GraphEdgeController extends Controller
             ->prepend($node)
             ->unique(fn (Model $relatedNode): string => sprintf('%s:%s', $relatedNode->getMorphClass(), $relatedNode->getKey()))
             ->values()
-            ->map(fn (Model $relatedNode): array => $this->graphNodes->map($relatedNode, $actor))
+            ->map(fn (Model $relatedNode): array => $this->graphPayloads->node($relatedNode, $actor))
             ->all();
 
         return response()->json([
             'data' => $edges
-                ->map(fn (array $edge): array => $this->mapEdge($edge, $actor))
+                ->map(fn (array $edge): array => $this->graphPayloads->edge($edge, $actor))
                 ->all(),
-            'root' => $this->graphNodes->map($node, $actor),
+            'root' => $this->graphPayloads->node($node, $actor),
             'nodes' => $nodes,
             'meta' => [
                 'direction' => $direction,
@@ -97,7 +99,7 @@ class GraphEdgeController extends Controller
         };
 
         return response()->json([
-            'data' => $this->mapEdge([
+            'data' => $this->graphPayloads->edge([
                 'relation' => $relation,
                 'source' => $source,
                 'target' => $target,
@@ -133,7 +135,7 @@ class GraphEdgeController extends Controller
         }
 
         return response()->json([
-            'data' => $this->mapEdge([
+            'data' => $this->graphPayloads->edge([
                 'relation' => $relation->refresh(),
                 'source' => $source,
                 'target' => $target,
@@ -154,31 +156,6 @@ class GraphEdgeController extends Controller
         $relation->delete();
 
         return response()->json(status: 204);
-    }
-
-    /**
-     * @param  array<string, mixed>  $edge
-     * @return array<string, mixed>
-     */
-    protected function mapEdge(array $edge, User $actor): array
-    {
-        /** @var SpaceRelation|ThreadRelation|PostRelation $relation */
-        $relation = $edge['relation'];
-        /** @var Model $source */
-        $source = $edge['source'];
-        /** @var Model $target */
-        $target = $edge['target'];
-
-        return [
-            'id' => $relation->ulid,
-            'direction' => (string) $edge['direction'],
-            'depth' => (int) $edge['depth'],
-            'type' => $relation instanceof PostRelation ? $relation->role : $relation->type,
-            'purpose' => $relation instanceof PostRelation ? null : $relation->purpose,
-            'source' => $this->graphNodes->map($source, $actor),
-            'target' => $this->graphNodes->map($target, $actor),
-            'created_at' => optional($relation->created_at)?->toIso8601String(),
-        ];
     }
 
     protected function resolveEdge(string $edge): SpaceRelation|ThreadRelation|PostRelation

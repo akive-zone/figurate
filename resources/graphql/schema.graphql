@@ -1,0 +1,89 @@
+scalar JSON @scalar(class: "App\\GraphQL\\Scalars\\Json")
+
+enum GraphNodeType {
+    SPACE @enum(value: "space")
+    THREAD @enum(value: "thread")
+    POST @enum(value: "post")
+}
+
+enum GraphEdgeDirection {
+    OUTGOING @enum(value: "outgoing")
+    INCOMING @enum(value: "incoming")
+    BOTH @enum(value: "both")
+}
+
+type Query {
+    "Resolve a node that the current actor can view."
+    graphNode(type: GraphNodeType!, id: ID!): GraphNode!
+
+    "Traverse visible semantic edges from a root node."
+    graphEdges(
+        nodeType: GraphNodeType!
+        nodeId: ID!
+        direction: GraphEdgeDirection = OUTGOING
+        edgeType: String
+        targetType: GraphNodeType
+        depth: Int = 1 @rules(apply: ["min:1", "max:5"])
+        limit: Int = 25 @rules(apply: ["min:1", "max:100"])
+    ): GraphTraversal!
+}
+
+type GraphNode {
+    type: GraphNodeType!
+    id: ID!
+    invocation: GraphInvocation
+    attributes: GraphNodeAttributes!
+    createdAt: String @rename(attribute: "created_at")
+}
+
+type GraphInvocation {
+    id: ID!
+    invocationId: ID! @rename(attribute: "invocation_id")
+    traceId: ID @rename(attribute: "trace_id")
+    parentInvocationId: ID @rename(attribute: "parent_invocation_id")
+    status: String!
+    createdAt: String @rename(attribute: "created_at")
+}
+
+type GraphNodeAttributes {
+    status: String
+    spaceCount: Int @rename(attribute: "space_count")
+    threadCount: Int @rename(attribute: "thread_count")
+    postCount: Int @rename(attribute: "post_count")
+    title: String
+    purpose: String
+    phase: String
+    postType: String @rename(attribute: "post_type")
+    tag: String
+    text: String
+    payload: JSON
+    meta: JSON
+    occurredAt: String @rename(attribute: "occurred_at")
+}
+
+type GraphEdge {
+    id: ID!
+    direction: GraphEdgeDirection!
+    depth: Int!
+    type: String!
+    purpose: String
+    source: GraphNode!
+    target: GraphNode!
+    createdAt: String @rename(attribute: "created_at")
+}
+
+type GraphTraversal {
+    root: GraphNode!
+    nodes: [GraphNode!]!
+    edges: [GraphEdge!]!
+    meta: GraphTraversalMeta!
+}
+
+type GraphTraversalMeta {
+    direction: GraphEdgeDirection!
+    depth: Int!
+    edgeType: String @rename(attribute: "edge_type")
+    targetType: GraphNodeType @rename(attribute: "target_type")
+    edgeCount: Int! @rename(attribute: "edge_count")
+    nodeCount: Int! @rename(attribute: "node_count")
+}

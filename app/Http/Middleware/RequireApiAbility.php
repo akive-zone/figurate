@@ -3,12 +3,15 @@
 namespace App\Http\Middleware;
 
 use App\Models\Server\User;
+use App\Support\Auth\ApiAbilityGate;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class RequireApiAbility
 {
+    public function __construct(protected ApiAbilityGate $apiAbilities) {}
+
     /**
      * Handle an incoming request.
      *
@@ -22,14 +25,7 @@ class RequireApiAbility
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        $token = $user->currentAccessToken();
-        $tokenName = is_object($token) && isset($token->name) ? (string) $token->name : '';
-
-        if (
-            str_starts_with($tokenName, 'api:')
-            && ! $user->tokenCan('*')
-            && ! $user->tokenCan($ability)
-        ) {
+        if (! $this->apiAbilities->allows($user, $ability)) {
             return response()->json([
                 'message' => 'The API credential does not have the required ability.',
                 'required_ability' => $ability,
