@@ -132,6 +132,220 @@ class GraphQLApiTest extends TestCase
             );
     }
 
+    public function test_it_creates_updates_and_deletes_graph_nodes(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $created = $this->postJson('/api/graphql', [
+            'query' => <<<'GRAPHQL'
+                mutation CreateGraphNode($input: CreateGraphNodeInput!) {
+                    createGraphNode(input: $input) {
+                        id
+                        type
+                        attributes { status }
+                    }
+                }
+                GRAPHQL,
+            'variables' => [
+                'input' => [
+                    'type' => 'SPACE',
+                    'attributes' => ['status' => 'draft'],
+                ],
+            ],
+        ])
+            ->assertOk()
+            ->assertJsonMissingPath('errors')
+            ->assertJsonPath('data.createGraphNode.type', 'SPACE')
+            ->assertJsonPath('data.createGraphNode.attributes.status', 'draft');
+
+        $nodeId = (string) $created->json('data.createGraphNode.id');
+        $this->assertDatabaseHas('spaces', ['uuid' => $nodeId, 'status' => 'draft']);
+
+        $this->postJson('/api/graphql', [
+            'query' => <<<'GRAPHQL'
+                mutation UpdateGraphNode($input: UpdateGraphNodeInput!) {
+                    updateGraphNode(input: $input) {
+                        id
+                        attributes { status }
+                    }
+                }
+                GRAPHQL,
+            'variables' => [
+                'input' => [
+                    'type' => 'SPACE',
+                    'id' => $nodeId,
+                    'attributes' => ['status' => 'active'],
+                ],
+            ],
+        ])
+            ->assertOk()
+            ->assertJsonMissingPath('errors')
+            ->assertJsonPath('data.updateGraphNode.id', $nodeId)
+            ->assertJsonPath('data.updateGraphNode.attributes.status', 'active');
+
+        $this->postJson('/api/graphql', [
+            'query' => <<<'GRAPHQL'
+                mutation DeleteGraphNode($type: GraphNodeType!, $id: ID!) {
+                    deleteGraphNode(type: $type, id: $id) { id type }
+                }
+                GRAPHQL,
+            'variables' => ['type' => 'SPACE', 'id' => $nodeId],
+        ])
+            ->assertOk()
+            ->assertJsonMissingPath('errors')
+            ->assertJsonPath('data.deleteGraphNode.id', $nodeId)
+            ->assertJsonPath('data.deleteGraphNode.type', 'SPACE');
+
+        $this->assertSoftDeleted('spaces', ['uuid' => $nodeId]);
+    }
+
+    public function test_it_creates_updates_and_deletes_graph_edges(): void
+    {
+        $user = User::factory()->create();
+        $source = $this->accessibleSpace($user);
+        $target = $this->accessibleSpace($user);
+        Sanctum::actingAs($user);
+
+        $created = $this->postJson('/api/graphql', [
+            'query' => <<<'GRAPHQL'
+                mutation CreateGraphEdge($input: CreateGraphEdgeInput!) {
+                    createGraphEdge(input: $input) {
+                        id
+                        type
+                        purpose
+                        source { id }
+                        target { id }
+                    }
+                }
+                GRAPHQL,
+            'variables' => [
+                'input' => [
+                    'source' => ['type' => 'SPACE', 'id' => $source->uuid],
+                    'target' => ['type' => 'SPACE', 'id' => $target->uuid],
+                    'edgeType' => 'references',
+                    'purpose' => 'Initial reference',
+                ],
+            ],
+        ])
+            ->assertOk()
+            ->assertJsonMissingPath('errors')
+            ->assertJsonPath('data.createGraphEdge.type', 'references')
+            ->assertJsonPath('data.createGraphEdge.source.id', $source->uuid)
+            ->assertJsonPath('data.createGraphEdge.target.id', $target->uuid);
+
+        $edgeId = (string) $created->json('data.createGraphEdge.id');
+
+        $this->postJson('/api/graphql', [
+            'query' => <<<'GRAPHQL'
+                mutation UpdateGraphEdge($input: UpdateGraphEdgeInput!) {
+                    updateGraphEdge(input: $input) { id type purpose }
+                }
+                GRAPHQL,
+            'variables' => [
+                'input' => [
+                    'id' => $edgeId,
+                    'edgeType' => 'supports',
+                    'purpose' => 'Updated reference',
+                ],
+            ],
+        ])
+            ->assertOk()
+            ->assertJsonMissingPath('errors')
+            ->assertJsonPath('data.updateGraphEdge.id', $edgeId)
+            ->assertJsonPath('data.updateGraphEdge.type', 'supports')
+            ->assertJsonPath('data.updateGraphEdge.purpose', 'Updated reference');
+
+        $this->postJson('/api/graphql', [
+            'query' => 'mutation($id: ID!) { deleteGraphEdge(id: $id) { id } }',
+            'variables' => ['id' => $edgeId],
+        ])
+            ->assertOk()
+            ->assertJsonMissingPath('errors')
+            ->assertJsonPath('data.deleteGraphEdge.id', $edgeId);
+
+        $this->assertDatabaseMissing('space_relations', ['ulid' => $edgeId]);
+    }
+
+    public function test_graphql_mutations_validate_inputs_and_write_abilities(): void
+    {
+        $user = User::factory()->create();
+        $token = SanctumUser::query()
+            ->findOrFail($user->id)
+            ->createToken('api:graphql-reader', [TokenAbility::NodesRead->value])
+            ->plainTextToken;
+        $this->withHeader('Authorization', "Bearer {$token}");
+
+        $this->postJson('/api/graphql', [
+            'query' => <<<'GRAPHQL'
+                mutation {
+                    createGraphNode(input: { type: SPACE }) { id }
+                }
+                GRAPHQL,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data', null)
+            ->assertJsonPath(
+                'errors.0.message',
+                'The API credential does not have the required nodes:write ability.',
+            );
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/graphql', [
+            'query' => <<<'GRAPHQL'
+                mutation {
+                    createGraphNode(input: { type: THREAD, attributes: { title: "Orphan" } }) { id }
+                }
+                GRAPHQL,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data', null)
+            ->assertJsonFragment([
+                'input.parent.id' => ['A parent node is required.'],
+            ]);
+    }
+
+    public function test_graphql_mutations_protect_child_nodes_and_reserved_edges(): void
+    {
+        $user = User::factory()->create();
+        $parent = $this->accessibleSpace($user);
+        $child = $this->accessibleSpace($user);
+        $child->attachRelation($parent, SpaceRelation::TypeChildOf);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/graphql', [
+            'query' => 'mutation($id: ID!) { deleteGraphNode(type: SPACE, id: $id) { id } }',
+            'variables' => ['id' => $parent->uuid],
+        ])
+            ->assertOk()
+            ->assertJsonPath('data', null)
+            ->assertJsonPath(
+                'errors.0.message',
+                'A node with child nodes cannot be deleted.',
+            );
+
+        $this->postJson('/api/graphql', [
+            'query' => <<<'GRAPHQL'
+                mutation CreateReservedEdge($input: CreateGraphEdgeInput!) {
+                    createGraphEdge(input: $input) { id }
+                }
+                GRAPHQL,
+            'variables' => [
+                'input' => [
+                    'source' => ['type' => 'SPACE', 'id' => $child->uuid],
+                    'target' => ['type' => 'SPACE', 'id' => $parent->uuid],
+                    'edgeType' => SpaceRelation::TypeChildOf,
+                ],
+            ],
+        ])
+            ->assertOk()
+            ->assertJsonPath('data', null)
+            ->assertJsonFragment([
+                'input.edgeType' => ['The edge type is not supported.'],
+            ]);
+    }
+
     protected function accessibleSpace(User $user): Space
     {
         $space = Space::factory()->create();

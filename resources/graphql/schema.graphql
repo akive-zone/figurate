@@ -28,6 +28,69 @@ type Query {
     ): GraphTraversal!
 }
 
+type Mutation {
+    "Create a graph node and optionally attach it to a parent node."
+    createGraphNode(input: CreateGraphNodeInput!): GraphNode!
+
+    "Update the mutable attributes of a graph node."
+    updateGraphNode(input: UpdateGraphNodeInput!): GraphNode!
+
+    "Delete a childless graph node and its semantic edges."
+    deleteGraphNode(type: GraphNodeType!, id: ID!): DeletedGraphNode!
+
+    "Create a semantic edge between two visible graph nodes."
+    createGraphEdge(input: CreateGraphEdgeInput!): GraphEdge!
+
+    "Update a semantic edge's type or purpose."
+    updateGraphEdge(input: UpdateGraphEdgeInput!): GraphEdge!
+
+    "Delete a semantic graph edge."
+    deleteGraphEdge(id: ID!): DeletedGraphEdge!
+}
+
+input GraphNodeReferenceInput {
+    type: GraphNodeType!
+    id: ID!
+}
+
+input GraphNodeAttributesInput {
+    status: String @rules(apply: ["max:100"])
+    title: String @rules(apply: ["max:255"])
+    purpose: String @rules(apply: ["max:50"])
+    phase: String @rules(apply: ["max:100"])
+    postType: String @rename(attribute: "post_type") @rules(apply: ["max:100"])
+    tag: String @rules(apply: ["max:100"])
+    text: String
+    payload: JSON
+    meta: JSON
+    occurredAt: String @rename(attribute: "occurred_at") @rules(apply: ["date"])
+}
+
+input CreateGraphNodeInput {
+    type: GraphNodeType!
+    parent: GraphNodeReferenceInput
+    attributes: GraphNodeAttributesInput
+}
+
+input UpdateGraphNodeInput {
+    type: GraphNodeType!
+    id: ID!
+    attributes: GraphNodeAttributesInput!
+}
+
+input CreateGraphEdgeInput {
+    source: GraphNodeReferenceInput!
+    target: GraphNodeReferenceInput!
+    edgeType: String! @rename(attribute: "edge_type") @rules(apply: ["max:100"])
+    purpose: String @rules(apply: ["max:1000"])
+}
+
+input UpdateGraphEdgeInput {
+    id: ID!
+    edgeType: String @rename(attribute: "edge_type") @rules(apply: ["max:100"])
+    purpose: String @rules(apply: ["max:1000"])
+}
+
 type GraphNode {
     type: GraphNodeType!
     id: ID!
@@ -86,4 +149,13 @@ type GraphTraversalMeta {
     targetType: GraphNodeType @rename(attribute: "target_type")
     edgeCount: Int! @rename(attribute: "edge_count")
     nodeCount: Int! @rename(attribute: "node_count")
+}
+
+type DeletedGraphNode {
+    type: GraphNodeType!
+    id: ID!
+}
+
+type DeletedGraphEdge {
+    id: ID!
 }

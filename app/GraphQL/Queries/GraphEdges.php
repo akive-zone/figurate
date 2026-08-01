@@ -4,15 +4,12 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Queries;
 
-use App\Models\Server\User;
-use App\Support\Auth\ApiAbilityGate;
+use App\GraphQL\Support\GraphQLAuthorizer;
 use App\Support\Graph\GraphEdgeExplorer;
 use App\Support\Graph\GraphNodeService;
 use App\Support\Graph\GraphPayloadMapper;
 use GraphQL\Error\UserError;
-use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\Model;
-use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 final readonly class GraphEdges
@@ -21,7 +18,7 @@ final readonly class GraphEdges
         private GraphEdgeExplorer $graphEdgeExplorer,
         private GraphNodeService $graphNodes,
         private GraphPayloadMapper $graphPayloads,
-        private ApiAbilityGate $apiAbilities,
+        private GraphQLAuthorizer $authorizer,
     ) {}
 
     /**
@@ -38,17 +35,7 @@ final readonly class GraphEdges
      */
     public function __invoke(null $root, array $args, GraphQLContext $context): array
     {
-        $actor = $context->user();
-
-        if (! $actor instanceof User) {
-            throw new AuthenticationException;
-        }
-
-        if (! $this->apiAbilities->allows($actor, 'edges:read')) {
-            throw new AuthorizationException(
-                'The API credential does not have the required edges:read ability.',
-            );
-        }
+        $actor = $this->authorizer->actor($context, 'edges:read');
 
         $edgeType = $args['edgeType'] ?? null;
         if (is_string($edgeType) && in_array($edgeType, GraphEdgeExplorer::ReservedEdgeTypes, true)) {
