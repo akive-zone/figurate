@@ -24,12 +24,9 @@ Third-party system
     -> task / event / callback
 ```
 
-## Current Product Gap
+## Current Context Ingestion Pattern
 
-The next major missing surface is conversation ingestion:
+Conversation ingestion is handled through context post endpoints on spaces and threads:
 
-```text
-CRM conversation JSON -> Fig context -> agent review -> review artifact
-```
-
-That should become a Context ingestion flow, not a Graph endpoint. Graph can link the resulting context artifacts after they exist.
+- `POST /api/spaces/{space}/posts`
+- `POST /api/threads/{thread}/posts`

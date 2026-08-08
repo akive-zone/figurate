@@ -5,12 +5,16 @@ namespace App\Http\Controllers\Api;
 use App\Features\Actions\Chat\ProjectMessageExtra;
 use App\Features\Actions\Chat\ResolveNodeInvocation;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Server\Post\ListContextPostsRequest;
+use App\Http\Requests\Server\Post\StoreContextPostRequest;
 use App\Http\Requests\Server\Space\StoreSpaceRequest;
+use App\Http\Resources\Server\Api\PostResource;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
+use App\Support\Graph\NodeFormer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -58,6 +62,58 @@ class SpaceController extends Controller
                 'created_at' => optional($spaceRecord->created_at)?->toIso8601String(),
             ],
         ]);
+    }
+
+    public function posts(ListContextPostsRequest $request, string $space): JsonResponse
+    {
+        /** @var User $actor */
+        $actor = $request->user();
+        $spaceRecord = Space::query()
+            ->where('uuid', $space)
+            ->firstOrFail();
+
+        Gate::forUser($actor)->authorize('view', $spaceRecord);
+
+        $perPage = max(1, min(100, (int) $request->integer('per_page', 25)));
+        $paginator = $spaceRecord->posts()
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->cursorPaginate($perPage, ['*'], 'cursor', $request->query('cursor'));
+
+        return response()->json([
+            'data' => PostResource::collection(
+                collect($paginator->items()),
+            )->toArray($request),
+            'meta' => [
+                'next_cursor' => $paginator->nextCursor()?->encode(),
+                'prev_cursor' => $paginator->previousCursor()?->encode(),
+                'per_page' => $perPage,
+            ],
+        ]);
+    }
+
+    public function storePost(
+        StoreContextPostRequest $request,
+        string $space,
+        NodeFormer $nodeFormer,
+    ): JsonResponse {
+        /** @var User $actor */
+        $actor = $request->user();
+        $spaceRecord = Space::query()
+            ->where('uuid', $space)
+            ->firstOrFail();
+
+        Gate::forUser($actor)->authorize('view', $spaceRecord);
+
+        $result = $nodeFormer->form($actor, [
+            'type' => 'post',
+            'parent' => ['type' => 'space', 'id' => $spaceRecord->uuid],
+            'attributes' => $this->contextPostAttributes($request),
+        ]);
+
+        return response()->json([
+            'data' => PostResource::make($result['node']),
+        ], 201);
     }
 
     public function store(StoreSpaceRequest $request): JsonResponse
@@ -275,6 +331,38 @@ class SpaceController extends Controller
             'attachments' => is_array($message->attachments) ? $message->attachments : [],
             'actions' => is_array($message->actions) ? $message->actions : [],
             'errors' => is_array($message->errors) ? $message->errors : [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function contextPostAttributes(StoreContextPostRequest $request): array
+    {
+        $validated = $request->validated();
+        $input = $request->all();
+        $hasPayload = array_key_exists('payload', $input);
+
+        $payload = $hasPayload && is_array($input['payload'])
+            ? $input['payload']
+            : collect($input)->except([
+                'type',
+                'tag',
+                'status',
+                'text',
+                'payload',
+                'meta',
+                'occurred_at',
+            ])->all();
+
+        return [
+            'post_type' => (string) ($validated['type'] ?? 'context'),
+            'tag' => is_string($validated['tag'] ?? null) ? $validated['tag'] : null,
+            'status' => is_string($validated['status'] ?? null) ? $validated['status'] : Post::StatusActive,
+            'text' => is_string($validated['text'] ?? null) ? $validated['text'] : null,
+            'payload' => is_array($payload) ? $payload : [],
+            'meta' => is_array($validated['meta'] ?? null) ? $validated['meta'] : [],
+            'occurred_at' => $validated['occurred_at'] ?? now(),
         ];
     }
 }

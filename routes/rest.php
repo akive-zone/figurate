@@ -58,6 +58,8 @@ Route::prefix('spaces')->middleware(['auth:sanctum,passport'])->group(function (
     Route::get('/', [SpaceController::class, 'index'])->middleware('api.ability:nodes:read')->name('api.spaces.index');
     Route::post('/', [SpaceController::class, 'store'])->middleware(['api.ability:nodes:write', 'api.idempotent'])->name('api.spaces.store');
     Route::get('/{space}', [SpaceController::class, 'show'])->middleware('api.ability:nodes:read')->name('api.spaces.show');
+    Route::get('/{space}/posts', [SpaceController::class, 'posts'])->middleware('api.ability:nodes:read')->name('api.spaces.posts.index');
+    Route::post('/{space}/posts', [SpaceController::class, 'storePost'])->middleware(['api.ability:nodes:write', 'api.idempotent'])->name('api.spaces.posts.store');
     Route::get('/{space}/nodes', SpaceNodeController::class)->middleware('api.ability:nodes:read')->name('api.spaces.nodes.index');
 });
 
@@ -65,6 +67,8 @@ Route::prefix('threads')->middleware(['auth:sanctum,passport'])->group(function 
     Route::get('/', [ThreadController::class, 'index'])->middleware('api.ability:nodes:read')->name('api.threads.index');
     Route::post('/', [ThreadController::class, 'store'])->middleware(['api.ability:nodes:write', 'api.idempotent'])->name('api.threads.store');
     Route::get('/{thread}', [ThreadController::class, 'show'])->middleware('api.ability:nodes:read')->name('api.threads.show');
+    Route::get('/{thread}/posts', [ThreadController::class, 'posts'])->middleware('api.ability:nodes:read')->name('api.threads.posts.index');
+    Route::post('/{thread}/posts', [ThreadController::class, 'storePost'])->middleware(['api.ability:nodes:write', 'api.idempotent'])->name('api.threads.posts.store');
     Route::get('/{thread}/nodes', ThreadNodeController::class)->middleware('api.ability:nodes:read')->name('api.threads.nodes.index');
 });
 

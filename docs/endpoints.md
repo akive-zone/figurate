@@ -49,6 +49,7 @@ php artisan route:list --path=channel-routes
 | `GET` | `/api/spaces/{space}/threads` | `auth:sanctum,passport` | `api.spaces.threads.index` | List threads in a space. |
 | `POST` | `/api/spaces/{space}/threads` | `auth:sanctum,passport` | `api.spaces.threads.store` | Create a thread in a space. |
 | `GET` | `/api/threads/{thread}` | `auth:sanctum,passport` | `api.threads.show` | Read a thread. |
+| `GET` | `/api/threads/{thread}/posts` | `auth:sanctum,passport` | `api.threads.posts.index` | List posts in a thread. |
 | `POST` | `/api/threads/{thread}/posts` | `auth:sanctum,passport` | `api.threads.posts.store` | Store arbitrary context data as a post in a thread. |
 | `GET` | `/api/threads/{thread}/posts/{post}/turns` | `auth:sanctum,passport` | `api.threads.posts.turns.index` | Read projected assistant turns for a thread post. |
 | `GET` | `/api/posts/{post}` | `auth:sanctum,passport` | `api.posts.show` | Read a post by ULID or database id. |

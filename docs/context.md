@@ -113,6 +113,7 @@ Threads are active sessions or workstreams.
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
 | `GET` | `/api/threads/{thread}` | `auth:sanctum,passport` | Read a thread. |
+| `GET` | `/api/threads/{thread}/posts` | `auth:sanctum,passport` | List posts in a thread. |
 | `POST` | `/api/threads/{thread}/posts` | `auth:sanctum,passport` | Create a post in a thread. |
 | `GET` | `/api/threads/{thread}/posts/{post}/turns` | `auth:sanctum,passport` | Read projected assistant turns for a thread post. |
 
@@ -126,6 +127,7 @@ Current post-facing routes:
 | --- | --- | --- | --- |
 | `GET` | `/api/spaces/{space}/posts` | `auth:sanctum,passport` | List posts in a space. |
 | `POST` | `/api/spaces/{space}/posts` | `auth:sanctum,passport` | Store arbitrary context data as a post in a space. |
+| `GET` | `/api/threads/{thread}/posts` | `auth:sanctum,passport` | List posts in a thread. |
 | `POST` | `/api/threads/{thread}/posts` | `auth:sanctum,passport` | Store arbitrary context data as a post in a thread. |
 | `GET` | `/api/threads/{thread}/posts/{post}/turns` | `auth:sanctum,passport` | Read assistant turns projected from a thread post. |
 | `GET` | `/api/posts/{post}` | `auth:sanctum,passport` | Read a post by ULID or database id. |
