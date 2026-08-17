@@ -275,8 +275,30 @@ class AgentExecutor
             source: 'agent_response',
         ));
 
+        $this->attachInvocationSourceRelation($userPost, $assistantMessage);
         $this->taskService->syncLocalTaskForPromptMessage($userPost);
         $this->linkAgentTelemetryToThreadMessages($thread, $userPost, $assistantMessage, $threadActor, $userId, $response);
+    }
+
+    protected function attachInvocationSourceRelation(Post $userPost, Post $assistantMessage): void
+    {
+        $sourcePostId = data_get($userPost->meta, 'post_invocation.source_post_id');
+
+        if (! is_int($sourcePostId) && (! is_string($sourcePostId) || ! is_numeric($sourcePostId))) {
+            return;
+        }
+
+        $sourcePost = Post::query()->find((int) $sourcePostId);
+
+        if (! $sourcePost instanceof Post) {
+            return;
+        }
+
+        $assistantMessage->relations()->firstOrCreate([
+            'relationable_type' => $sourcePost->getMorphClass(),
+            'relationable_id' => $sourcePost->getKey(),
+            'role' => Post::RelationRoleDerivedFrom,
+        ]);
     }
 
     protected function markPromptInvocationState(

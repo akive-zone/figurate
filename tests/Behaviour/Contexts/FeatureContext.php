@@ -374,6 +374,7 @@ class FeatureContext implements Context
 
         /** @var Application $application */
         $application = require dirname(__DIR__, 3).'/bootstrap/app.php';
+        $application->instance('request', Request::create('http://localhost/'));
         $application->make(HttpKernel::class)->bootstrap();
 
         return self::$application = $application;

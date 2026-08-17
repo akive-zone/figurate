@@ -35,6 +35,8 @@ class Post extends Model implements HasMedia
 
     public const RelationRoleContext = 'context';
 
+    public const RelationRoleDerivedFrom = 'derived_from';
+
     public const RelationRoleChannel = 'channel';
 
     public const RelationRoleChannelLink = 'channel.link';
