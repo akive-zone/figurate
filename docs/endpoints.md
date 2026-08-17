@@ -12,6 +12,7 @@ Grouped docs:
 - [Context](./context.md)
 - [Graph](./graph.md)
 - [Form](./form.md)
+- [Agent Invocation Use Cases](./agent-invocation-use-cases.md)
 
 Generated from:
 
@@ -53,7 +54,16 @@ php artisan route:list --path=channel-routes
 | `POST` | `/api/threads/{thread}/posts` | `auth:sanctum,passport` | `api.threads.posts.store` | Store arbitrary context data as a post in a thread. |
 | `GET` | `/api/threads/{thread}/posts/{post}/turns` | `auth:sanctum,passport` | `api.threads.posts.turns.index` | Read projected assistant turns for a thread post. |
 | `GET` | `/api/posts/{post}` | `auth:sanctum,passport` | `api.posts.show` | Read a post by ULID or database id. |
+| `POST` | `/api/posts/{post}/invocations` | `auth:sanctum,passport`, `forms:submit` ability | `api.posts.invocations.store` | Start tracked presenter-agent work for an existing post. |
 | `GET` | `/api/posts/{post}/turns` | `auth:sanctum,passport` | `api.posts.turns.index` | Read projected assistant turns for a thread post. |
+
+## Tasks
+
+Generic task routes expose platform-owned task state for post invocations. Domain records such as CRM tickets, fulfillment orders, payments, callbacks, and publication state remain owned by the consuming application.
+
+| Method | Path | Auth | Name | Purpose |
+| --- | --- | --- | --- | --- |
+| `GET` | `/api/tasks/{task}` | `auth:sanctum,passport`, `invocations:read` ability | `api.tasks.show` | Read post-invocation task state and completed assistant artifacts. |
 
 ## Graph
 
