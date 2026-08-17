@@ -195,3 +195,5 @@ These are realtime authorization channels, not HTTP endpoints.
 6. Fig queues or invokes an agent review.
 7. Fig stores the review result as another post.
 8. Fig optionally sends a callback to the CRM.
+
+See [Agent Invocation Use Cases](./agent-invocation-use-cases.md) for the explicit invocation and task-tracking workflow across CRM review, generic external artifacts, and service fulfillment.

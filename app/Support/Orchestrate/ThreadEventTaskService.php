@@ -123,6 +123,31 @@ class ThreadEventTaskService
             });
     }
 
+    public function resolveOwnedPostInvocationTask(User $actor, string $taskId): ?TaskRecord
+    {
+        return $this->taskRecordsQuery()
+            ->where('kind', ThreadEvent::KindOrchestration)
+            ->latest('id')
+            ->get()
+            ->map(fn (ThreadEvent $event): ?TaskRecord => TaskRecord::fromEvent($event))
+            ->filter(fn (mixed $task): bool => $task instanceof TaskRecord)
+            ->first(function (TaskRecord $task) use ($actor, $taskId): bool {
+                if (! $task->isLocal()) {
+                    return false;
+                }
+
+                if ($task->protocol !== 'post_invocation') {
+                    return false;
+                }
+
+                if ($task->uuid !== $taskId && $task->publicId !== $taskId) {
+                    return false;
+                }
+
+                return $task->userId === $actor->getKey();
+            });
+    }
+
     /**
      * @param  array{subject_type: string, subject_id: int|string, token_id?: int|null}|null  $owner
      */

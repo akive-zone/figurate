@@ -9,6 +9,7 @@ The web workspace and control panel are first-party clients of these contracts. 
 - [Endpoint Catalog](./endpoints.md): the HTTP API and protocol entrypoints.
 - [Auth](./auth.md): identity, login, passkeys, robot users, broadcast auth, OAuth/package auth routes.
 - [Context](./context.md): the engine of the system. Covers channels, spaces, threads, and posts.
+- [Agent Invocation Use Cases](./agent-invocation-use-cases.md): proposed workflows for turning stored context into tracked agent work.
 - [Graph](./graph.md): explicit edges between existing context nodes.
 - [Form](./form.md): generic authenticated form submission.
 - [Fulfillment Reference Scenario](./fulfillment-scenario.md): a future test case for proving an application built on Figurate.
