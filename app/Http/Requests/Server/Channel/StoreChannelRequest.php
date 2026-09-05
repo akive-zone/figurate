@@ -41,6 +41,7 @@ class StoreChannelRequest extends FormRequest
             'auth_type' => ['nullable', 'string', 'in:bearer,basic,header'],
             'credentials' => ['nullable', 'array'],
             'credentials.token' => ['nullable', 'string'],
+            'credentials.api_key' => ['nullable', 'string'],
             'credentials.username' => ['nullable', 'string'],
             'credentials.password' => ['nullable', 'string'],
             'credentials.header_name' => ['nullable', 'string'],
@@ -62,9 +63,9 @@ class StoreChannelRequest extends FormRequest
         $protocol = $this->input('protocol', $this->input('driver', $this->input('system')));
         $transport = $this->input('transport');
 
-        if (! is_string($protocol) || trim($protocol) === '') {
-            $protocol = $this->has('server') ? Channel::ProtocolMcp : $protocol;
-        }
+        $protocol = is_string($protocol) && trim($protocol) !== ''
+            ? $protocol
+            : Channel::ProtocolGeneric;
 
         if (is_string($protocol)) {
             $protocol = strtolower(trim($protocol));
@@ -79,6 +80,7 @@ class StoreChannelRequest extends FormRequest
             'system' => $protocol,
             'driver' => $protocol,
             'transport' => $transport,
+            'config' => $this->input('config'),
         ]);
     }
 
@@ -128,8 +130,6 @@ class StoreChannelRequest extends FormRequest
             return $channelTrust;
         }
 
-        $mcpTrust = config('services.mcp.trust');
-
-        return is_array($mcpTrust) ? $mcpTrust : [];
+        return [];
     }
 }

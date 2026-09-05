@@ -13,7 +13,6 @@ class CoordinationChannel
     public function __construct(
         protected DatabaseChannel $databaseChannel,
         protected ProjectInboxChannel $projectInboxChannel,
-        protected ThreadCoordinationChannel $threadCoordinationChannel,
         protected EnqueueThreadMessageOutbox $enqueueThreadMessageOutbox,
     ) {}
 
@@ -23,10 +22,6 @@ class CoordinationChannel
 
         if ($notifiable instanceof User && $notifiable->canActAsEndUser()) {
             $this->projectInboxChannel->send($notifiable, $notification);
-        }
-
-        if ($notifiable instanceof User && $notifiable->isRobot()) {
-            $this->threadCoordinationChannel->send($notifiable, $notification);
         }
 
         $post = $this->resolveMessage($notifiable, $notification);

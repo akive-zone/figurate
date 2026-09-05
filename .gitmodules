@@ -1,0 +1,4 @@
+[submodule "ext/laravel-gouge"]
+	path = ext/laravel-gouge
+	url = git@github.com:webong/laravel-gouge.git
+	branch = main

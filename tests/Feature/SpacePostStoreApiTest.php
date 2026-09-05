@@ -142,7 +142,7 @@ class SpacePostStoreApiTest extends TestCase
                                 'body' => 'The order never arrived.',
                             ],
                             [
-                                'sender' => 'agent',
+                                'sender' => 'support',
                                 'body' => 'I can check the fulfilment status.',
                             ],
                         ],

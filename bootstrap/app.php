@@ -16,7 +16,6 @@ return Application::configure(basePath: dirname(__DIR__))
         api: [
             __DIR__.'/../routes/rest.php',
             __DIR__.'/../routes/json-http.php',
-            __DIR__.'/../routes/api-ai.php',
         ],
         channels: __DIR__.'/../routes/broadcast.php',
         commands: __DIR__.'/../routes/console.php',

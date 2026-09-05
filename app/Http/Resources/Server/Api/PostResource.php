@@ -2,7 +2,7 @@
 
 namespace App\Http\Resources\Server\Api;
 
-use App\Features\Actions\Chat\ResolveNodeInvocation;
+use App\Events\Server\Api\PreparingResourcePayload;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
@@ -21,7 +21,6 @@ class PostResource extends JsonResource
     {
         /** @var Post $post */
         $post = $this->resource;
-        $actor = $request->user();
         $postable = $post->postable;
         $thread = $postable instanceof Thread ? $postable : null;
         $space = match (true) {
@@ -30,14 +29,11 @@ class PostResource extends JsonResource
             default => null,
         };
 
-        return [
+        $payload = [
             'id' => $post->ulid,
             'type' => $post->type,
             'tag' => $post->tag,
             'status' => $post->status,
-            'invocation' => $actor instanceof User
-                ? app(ResolveNodeInvocation::class)->execute($actor, $post)
-                : null,
             'text' => $post->text,
             'payload' => $post->payload ?? [],
             'meta' => $post->meta ?? [],
@@ -59,6 +55,16 @@ class PostResource extends JsonResource
             'occurred_at' => optional($post->occurred_at)?->toIso8601String(),
             'created_at' => optional($post->created_at)?->toIso8601String(),
         ];
+
+        $actor = $request->user();
+        if ($actor instanceof User) {
+            $event = new PreparingResourcePayload($post, $actor, $payload);
+            event($event);
+
+            return $event->payload;
+        }
+
+        return $payload;
     }
 
     protected function postableType(mixed $postable): ?string

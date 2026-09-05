@@ -2,8 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Features\Actions\Chat\ProjectMessageExtra;
-use App\Features\Actions\Chat\ResolveNodeInvocation;
+use App\Events\Server\Api\PreparingResourcePayload;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Post\ListContextPostsRequest;
 use App\Http\Requests\Server\Post\StoreContextPostRequest;
@@ -21,11 +20,6 @@ use Illuminate\Support\Facades\Gate;
 
 class ThreadController extends Controller
 {
-    public function __construct(
-        protected ProjectMessageExtra $projectMessageExtra,
-        protected ResolveNodeInvocation $resolveNodeInvocation,
-    ) {}
-
     public function store(
         StoreThreadRequest $request,
         NodeFormer $nodeFormer,
@@ -77,16 +71,14 @@ class ThreadController extends Controller
                     'id' => $message->ulid,
                     'sender_name' => null,
                     'source' => data_get($message->meta, 'source'),
-                    'is_agent' => data_get($message->meta, 'source') === 'agent_response',
                     'content' => $this->messageContent($message),
-                    'extra' => $this->projectMessageExtra->execute($message),
                     'created_at' => optional($message->created_at)?->toIso8601String(),
                 ];
             })
             ->values()
             ->all();
 
-        return response()->json([
+        $payload = [
             'data' => $messages,
             'space' => $spaceRecord ? [
                 'id' => $spaceRecord->uuid,
@@ -98,9 +90,12 @@ class ThreadController extends Controller
                 'purpose' => $threadRecord->purpose,
                 'phase' => $threadRecord->phase,
                 'status' => $threadRecord->status,
-                'invocation' => $this->resolveNodeInvocation->execute($actor, $threadRecord),
             ],
-        ]);
+        ];
+        $event = new PreparingResourcePayload($threadRecord, $actor, $payload);
+        event($event);
+
+        return response()->json($event->payload);
     }
 
     public function posts(ListContextPostsRequest $request, string $thread): JsonResponse

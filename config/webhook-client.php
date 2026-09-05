@@ -1,9 +1,7 @@
 <?php
 
-use App\Jobs\ProcessInboundA2aPushWebhookJob;
 use App\Jobs\ProcessInboundChannelRouteWebhookJob;
 use App\Jobs\ProcessInboundMessageWebhookJob;
-use App\Support\Webhooks\A2aPushSignatureValidator;
 use App\Support\Webhooks\ChannelRouteSignatureValidator;
 use Spatie\WebhookClient\Models\WebhookCall;
 use Spatie\WebhookClient\SignatureValidator\DefaultSignatureValidator;
@@ -69,17 +67,6 @@ return [
              * This should be set to a class that extends \Spatie\WebhookClient\Jobs\ProcessWebhookJob.
              */
             'process_webhook_job' => ProcessInboundMessageWebhookJob::class,
-        ],
-        [
-            'name' => 'a2a_push',
-            'signing_secret' => env('A2A_PUSH_INBOUND_SECRET', env('WEBHOOK_CLIENT_SECRET')),
-            'signature_header_name' => 'Signature',
-            'signature_validator' => A2aPushSignatureValidator::class,
-            'webhook_profile' => ProcessEverythingWebhookProfile::class,
-            'webhook_response' => DefaultRespondsTo::class,
-            'webhook_model' => WebhookCall::class,
-            'store_headers' => ['*'],
-            'process_webhook_job' => ProcessInboundA2aPushWebhookJob::class,
         ],
         [
             'name' => 'channel_route_inbound',

@@ -3,6 +3,7 @@
 namespace App\Features\Actions\Auth;
 
 use App\Contracts\Users\UserRepository;
+use App\Events\Server\Auth\WidgetUsersMerging;
 use App\Models\Server\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -28,9 +29,7 @@ class MergeWidgetUserIntoWidget
         DB::transaction(function () use ($sourceWidgetUser, $targetWidgetUser): void {
             $this->migratePostRelations($sourceWidgetUser, $targetWidgetUser);
             $this->migrateSpaceActorStates($sourceWidgetUser, $targetWidgetUser);
-            $this->migrateThreadActorSessions($sourceWidgetUser, $targetWidgetUser);
-            $this->migrateAgentConversations($sourceWidgetUser, $targetWidgetUser);
-            $this->migrateAgentConversationMessages($sourceWidgetUser, $targetWidgetUser);
+            WidgetUsersMerging::dispatch($sourceWidgetUser, $targetWidgetUser);
             $this->migratePasskeys($sourceWidgetUser, $targetWidgetUser);
             $this->migrateUserClients($sourceWidgetUser, $targetWidgetUser);
 
@@ -114,87 +113,6 @@ class MergeWidgetUserIntoWidget
                     'updated_at' => now(),
                 ]);
         }
-    }
-
-    protected function migrateThreadActorSessions(User $sourceWidgetUser, User $targetWidgetUser): void
-    {
-        if (! Schema::hasTable('thread_actor_sessions')) {
-            return;
-        }
-
-        $rows = DB::table('thread_actor_sessions')
-            ->where('user_id', $sourceWidgetUser->id)
-            ->get();
-
-        foreach ($rows as $row) {
-            $existing = DB::table('thread_actor_sessions')
-                ->where('thread_actor_id', $row->thread_actor_id)
-                ->where('user_id', $targetWidgetUser->id)
-                ->where('provider', $row->provider)
-                ->where('model', $row->model)
-                ->first();
-
-            if (! $existing) {
-                DB::table('thread_actor_sessions')
-                    ->where('id', $row->id)
-                    ->update([
-                        'user_id' => $targetWidgetUser->id,
-                        'updated_at' => now(),
-                    ]);
-
-                continue;
-            }
-
-            $sourceLastUsed = $row->last_used_at ? strtotime((string) $row->last_used_at) : null;
-            $targetLastUsed = $existing->last_used_at ? strtotime((string) $existing->last_used_at) : null;
-
-            if ($sourceLastUsed !== null && ($targetLastUsed === null || $sourceLastUsed > $targetLastUsed)) {
-                DB::table('thread_actor_sessions')
-                    ->where('id', $existing->id)
-                    ->update([
-                        'conversation_id' => $row->conversation_id,
-                        'state' => $row->state,
-                        'last_used_at' => $row->last_used_at,
-                        'updated_at' => now(),
-                    ]);
-            }
-
-            DB::table('thread_actor_sessions')
-                ->where('id', $row->id)
-                ->delete();
-        }
-    }
-
-    protected function migrateAgentConversations(User $sourceWidgetUser, User $targetWidgetUser): void
-    {
-        if (! Schema::hasTable('agent_conversations')) {
-            return;
-        }
-
-        DB::table('agent_conversations')
-            ->where('participant_type', $sourceWidgetUser->getMorphClass())
-            ->where('participant_id', $sourceWidgetUser->id)
-            ->update([
-                'participant_type' => $targetWidgetUser->getMorphClass(),
-                'participant_id' => $targetWidgetUser->id,
-                'updated_at' => now(),
-            ]);
-    }
-
-    protected function migrateAgentConversationMessages(User $sourceWidgetUser, User $targetWidgetUser): void
-    {
-        if (! Schema::hasTable('agent_conversation_messages')) {
-            return;
-        }
-
-        DB::table('agent_conversation_messages')
-            ->where('participant_type', $sourceWidgetUser->getMorphClass())
-            ->where('participant_id', $sourceWidgetUser->id)
-            ->update([
-                'participant_type' => $targetWidgetUser->getMorphClass(),
-                'participant_id' => $targetWidgetUser->id,
-                'updated_at' => now(),
-            ]);
     }
 
     protected function migratePasskeys(User $sourceWidgetUser, User $targetWidgetUser): void

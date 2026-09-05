@@ -6,17 +6,12 @@ use Database\Factories\ThreadActorFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class ThreadActor extends Model
 {
     /** @use HasFactory<ThreadActorFactory> */
     use HasFactory;
-
-    public const RolePresenter = 'presenter';
-
-    public const RoleObserver = 'observer';
 
     public const RoleListener = 'listener';
 
@@ -25,16 +20,6 @@ class ThreadActor extends Model
     public const StatusActive = 'active';
 
     public const StatusPaused = 'paused';
-
-    public const ActorCoordinator = 'coordinator_agent';
-
-    public const ActorSafetyGuard = 'safety_guard';
-
-    public const ActorAssistantSuggester = 'assistant_suggester';
-
-    public const ModePassive = 'passive';
-
-    public const ModeEnforcing = 'enforcing';
 
     /**
      * @var list<string>
@@ -68,16 +53,6 @@ class ThreadActor extends Model
     public function actorable(): MorphTo
     {
         return $this->morphTo();
-    }
-
-    public function memories(): HasMany
-    {
-        return $this->hasMany(ThreadActorSession::class);
-    }
-
-    public function sessions(): HasMany
-    {
-        return $this->hasMany(ThreadActorSession::class);
     }
 
     public function actorName(): ?string

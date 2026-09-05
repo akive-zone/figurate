@@ -69,8 +69,8 @@ class ProjectInboxTest extends TestCase
             $threadEvent,
             Inbox::KindThreadEvent,
             'Workflow updated',
-            'Observer review completed.',
-            'observer',
+            'Workflow step completed.',
+            'workflow',
             ['state' => ThreadEvent::StateCompleted],
         );
 

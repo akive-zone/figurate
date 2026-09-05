@@ -3,6 +3,7 @@
         "merge-plugin": {
             "include": [
                 "ext/control-panel/composer.json",
+                "ext/laravel-gouge/composer.json",
                 "ext/web-view/composer.json",
                 "mod/account-manager/composer.json",
                 "mod/multi-site/composer.json",

@@ -2,10 +2,10 @@
 
 namespace App\Features\Actions\Chat;
 
+use App\Events\Server\Chat\ConversationThreadCreated;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
 use App\Models\Server\Thread;
-use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -81,14 +81,7 @@ class ResolveBaseConversationThread
             'status' => 'open',
         ]);
 
-        $thread->actors()->create([
-            'actorable_type' => ThreadActor::ActorCoordinator,
-            'actorable_id' => null,
-            'role' => ThreadActor::RolePresenter,
-            'status' => ThreadActor::StatusActive,
-            'priority' => 1,
-            'config' => null,
-        ]);
+        ConversationThreadCreated::dispatch($thread);
 
         return $thread;
     }

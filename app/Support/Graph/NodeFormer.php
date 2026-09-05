@@ -73,14 +73,6 @@ class NodeFormer
 
                 abort_if($role === '', 422, 'A relation role is required.');
 
-                if ($role === Post::RelationRoleSkill) {
-                    abort_unless(
-                        $node instanceof Post && $node->type === Post::TypeSkill,
-                        422,
-                        'Only a skill Post may form a skill relation.',
-                    );
-                }
-
                 match (true) {
                     $node instanceof Space => $node->attachRelation($target, $role, $purpose),
                     $node instanceof Thread => $node->attachRelation($target, $role, $purpose),

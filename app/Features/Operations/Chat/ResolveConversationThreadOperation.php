@@ -3,12 +3,10 @@
 namespace App\Features\Operations\Chat;
 
 use App\Features\Actions\Chat\PersistActiveConversationThread;
-use App\Features\Actions\Chat\RecordConversationOperationEvents;
-use App\Features\Actions\Chat\ResolveActiveThreadPresenters;
 use App\Features\Actions\Chat\ResolveBaseConversationThread;
 use App\Models\Server\Space;
+use App\Models\Server\Thread;
 use App\Models\Server\User;
-use App\Support\Orchestrate\OrchestrationDecision;
 use Illuminate\Support\Facades\DB;
 
 class ResolveConversationThreadOperation
@@ -16,31 +14,19 @@ class ResolveConversationThreadOperation
     public function __construct(
         protected ResolveBaseConversationThread $resolveBaseConversationThread,
         protected PersistActiveConversationThread $persistActiveConversationThread,
-        protected RecordConversationOperationEvents $recordConversationOperationEvents,
-        protected ResolveActiveThreadPresenters $resolveActiveThreadPresenters,
     ) {}
 
     public function run(
         Space $space,
         User $actor,
         ?int $thread = null,
-    ): OrchestrationDecision {
-        return DB::transaction(function () use ($space, $actor, $thread): OrchestrationDecision {
-            $actions = [];
+    ): Thread {
+        return DB::transaction(function () use ($space, $actor, $thread): Thread {
             $resolvedThread = $this->resolveBaseConversationThread->execute($space, $actor, $thread);
 
             $this->persistActiveConversationThread->execute($space, $actor, $resolvedThread);
-            $this->recordConversationOperationEvents->execute($resolvedThread, $actions);
 
-            $primaryPresenter = $this->resolveActiveThreadPresenters->execute($resolvedThread)->first();
-            $hasPresenter = $primaryPresenter !== null;
-
-            return new OrchestrationDecision(
-                thread: $resolvedThread,
-                responderType: $hasPresenter ? 'presenter' : 'direct',
-                responderKey: $primaryPresenter?->actorName(),
-                actions: $actions,
-            );
+            return $resolvedThread;
         });
     }
 }

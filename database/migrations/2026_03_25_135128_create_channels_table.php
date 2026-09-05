@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('name')->nullable();
 
             // Protocol/Transport Architecture
-            $table->string('driver')->comment('Protocol: generic, mcp, a2a, acp');
+            $table->string('driver')->comment('Application-layer protocol key.');
             $table->string('transport')->nullable()->comment('Transport: websocket, http, webhook, stdio, webrtc, relay');
             $table->string('server')->nullable()->comment('Server identifier for grouping');
 

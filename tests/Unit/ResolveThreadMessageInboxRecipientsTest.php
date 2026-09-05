@@ -31,7 +31,7 @@ class ResolveThreadMessageInboxRecipientsTest extends TestCase
         $this->assertSame($recipient->getKey(), $recipients->first()?->getKey());
     }
 
-    public function test_it_returns_all_active_human_participants_for_agent_messages(): void
+    public function test_it_returns_all_active_human_participants_for_system_messages(): void
     {
         $firstRecipient = $this->makeUser(1);
         $secondRecipient = $this->makeUser(2);
@@ -39,7 +39,7 @@ class ResolveThreadMessageInboxRecipientsTest extends TestCase
             $this->makeActor($firstRecipient),
             $this->makeActor($secondRecipient),
         ]);
-        $message = $this->makeMessage($thread, null, 'agent_response');
+        $message = $this->makeMessage($thread, null, 'system_response');
 
         $recipients = (new ResolveThreadMessageInboxRecipients)->execute($message);
 

@@ -228,6 +228,7 @@ class ChannelController extends Controller
                 'id' => $space instanceof Space ? $this->publicIdentifier($space) : null,
                 'status' => $space instanceof Space ? $space->status : null,
             ],
+            'config' => is_array($channel->config) ? $channel->config : [],
             'created_at' => optional($channel->created_at)?->toIso8601String(),
             'updated_at' => optional($channel->updated_at)?->toIso8601String(),
         ];

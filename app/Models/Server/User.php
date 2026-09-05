@@ -20,8 +20,6 @@ class User extends Authenticatable implements HasPasskeys
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasPublicUuid, InteractsWithPasskeys, Notifiable;
 
-    public const TypeRobot = 'robot';
-
     public const TypeWidget = 'widget';
 
     public const TypeSubject = 'subject';
@@ -157,11 +155,6 @@ class User extends Authenticatable implements HasPasskeys
         return self::class;
     }
 
-    public function isRobot(): bool
-    {
-        return $this->type === self::TypeRobot;
-    }
-
     public function isWidget(): bool
     {
         return $this->type === self::TypeWidget;
@@ -189,7 +182,21 @@ class User extends Authenticatable implements HasPasskeys
 
     public function canUseInteractiveTransport(): bool
     {
-        return $this->isRobot() || $this->canActAsEndUser();
+        $interactiveUserTypes = [self::TypeSubject, self::TypeWidget];
+
+        if (app()->bound('config')) {
+            $configuredUserTypes = config('auth.interactive_user_types', $interactiveUserTypes);
+
+            if (is_array($configuredUserTypes)) {
+                $interactiveUserTypes = $configuredUserTypes;
+            }
+        }
+
+        return in_array(
+            $this->type,
+            $interactiveUserTypes,
+            true,
+        );
     }
 
     public function receivesBroadcastNotificationsOn(): string

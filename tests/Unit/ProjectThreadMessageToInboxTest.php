@@ -54,15 +54,15 @@ class ProjectThreadMessageToInboxTest extends TestCase
         $this->assertSame('Need a reply on this request.', $projected->summary);
     }
 
-    public function test_it_projects_agent_updates_for_a_recipient(): void
+    public function test_it_projects_system_updates_for_a_recipient(): void
     {
         [, $recipient] = $this->makeUsers();
         $thread = $this->makeThread();
         $message = $this->makeMessage(
             thread: $thread,
             sender: null,
-            text: 'The agent completed the review.',
-            source: 'agent_response',
+            text: 'The workflow completed the review.',
+            source: 'workflow_response',
         );
 
         $action = new class extends ProjectThreadMessageToInbox
@@ -89,8 +89,8 @@ class ProjectThreadMessageToInboxTest extends TestCase
         $this->assertSame($thread->getKey(), $projected->thread_id);
         $this->assertSame($message->getMorphClass(), $projected->inboxable_type);
         $this->assertSame($message->getKey(), $projected->inboxable_id);
-        $this->assertSame('Agent update', $projected->title);
-        $this->assertSame('The agent completed the review.', $projected->summary);
+        $this->assertSame('Conversation update', $projected->title);
+        $this->assertSame('The workflow completed the review.', $projected->summary);
     }
 
     protected function makeThread(): Thread

@@ -6,7 +6,6 @@ use App\Contracts\Users\UserRepository;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Auth\UpdateCurrentUserRequest;
 use App\Models\Server\User;
-use App\TokenAbility;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -56,9 +55,8 @@ class CurrentUserController extends Controller
      */
     protected function abilities(User $user): array
     {
-        return collect(TokenAbility::cases())
-            ->filter(fn (TokenAbility $ability): bool => $user->tokenCan($ability->value))
-            ->map(fn (TokenAbility $ability): string => $ability->value)
+        return collect(array_keys(config('token-abilities', [])))
+            ->filter(fn (string $ability): bool => $user->tokenCan($ability))
             ->values()
             ->all();
     }

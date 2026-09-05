@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\Server\Channels\MappingChannelRoute;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Channel\StoreChannelRouteRequest;
 use App\Http\Requests\Server\Channel\UpdateChannelRouteRequest;
@@ -11,7 +12,6 @@ use App\Models\Server\User;
 use App\Support\Channels\ChannelAccess;
 use App\Support\Channels\ChannelApiResolver;
 use App\Support\Channels\ChannelRouteIngress;
-use App\Support\Channels\ChannelSkillContextResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -21,7 +21,6 @@ class ChannelRouteController extends Controller
         protected ChannelAccess $channelAccess,
         protected ChannelApiResolver $channelApiResolver,
         protected ChannelRouteIngress $channelRouteIngress,
-        protected ChannelSkillContextResolver $channelSkillContextResolver,
     ) {}
 
     public function index(Request $request, string $channel): JsonResponse
@@ -108,7 +107,7 @@ class ChannelRouteController extends Controller
      */
     protected function mapRoute(Channel $channel, ChannelRoute $route): array
     {
-        return [
+        $payload = [
             'id' => $route->ulid,
             'channel_id' => $channel->uuid,
             'protocol' => $channel->protocolKey(),
@@ -119,7 +118,6 @@ class ChannelRouteController extends Controller
             'config' => is_array($route->config) ? $route->config : [],
             'data' => is_array($route->data) ? $route->data : [],
             'meta' => is_array($route->meta) ? $route->meta : [],
-            'skills' => $this->channelSkillContextResolver->summary($channel, $route),
             'inbound' => $this->channelRouteIngress->descriptor($route),
             'outbound' => [
                 'enabled' => in_array($this->normalizeDirection($route->direction), [Channel::DirectionOutbound, Channel::DirectionBidirectional], true),
@@ -130,6 +128,10 @@ class ChannelRouteController extends Controller
             'created_at' => optional($route->created_at)?->toIso8601String(),
             'updated_at' => optional($route->updated_at)?->toIso8601String(),
         ];
+        $event = new MappingChannelRoute($channel, $route, $payload);
+        event($event);
+
+        return $event->payload;
     }
 
     protected function canManageChannel(User $actor, Channel $channel): bool

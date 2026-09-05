@@ -22,7 +22,7 @@ class RecordInboundThreadEvent
             'post_id' => $message->id,
             'event_key' => "protocol.{$protocol}.inbound",
             'layer' => ThreadEvent::LayerExecution,
-            'kind' => ThreadEvent::KindOrchestration,
+            'kind' => ThreadEvent::KindChannel,
             'operation' => 'protocol.inbound_message',
             'state' => ThreadEvent::StateReceived,
             'event_type' => "{$protocol}.inbound.received",

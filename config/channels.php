@@ -1,10 +1,7 @@
 <?php
 
 use App\Models\Server\Channel;
-use App\Support\Channels\Drivers\A2aChannelDriver;
-use App\Support\Channels\Drivers\AcpChannelDriver;
 use App\Support\Channels\Drivers\GenericChannelDriver;
-use App\Support\Channels\Drivers\McpChannelDriver;
 use App\Support\Channels\Drivers\NostrChannelDriver;
 
 return [
@@ -21,10 +18,8 @@ return [
     |   Transport: Defines how messages are physically transmitted
     |
     | Examples:
-    |   MCP over WebSocket:  driver='mcp', transport='websocket'
-    |   MCP over STDIO:      driver='mcp', transport='stdio'
     |   Generic over HTTP:   driver='generic', transport='http'
-    |   A2A over WebSocket:  driver='a2a', transport='websocket'
+    |   Nostr over relay:    driver='nostr', transport='relay'
     |
     | Available Transports:
     |   - websocket (real-time bidirectional)
@@ -38,11 +33,17 @@ return [
     'protocols' => [
         // Core Protocol Drivers
         Channel::ProtocolGeneric => GenericChannelDriver::class,
-        Channel::ProtocolMcp => McpChannelDriver::class,
-        Channel::ProtocolA2a => A2aChannelDriver::class,
-        Channel::ProtocolAcp => AcpChannelDriver::class,
-
         // Special-purpose Protocol Drivers
-        'nostr' => NostrChannelDriver::class,  // Nostr protocol (uses relay or websocket transport)
+        Channel::ProtocolNostr => NostrChannelDriver::class,  // Nostr protocol (uses relay or websocket transport)
     ],
+
+    'transports' => [
+        Channel::TransportHttp,
+        Channel::TransportWebhook,
+        Channel::TransportWebsocket,
+        Channel::TransportWebrtc,
+        Channel::TransportRelay,
+        Channel::TransportStdio,
+    ],
+
 ];

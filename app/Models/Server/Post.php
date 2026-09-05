@@ -29,8 +29,6 @@ class Post extends Model implements HasMedia
 
     public const TypeSystem = 'system';
 
-    public const TypeSkill = 'skill';
-
     public const TypeChannelLink = 'channel.link';
 
     public const RelationRoleContext = 'context';
@@ -42,8 +40,6 @@ class Post extends Model implements HasMedia
     public const RelationRoleChannelLink = 'channel.link';
 
     public const RelationRoleSender = 'sender';
-
-    public const RelationRoleSkill = 'skill';
 
     public const StatusActive = 'active';
 

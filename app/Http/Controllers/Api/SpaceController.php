@@ -2,8 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Features\Actions\Chat\ProjectMessageExtra;
-use App\Features\Actions\Chat\ResolveNodeInvocation;
+use App\Events\Server\Api\PreparingResourcePayload;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Server\Post\ListContextPostsRequest;
 use App\Http\Requests\Server\Post\StoreContextPostRequest;
@@ -24,11 +23,6 @@ use Illuminate\Support\Facades\Gate;
 
 class SpaceController extends Controller
 {
-    public function __construct(
-        protected ProjectMessageExtra $projectMessageExtra,
-        protected ResolveNodeInvocation $resolveNodeInvocation,
-    ) {}
-
     public function index(Request $request): JsonResponse
     {
         return response()->json($this->cursorPageForRequest($request));
@@ -53,15 +47,18 @@ class SpaceController extends Controller
                 ->value('uuid');
         }
 
-        return response()->json([
+        $payload = [
             'data' => [
                 'id' => $spaceRecord->uuid,
                 'status' => $spaceRecord->status,
                 'active_thread_id' => $activeThreadUuid,
-                'invocation' => $this->resolveNodeInvocation->execute($actor, $spaceRecord),
                 'created_at' => optional($spaceRecord->created_at)?->toIso8601String(),
             ],
-        ]);
+        ];
+        $event = new PreparingResourcePayload($spaceRecord, $actor, $payload);
+        event($event);
+
+        return response()->json($event->payload);
     }
 
     public function posts(ListContextPostsRequest $request, string $space): JsonResponse
@@ -221,13 +218,12 @@ class SpaceController extends Controller
             $latestMessage = [
                 'id' => $latestMessageModel->ulid,
                 'content' => $this->messageContent($latestMessageModel),
-                'extra' => $this->projectMessageExtra->execute($latestMessageModel),
                 'created_at' => optional($latestMessageModel->created_at)?->toIso8601String(),
                 'sender_name' => null,
             ];
         }
 
-        return [
+        $payload = [
             'id' => $space->uuid,
             'name' => $this->inferSpaceName($space, $threads, $latestMessageModel?->text),
             'space' => [
@@ -247,6 +243,11 @@ class SpaceController extends Controller
                 'per_page' => 5,
             ],
         ];
+
+        $event = new PreparingResourcePayload($space, $actor, $payload);
+        event($event);
+
+        return $event->payload;
     }
 
     /**

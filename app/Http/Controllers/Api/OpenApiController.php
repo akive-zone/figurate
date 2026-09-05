@@ -19,7 +19,7 @@ class OpenApiController extends Controller
             'info' => [
                 'title' => 'Figurate API',
                 'version' => (string) config('app.version', 'unreleased'),
-                'description' => 'API-first access to users, hierarchical nodes, semantic graph edges, forms, invocations, credentials, and channels.',
+                'description' => 'API-first access to users, hierarchical nodes, semantic graph edges, forms, credentials, and channels.',
             ],
             'servers' => [
                 ['url' => url('/api')],
@@ -33,7 +33,6 @@ class OpenApiController extends Controller
                 'Spaces',
                 'Threads',
                 'Posts',
-                'Tasks',
                 'Channels',
             ])->map(fn (string $name): array => ['name' => $name])->all(),
             'paths' => $this->paths(),
@@ -188,7 +187,6 @@ class OpenApiController extends Controller
             'api.edges.store',
             'api.spaces.store',
             'api.posts.store',
-            'api.posts.invocations.store',
         ], true)) {
             $parameters->push([
                 '$ref' => '#/components/parameters/IdempotencyKey',
@@ -203,8 +201,6 @@ class OpenApiController extends Controller
         return match ($parameter) {
             'space', 'thread', 'channel' => 'Public UUID.',
             'post', 'edge', 'credential', 'route', 'address' => 'Public ULID.',
-            'invocation' => 'Invocation identifier.',
-            'task' => 'Task UUID.',
             'type' => 'Node type: space, thread, or post.',
             default => 'Public identifier.',
         };
@@ -245,24 +241,6 @@ class OpenApiController extends Controller
             ];
         }
 
-        if ($name === 'api.posts.invocations.store') {
-            return [
-                '202' => [
-                    'description' => 'The post invocation task was accepted.',
-                    'content' => [
-                        'application/json' => [
-                            'schema' => ['$ref' => '#/components/schemas/Envelope'],
-                        ],
-                    ],
-                ],
-                '401' => ['$ref' => '#/components/responses/Unauthenticated'],
-                '403' => ['$ref' => '#/components/responses/Forbidden'],
-                '404' => ['$ref' => '#/components/responses/NotFound'],
-                '409' => ['$ref' => '#/components/responses/Conflict'],
-                '422' => ['$ref' => '#/components/responses/ValidationError'],
-            ];
-        }
-
         $successStatus = match ($name) {
             'api.auth.login', 'api.auth.register' => '200',
             default => $method === 'post' ? '201' : '200',
@@ -293,7 +271,6 @@ class OpenApiController extends Controller
             'api.form.store' => 'FormRequest',
             'api.threads.store' => 'ThreadCreateRequest',
             'api.posts.store' => 'PostCreateRequest',
-            'api.posts.invocations.store' => 'PostInvocationRequest',
             'api.nodes.store' => 'NodeCreateRequest',
             'api.nodes.update' => 'NodeUpdateRequest',
             'api.edges.store' => 'EdgeCreateRequest',
@@ -379,13 +356,6 @@ class OpenApiController extends Controller
                             'uniqueItems' => true,
                         ],
                         'expires_at' => ['type' => ['string', 'null'], 'format' => 'date-time'],
-                    ],
-                ],
-                'PostInvocationRequest' => [
-                    'type' => 'object',
-                    'required' => ['instructions'],
-                    'properties' => [
-                        'instructions' => ['type' => 'string', 'minLength' => 1, 'maxLength' => 20000],
                     ],
                 ],
                 'ApiAbility' => [

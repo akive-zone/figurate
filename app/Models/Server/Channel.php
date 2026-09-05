@@ -28,11 +28,7 @@ class Channel extends Model
 
     public const ProtocolGeneric = 'generic';
 
-    public const ProtocolMcp = 'mcp';
-
-    public const ProtocolA2a = 'a2a';
-
-    public const ProtocolAcp = 'acp';
+    public const ProtocolNostr = 'nostr';
 
     public const TransportHttp = 'http';
 
@@ -107,13 +103,9 @@ class Channel extends Model
     {
         $stored = is_string($this->driver) ? strtolower(trim($this->driver)) : '';
 
-        return match ($stored) {
-            self::ProtocolMcp,
-            self::ProtocolA2a,
-            self::ProtocolAcp,
-            self::ProtocolGeneric => $stored,
-            default => self::ProtocolGeneric,
-        };
+        return in_array($stored, self::supportedProtocols(), true)
+            ? $stored
+            : self::ProtocolGeneric;
     }
 
     /**
@@ -147,12 +139,11 @@ class Channel extends Model
      */
     public static function supportedProtocols(): array
     {
-        return [
-            self::ProtocolGeneric,
-            self::ProtocolMcp,
-            self::ProtocolA2a,
-            self::ProtocolAcp,
-        ];
+        $protocols = config('channels.protocols', []);
+
+        return is_array($protocols)
+            ? array_values(array_map('strval', array_keys($protocols)))
+            : [self::ProtocolGeneric];
     }
 
     /**
@@ -160,14 +151,11 @@ class Channel extends Model
      */
     public static function supportedTransports(): array
     {
-        return [
-            self::TransportHttp,
-            self::TransportWebhook,
-            self::TransportWebsocket,
-            self::TransportWebrtc,
-            self::TransportRelay,
-            self::TransportStdio,
-        ];
+        $transports = config('channels.transports', []);
+
+        return is_array($transports)
+            ? array_values(array_map('strval', $transports))
+            : [self::TransportHttp];
     }
 
     /**

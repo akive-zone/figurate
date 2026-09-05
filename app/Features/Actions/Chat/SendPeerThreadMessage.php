@@ -24,7 +24,6 @@ class SendPeerThreadMessage
         ?string $text,
         Collection $attachments,
         string $source = 'peer_message',
-        bool $dispatchObservers = true,
     ): Post {
         return $this->dispatchThreadMessage->execute(ThreadMessageEntry::peerMessage(
             space: $space,
@@ -33,7 +32,6 @@ class SendPeerThreadMessage
             text: $text,
             attachments: $attachments,
             source: $source,
-            dispatchObservers: $dispatchObservers,
         ));
     }
 }

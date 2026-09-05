@@ -35,7 +35,6 @@ class FormController extends Controller
                     'actions' => is_array($attributes['actions'] ?? null) ? $attributes['actions'] : [],
                     'errors' => is_array($attributes['errors'] ?? null) ? $attributes['errors'] : [],
                 ],
-                'extra' => is_array($attributes['extra'] ?? null) ? $attributes['extra'] : [],
                 'attachments' => is_array($attachments) ? $attachments : [$attachments],
                 'idempotency_key' => $request->header('Idempotency-Key')
                     ?? $request->header('X-Idempotency-Key'),

@@ -7,7 +7,6 @@ use App\Http\Controllers\Api\Auth\PasskeyController;
 use App\Http\Controllers\Api\Auth\RegisterController;
 use App\Http\Controllers\Api\CredentialController;
 use App\Http\Controllers\Api\FormController;
-use App\Http\Controllers\Api\FormTurnsController;
 use Illuminate\Broadcasting\BroadcastController;
 use Illuminate\Support\Facades\Route;
 
@@ -55,7 +54,4 @@ Route::prefix('form')->middleware(['auth:sanctum,passport'])->group(function ():
         ->middleware(['api.ability:forms:submit', 'api.idempotent'])
         ->name('api.form.store');
 
-    Route::get('/{invocation}/turns', FormTurnsController::class)
-        ->middleware('api.ability:invocations:read')
-        ->name('api.form.turns.index');
 });

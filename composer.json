@@ -7,9 +7,7 @@
     "require": {
         "php": "^8.2",
         "api-platform/laravel": "^4.2",
-        "laravel/ai": "^0.10.1",
         "laravel/framework": "^12.0",
-        "laravel/mcp": "^0.9.1",
         "laravel/passport": "^13.4",
         "laravel/reverb": "^1.7",
         "laravel/sanctum": "^4.3",
@@ -19,8 +17,6 @@
         "phrity/websocket": "^3.6",
         "predis/predis": "^3.4",
         "pusher/pusher-php-server": "^7.2",
-        "sajya/client": "^1.4",
-        "sajya/server": "^7.0",
         "spatie/laravel-activitylog": "^4.12",
         "spatie/laravel-fractal": "^6.4",
         "spatie/laravel-medialibrary": "^11.0",
@@ -85,9 +81,13 @@
         "test:behaviour": [
             "@php vendor/bin/behat --strict"
         ],
+        "test:extension-behaviour": [
+            "@php -r \"foreach (glob('ext/*/behat.php') ?: [] as \\$config) { fwrite(STDOUT, PHP_EOL.'==> '.\\$config.PHP_EOL); passthru('php vendor/bin/behat --strict --config='.escapeshellarg(\\$config), \\$exitCode); if (\\$exitCode !== 0) { exit(\\$exitCode); } }\""
+        ],
         "test": [
             "@test:root",
             "@test:behaviour",
+            "@test:extension-behaviour",
             "@test:plugins"
         ],
         "post-autoload-dump": [

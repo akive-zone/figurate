@@ -19,8 +19,7 @@ class NostrChannelDriver extends GenericChannelDriver
     public function supportedProtocols(): array
     {
         return [
-            Channel::ProtocolA2a,
-            Channel::ProtocolAcp,
+            Channel::ProtocolNostr,
         ];
     }
 

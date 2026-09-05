@@ -2,8 +2,8 @@
 
 namespace App\Features\Actions\Chat;
 
-use App\Ai\Storage\ConversationPersistenceResolver;
-use App\Ai\Support\Knowledge\MessageAttachmentStoreIngestor;
+use App\Events\Server\Chat\PreparingThreadMessage;
+use App\Events\Server\Chat\ThreadMessageDispatched;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
@@ -11,10 +11,7 @@ use App\Models\Server\User;
 
 class DispatchThreadMessage
 {
-    public function __construct(
-        protected StoreThreadMessage $storeThreadMessage,
-        protected MessageAttachmentStoreIngestor $messageAttachmentStoreIngestor,
-    ) {}
+    public function __construct(protected StoreThreadMessage $storeThreadMessage) {}
 
     public function execute(ThreadMessageEntry $entry): Post
     {
@@ -22,11 +19,14 @@ class DispatchThreadMessage
             abort(403);
         }
 
+        $preparing = new PreparingThreadMessage($entry, $this->messageMeta($entry));
+        event($preparing);
+
         $post = $this->storeThreadMessage->execute(
             thread: $entry->thread,
             sender: $entry->actor,
             text: $entry->text,
-            meta: $this->messageMeta($entry),
+            meta: $preparing->meta,
             type: $entry->type,
             tag: $entry->tag,
         );
@@ -42,10 +42,9 @@ class DispatchThreadMessage
             $post->unsetRelation('media');
             $post->refresh();
 
-            if ($entry->actor) {
-                $this->messageAttachmentStoreIngestor->ingest($entry->thread, $post, $entry->actor);
-            }
         }
+
+        ThreadMessageDispatched::dispatch($post);
 
         return $post;
     }
@@ -71,31 +70,8 @@ class DispatchThreadMessage
         $meta = [
             ...$entry->meta,
             'source' => $entry->source,
-            'observer_dispatch' => $entry->dispatchObservers,
         ];
 
-        if (! array_key_exists('conversation_persistence', $meta)) {
-            $conversationPersistence = $this->requestedConversationPersistenceMode();
-
-            if ($conversationPersistence !== null) {
-                $meta['conversation_persistence'] = $conversationPersistence;
-            }
-        }
-
         return $meta;
-    }
-
-    protected function requestedConversationPersistenceMode(): ?string
-    {
-        if (! app()->bound('request')) {
-            return null;
-        }
-
-        $request = request();
-
-        return ConversationPersistenceResolver::normalizeMode(
-            $request?->input('body.attributes.conversation_persistence')
-            ?? $request?->header('X-Conversation-Persistence')
-        );
     }
 }

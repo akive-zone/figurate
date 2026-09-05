@@ -20,7 +20,6 @@ readonly class ThreadMessageEntry
         public ?string $text,
         public Collection $attachments,
         public string $source,
-        public bool $dispatchObservers,
         public bool $authorizeActor,
         public array $meta = [],
         public string $type = 'text',
@@ -38,7 +37,6 @@ readonly class ThreadMessageEntry
         ?string $text,
         Collection $attachments,
         string $source = 'peer_message',
-        bool $dispatchObservers = true,
         array $meta = [],
     ): self {
         return new self(
@@ -48,7 +46,6 @@ readonly class ThreadMessageEntry
             text: $text,
             attachments: $attachments,
             source: $source,
-            dispatchObservers: $dispatchObservers,
             authorizeActor: true,
             meta: $meta,
         );
@@ -57,11 +54,11 @@ readonly class ThreadMessageEntry
     /**
      * @param  array<string, mixed>  $meta
      */
-    public static function agentMessage(
+    public static function systemMessage(
         Thread $thread,
         ?string $text,
         array $meta = [],
-        string $source = 'agent_response',
+        string $source = 'system_message',
         string $type = 'text',
         ?string $tag = null,
     ): self {
@@ -72,7 +69,6 @@ readonly class ThreadMessageEntry
             text: $text,
             attachments: collect(),
             source: $source,
-            dispatchObservers: false,
             authorizeActor: false,
             meta: $meta,
             type: $type,

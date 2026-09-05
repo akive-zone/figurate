@@ -7,15 +7,11 @@ use App\Http\Controllers\Api\GraphEdgeController;
 use App\Http\Controllers\Api\GraphNodeController;
 use App\Http\Controllers\Api\OpenApiController;
 use App\Http\Controllers\Api\PostController;
-use App\Http\Controllers\Api\PostInvocationController;
 use App\Http\Controllers\Api\PostNodeController;
-use App\Http\Controllers\Api\RobotUserController;
 use App\Http\Controllers\Api\SpaceController;
 use App\Http\Controllers\Api\SpaceNodeController;
-use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\ThreadController;
 use App\Http\Controllers\Api\ThreadNodeController;
-use App\Http\Middleware\EnsureTransportUser;
 use Illuminate\Support\Facades\Route;
 
 Route::get('openapi.json', OpenApiController::class)->name('api.openapi');
@@ -50,12 +46,6 @@ Route::prefix('edges')->middleware(['auth:sanctum,passport'])->group(function ()
         ->name('api.edges.destroy');
 });
 
-Route::prefix('users')->middleware(['auth:sanctum,passport'])->group(function (): void {
-    Route::post('/', [RobotUserController::class, 'store'])
-        ->middleware(['auth:sanctum,passport', EnsureTransportUser::class.':subject'])
-        ->name('api.users.store');
-});
-
 Route::prefix('spaces')->middleware(['auth:sanctum,passport'])->group(function (): void {
     Route::get('/', [SpaceController::class, 'index'])->middleware('api.ability:nodes:read')->name('api.spaces.index');
     Route::post('/', [SpaceController::class, 'store'])->middleware(['api.ability:nodes:write', 'api.idempotent'])->name('api.spaces.store');
@@ -77,13 +67,8 @@ Route::prefix('threads')->middleware(['auth:sanctum,passport'])->group(function 
 Route::prefix('posts')->middleware(['auth:sanctum,passport'])->group(function (): void {
     Route::get('/', [PostController::class, 'index'])->middleware('api.ability:nodes:read')->name('api.posts.index');
     Route::post('/', [PostController::class, 'store'])->middleware(['api.ability:nodes:write', 'api.idempotent'])->name('api.posts.store');
-    Route::post('/{post}/invocations', [PostInvocationController::class, 'store'])->middleware(['api.ability:forms:submit', 'api.idempotent'])->name('api.posts.invocations.store');
     Route::get('/{post}', [PostController::class, 'show'])->middleware('api.ability:nodes:read')->name('api.posts.show');
     Route::get('/{post}/nodes', PostNodeController::class)->middleware('api.ability:nodes:read')->name('api.posts.nodes.index');
-});
-
-Route::prefix('tasks')->middleware(['auth:sanctum,passport'])->group(function (): void {
-    Route::get('/{task}', [TaskController::class, 'show'])->middleware('api.ability:invocations:read')->name('api.tasks.show');
 });
 
 Route::prefix('channels')->middleware(['auth:sanctum,passport', 'api.ability:channels:manage'])->group(function (): void {

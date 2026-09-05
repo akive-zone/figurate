@@ -36,6 +36,7 @@ class UpdateChannelRequest extends FormRequest
             'auth_type' => ['sometimes', 'nullable', 'string', 'in:bearer,basic,header'],
             'credentials' => ['sometimes', 'nullable', 'array'],
             'credentials.token' => ['nullable', 'string'],
+            'credentials.api_key' => ['nullable', 'string'],
             'credentials.username' => ['nullable', 'string'],
             'credentials.password' => ['nullable', 'string'],
             'credentials.header_name' => ['nullable', 'string'],
@@ -68,6 +69,7 @@ class UpdateChannelRequest extends FormRequest
                 'transport' => $transport,
             ]);
         }
+
     }
 
     /**
@@ -110,8 +112,6 @@ class UpdateChannelRequest extends FormRequest
             return $channelTrust;
         }
 
-        $mcpTrust = config('services.mcp.trust');
-
-        return is_array($mcpTrust) ? $mcpTrust : [];
+        return [];
     }
 }

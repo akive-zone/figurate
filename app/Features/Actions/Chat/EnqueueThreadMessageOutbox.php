@@ -2,6 +2,7 @@
 
 namespace App\Features\Actions\Chat;
 
+use App\Events\Server\Channels\PreparingChannelOutboxPayload;
 use App\Features\Actions\Chat\Protocols\ChannelProtocol;
 use App\Jobs\DeliverOutboxMessage;
 use App\Models\Server\Channel;
@@ -11,18 +12,11 @@ use App\Models\Server\Outbox;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
-use App\Models\Server\ThreadActor;
-use App\Models\Server\User;
-use App\Support\Channels\ChannelSkillContextResolver;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Support\Collection;
 
 class EnqueueThreadMessageOutbox
 {
-    public function __construct(
-        protected ChannelSkillContextResolver $channelSkillContextResolver,
-    ) {}
-
     /**
      * @return Collection<int, Outbox>
      */
@@ -106,66 +100,6 @@ class EnqueueThreadMessageOutbox
     protected function resolveFanoutTargets(Thread $thread, Post $post): array
     {
         $sender = $post->sender();
-        $actorTargets = $thread->actors()
-            ->whereIn('role', [ThreadActor::RoleMember, ThreadActor::RoleListener])
-            ->where('status', ThreadActor::StatusActive)
-            ->get()
-            ->flatMap(function (ThreadActor $actor): array {
-                if ($actor->actorable_type === User::class && $actor->actorable_id !== null) {
-                    return [];
-                }
-
-                $config = is_array($actor->config) ? $actor->config : [];
-                $targets = data_get($config, 'outbox.targets');
-
-                if (! is_array($targets)) {
-                    $singleProtocol = $this->normalizedProtocol(data_get($config, 'outbox.protocol') ?? data_get($config, 'protocol'));
-                    $singleProvider = $this->normalizedProvider(data_get($config, 'outbox.provider') ?? data_get($config, 'provider'));
-                    $singleTarget = $this->normalizedTarget(data_get($config, 'outbox.target') ?? data_get($config, 'target'));
-
-                    if ($singleProtocol === null || $singleTarget === null) {
-                        return [];
-                    }
-
-                    return [[
-                        'protocol' => $singleProtocol,
-                        'provider' => $singleProvider,
-                        'target' => $singleTarget,
-                        'route_key' => "{$singleProtocol}:".($singleProvider ?? 'default').":{$singleTarget}",
-                    ]];
-                }
-
-                return collect($targets)
-                    ->map(function (mixed $target): ?array {
-                        if (! is_array($target)) {
-                            return null;
-                        }
-
-                        if (($target['enabled'] ?? true) === false) {
-                            return null;
-                        }
-
-                        $protocol = $this->normalizedProtocol($target['protocol'] ?? null);
-                        $provider = $this->normalizedProvider($target['provider'] ?? null);
-                        $endpoint = $this->normalizedTarget($target['target'] ?? null);
-
-                        if ($protocol === null || $endpoint === null) {
-                            return null;
-                        }
-
-                        return [
-                            'protocol' => $protocol,
-                            'provider' => $provider,
-                            'target' => $endpoint,
-                            'route_key' => "{$protocol}:".($provider ?? 'default').":{$endpoint}",
-                        ];
-                    })
-                    ->filter(fn (mixed $target): bool => is_array($target))
-                    ->values()
-                    ->all();
-            })
-            ->values();
-
         $channelTargets = $this->resolveChannelAddresses($thread)
             ->map(function (ChannelAddress $address) use ($post, $sender, $thread): ?array {
                 $route = $address->route;
@@ -227,102 +161,100 @@ class EnqueueThreadMessageOutbox
                     ?? $this->normalizedProvider($channel->driver)
                     ?? Channel::ProtocolGeneric;
                 $addressable = $address->addressable;
-                $skillContext = $this->channelSkillContextResolver->resolve($channel, $route, $address, $post);
+                $payload = [
+                    'event' => 'thread.post.created',
+                    'occurred_at' => optional($post->occurred_at ?? $post->created_at)?->toIso8601String(),
+                    'channel' => [
+                        'id' => $channel->uuid,
+                        'driver' => $channel->driver,
+                        'name' => $channel->name,
+                        'direction' => $channelDirection,
+                        'status' => $channel->status,
+                    ],
+                    'route' => [
+                        'id' => $route->ulid,
+                        'name' => $route->name,
+                        'label' => $route->label,
+                        'status' => $route->status,
+                        'direction' => $routeDirection,
+                        'config' => $routeConfig,
+                        'data' => $routeData,
+                        'meta' => $routeMeta,
+                    ],
+                    'address' => [
+                        'id' => $address->ulid,
+                        'label' => $address->label,
+                        'provider' => $provider,
+                        'target' => $target,
+                        'target_type' => $address->target_type,
+                        'status' => $address->status,
+                        'direction' => $addressDirection,
+                        'addressable' => [
+                            'type' => $addressable instanceof EloquentModel ? strtolower(class_basename($addressable)) : null,
+                            'id' => $addressable instanceof EloquentModel ? $this->publicIdentifier($addressable) : null,
+                        ],
+                        'data' => $addressData,
+                        'meta' => $addressMeta,
+                    ],
+                    'thread' => [
+                        'id' => $thread->uuid,
+                        'purpose' => $thread->purpose,
+                        'title' => $thread->title,
+                        'phase' => $thread->phase,
+                        'status' => $thread->status,
+                    ],
+                    'space' => $this->spacePayload($thread),
+                    'post' => [
+                        'id' => $post->ulid,
+                        'type' => $post->type,
+                        'tag' => $post->tag,
+                        'text' => $post->text,
+                        'data' => is_array($post->data) ? $post->data : [],
+                        'attachments' => $post->attachments,
+                        'meta' => is_array($post->meta) ? $post->meta : [],
+                        'created_at' => optional($post->created_at)?->toIso8601String(),
+                    ],
+                    'sender' => $this->senderPayload($sender),
+                    'recipients' => [[
+                        'address_id' => $address->ulid,
+                        'provider' => $provider,
+                        'target' => $target,
+                        'target_type' => $address->target_type,
+                    ]],
+                    'delivery' => [
+                        'provider' => $provider,
+                        'target' => $target,
+                        'channel' => [
+                            'id' => $channel->uuid,
+                            'driver' => $channel->driver,
+                        ],
+                        'route' => [
+                            'id' => $route->ulid,
+                            'name' => $route->name,
+                            'direction' => $routeDirection,
+                            'status' => $route->status,
+                            'config' => $routeConfig,
+                        ],
+                        'address' => [
+                            'id' => $address->ulid,
+                            'direction' => $addressDirection,
+                            'status' => $address->status,
+                            'provider' => $provider,
+                            'target' => $target,
+                            'target_type' => $address->target_type,
+                            'data' => $addressData,
+                        ],
+                    ],
+                ];
+                $event = new PreparingChannelOutboxPayload($post, $channel, $route, $address, $payload);
+                event($event);
 
                 return [
                     'protocol' => ChannelProtocol::Key,
                     'provider' => $provider,
                     'target' => $target,
                     'route_key' => 'channel_address:'.$address->id,
-                    'payload' => [
-                        'event' => $this->invocationId($post) !== null
-                            ? 'invocation.available'
-                            : 'thread.post.created',
-                        'occurred_at' => optional($post->occurred_at ?? $post->created_at)?->toIso8601String(),
-                        'channel' => [
-                            'id' => $channel->uuid,
-                            'driver' => $channel->driver,
-                            'name' => $channel->name,
-                            'direction' => $channelDirection,
-                            'status' => $channel->status,
-                        ],
-                        'route' => [
-                            'id' => $route->ulid,
-                            'name' => $route->name,
-                            'label' => $route->label,
-                            'status' => $route->status,
-                            'direction' => $routeDirection,
-                            'config' => $routeConfig,
-                            'data' => $routeData,
-                            'meta' => $routeMeta,
-                        ],
-                        'address' => [
-                            'id' => $address->ulid,
-                            'label' => $address->label,
-                            'provider' => $provider,
-                            'target' => $target,
-                            'target_type' => $address->target_type,
-                            'status' => $address->status,
-                            'direction' => $addressDirection,
-                            'addressable' => [
-                                'type' => $addressable instanceof EloquentModel ? strtolower(class_basename($addressable)) : null,
-                                'id' => $addressable instanceof EloquentModel ? $this->publicIdentifier($addressable) : null,
-                            ],
-                            'data' => $addressData,
-                            'meta' => $addressMeta,
-                        ],
-                        'thread' => [
-                            'id' => $thread->uuid,
-                            'purpose' => $thread->purpose,
-                            'title' => $thread->title,
-                            'phase' => $thread->phase,
-                            'status' => $thread->status,
-                        ],
-                        'space' => $this->spacePayload($thread),
-                        'post' => [
-                            'id' => $post->ulid,
-                            'type' => $post->type,
-                            'tag' => $post->tag,
-                            'text' => $post->text,
-                            'data' => is_array($post->data) ? $post->data : [],
-                            'attachments' => $post->attachments,
-                            'meta' => is_array($post->meta) ? $post->meta : [],
-                            'created_at' => optional($post->created_at)?->toIso8601String(),
-                        ],
-                        'invocation' => $this->invocationPayload($post),
-                        'sender' => $this->senderPayload($sender),
-                        'recipients' => [[
-                            'address_id' => $address->ulid,
-                            'provider' => $provider,
-                            'target' => $target,
-                            'target_type' => $address->target_type,
-                        ]],
-                        'delivery' => [
-                            'provider' => $provider,
-                            'target' => $target,
-                            'channel' => [
-                                'id' => $channel->uuid,
-                                'driver' => $channel->driver,
-                            ],
-                            'route' => [
-                                'id' => $route->ulid,
-                                'name' => $route->name,
-                                'direction' => $routeDirection,
-                                'status' => $route->status,
-                                'config' => $routeConfig,
-                            ],
-                            'address' => [
-                                'id' => $address->ulid,
-                                'direction' => $addressDirection,
-                                'status' => $address->status,
-                                'provider' => $provider,
-                                'target' => $target,
-                                'target_type' => $address->target_type,
-                                'data' => $addressData,
-                            ],
-                            'skill_context' => $skillContext,
-                        ],
-                    ],
+                    'payload' => $event->payload,
                 ];
             })
             ->filter(fn (mixed $target): bool => is_array($target))
@@ -330,7 +262,6 @@ class EnqueueThreadMessageOutbox
             ->all();
 
         return collect()
-            ->merge($actorTargets)
             ->merge($channelTargets)
             ->unique(fn (array $target): string => (string) $target['route_key'])
             ->values()
@@ -428,10 +359,7 @@ class EnqueueThreadMessageOutbox
                 'meta' => is_array($post->meta) ? $post->meta : [],
                 'created_at' => optional($post->created_at)?->toIso8601String(),
             ],
-            'event' => $this->invocationId($post) !== null
-                ? 'invocation.available'
-                : 'thread.post.created',
-            'invocation' => $this->invocationPayload($post),
+            'event' => 'thread.post.created',
             'delivery' => [
                 'provider' => $target['provider'] ?? null,
                 'target' => $target['target'] ?? null,
@@ -440,34 +368,6 @@ class EnqueueThreadMessageOutbox
                 'id' => $thread->uuid,
             ],
         ];
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    protected function invocationPayload(Post $post): ?array
-    {
-        $invocationId = $this->invocationId($post);
-
-        if ($invocationId === null) {
-            return null;
-        }
-
-        return [
-            'id' => $invocationId,
-            'node' => [
-                'type' => 'post',
-                'id' => $post->ulid,
-            ],
-            'turns_url' => route('api.form.turns.index', [
-                'invocation' => $invocationId,
-            ]),
-        ];
-    }
-
-    protected function invocationId(Post $post): ?string
-    {
-        return $this->normalizedString(data_get($post->meta, 'invocation_id'));
     }
 
     protected function normalizedProtocol(mixed $value): ?string

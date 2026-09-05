@@ -2,24 +2,20 @@
 
 namespace App\Features\Operations\Chat;
 
-use App\Features\Actions\Chat\ApplyReceivedMessageA2uiMetadata;
+use App\Events\Server\Chat\PreparingMessageResponse;
+use App\Features\Actions\Chat\ApplyReceivedMessageData;
 use App\Features\Actions\Chat\CacheIdempotentConversationMessage;
-use App\Features\Actions\Chat\FindAssistantRepliesForMessage;
 use App\Features\Actions\Chat\FindExistingIdempotentConversationMessage;
 use App\Features\Actions\Chat\NormalizeInboundConversationPayload;
-use App\Features\Actions\Chat\QueuePresenterReplies;
-use App\Features\Actions\Chat\ResolveActiveThreadPresenters;
 use App\Features\Actions\Chat\ResolveConversationAttachments;
 use App\Features\Actions\Chat\ResolveConversationIdempotencyKey;
 use App\Features\Actions\Chat\ResolveConversationSpaceContext;
 use App\Features\Actions\Chat\ResolveConversationThreadContext;
 use App\Features\Actions\Chat\SendPeerThreadMessage;
 use App\Models\Server\Post;
+use App\Models\Server\Space;
 use App\Models\Server\Thread;
-use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
-use App\Support\Orchestrate\ResolveObserverDispatchPolicy;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 
 class SubmitChatMessageOperation
@@ -30,15 +26,11 @@ class SubmitChatMessageOperation
         protected ResolveConversationThreadContext $resolveConversationThreadContext,
         protected NormalizeInboundConversationPayload $normalizeInboundConversationPayload,
         protected SendPeerThreadMessage $sendPeerThreadMessage,
-        protected ApplyReceivedMessageA2uiMetadata $applyReceivedMessageA2uiMetadata,
-        protected ResolveActiveThreadPresenters $resolveActiveThreadPresenters,
+        protected ApplyReceivedMessageData $applyReceivedMessageData,
         protected ResolveConversationAttachments $resolveConversationAttachments,
         protected ResolveConversationIdempotencyKey $resolveConversationIdempotencyKey,
         protected FindExistingIdempotentConversationMessage $findExistingIdempotentConversationMessage,
-        protected FindAssistantRepliesForMessage $findAssistantRepliesForMessage,
         protected CacheIdempotentConversationMessage $cacheIdempotentConversationMessage,
-        protected QueuePresenterReplies $queuePresenterReplies,
-        protected ResolveObserverDispatchPolicy $resolveObserverDispatchPolicy,
     ) {}
 
     /**
@@ -47,7 +39,6 @@ class SubmitChatMessageOperation
      *     space?: mixed,
      *     thread?: mixed,
      *     content?: mixed,
-     *     extra?: mixed,
      *     attachments?: array<int, mixed>,
      *     idempotency_key?: mixed
      * }  $input
@@ -59,16 +50,11 @@ class SubmitChatMessageOperation
         $spaceUuid = $input['space'] ?? null;
         $threadUuid = $input['thread'] ?? null;
         $contentPayload = $input['content'] ?? [];
-        $extraPayload = $input['extra'] ?? [];
-        $extraPayload = is_array($extraPayload) ? $extraPayload : [];
         $normalizedPayload = $this->normalizeInboundConversationPayload->execute(
             is_array($contentPayload) ? $contentPayload : [],
-            $extraPayload,
         );
-        $a2uiActions = $normalizedPayload['actions'];
-        $a2uiErrors = $normalizedPayload['errors'];
-        $a2uiClientDataModel = $normalizedPayload['client_data_model'];
-        $a2uiClientCapabilities = $normalizedPayload['client_capabilities'];
+        $actions = $normalizedPayload['actions'];
+        $errors = $normalizedPayload['errors'];
         $thread = null;
 
         if (is_string($threadUuid) && $threadUuid !== '') {
@@ -82,15 +68,12 @@ class SubmitChatMessageOperation
 
         $normalizedRequestContent = $normalizedPayload['text'];
 
-        $decision = $this->resolveConversationThreadOperation->run(
+        $thread = $this->resolveConversationThreadOperation->run(
             space: $space,
             actor: $actor,
             thread: $thread,
         );
-        $thread = $decision->thread;
 
-        $observerPolicy = $this->resolveObserverDispatchPolicy->forThread($thread);
-        $activePresenters = $this->resolveActiveThreadPresenters->execute($thread);
         $attachmentFiles = $this->resolveConversationAttachments->execute(
             is_array($input['attachments'] ?? null) ? $input['attachments'] : [],
         );
@@ -112,37 +95,22 @@ class SubmitChatMessageOperation
                 ])->save();
             }
 
-            $existingAssistantMessages = $this->findAssistantRepliesForMessage->execute($thread, $existingUserMessage, $activePresenters);
-            $firstAssistantMessage = $existingAssistantMessages->first();
-            $expectedPresenterReplyCount = $this->expectedPresenterReplyCount($activePresenters);
-            $pendingReplies = $existingAssistantMessages->count() < $expectedPresenterReplyCount;
-
-            return [
-                'status' => 200,
-                'body' => [
+            return $this->prepareResponse(
+                post: $existingUserMessage,
+                thread: $thread,
+                space: $space,
+                actor: $actor,
+                status: 200,
+                body: [
                     'message' => 'Message already submitted.',
                     'thread' => $thread->uuid,
                     'space' => $space->uuid,
                     'broadcast_channel' => $broadcastSpaceId,
-                    'interaction_mode' => $observerPolicy['interaction_mode'],
-                    'observer_status' => $observerPolicy['status'],
-                    'text' => $firstAssistantMessage?->text,
                     'post_id' => $existingUserMessage->ulid,
-                    'assistant_post_id' => $firstAssistantMessage?->ulid,
-                    'assistant_posts' => $existingAssistantMessages
-                        ->map(fn (Post $message): array => [
-                            'id' => $message->ulid,
-                            'actor_key' => data_get($message->meta, 'actor_key'),
-                            'text' => $message->text,
-                            'created_at' => optional($message->created_at)?->toIso8601String(),
-                        ])
-                        ->values()
-                        ->all(),
                     'duplicate' => true,
-                    'pending' => $pendingReplies,
-                    'pending_presenters' => max($expectedPresenterReplyCount - $existingAssistantMessages->count(), 0),
                 ],
-            ];
+                duplicate: true,
+            );
         }
 
         $userMessage = $this->sendPeerThreadMessage->execute(
@@ -151,42 +119,32 @@ class SubmitChatMessageOperation
             actor: $actor,
             text: $content,
             attachments: $attachmentFiles,
-            source: $activePresenters->isNotEmpty() ? 'agent_prompt' : 'peer_message',
-            dispatchObservers: (bool) $observerPolicy['should_dispatch'],
+            source: 'peer_message',
         );
-        $this->applyReceivedMessageA2uiMetadata->execute(
+        $this->applyReceivedMessageData->execute(
             $userMessage,
-            $a2uiActions,
-            $a2uiErrors,
-            $a2uiClientDataModel,
-            $a2uiClientCapabilities,
+            $actions,
+            $errors,
         );
-
-        if ($activePresenters->isNotEmpty()) {
-            $this->queuePresenterReplies->execute($thread, $userMessage, $actor, $activePresenters, $broadcastSpaceId);
-        }
 
         $this->cacheIdempotentConversationMessage->execute($thread, $actor, $idempotencyKey, $userMessage);
 
-        return [
-            'status' => $activePresenters->isNotEmpty() ? 202 : 200,
-            'body' => [
-                'message' => $activePresenters->isNotEmpty() ? 'Agent response queued.' : 'Message sent.',
+        return $this->prepareResponse(
+            post: $userMessage,
+            thread: $thread,
+            space: $space,
+            actor: $actor,
+            status: 200,
+            body: [
+                'message' => 'Message sent.',
                 'thread' => $thread->uuid,
                 'space' => $space->uuid,
                 'broadcast_channel' => $broadcastSpaceId,
-                'interaction_mode' => $observerPolicy['interaction_mode'],
-                'observer_status' => $observerPolicy['status'],
                 'post_id' => $userMessage->ulid,
-                'assistant_post_id' => null,
-                'pending_presenters' => $activePresenters->isNotEmpty()
-                    ? $this->expectedPresenterReplyCount($activePresenters)
-                    : 0,
-                'pending' => $activePresenters->isNotEmpty(),
-                'message_action_accepted' => $a2uiActions !== [],
-                'message_error_accepted' => $a2uiErrors !== [],
+                'message_action_accepted' => $actions !== [],
+                'message_error_accepted' => $errors !== [],
             ],
-        ];
+        );
     }
 
     protected function broadcastSpaceIdForThread(Thread $thread): string
@@ -195,14 +153,32 @@ class SubmitChatMessageOperation
     }
 
     /**
-     * @param  Collection<int, ThreadActor>  $activePresenters
+     * @param  array<string, mixed>  $body
+     * @return array{status: int, body: array<string, mixed>}
      */
-    protected function expectedPresenterReplyCount(Collection $activePresenters): int
-    {
-        return $activePresenters
-            ->map(fn (ThreadActor $presenter): string => $presenter->actorName())
-            ->filter(fn (?string $actorKey): bool => is_string($actorKey) && $actorKey !== '')
-            ->unique()
-            ->count();
+    protected function prepareResponse(
+        Post $post,
+        Thread $thread,
+        Space $space,
+        User $actor,
+        int $status,
+        array $body,
+        bool $duplicate = false,
+    ): array {
+        $event = new PreparingMessageResponse(
+            post: $post,
+            thread: $thread,
+            space: $space,
+            actor: $actor,
+            body: $body,
+            status: $status,
+            duplicate: $duplicate,
+        );
+        event($event);
+
+        return [
+            'status' => $event->status,
+            'body' => $event->body,
+        ];
     }
 }

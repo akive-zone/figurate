@@ -30,17 +30,6 @@ class UserCapabilityTest extends TestCase
         $this->assertTrue($user->canUseInteractiveTransport());
     }
 
-    public function test_robot_users_can_use_interactive_transport_without_marketplace_access(): void
-    {
-        $user = new User([
-            'type' => User::TypeRobot,
-        ]);
-
-        $this->assertFalse($user->canActAsEndUser());
-        $this->assertFalse($user->canAccessMarketplace());
-        $this->assertTrue($user->canUseInteractiveTransport());
-    }
-
     public function test_legacy_widget_aliases_are_not_treated_as_widget_users(): void
     {
         $legacyAliasUser = new User([
@@ -56,13 +45,12 @@ class UserCapabilityTest extends TestCase
         $this->assertFalse($legacyMachineAliasUser->canActAsEndUser());
     }
 
-    public function test_legacy_agent_alias_is_not_treated_as_robot(): void
+    public function test_unknown_account_types_cannot_use_interactive_transport(): void
     {
-        $legacyAgentUser = new User([
-            'type' => 'agent',
+        $unknownUser = new User([
+            'type' => 'automation',
         ]);
 
-        $this->assertFalse($legacyAgentUser->isRobot());
-        $this->assertFalse($legacyAgentUser->canUseInteractiveTransport());
+        $this->assertFalse($unknownUser->canUseInteractiveTransport());
     }
 }

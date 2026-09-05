@@ -20,7 +20,7 @@ class CurrentUserApiTest extends TestCase
 
         Sanctum::actingAs($user, [
             TokenAbility::Compose->value,
-            TokenAbility::McpUse->value,
+            TokenAbility::NodesRead->value,
         ]);
 
         $this->getJson('/api/auth/user')
@@ -32,7 +32,7 @@ class CurrentUserApiTest extends TestCase
                     'status' => 'active',
                     'abilities' => [
                         TokenAbility::Compose->value,
-                        TokenAbility::McpUse->value,
+                        TokenAbility::NodesRead->value,
                     ],
                 ],
             ]);
@@ -48,7 +48,7 @@ class CurrentUserApiTest extends TestCase
 
         $this->patchJson('/api/auth/user', [
             'name' => 'After',
-            'type' => User::TypeRobot,
+            'type' => 'administrator',
         ])
             ->assertOk()
             ->assertJsonPath('data.id', $user->uuid)

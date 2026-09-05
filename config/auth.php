@@ -21,6 +21,11 @@ return [
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
     ],
 
+    'interactive_user_types' => [
+        User::TypeSubject,
+        User::TypeWidget,
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Authentication Guards

@@ -2,13 +2,13 @@
 
 namespace App\Notifications\Server\Chat;
 
-use App\Ai\Storage\ConversationPersistenceResolver;
+use App\Events\Server\Notifications\RoutingNotificationChannels;
 use App\Models\Server\Inbox;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
 use App\Models\Server\User;
-use App\Notifications\Support\ConversationTransportRouter;
+use App\Notifications\Channels\CoordinationChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -23,64 +23,23 @@ class ThreadMessageNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return (new ConversationTransportRouter)->channelsFor($notifiable, $this);
+        if (! app()->bound('events')) {
+            return [CoordinationChannel::class];
+        }
+
+        $event = new RoutingNotificationChannels(
+            notifiable: $notifiable,
+            notification: $this,
+            channels: [CoordinationChannel::class],
+        );
+        event($event);
+
+        return $event->channels;
     }
 
     public function toInbox(object $notifiable): ?Post
     {
         return $notifiable instanceof User ? $this->post : null;
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    public function toCoordination(object $notifiable): ?array
-    {
-        if (! $notifiable instanceof User || ! $notifiable->isRobot()) {
-            return null;
-        }
-
-        return [
-            'thread' => $this->resolveThread(),
-            'space' => $this->resolveSpace($this->resolveThread()),
-            'message' => $this->post,
-            'recipient' => $notifiable,
-            'source' => $this->source(),
-            'conversation_persistence' => $this->conversationPersistenceMode(),
-            'payload' => $this->payload(),
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    public function toPromptTransport(object $notifiable): ?array
-    {
-        if (! $notifiable instanceof User || ! $notifiable->isRobot()) {
-            return null;
-        }
-
-        return [
-            'thread' => $this->resolveThread(),
-            'space' => $this->resolveSpace($this->resolveThread()),
-            'message' => $this->post,
-            'recipient' => $notifiable,
-            'source' => $this->source(),
-            'conversation_persistence' => $this->conversationPersistenceMode(),
-        ];
-    }
-
-    public function transportChannelName(object $notifiable): string
-    {
-        if (! $notifiable instanceof User || ! $notifiable->isRobot()) {
-            return ConversationTransportRouter::Coordination;
-        }
-
-        return match ($this->conversationPersistenceMode()) {
-            ConversationPersistenceResolver::ThreadCompletion => ConversationTransportRouter::Completion,
-            ConversationPersistenceResolver::ThreadContinuation => ConversationTransportRouter::Continuation,
-            default => ConversationTransportRouter::Coordination,
-        };
     }
 
     /**
@@ -120,7 +79,6 @@ class ThreadMessageNotification extends Notification
                 'type' => $this->post->type,
                 'text' => $text !== '' ? $text : null,
                 'source' => $source,
-                'conversation_persistence' => $this->conversationPersistenceMode(),
                 'senderable_type' => $this->post->senderable_type,
                 'senderable_id' => $this->post->senderable_id,
                 'attachments_count' => count(is_array($this->post->attachments) ? $this->post->attachments : []),
@@ -180,19 +138,11 @@ class ThreadMessageNotification extends Notification
             : 'thread_message';
     }
 
-    protected function conversationPersistenceMode(): ?string
-    {
-        return ConversationPersistenceResolver::normalizeMode(
-            data_get($this->post->meta, 'conversation_persistence')
-        );
-    }
-
     protected function fallbackTitle(string $source): string
     {
         return match (true) {
             $source === 'peer_message' => 'New message',
             str_ends_with($source, '_inbound') => 'External update',
-            str_contains($source, 'agent') || str_contains($source, 'observer') => 'Agent update',
             default => 'Conversation update',
         };
     }

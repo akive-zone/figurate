@@ -41,7 +41,7 @@ class IngestInboundChatMessageOperation
             return $existingMessage;
         }
 
-        $message = $this->dispatchThreadMessage->execute(ThreadMessageEntry::agentMessage(
+        $message = $this->dispatchThreadMessage->execute(ThreadMessageEntry::systemMessage(
             thread: $thread,
             text: $envelope->text,
             meta: [

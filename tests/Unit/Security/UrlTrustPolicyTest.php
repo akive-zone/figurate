@@ -11,7 +11,7 @@ class UrlTrustPolicyTest extends TestCase
     {
         $policy = app(UrlTrustPolicy::class);
 
-        $result = $policy->authorize('http://localhost:8080/mcp');
+        $result = $policy->authorize('http://localhost:8080/tools');
 
         $this->assertTrue($result['allowed']);
     }
@@ -32,7 +32,7 @@ class UrlTrustPolicyTest extends TestCase
     {
         $policy = app(UrlTrustPolicy::class);
 
-        $result = $policy->authorize('http://example.com/mcp', [
+        $result = $policy->authorize('http://example.com/tools', [
             'allow_http' => false,
             'allow_private_network' => false,
         ]);
@@ -45,7 +45,7 @@ class UrlTrustPolicyTest extends TestCase
     {
         $policy = app(UrlTrustPolicy::class);
 
-        $result = $policy->authorize('https://127.0.0.1:9000/mcp', [
+        $result = $policy->authorize('https://127.0.0.1:9000/tools', [
             'allow_http' => false,
             'allow_private_network' => false,
         ]);
@@ -58,12 +58,12 @@ class UrlTrustPolicyTest extends TestCase
     {
         $policy = app(UrlTrustPolicy::class);
 
-        $allowed = $policy->authorize('https://tools.example.com/mcp', [
+        $allowed = $policy->authorize('https://tools.example.com/api', [
             'allowed_hosts' => ['*.example.com'],
             'allow_http' => false,
             'allow_private_network' => false,
         ]);
-        $denied = $policy->authorize('https://tools.other.com/mcp', [
+        $denied = $policy->authorize('https://tools.other.com/api', [
             'allowed_hosts' => ['*.example.com'],
             'allow_http' => false,
             'allow_private_network' => false,

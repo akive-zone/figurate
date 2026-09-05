@@ -1,6 +1,6 @@
 @api @crm @ticketing
 Feature: Coordinate a CRM support ticket through Figurate
-  In order to add durable agent-assisted work to an existing CRM
+  In order to add durable structured work to an existing CRM
   As a CRM integration
   I want to track a ticket without requiring CRM-specific Figurate endpoints
 

@@ -2,15 +2,11 @@
 
 namespace Figurate\AccountManager\Tests;
 
-use App\Models\Server\AgentConversation;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
 use App\Models\Server\ThreadActor;
-use App\Models\Server\ThreadActorSession;
-use App\Models\Server\ThreadEvent;
 use App\Models\Server\User;
 use App\Models\Server\UserClient;
-use App\Support\Orchestrate\TaskRecord;
 use Figurate\AccountManager\Models\Account;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -161,7 +157,7 @@ class WidgetAccountAttachmentTest extends TestCase
         ]);
     }
 
-    public function test_login_attaches_existing_widget_without_rewriting_actor_scoped_resources(): void
+    public function test_login_attaches_existing_widget_without_rewriting_core_actor_scoped_resources(): void
     {
         $account = Account::query()->create([
             'name' => 'Existing Owner',
@@ -207,42 +203,6 @@ class WidgetAccountAttachmentTest extends TestCase
             'config' => null,
         ]);
 
-        $conversation = AgentConversation::query()->create([
-            'id' => 'conv-widget-login-1',
-            'participant_type' => $widgetUser->getMorphClass(),
-            'participant_id' => $widgetUser->id,
-            'title' => 'Anonymous conversation',
-        ]);
-
-        $session = ThreadActorSession::query()->create([
-            'thread_id' => $thread->id,
-            'thread_actor_id' => $threadActor->id,
-            'user_id' => $widgetUser->id,
-            'conversation_id' => $conversation->id,
-            'provider' => 'openai',
-            'model' => 'gpt-test',
-        ]);
-
-        $taskEvent = ThreadEvent::query()->create([
-            'thread_id' => $thread->id,
-            'thread_actor_id' => $threadActor->id,
-            'post_id' => null,
-            'event_key' => 'agent_task',
-            'layer' => ThreadEvent::LayerExecution,
-            'kind' => ThreadEvent::KindAcp,
-            'operation' => 'task.snapshot',
-            'state' => 'submitted',
-            'payload' => [
-                'task' => [
-                    'uuid' => (string) fake()->uuid(),
-                    'public_id' => (string) fake()->uuid(),
-                    'status' => 'submitted',
-                    'user_id' => $widgetUser->id,
-                    'user_uuid' => $widgetUser->uuid,
-                ],
-            ],
-        ]);
-
         $response = $this->withHeader('X-Widget-User-ID', (string) $widgetUser->uuid)
             ->postJson('/api/auth/login', [
                 'email' => 'existing@example.com',
@@ -267,16 +227,6 @@ class WidgetAccountAttachmentTest extends TestCase
 
         $space->refresh();
         $thread->refresh();
-        $conversation->refresh();
-        $session->refresh();
-        $taskEvent->refresh();
-        $task = TaskRecord::fromEvent($taskEvent);
-
-        $this->assertSame($widgetUser->getMorphClass(), $conversation->participant_type);
-        $this->assertSame($widgetUser->id, $conversation->participant_id);
-        $this->assertSame($widgetUser->id, $session->user_id);
-        $this->assertInstanceOf(TaskRecord::class, $task);
-        $this->assertSame($widgetUser->id, $task->userId);
         $this->assertTrue($space->hasActor($widgetUser));
         $this->assertDatabaseHas('thread_actors', [
             'id' => $threadActor->id,

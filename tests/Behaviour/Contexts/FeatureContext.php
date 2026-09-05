@@ -5,8 +5,6 @@ namespace Tests\Behaviour\Contexts;
 use App\Models\Server\SanctumUser;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceActorState;
-use App\Models\Server\Thread;
-use App\Models\Server\ThreadActor;
 use App\Models\Server\User;
 use Behat\Behat\Context\Context;
 use Behat\Gherkin\Node\PyStringNode;
@@ -17,14 +15,9 @@ use Behat\Step\Given;
 use Behat\Step\Then;
 use Behat\Step\When;
 use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
-use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
-use Laravel\Ai\AiManager;
-use Laravel\Ai\Gateway\FakeTextGateway;
-use Laravel\Ai\Gateway\OpenAi\OpenAiGateway;
-use Laravel\Ai\Providers\OpenAiProvider;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -48,8 +41,6 @@ class FeatureContext implements Context
 
     protected ?Response $response = null;
 
-    protected ?string $originalAiProvider = null;
-
     /**
      * @var array<string, mixed>
      */
@@ -68,12 +59,6 @@ class FeatureContext implements Context
     #[AfterScenario]
     public function finishScenario(): void
     {
-        if ($this->originalAiProvider !== null) {
-            $this->application()->make('config')->set('ai.default', $this->originalAiProvider);
-            $this->application()->make(AiManager::class)->forgetInstance('behaviour');
-            $this->originalAiProvider = null;
-        }
-
         $this->application()->make('auth')->forgetGuards();
         $this->application()->forgetScopedInstances();
     }
@@ -120,60 +105,6 @@ class FeatureContext implements Context
         ]);
 
         $this->memory[$name] = $space->uuid;
-    }
-
-    #[Given('an accessible automated thread exists')]
-    public function anAccessibleAutomatedThreadExists(): void
-    {
-        $this->anAccessibleSpaceExistsAs('space_id');
-
-        $space = Space::query()
-            ->where('uuid', $this->memory['space_id'])
-            ->firstOrFail();
-        $thread = $space->threads()->create([
-            'title' => 'Automated contract review',
-            'purpose' => Thread::PurposeMain,
-            'phase' => Thread::PhaseInitial,
-            'status' => 'open',
-        ]);
-        $thread->actors()->create([
-            'actorable_type' => ThreadActor::ActorCoordinator,
-            'actorable_id' => null,
-            'role' => ThreadActor::RolePresenter,
-            'status' => ThreadActor::StatusActive,
-            'priority' => 1,
-        ]);
-
-        $this->memory['thread_id'] = $thread->uuid;
-    }
-
-    #[Given('the deterministic AI provider responds with:')]
-    public function theDeterministicAiProviderRespondsWith(PyStringNode $response): void
-    {
-        $application = $this->application();
-        $config = $application->make('config');
-        $this->originalAiProvider ??= (string) $config->get('ai.default');
-        $config->set('ai.default', 'behaviour');
-        $config->set('ai.providers.behaviour', [
-            'driver' => 'behaviour',
-            'key' => 'behaviour-test-key',
-        ]);
-
-        $manager = $application->make(AiManager::class);
-        $manager->extend(
-            'behaviour',
-            function (Application $application, array $providerConfig) use ($response): OpenAiProvider {
-                $gateway = (new FakeTextGateway([$response->getRaw()]))
-                    ->preventStrayPrompts();
-
-                return (new OpenAiProvider(
-                    new OpenAiGateway($application->make(Dispatcher::class)),
-                    $providerConfig,
-                    $application->make(Dispatcher::class),
-                ))->useTextGateway($gateway);
-            },
-        );
-        $manager->forgetInstance('behaviour');
     }
 
     #[When('the client sends a :method request to :path')]

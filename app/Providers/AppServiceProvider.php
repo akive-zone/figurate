@@ -50,23 +50,7 @@ class AppServiceProvider extends ServiceProvider
             return 'Database\\Factories\\'.class_basename($modelName).'Factory';
         });
 
-        Passport::tokensCan([
-            'compose' => 'Use message-oriented API capabilities.',
-            'mcp:use' => 'Use MCP servers hosted by Figurate.',
-            'acp:use' => 'Use the ACP transport.',
-            'a2a:message.send' => 'Send A2A messages.',
-            'a2a:task.read' => 'Read A2A task state.',
-            'a2a:task.cancel' => 'Cancel A2A tasks.',
-            'a2a:push.config.manage' => 'Manage A2A push notification configuration.',
-            'nodes:read' => 'Read Space, Thread, and Post nodes.',
-            'nodes:write' => 'Create, update, and delete Space, Thread, and Post nodes.',
-            'edges:read' => 'Explore graph edges.',
-            'edges:write' => 'Create, update, and delete graph edges.',
-            'forms:submit' => 'Submit work through the Form API.',
-            'invocations:read' => 'Read invocation turns.',
-            'channels:manage' => 'Manage channels and remote routes.',
-            'credentials:manage' => 'Manage scoped API credentials.',
-        ]);
+        Passport::tokensCan(config('token-abilities', []));
 
         $this->loadMigrationsFrom(database_path('migrations/server'));
 

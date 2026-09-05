@@ -2,6 +2,8 @@
 
 namespace App\Support\Channels;
 
+use App\Events\Server\Channels\PreparingInboundChannelPayload;
+use App\Events\Server\Chat\ConversationThreadCreated;
 use App\Features\Actions\Chat\InboundMessageEnvelope;
 use App\Features\Operations\Chat\IngestInboundChatMessageOperation;
 use App\Models\Server\Channel;
@@ -9,7 +11,6 @@ use App\Models\Server\ChannelAddress;
 use App\Models\Server\ChannelRoute;
 use App\Models\Server\Space;
 use App\Models\Server\Thread;
-use App\Models\Server\ThreadActor;
 use Illuminate\Http\Request;
 
 class ChannelRouteIngress
@@ -17,7 +18,6 @@ class ChannelRouteIngress
     public function __construct(
         protected ChannelDriverRegistry $channelDriverRegistry,
         protected IngestInboundChatMessageOperation $ingestInboundChatMessageOperation,
-        protected ChannelSkillContextResolver $channelSkillContextResolver,
     ) {}
 
     /**
@@ -109,7 +109,6 @@ class ChannelRouteIngress
             ->normalizeInbound($channel, $payload);
         $address = $this->resolveAddress($route, $normalized);
         $thread = $this->resolveThread($route, $address, $normalized);
-        $skillContext = $this->channelSkillContextResolver->resolve($channel, $route, $address);
         $text = $this->normalizedText($normalized['text'] ?? null);
 
         if ($text === null) {
@@ -126,7 +125,7 @@ class ChannelRouteIngress
             provider: $provider,
             externalActorId: $externalActorId,
             text: $text,
-            payload: $this->normalizedPayload($payload, $normalized, $address, $skillContext, $headers),
+            payload: $this->normalizedPayload($payload, $normalized, $channel, $route, $address, $headers),
         ));
 
         return [
@@ -303,14 +302,7 @@ class ChannelRouteIngress
             'status' => 'open',
         ]);
 
-        $thread->actors()->create([
-            'actorable_type' => ThreadActor::ActorCoordinator,
-            'actorable_id' => null,
-            'role' => ThreadActor::RolePresenter,
-            'status' => ThreadActor::StatusActive,
-            'priority' => 1,
-            'config' => null,
-        ]);
+        ConversationThreadCreated::dispatch($thread);
 
         $route->addresses()->create([
             'addressable_type' => $thread->getMorphClass(),
@@ -358,14 +350,20 @@ class ChannelRouteIngress
      * @param  array<string, mixed>  $normalized
      * @return array<string, mixed>
      */
-    protected function normalizedPayload(array $payload, array $normalized, ChannelAddress $address, array $skillContext, array $headers = []): array
-    {
+    protected function normalizedPayload(
+        array $payload,
+        array $normalized,
+        Channel $channel,
+        ChannelRoute $route,
+        ChannelAddress $address,
+        array $headers = [],
+    ): array {
         $providerMessageId = $this->normalizedString($normalized['provider_message_id'] ?? null);
         $target = $this->normalizedString($normalized['target'] ?? null)
             ?? $this->normalizedString($normalized['provider_identifier'] ?? null)
             ?? $address->target;
 
-        return [
+        $prepared = [
             ...$payload,
             'id' => $providerMessageId ?? ($payload['id'] ?? null),
             'message' => [
@@ -375,9 +373,12 @@ class ChannelRouteIngress
             'target' => $target,
             'provider_identifier' => $target,
             'headers' => $headers,
-            'skill_context' => $skillContext,
             '_normalized' => $normalized,
         ];
+        $event = new PreparingInboundChannelPayload($channel, $route, $address, $prepared);
+        event($event);
+
+        return $event->payload;
     }
 
     protected function normalizeDirection(mixed $value): string

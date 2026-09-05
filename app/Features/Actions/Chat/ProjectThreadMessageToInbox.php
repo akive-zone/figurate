@@ -43,7 +43,6 @@ class ProjectThreadMessageToInbox extends ProjectInbox
         return match (true) {
             $source === 'peer_message' => 'New message',
             str_ends_with($source, '_inbound') => 'External update',
-            str_contains($source, 'agent') || str_contains($source, 'observer') => 'Agent update',
             default => 'Conversation update',
         };
     }

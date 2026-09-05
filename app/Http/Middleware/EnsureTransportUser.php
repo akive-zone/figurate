@@ -17,7 +17,10 @@ class EnsureTransportUser
             return $this->deny($request, 401, 'Authentication is required.');
         }
 
-        $resolvedAllowedTypes = $allowedTypes !== [] ? $allowedTypes : ['subject', 'robot'];
+        $configuredAllowedTypes = config('auth.interactive_user_types', [User::TypeSubject, User::TypeWidget]);
+        $resolvedAllowedTypes = $allowedTypes !== []
+            ? $allowedTypes
+            : (is_array($configuredAllowedTypes) ? $configuredAllowedTypes : []);
 
         if (! collect($resolvedAllowedTypes)->contains(fn (string $allowedType): bool => $this->matchesAllowedType($user, $allowedType))) {
             return $this->deny($request, 403, 'This user type is not allowed to use this transport.');
@@ -31,7 +34,6 @@ class EnsureTransportUser
         if (
             $request->expectsJson()
             || $request->is('api/*')
-            || $request->is('mcp/*')
         ) {
             return response()->json([
                 'message' => $message,
@@ -43,11 +45,6 @@ class EnsureTransportUser
 
     protected function matchesAllowedType(User $user, string $allowedType): bool
     {
-        return match ($allowedType) {
-            'subject' => $user->canActAsHuman(),
-            'widget' => $user->isWidget(),
-            'robot' => $user->isRobot(),
-            default => $user->type === $allowedType,
-        };
+        return $user->type === trim($allowedType);
     }
 }

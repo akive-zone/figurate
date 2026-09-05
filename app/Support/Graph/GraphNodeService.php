@@ -2,7 +2,7 @@
 
 namespace App\Support\Graph;
 
-use App\Features\Actions\Chat\ResolveNodeInvocation;
+use App\Events\Server\Api\PreparingResourcePayload;
 use App\Models\Server\Post;
 use App\Models\Server\Space;
 use App\Models\Server\SpaceRelation;
@@ -17,8 +17,6 @@ use Illuminate\Support\Facades\Gate;
 
 class GraphNodeService
 {
-    public function __construct(protected ResolveNodeInvocation $resolveNodeInvocation) {}
-
     public function resolve(User $actor, string $type, string $nodeId, bool $forUpdate = false): Model
     {
         $node = match ($type) {
@@ -120,11 +118,10 @@ class GraphNodeService
      */
     public function map(Model $node, ?User $actor = null): array
     {
-        return match (true) {
+        $payload = match (true) {
             $node instanceof Space => [
                 'type' => 'space',
                 'id' => $node->uuid,
-                'invocation' => $actor ? $this->resolveNodeInvocation->execute($actor, $node) : null,
                 'attributes' => [
                     'status' => $node->status,
                     'space_count' => $this->childSpacesQuery($node)->count(),
@@ -136,7 +133,6 @@ class GraphNodeService
             $node instanceof Thread => [
                 'type' => 'thread',
                 'id' => $node->uuid,
-                'invocation' => $actor ? $this->resolveNodeInvocation->execute($actor, $node) : null,
                 'attributes' => [
                     'title' => $node->title ?: 'Thread',
                     'purpose' => $node->purpose,
@@ -150,7 +146,6 @@ class GraphNodeService
             $node instanceof Post => [
                 'type' => 'post',
                 'id' => $node->ulid,
-                'invocation' => $actor ? $this->resolveNodeInvocation->execute($actor, $node) : null,
                 'attributes' => [
                     'post_type' => $node->type,
                     'tag' => $node->tag,
@@ -165,6 +160,15 @@ class GraphNodeService
             ],
             default => abort(422, 'Unsupported graph node model.'),
         };
+
+        if (! $actor instanceof User) {
+            return $payload;
+        }
+
+        $event = new PreparingResourcePayload($node, $actor, $payload);
+        event($event);
+
+        return $event->payload;
     }
 
     /**
