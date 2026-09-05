@@ -6,6 +6,7 @@
                 "ext/laravel-gouge/composer.json",
                 "ext/web-view/composer.json",
                 "mod/account-manager/composer.json",
+                "mod/auth/composer.json",
                 "mod/multi-site/composer.json",
                 "mod/multi-space/composer.json"
             ]

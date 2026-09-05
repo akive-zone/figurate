@@ -1,0 +1,23 @@
+{
+    "name": "figurate/auth",
+    "type": "library",
+    "description": "Authentication and service identity module for Akive Figurate",
+    "autoload": {
+        "psr-4": {
+            "Figurate\\Auth\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Figurate\\Auth\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Figurate\\Auth\\FigurateAuthServiceProvider"
+            ]
+        }
+    },
+    "require": {}
+}
